@@ -14,6 +14,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'services/app_update_service.dart';
 import 'services/floating_bubble_service.dart';
+import 'utils/home_destino.dart' show abrirLojaPorId;
 import 'services/foreground_service.dart';
 import 'services/incoming_job_alert.dart';
 import 'services/notification_service.dart';
@@ -87,10 +88,12 @@ import 'screens/admin/admin_carwash_screen.dart';
 import 'screens/admin/admin_encomendas_telefone_screen.dart';
 import 'screens/admin/admin_reativacao_screen.dart';
 import 'screens/admin/admin_support_escalations_screen.dart';
+import 'screens/admin/admin_suporte_conversas_screen.dart';
 import 'screens/admin/admin_tvde_chats_screen.dart';
 import 'screens/admin/admin_tvde_pagos_sem_corrida_screen.dart';
 import 'screens/admin/admin_tvde_roundtrips_screen.dart';
 import 'screens/admin/admin_drivers_screen.dart';
+import 'screens/admin/admin_estafetas_fila_screen.dart';
 import 'screens/admin/admin_tvde_cancellations_screen.dart';
 import 'screens/admin/admin_stuck_reservations_screen.dart';
 import 'screens/admin/admin_platform_settings_screen.dart';
@@ -581,6 +584,24 @@ Future<void> main() async {
     const marca = 'weekly_closeout_';
     final semana = ref.startsWith(marca) ? ref.substring(marca.length) : null;
     nav.pushNamed(rota, arguments: semana);
+  };
+
+  // [08/11/2026 · m6] Tocar no aviso "Restaurante do dia" abre essa loja pelo
+  // mesmo caminho das listas (abrirLojaPorId). Ao nível da app, pela mesma
+  // razão dos ganchos acima. Com a app a arrancar do zero (getInitialMessage)
+  // o Navigator pode ainda não existir: tenta outra vez daqui a 2 s, uma vez.
+  NotificationService.abrirLoja = (restaurantId) {
+    if (restaurantId.isEmpty) return;
+    void abrir() {
+      final ctx = NotificationService.navigatorKey.currentContext;
+      if (ctx != null) unawaited(abrirLojaPorId(ctx, restaurantId));
+    }
+
+    if (NotificationService.navigatorKey.currentContext != null) {
+      abrir();
+    } else {
+      Future<void>.delayed(const Duration(seconds: 2), abrir);
+    }
   };
 
   // TODO: remover após diagnóstico — handlers globais de crash.
@@ -1126,6 +1147,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/tvde/pagos-sem-corrida': (_) =>
               const AdminTvdePagosSemCorridaScreen(),
           '/admin/drivers': (_) => const AdminDriversScreen(),
+          // [08/11/2026 · missão m2] fila de espera + semáforo da conta.
+          '/admin/estafetas': (_) => const AdminEstafetasFilaScreen(),
           '/admin/tvde/cancelamentos': (_) =>
               const AdminTvdeCancellationsScreen(),
           '/admin/reservas/presas': (_) => const AdminStuckReservationsScreen(),
@@ -1152,6 +1175,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/receipts': (_) => const AdminReceiptsScreen(),
           '/admin/support-escalations': (_) =>
               const AdminSupportEscalationsScreen(),
+          // Adendo 1 m4 (08/11/2026): todas as conversas do chat do suporte.
+          // A conversa de uma sessão (/admin/support/sessions/<id>) está no
+          // onGenerateRoute: é o link dos avisos e do push do admin.
+          '/admin/support/conversas': (_) =>
+              const AdminSuporteConversasScreen(),
           '/admin/carwash': (_) => const AdminCarwashScreen(),
           '/admin/encomendas-telefone': (_) =>
               const AdminEncomendasTelefoneScreen(),
@@ -1212,6 +1240,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 settings: settings,
               );
             }
+          }
+          // Adendo 1 m4 (08/11/2026): o aviso "cliente escreveu ao suporte"
+          // (e o push do admin) abre logo a conversa dessa sessão.
+          final sessaoSuporte = sessaoDoLink(name);
+          if (sessaoSuporte != null) {
+            return MaterialPageRoute<void>(
+              builder: (_) =>
+                  AdminSuporteConversaScreen(sessionId: sessaoSuporte),
+              settings: settings,
+            );
           }
           // [Paridade 2026-09-21] avisos de limpeza apontam para
           // /admin/limpeza/{id}; cai na lista de reservas de limpeza.

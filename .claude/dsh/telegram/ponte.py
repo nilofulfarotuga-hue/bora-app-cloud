@@ -20,6 +20,11 @@ Ponte Telegram <-> Dipsy (dsh). Codigo nosso, missao C-liga / C5c-voz (30/10/202
   trabalhar (falha fechada). Audio: "Estou a pensar" se o dsh demorar mais de 20 s.
 - Tudo o que sai passa por um redator que tapa chaves e segredos conhecidos.
 - A credencial do bot vive em ~/.dsh/secrets/telegram-dipsy.token (so o utilizador le). Nunca e escrita em log nem em mensagem.
+- 08/11/2026 (missao m3-dipsy-acesso-total): (a) o dsh corre com HTTPS_PROXY no proxy local com registo (~/.dsh/proxy, so
+  127.0.0.1:47900), que a ponte arranca se nao estiver vivo; (b) AUTORIZACOES: quando a guarda do Dipsy precisa do "sim"
+  (dinheiro, publicar, apagar, sitio novo), a ponte pergunta ao Danilo com botoes Sim/Nao (texto + audio), aceita a resposta
+  so dele e em 10 min, e grava-a assinada (autorizacoes_ponte.py); (c) /rede (categorias da internet do Dipsy) e resumo
+  diario da rede as 21:00.
 
 Uso:  python ponte.py                      (corre a ponte)
       python ponte.py --teste "texto"      (corre um pedido ao dsh e mostra a resposta, sem Telegram)
@@ -49,6 +54,7 @@ except Exception:
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import voz_dipsy as vz  # noqa: E402
+import autorizacoes_ponte as autz  # noqa: E402   (08/11, m3: perguntas ao Danilo antes de dinheiro e do que nao se desfaz)
 
 HOME = os.path.expanduser("~")
 DSH = os.path.join(HOME, ".dsh")
@@ -82,6 +88,45 @@ VAR_PORTEIRO = "DIPSY_PORTEIRO"           # o dsh le a senha desta variavel (cor
 FICH_MOTOR = os.path.join(PASTA, "motor.txt")   # sonnet | opus | gratis (escolhido no Telegram com /sonnet /opus /gratis)
 PATCH_OPUS = os.path.join(DSH, "motor-opus.patch.yml")
 NOMES_MOTOR = {"sonnet": "Claude Sonnet 5.5", "opus": "Claude Opus 5.5", "gratis": "motores grátis (Kilo e Gemini)"}
+
+# 08/11/2026 (m3): internet do Dipsy pelo proxy local com registo (so 127.0.0.1). O porteiro (Tailscale) vai direto.
+PROXY_URL = "http://127.0.0.1:47900"
+PROXY_PY = os.path.join(DSH, "proxy", "proxy.py")
+SEM_PROXY = "localhost,127.0.0.1,::1,100.120.181.115,bora-vps.tail41776c.ts.net"
+FICH_RESUMO_REDE = os.path.join(PASTA, "resumo-rede.txt")
+HORA_RESUMO_REDE = 21
+
+
+def proxy_vivo():
+    try:
+        with socket.create_connection(("127.0.0.1", 47900), timeout=2):
+            return True
+    except OSError:
+        return False
+
+
+def garantir_proxy():
+    """Arranca o proxy do Dipsy se nao estiver vivo (sem as variaveis de proxy, para nunca passar por si proprio)."""
+    if proxy_vivo():
+        return True
+    try:
+        env = {k: v for k, v in os.environ.items() if not re.match(r"(?i)^(https?|all|no)_proxy$", k)}
+        exe = sys.executable
+        if exe.lower().endswith("python.exe"):
+            exe = exe[:-10] + "pythonw.exe"
+        subprocess.Popen([exe, PROXY_PY], env=env, cwd=os.path.dirname(PROXY_PY), creationflags=NO_WINDOW | 0x00000008,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception as e:
+        log(f"nao consegui arrancar o proxy: {type(e).__name__}")
+        return False
+    for _ in range(20):
+        time.sleep(0.5)
+        if proxy_vivo():
+            log("proxy do Dipsy arrancado pela ponte")
+            return True
+    log("proxy do Dipsy NAO arrancou")
+    return False
+
 
 RESERVAS_PC = [
     ("kilo nemotron (reserva 1)", os.path.join(DSH, "reserva-kilo-nemotron.patch.yml")),
@@ -145,6 +190,31 @@ def _ler_livro():
     credencial = None
     with urllib.request.urlopen(req, timeout=20) as r:
         return {x["pagina"]: x.get("conteudo") or "" for x in json.loads(r.read().decode("utf-8"))}
+
+
+def registar_e2e(fluxo, passo, estado, detalhe):
+    """INSERT de uma linha no e2e_log (fluxo, passo, estado, detalhe). Nunca rebenta a ponte."""
+    import secrets as _s
+    try:
+        with open(FICH_CRED_SUPABASE, encoding="utf-8") as f:
+            credencial = f.readline().split("=", 1)[1].strip()
+        def q(v):
+            v = redigir(str(v))[:3500]
+            tag = "m3" + _s.token_hex(4)
+            return f"${tag}${v}${tag}$"
+        sql = (f"insert into public.e2e_log (fluxo, passo, estado, detalhe, device) values "
+               f"({q(fluxo)}, {q(passo)}, {q(estado)}, {q(detalhe)}, 'pc-dipsy-ponte')")
+        req = urllib.request.Request("https://api.supabase.com/v1/projects/ojykpzwqrtusfeakzrna/database/query",
+                                     data=json.dumps({"query": sql}).encode("utf-8"), method="POST",
+                                     headers={"Authorization": "Bearer " + credencial, "Content-Type": "application/json",
+                                              "User-Agent": "bora-ponte-dipsy/1"})
+        credencial = None
+        with urllib.request.urlopen(req, timeout=20) as r:
+            r.read()
+        return True
+    except Exception as e:
+        log(f"e2e_log falhou ({passo}): {type(e).__name__}")
+        return False
 
 
 def renovar_contexto_livro(forcar=False):
@@ -296,8 +366,9 @@ class Telegram:
         except Exception as e:
             raise RuntimeError(f"{metodo}: {type(e).__name__}") from None
 
-    def enviar(self, chat_id, texto):
-        """Texto INTEIRO, em pedacos de ate 3800 letras cortados em quebras de linha ou espacos. Devolve os ids enviados."""
+    def enviar(self, chat_id, texto, botoes=None):
+        """Texto INTEIRO, em pedacos de ate 3800 letras cortados em quebras de linha ou espacos. Devolve os ids enviados.
+        botoes: teclado (JSON) que vai so no ultimo pedaco."""
         texto = redigir(texto).strip() or "(sem resposta)"
         pedacos = []
         while texto:
@@ -310,9 +381,10 @@ class Telegram:
             pedacos.append(texto[:corte].rstrip())
             texto = texto[corte:].lstrip()
         ids = []
-        for p in pedacos:
+        for i, p in enumerate(pedacos):
             try:
-                r = self.chamar("sendMessage", chat_id=chat_id, text=p, disable_web_page_preview="true")
+                r = self.chamar("sendMessage", chat_id=chat_id, text=p, disable_web_page_preview="true",
+                                reply_markup=botoes if (botoes and i == len(pedacos) - 1) else None)
                 ids.append(r["result"]["message_id"])
             except Exception as e:
                 log(f"falhou o envio de texto: {e}")
@@ -377,6 +449,13 @@ def ambiente():
     s = senha_porteiro()      # a senha do porteiro da VPS (nunca vai para o log)
     if s:
         env[VAR_PORTEIRO] = s
+    # 08/11 (m3): tudo o que o dsh faz na internet passa pelo proxy com registo (o dsh e os filhos leem estas variaveis)
+    for k in ("HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy"):
+        env[k] = PROXY_URL
+    env["NO_PROXY"] = env["no_proxy"] = SEM_PROXY
+    env["NODE_USE_ENV_PROXY"] = "1"      # o fetch do Node (scripts que o Dipsy corre) tambem passa pelo proxy
+    env.pop("ALL_PROXY", None)
+    env.pop("all_proxy", None)
     return env
 
 
@@ -390,13 +469,19 @@ def matar(proc):
             pass
 
 
-def correr_dsh(pedido, estado, sid=None, modo=None):
+CONTINUAR_CORTE = ("A tua resposta anterior foi cortada pelo limite de saída. Continua EXATAMENTE de onde paraste, sem repetir "
+                   "nada do que já escreveste e sem introdução.")
+
+
+def correr_dsh(pedido, estado, sid=None, modo=None, cwd=None, limite_min=None):
     """Corre UM pedido no dsh headless (com reservas). Devolve (texto, motor) ou (None, motivo).
     sid: continua essa sessao do dsh (--session-id). modo: 'planear' liga o modo Planear da guarda (DIPSY_MODO).
     Guarda o id da sessao usada em estado['sid']. Se a guarda dsh-bora nao ligar, para o dsh logo (falha fechada)."""
     curar_agents_md()
+    if not garantir_proxy():
+        log("o dsh vai correr sem proxy vivo: a internet dele falha fechada (so o porteiro responde)")
     renovar_contexto_livro()          # de hora a hora: mapa + regras + erros + indice do livro
-    _, cwd_dsh = pasta_atual()
+    cwd_dsh = cwd or pasta_atual()[1]          # cwd: o lancador DIPSY-MISSAO passa o worktree proprio da missao
     dsh = shutil.which("dsh") or os.path.join(os.environ.get("APPDATA", ""), "npm", "dsh.cmd")
     ultimo_erro = "nenhum motor respondeu"
     env = ambiente()
@@ -430,7 +515,7 @@ def correr_dsh(pedido, estado, sid=None, modo=None):
         final = None
         textos = []
         erros = []
-        limite = time.time() + LIMITE_MINUTOS * 60
+        limite = time.time() + (limite_min or LIMITE_MINUTOS) * 60
 
         def vigia():
             while proc.poll() is None:
@@ -468,6 +553,9 @@ def correr_dsh(pedido, estado, sid=None, modo=None):
                 textos.append(ev["text"])
             elif t == "error":
                 erros.append(str(ev.get("message", ""))[:200])
+            elif t == "status" and ev.get("phase") == "turn_end":
+                motivo = ev.get("reason")                  # o dsh manda {"kind": "completed"} ou {"kind": "max-tokens"}
+                estado["fim_turno"] = motivo.get("kind") if isinstance(motivo, dict) else motivo
         proc.wait()
         estado["proc"] = None
         if estado.get("guarda_falhou"):
@@ -478,6 +566,15 @@ def correr_dsh(pedido, estado, sid=None, modo=None):
             return None, "cancelado"
         resposta = final or ("\n".join(textos) if textos else None)
         if proc.returncode == 0 and resposta:
+            # 08/11 (m3): auto-continuar no headless (o plugin dsh-auto-continue so serve a pagina web): se o turno acabou
+            # por chegar ao limite de saida, pede "continua" na MESMA sessao, ate 3 vezes, e junta as partes.
+            if estado.get("fim_turno") == "max-tokens" and estado.get("sid") and estado.get("continuacoes", 0) < 3:
+                estado["continuacoes"] = estado.get("continuacoes", 0) + 1
+                estado["fim_turno"] = None
+                log(f"resposta cortada pelo limite de saida: continuo a sessao {estado['sid']} (vez {estado['continuacoes']})")
+                mais, _ = correr_dsh(CONTINUAR_CORTE, estado, sid=estado["sid"], modo=modo, cwd=cwd, limite_min=limite_min)
+                if mais:
+                    resposta = resposta.rstrip() + "\n" + mais.lstrip()
             return resposta, nome
         if sid and any(re.search(r"does not exist|cannot be adopted|was recorded in|is live in this process|cannot be driven", e) for e in erros):
             log(f"sessao {sid} ja nao se pode continuar ({erros[0][:120]}); passo a conversa nova")
@@ -585,12 +682,12 @@ class Ponte:
         threading.Thread(target=self._trabalhador_audio, daemon=True).start()
 
     # ---- O UNICO CAMINHO DE ENVIO: texto completo logo + audio do texto inteiro, por pedacos, por ordem ----
-    def dizer(self, chat_id, texto, falado=None):
+    def dizer(self, chat_id, texto, falado=None, botoes=None):
         """TODA a mensagem para o Danilo passa por aqui. `falado` so serve para tirar do audio o que nao se le (rodapes)."""
         texto = (texto or "").strip()
         if not texto:
             return
-        ids = self.tg.enviar(chat_id, texto)
+        ids = self.tg.enviar(chat_id, texto, botoes=botoes)
         item = {"chat": chat_id, "falado": redigir(falado if falado is not None else texto), "ids_texto": ids, "partes": [],
                 "feito": threading.Event()}
         self.fila_audio.put(item)
@@ -640,6 +737,8 @@ class Ponte:
                 "/motor: digo que motor estou a usar e quanto crédito do Claude resta. /sonnet: uso o Claude Sonnet (o normal). "
                 "/opus: uso o Claude Opus, o melhor, para coisas difíceis. /gratis: uso só os motores grátis.\n"
                 "/pasta: digo em que projeto trabalho; /pasta e o nome (em_dia, BoraStudio, jai-site...) muda de projeto.\n"
+                "/rede: as categorias da internet que posso abrir (/rede abrir ou /rede fechar e o nome).\n"
+                "Antes de mexer em dinheiro, publicar, apagar ou abrir um sítio novo, pergunto-te: respondes sim ou não.\n"
                 "/estado diz o que estou a fazer. /parar cancela o que estou a fazer. "
                 "/desligar fecha esta ligação ao Telegram (volta a ligar com o DIPSY no ambiente de trabalho).")
 
@@ -735,6 +834,10 @@ class Ponte:
                 self._agenda_tick()
             except Exception as e:
                 log(f"agenda: {type(e).__name__}: {str(e)[:100]}")
+            try:
+                self._resumo_rede_tick()          # 08/11 (m3): resumo diario da internet do Dipsy, as 21:00
+            except Exception as e:
+                log(f"resumo da rede: {type(e).__name__}")
 
     def _agenda_tick(self):
         d = ler_agenda()
@@ -927,7 +1030,187 @@ class Ponte:
         self.dizer(chat, f"Ouvi: {texto}")
         self.trabalhar(chat, PREFIXO + texto, texto[:70], pensar=True, pedido_danilo=texto)
 
+    # ---- 08/11 (m3): autorizacoes do Danilo ----
+    def _aprovacoes_loop(self):
+        """De 2 em 2 s: manda as perguntas novas, expira as sem resposta, regista as acoes feitas com o sim."""
+        while True:
+            try:
+                self._aprovacoes_tick()
+            except Exception as e:
+                log(f"autorizacoes: {type(e).__name__}: {str(e)[:120]}")
+            time.sleep(2)
+
+    def _aprovacoes_tick(self):
+        agora = time.time()
+        for p in autz.pedidos():
+            pid = p["id"]
+            env = os.path.join(autz.PASTA, f"{pid}.enviado.json")
+            resp = os.path.join(autz.PASTA, f"{pid}.resposta.json")
+            usado = os.path.join(autz.PASTA, f"{pid}.usado.json")
+            reg_uso = os.path.join(autz.PASTA, f"{pid}.registado.json")
+            if not os.path.exists(env) and not os.path.exists(resp):
+                if agora > p.get("expira", 0):        # nunca chegou a ser perguntado a tempo: fica expirado, sem barulho
+                    autz._gravar_resposta(p, "expirado", "nunca-enviado")
+                    continue
+                tem_expl = os.path.exists(os.path.join(autz.PASTA, f"{pid}.explicacao.txt"))
+                if not tem_expl and agora - p.get("criado", agora) < 12:
+                    continue                      # espera uns segundos pela explicacao do Dipsy
+                texto = autz.texto_pergunta(p)
+                item = self.dizer(self.autorizado, texto, botoes=autz.botoes(pid))
+                autz.rede.gravar_atomico(env, json.dumps({"quando": datetime.now().isoformat(timespec="seconds"),
+                                                          "ids": (item or {}).get("ids_texto", [])}))
+                autz.registar_guarda("perguntado", pid, p.get("operacao", ""))
+                log(f"autorizacao: perguntei ao Danilo o pedido {pid} ({p.get('regra')})")
+                self._e2e("pergunta:" + pid, "perguntado", f"{p.get('operacao')} | valor: {p.get('valor')} | destino: "
+                          f"{p.get('destino')} | exato: {str(p.get('detalhe', ''))[:900]}")
+            elif os.path.exists(env) and not os.path.exists(resp) and agora > p.get("expira", 0):
+                autz._gravar_resposta(p, "expirado", "prazo")
+                self.dizer(self.autorizado, f"O pedido {pid} ({p.get('operacao')}) ficou sem resposta 10 minutos: não foi feito.")
+                self._e2e("pergunta:" + pid, "expirado", "sem resposta do Danilo em 10 min: nao feito")
+            elif os.path.exists(usado) and not os.path.exists(reg_uso):
+                autz.rede.gravar_atomico(reg_uso, json.dumps({"quando": datetime.now().isoformat(timespec="seconds")}))
+                autz.registar_guarda("executado", pid, p.get("operacao", ""))
+                self._e2e("executado:" + pid, "ok", f"feito com o sim do Danilo: {p.get('operacao')} | exato: {str(p.get('detalhe', ''))[:900]}")
+
+    def _e2e(self, passo, estado, detalhe):
+        threading.Thread(target=registar_e2e, args=(autz.FLUXO, passo, estado, detalhe), daemon=True).start()
+
+    def _responder_autorizacao(self, pid, estado, origem):
+        ok, texto, p = autz.responder(pid, estado, origem)
+        log(f"autorizacao {pid}: {estado} ({origem}) -> {texto[:80]}")
+        if p is not None:
+            self._e2e("resposta:" + pid, estado if ok else "recusada", f"{origem}: {texto} | {p.get('operacao')}")
+        self.dizer(self.autorizado, texto)
+
+    def _tratar_botao(self, cq):
+        de = (cq.get("from") or {}).get("id")
+        chat = ((cq.get("message") or {}).get("chat") or {}).get("id")
+
+        def aviso_no_botao(texto=None):
+            try:
+                self.tg.chamar("answerCallbackQuery", espera=10, callback_query_id=cq.get("id"), text=(texto or None) and texto[:190])
+            except Exception:
+                pass
+        if de != self.autorizado or chat != self.autorizado:
+            aviso_no_botao()
+            self.ignoradas += 1
+            log("botao de alguem nao autorizado (ignorado)")
+            return
+        m = re.match(r"^apr:([ar][0-9a-f]{7}):(sim|nao)$", str(cq.get("data") or ""))
+        if not m:
+            aviso_no_botao()
+            return
+        pid, estado = m.group(1), m.group(2)
+        ok, texto, p = autz.responder(pid, estado, "botao")
+        aviso_no_botao(texto)
+        log(f"autorizacao {pid}: botao {estado} -> {texto[:80]}")
+        if ok:
+            self._e2e("resposta:" + pid, estado, f"botao: {texto} | {p.get('operacao') if p else ''}")
+            self.dizer(self.autorizado, texto)
+        # 08/11: botao tocado num pedido ja fechado (expirado ou ja respondido): so o aviso no proprio botao, sem
+        # mensagens nem audio (o Danilo tocou 6 vezes seguidas e a ponte respondeu 6 vezes).
+
+    def _resposta_pendente(self, texto, origem):
+        """Se ha perguntas a espera e o texto e um sim/nao, responde. Devolve True se tratou."""
+        pend = autz.pendentes()
+        if not pend:
+            return False
+        mid = re.search(r"\b([ar][0-9a-f]{7})\b", texto or "")
+        estado = autz.interpretar(re.sub(r"\b[ar][0-9a-f]{7}\b", "", texto or "")) if mid else autz.interpretar(texto)
+        if not estado:
+            return False
+        if mid:
+            self._responder_autorizacao(mid.group(1), estado, origem)
+        elif len(pend) == 1:
+            self._responder_autorizacao(pend[0]["id"], estado, origem)
+        else:
+            self.dizer(self.autorizado, f"Há {len(pend)} perguntas à espera. Toca no botão Sim ou Não da pergunta certa, "
+                                        f"ou escreve sim e o número do pedido ({', '.join(p['id'] for p in pend)}).")
+        return True
+
+    def _voz_com_pendentes(self, m):
+        """Audio quando ha perguntas a espera: se for sim/nao responde; senao segue o caminho normal."""
+        chat = self.autorizado
+        try:
+            texto, _ = self._ouvir(m)
+        except Exception as e:
+            self.dizer(chat, f"Não consegui perceber o teu áudio: {e}. Toca no botão Sim ou Não.")
+            return
+        self.dizer(chat, f"Ouvi: {texto}")
+        if self._resposta_pendente(texto, "voz"):
+            return
+        with self.trinco:
+            ocupado = self.trabalho is not None
+        if ocupado:
+            self.dizer(chat, "Ainda estou a trabalhar no pedido anterior. Escreve /parar para o cancelar, ou /corrigir e o que queres diferente.")
+            return
+        self.trabalhar(chat, PREFIXO + texto, texto[:70], pensar=True, pedido_danilo=texto)
+
+    def texto_rede(self, resto):
+        partes = (resto or "").split()
+        if len(partes) >= 2 and partes[0].lower() in ("abrir", "fechar"):
+            alvo = autz.rede.mudar_categoria(partes[1], "aberta" if partes[0].lower() == "abrir" else "fechada")
+            if not alvo:
+                return "Não conheço essa categoria.\n" + autz.rede.resumo_categorias()
+            self._e2e("rede:" + partes[0].lower() + ":" + alvo, "ok", f"/rede {partes[0].lower()} {alvo} pelo Danilo")
+            return f"Combinado: a categoria {alvo} está {'aberta' if partes[0].lower() == 'abrir' else 'fechada'}."
+        vivo = "vivo" if proxy_vivo() else "PARADO"
+        return (f"A internet do Dipsy passa toda pelo proxy com registo (está {vivo}). Categorias:\n" + autz.rede.resumo_categorias() +
+                "\nPara mudar: /rede abrir <categoria> ou /rede fechar <categoria>.")
+
+    def resumo_rede(self, horas=24):
+        """Resumo do registo do proxy nas ultimas horas (para o Danilo, em portugues simples)."""
+        desde = time.time() - horas * 3600
+        tot, perm, barr, perg, por_cat, top_barr, bytes_in = 0, 0, 0, 0, {}, {}, 0
+        try:
+            with open(os.path.join(DSH, "proxy", "registo.jsonl"), encoding="utf-8") as f:
+                for l in f:
+                    try:
+                        j = json.loads(l)
+                        t = datetime.fromisoformat(j["quando"]).timestamp()
+                    except Exception:
+                        continue
+                    if t < desde:
+                        continue
+                    tot += 1
+                    d = j.get("decisao")
+                    if d == "permitido":
+                        perm += 1
+                        por_cat[j.get("categoria") or "?"] = por_cat.get(j.get("categoria") or "?", 0) + 1
+                        bytes_in += int(j.get("recebidos") or 0)
+                    elif d == "pergunta":
+                        perg += 1
+                        top_barr[j.get("dominio")] = top_barr.get(j.get("dominio"), 0) + 1
+                    elif d in ("barrado", "cortado-upload"):
+                        barr += 1
+                        top_barr[j.get("dominio")] = top_barr.get(j.get("dominio"), 0) + 1
+        except FileNotFoundError:
+            pass
+        cats = ", ".join(f"{k} {v}" for k, v in sorted(por_cat.items(), key=lambda x: -x[1])[:6]) or "nenhuma"
+        tb = ", ".join(f"{k} ({v})" for k, v in sorted(top_barr.items(), key=lambda x: -x[1])[:5]) or "nenhum"
+        return (f"Resumo da internet do Dipsy nas últimas {horas} horas: {tot} ligações, {perm} abertas, {barr} barradas e "
+                f"{perg} sítios novos perguntados. Por categoria: {cats}. Recebeu {bytes_in // 1024} KB. "
+                f"Sítios barrados ou perguntados: {tb}.")
+
+    def _resumo_rede_tick(self):
+        agora = datetime.now()
+        if agora.hour != HORA_RESUMO_REDE:
+            return
+        hoje = agora.strftime("%Y-%m-%d")
+        try:
+            with open(FICH_RESUMO_REDE, encoding="utf-8") as f:
+                if f.read().strip() == hoje:
+                    return
+        except Exception:
+            pass
+        with open(FICH_RESUMO_REDE, "w", encoding="utf-8") as f:
+            f.write(hoje)
+        self.dizer(self.autorizado, self.resumo_rede(24))
+
     def tratar(self, u):
+        if u.get("callback_query"):
+            self._tratar_botao(u["callback_query"])
+            return
         m = u.get("message")
         if not m:
             return
@@ -965,6 +1248,14 @@ class Ponte:
         with self.trinco:
             ocupado = self.trabalho is not None or bool(self.objetivo and not self.objetivo.get("fim"))
         ocupado_msg = "Ainda estou a trabalhar no pedido anterior. Escreve /parar para o cancelar, ou /corrigir e o que queres diferente."
+        if not cmd and texto and self._resposta_pendente(texto, "texto"):
+            return
+        if not cmd and eh_voz and autz.pendentes():
+            threading.Thread(target=self._voz_com_pendentes, args=(m,), daemon=True).start()
+            return
+        if cmd == "/rede":
+            self.dizer(quem, self.texto_rede(resto))
+            return
         if cmd in ("/start", "/ajuda", "/help"):
             self.dizer(quem, self.ajuda())
             return
@@ -1154,6 +1445,7 @@ class Ponte:
                 {"command": "voltar", "description": "Voltar atrás: esqueço o último pedido"},
                 {"command": "nova", "description": "Conversa nova"},
                 {"command": "libertar", "description": "Libertar memória do PC"},
+                {"command": "rede", "description": "A internet do Dipsy: categorias abertas e fechadas"},
                 {"command": "agenda", "description": "As tarefas marcadas para uma hora"},
                 {"command": "motor", "description": "Que motor estou a usar e quanto crédito resta"},
                 {"command": "pasta", "description": "Em que projeto trabalho (Bora, Em Dia, BoraStudio, sites...)"},
@@ -1167,12 +1459,14 @@ class Ponte:
         except Exception as e:
             log(f"nao consegui pôr o menu de comandos: {e}")
         threading.Thread(target=self._agenda_loop, daemon=True).start()
+        threading.Thread(target=self._aprovacoes_loop, daemon=True).start()
+        threading.Thread(target=garantir_proxy, daemon=True).start()
         threading.Thread(target=renovar_contexto_livro, kwargs={"forcar": True}, daemon=True).start()
         log("ponte a correr (com agenda)")
         falhas = 0
         while True:
             try:
-                r = self.tg.chamar("getUpdates", espera=65, offset=offset, timeout=50, allowed_updates=json.dumps(["message"]))
+                r = self.tg.chamar("getUpdates", espera=65, offset=offset, timeout=50, allowed_updates=json.dumps(["message", "callback_query"]))
             except Exception as e:
                 falhas += 1
                 log(f"getUpdates falhou ({e}); falha {falhas}")

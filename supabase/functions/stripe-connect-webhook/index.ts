@@ -15,6 +15,7 @@
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { secretKey } from '../_shared/keys.ts';
+import { segredosWebhookConnect } from '../_shared/connect_conta.ts';
 
 const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
 const stripeSecretKey =
@@ -33,21 +34,31 @@ const admin = createClient(
 
 Deno.serve(async (req: Request) => {
   const signature = req.headers.get('stripe-signature');
-  const webhookSecret = Deno.env.get('STRIPE_CONNECT_WEBHOOK_SECRET');
+  // M7 (08/11/2026): aceita a assinatura da Stripe PESSOAL e da EMPRESA
+  // (STRIPE_CONNECT_WEBHOOK_SECRET e STRIPE_CONNECT_WEBHOOK_SECRET_EMPRESA).
+  const segredos = segredosWebhookConnect();
 
-  if (!signature || !webhookSecret) {
+  if (!signature || segredos.length === 0) {
     // Fail-closed: sem secret configurado, nenhum evento é aceite.
     return new Response('Missing stripe-signature or connect webhook secret', { status: 400 });
   }
 
   const body = await req.text();
-  let event: Stripe.Event;
-  try {
-    event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error('[stripe-connect-webhook] signature failed:', msg);
-    return new Response(`Webhook signature error: ${msg}`, { status: 400 });
+  let event: Stripe.Event | null = null;
+  let plataforma = '';
+  let ultimoErro = '';
+  for (const { conta, segredo } of segredos) {
+    try {
+      event = await stripe.webhooks.constructEventAsync(body, signature, segredo);
+      plataforma = conta;
+      break;
+    } catch (err) {
+      ultimoErro = err instanceof Error ? err.message : String(err);
+    }
+  }
+  if (!event) {
+    console.error('[stripe-connect-webhook] signature failed:', ultimoErro);
+    return new Response(`Webhook signature error: ${ultimoErro}`, { status: 400 });
   }
 
   // Conta Connect de origem (eventos de connected accounts trazem event.account).
@@ -76,7 +87,7 @@ Deno.serve(async (req: Request) => {
     return new Response('audit insert failed', { status: 500 });
   }
 
-  console.log('[stripe-connect-webhook] event:', event.type, eventAccount ?? '');
+  console.log('[stripe-connect-webhook] event:', event.type, eventAccount ?? '', 'plataforma:', plataforma);
 
   try {
     switch (event.type) {

@@ -1,4 +1,4 @@
-# dipsy.ps1 - abre o Dipsy pronto a falar: pagina de conversa no navegador (porta 3080, so neste PC) e a ponte do Telegram.
+﻿# dipsy.ps1 - abre o Dipsy pronto a falar: pagina de conversa no navegador (porta 3080, so neste PC) e a ponte do Telegram.
 # Chamado pelo DIPSY.cmd do Ambiente de Trabalho. Codigo nosso, missao C-liga (30/10/2026).
 # Motor gratis (Kilo e, de reserva, Gemini): nunca segredos; dados de clientes so quando a tarefa precisar e nunca em massa.
 $ErrorActionPreference = 'Continue'
@@ -47,6 +47,8 @@ if (Test-Path $cred) {
 }
 
 # 2) conversa no navegador (porta 3080, so neste PC)
+# 08/11/2026 (m3): a internet do Dipsy passa toda pelo proxy local com registo (depois da ponte, que fala direto com o Telegram)
+. 'C:\Users\danil\.dsh\proxy\ligar-proxy.ps1'
 # o servidor abre sozinho o navegador com um endereco que traz uma chave nova (sem ela a pagina dá 401);
 # por isso, se ja houver um servidor a correr, fecha-se e abre-se outro, para o navegador abrir sempre com a chave certa
 $velho = Get-NetTCPConnection -State Listen -LocalPort 3080 -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -63,7 +65,10 @@ try { Invoke-RestMethod -Uri 'http://100.120.181.115:8792/saude' -Headers @{ 'X-
 $senha = $null
 if (-not $porteiroVivo) { $argsWeb += ' --patch "' + (Join-Path $dsh 'reserva-kilo-nemotron.patch.yml') + '"' }
 if ($env:DIPSY_SEM_NAVEGADOR) { $argsWeb += ' --no-open' }   # DIPSY_SEM_NAVEGADOR so serve para testes
-$p = Start-Process -FilePath $exe -ArgumentList $argsWeb -WorkingDirectory $repo -WindowStyle Hidden -PassThru
+# 08/11/2026 (m3): a saida do servidor web fica num registo (para saber porque morre, se morrer)
+$logWeb = Join-Path $dsh ('logs\dipsy-web-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.txt')
+New-Item -ItemType Directory -Force (Join-Path $dsh 'logs') | Out-Null
+$p = Start-Process -FilePath $exe -ArgumentList $argsWeb -WorkingDirectory $repo -WindowStyle Hidden -PassThru -RedirectStandardOutput $logWeb -RedirectStandardError ($logWeb + '.erros')
 Set-Content -Path $pidWeb -Value $p.Id -Encoding ASCII
 $fim = (Get-Date).AddSeconds(150)
 while (-not (PortaAOuvir 3080) -and (Get-Date) -lt $fim) { Start-Sleep -Seconds 2 }
@@ -87,7 +92,8 @@ Linha $(if ($porteiroVivo) { ' Motor: Claude Sonnet (pelo servidor). No Telegram
 Linha ' O Dipsy sabe: ler e escrever ficheiros do projeto, ver o ecrã e fotos,'
 Linha ' consultar a base de dados, ler o teu email da Bora e fazer rascunhos,'
 Linha ' auditar o nosso site e guardar trabalho no git depois de passar no Juiz.'
-Linha ' Não envia emails, não publica nada e não mexe em dinheiro.'
+Linha ' Tem internet com registo (categorias; sítio novo pergunta-te no Telegram).'
+Linha ' Antes de mexer em dinheiro, publicar, enviar ou apagar, pergunta-te no Telegram: sim ou não.'
 Linha
 Linha ' PARA PARAR O DIPSY: carrega numa tecla nesta janela.'
 Linha

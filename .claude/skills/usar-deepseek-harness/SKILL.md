@@ -35,7 +35,7 @@ pode mandar uma tarefa ao dsh em vez de ao Claude Code, com um motor GRÁTIS. In
   `porteiro` em `~/.dsh/cordis.patch.yml`: `baseURL http://100.120.181.115:8792/v1` (Tailscale; o `tailscale serve` do
   contentor do Hermes encaminha para a porta fechada `172.16.1.1:8793` do Motor Bora), `apiKeyEnv DIPSY_PORTEIRO` (senha em
   `~/.dsh/secrets/porteiro.token`; na VPS em `/opt/segredos/porteiro.env`). Modelos: `perfil:claude-dipsy` (Sonnet, padrão,
-  150 s, 8000 tokens, esforço medium, cache automática da conversa), `perfil:claude-opus` (Opus 5.5, só a pedido:
+  150 s, esforço medium; no dsh `maxTokens` 64000 desde 08/11, mas o porteiro ainda corta aos 8000 (ver Falta), cache automática da conversa), `perfil:claude-opus` (Opus 5.5, só a pedido:
   `motor-opus.patch.yml` / `/opus` no Telegram), `perfil:claude-volume` (Haiku). **No PC não há chave da Anthropic.**
   **Nunca** o login do plano Claude no dsh.
 - **Sem ração:** o porteiro só larga o Claude quando a API diz "sem crédito" (402); aí desce a cadeia grátis da VPS e volta
@@ -70,7 +70,7 @@ O cartão "DeepSeek" existe, SEM chave e sem pagar nada. Só se liga com **"auto
 | Gmail, Drive, Calendar (conectores) | MCP `google` (workspace-mcp 2.2.1): Gmail leitura e **rascunhos, sem enviar**, Drive e Calendar só leitura; as duas contas (Bora e pessoal) autorizadas a 30/10 | `user_google_email` = a conta; ferramentas `search_gmail_messages` e `draft_gmail_message`. **Provado a 30/10:** 3 emails da Bora listados (só cabeçalhos) e 1 rascunho criado e lido de volta pela API, nada enviado. Reautorizar: `~/.dsh/google-autorizar.py` |
 | Nano Banana (MCP) | montado e DESLIGADO (chave grátis sem imagens) | `disabled: true` no patch |
 | REA (≈300 ferramentas MCP) | NÃO como MCP; pela shell, com o envólucro `~/.dsh/rea-bora.ps1` (corre o REA 6.8.0 já instalado, sem npm) | só no NOSSO APK, sites e Edge Functions; a guarda recusa alvos de terceiros e o `setup`. **Provado a 30/10:** `doctor` corre dentro do dsh; `capture-web-screenshot` do iFood foi barrado |
-| Hooks e tranca `bora-tranca` | **Guarda própria** (plugin nosso `dsh-bora`, `ctx.tools.guard`): barra push, apagar em massa, segredos, SQL perigoso, escrita nas regras/Juiz/CI, funções de dinheiro; 121 testes offline | automática antes de cada ferramenta; registo em `~/.dsh/guarda.log`. **Provado a 30/10:** `git push`, ler um segredo e `DELETE FROM` foram barrados no dsh. Não tem os hooks do Claude Code (só isto) |
+| Hooks e tranca `bora-tranca` | **Guarda própria** (plugin nosso `dsh-bora` 0.3.0, `ctx.tools.guard`) com DOIS tipos de resposta desde 08/11: **barra** (nunca corre: histórico git, push forçado, ler segredos, apagar dados sem `bkp_`, mudar a própria guarda, comandos codificados, formatar discos, REA a terceiros) e **pergunta** (dinheiro, pedidos, carteiras, tokens, preços, migrações, publicar funções, `git push`, publicar, mensagens para fora, apagar em massa, Stripe, escrever segredos, sistema, instalar): cria um pedido e só corre com o "sim" do Danilo pelo Telegram, uma vez, em 10 min. 314 testes offline (`node --test test/*.mjs`) | automática antes de cada ferramenta; registo em `~/.dsh/guarda.log`; pedidos em `~/.dsh/aprovacoes/`. Não tem os hooks do Claude Code (só isto) |
 | Juiz anti-trapaça antes do commit | `~/.dsh/dsh-commit.ps1` + skill `juiz-dsh` (a guarda barra `git commit` à mão) | corre `anti_trapaca.py` e `zonas_diff.py`; recusa se falharem; nunca faz push. **Provado a 30/10** (batota, zona protegida e segredo recusados; commit limpo passou) |
 | Pesquisa nas sessões antigas | plugin `dsh-session-search` (dsh + Claude Code, só leitura) | `agent_session_search` — **provado** |
 | Olhos (ver imagens e o ecrã) | plugin nosso `dsh-bora`: ferramentas `captura_ecra` (PowerShell) e `ver_imagem` (Gemini) | `ver_imagem` com `origem: "ecra"` ou o caminho de uma imagem. **Provado a 30/10:** descreveu um ecrã de teste com a palavra secreta. A imagem vai para a Google (plano grátis) |
@@ -81,7 +81,11 @@ O cartão "DeepSeek" existe, SEM chave e sem pagar nada. Só se liga com **"auto
 | Passar trabalho ao Claude Code | ferramenta nossa `passar_ao_claude_code` (CLI oficial `claude -p`, sem proxy): `so_ler` ou `editar` (cópia nova do repo, sem push) | **Provado a 30/10:** dentro do dsh, 68 s; modo editar num repo de teste, confirmado por `git diff` |
 | Equipa de agentes + quadro de tarefas | bundle OFICIAL `@deepseek-ai/dsh-experimental-agent-team-profile` (experimental), nos perfis headless e web | **Provado a 30/10:** `spawn_teammate`, `team_task_create`, `wait_agent`, `team_task_list`; 2 colegas leram partes diferentes. Armadilha: `dsh plugin add` do bundle traz uma versão incompatível; pôr o NOME em `dsh.profile.bundles` |
 | Memória própria entre sessões | ferramentas nossas `memorizar`, `lembrar`, `esquecer` + secção no prompt do arranque (`~/.dsh/memoria/memoria.jsonl`) | **Provado a 30/10** no headless: guardar, procurar numa sessão nova e lembrar sem ferramentas |
-| Telemetria e saídas de rede | telemetria oficial DESLIGADA (patch comum e do web); **lista branca da rede** (31/10) na guarda: `web_fetch` e comandos de rede na shell só para sítios nossos (boraguarda.com, `bora-app-web.pages.dev`, o nosso Supabase, o Córtex/VPS, o nosso GitHub, lojas Play/Apple); `web_search` sempre barrado; extra em `~/.dsh/rede-permitida.txt` (o Dipsy não o escreve) | **Medido a 30/10:** só 3 ligações (Kilo, Supabase, Córtex). **Provado a 31/10 no lab:** `web_fetch https://example.com/` e `curl.exe -s https://example.com` BARRADOS (regra `rede-fora-da-lista`) |
+| Telemetria e saídas de rede | telemetria oficial DESLIGADA; desde 08/11 **proxy local com registo** (`~/.dsh/proxy/proxy.py`, só 127.0.0.1:47900) por onde passa TUDO o que o dsh e os filhos fazem na internet (os lançadores e a ponte põem `HTTPS_PROXY`; o porteiro da VPS vai direto pelo `NO_PROXY`; o Claude Code chamado pelo Dipsy nunca vai pelo proxy). Categorias em `~/.dsh/rede-categorias.yml` (bora, pesquisa, documentação, concorrentes, lojas, lei/Estado, testes, painel Stripe só leitura); `sempre_bloqueado`: bancos, despejo de ficheiros e telemetria nunca; API da Stripe, publicar e mensagens só com um passe de 10 min dado pelo "sim" a uma ação. Sítio novo: o proxy e a guarda criam o pedido "Posso abrir X?" e a resposta fica na lista. Categorias "só leitura" cortam ligações que mandem mais de 1 MB para fora. DNS de reserva (dns.google): o router da NOS diz que example.com não existe | registo em `~/.dsh/proxy/registo.jsonl` (domínio, porta, método, bytes, tempo); resumo diário às 21:00 no Telegram; `/rede`, `/rede abrir <categoria>`, `/rede fechar <categoria>` |
+| Pesquisa na internet (WebSearch) | ferramenta nossa `pesquisar_internet` (DuckDuckGo HTML; reserva RSS do Bing), pelo proxy. O `web_search` do próprio dsh só funciona com a DeepSeek paga (sem chave) | "pesquisa X" |
+| Perguntar antes de agir | ferramenta nossa `esperar_autorizacao` + ponte do Telegram (`autorizacoes_ponte.py`): pergunta com OPERAÇÃO, VALOR, DESTINO, o SQL/comando exato e a explicação do Dipsy, botões Sim/Não, em texto e voz; "sim" só do chat do Danilo (botão, texto ou áudio), em 10 min; resposta assinada (HMAC, chave em `~/.dsh/secrets/aprovacoes.key`); uso único; e2e_log fluxo `dipsy-autorizacoes` | automático: a guarda diz PERGUNTEI, o Dipsy chama `esperar_autorizacao` e repete a chamada com o SIM |
+| Missões grandes | **`DIPSY-MISSAO.cmd`** no Ambiente de Trabalho (`~/.dsh/telegram/missao.py`): lê `Desktop\Bora\prompt-dsh.md` (ou `--prompt`), worktree próprio `C:\BoraLocal\wt-dipsy-<missão>` no ramo `ai/AAAA-MM-DD-dipsy-<missão>`, perfil headless com a guarda e o proxy, até 120 min (`--minutos`), e2e_log com fluxo = nome da missão (linha `MISSÃO DIPSY: <nome>`), fecho pelo porteiro da VPS (fila `porteiro_entrada`, texto e voz) | `DIPSY-MISSAO.cmd em_dia` |
+| Respostas compridas | `maxTokens: 64000` nos perfis do porteiro (`cordis.patch.yml`) + a ponte e o DIPSY-MISSAO continuam sozinhos quando o turno acaba em `max-tokens` (até 3 vezes; o plugin `dsh-client-auto-continue` só serve a página web) | automático |
 | `/plan` (modo plano) | `/planear` + `/aprovar` no Telegram: o dsh corre com `DIPSY_MODO=planear` e a guarda BARRA escritas (o `/plan` oficial do `dsh-plan-mode` só existe na página e não restringe nada) | **Provado a 31/10:** `write` barrado com a regra `modo-planear`; `/aprovar` continua a mesma sessão |
 | `/goal` (objetivo) | `/objetivo` no Telegram: rondas na mesma sessão até a última linha dizer `OBJETIVO CUMPRIDO` / `BLOQUEADO` (máx. 6) | **Provado a 31/10:** cumprido na ronda 1 ("hoje 0, ontem 1", conferido por SELECT) |
 | Steer (corrigir a meio) | `/corrigir`: a ponte para o dsh e continua a MESMA sessão (`--session-id`) com a correção | **Provado a 31/10:** poema de 12 versos → "só 2 versos, sobre o Bora" → 2 versos sobre o Bora |
@@ -91,7 +95,7 @@ O cartão "DeepSeek" existe, SEM chave e sem pagar nada. Só se liga com **"auto
 | Libertar memória | ferramenta `libertar_memoria` e botão `/libertar`: correm `~/.dsh/limpar-ram.ps1` em modo normal | **Provado a 31/10:** "antes 2910 MB, depois 2924 MB, nada a fazer (>= 500)" |
 | Hooks nos executores `claude -p` | `passar_ao_claude_code` passa `--settings` com o hook `scripts/guarda-claude-hook.mjs` (`avaliarExecutor`: apagar em massa, DROP/TRUNCATE/DELETE, push forçado, histórico, matar processos, segredos, hooks/definições) | **Provado a 31/10:** `taskkill` e `Write` em `.dsh/agenda` BARRADOS; `git --version` passou. Limite: no `Read` o deny é ignorado (o hook do context-mode deixa passar) |
 | Falha fechada | se o stderr do dsh mostrar que o `dsh-bora` não ligou, a ponte para o dsh (sem guarda não trabalha) | testado offline com a linha real do erro de 31/10 |
-| Chrome (extensão) | nada (`dsh-browser` por compilar) | usar o Claude Code |
+| Chrome (extensão) | nada (`dsh-browser` por compilar) | `passar_ao_claude_code` (o Claude Code nunca vai pelo proxy do Dipsy: a ferramenta tira-lhe as variáveis) |
 | App de computador (Electron) | NÃO instalada: o canal oficial (GitHub releases) não publica instalador; só se compila do código | — |
 
 ## Plugins (auditados com análise estática; nada corre sem passar pelo perfil `lab`)
@@ -112,14 +116,16 @@ O cartão "DeepSeek" existe, SEM chave e sem pagar nada. Só se liga com **"auto
 ## Regras que nunca se quebram
 1. **Nunca** apontar o Claude Code para o dsh como proxy/router (regra de 13/09 e termos da Anthropic de 04/04/2026).
 2. **Nunca** meter contas Claude, ChatGPT/Codex, Gemini por cookie nem OpenCode por login no dsh.
-3. Dinheiro, dispatch, carteira, RLS, push e publicação **nunca** se delegam ao dsh: ele prepara e não aplica sem o
-   "autorizo" do Danilo. Desde 30/10 o dsh ESCREVE na base (ordem do Danilo), com as regras de `~/.agents/AGENTS.md`:
-   nunca apagar dados de produção, nunca reescrever histórico git publicado, pedidos só por `ops_*`, correção só com
-   backup, dados pessoais de clientes só quando a tarefa precisar e nunca em massa, segredos nunca.
+3. Desde 08/11/2026 (ordem do Danilo: "Todas as missões que você pode fazer, ele tem que poder fazer tudinho... e seja parte de
+   dinheiro, é para ele mexer. Qualquer coisa é só para ele me perguntar: você permite? Sim.") o Dipsy PODE mexer em dinheiro,
+   pedidos, carteiras, publicar e fazer push, mas **cada ação** passa pela pergunta no Telegram e só corre com o "sim" dele a
+   essa ação (nunca autorização geral). Proibidos mesmo com "sim": cookies de contas Claude/ChatGPT/Gemini no dsh, proxy à
+   frente do Claude Code, reescrever histórico git publicado, apagar dados de produção sem `bkp_`, segredos para motores
+   grátis, dados pessoais de clientes em massa para motores grátis. Regras escritas em `~/.agents/AGENTS.md`.
 4. Engenharia reversa **só** no nosso APK (`pt.boraapp.bora`) e nos nossos sites; apps de terceiros só para comparar o que
    o utilizador vê (regra do Danilo de 13/10).
 5. Sem app desktop do Harness. Só `dsh` por npm. Não ligar o encaminhamento local (portas 18899/18900) nem relé de rede.
-6. Email para fora sai SEMPRE da conta Bora, e nunca pelo dsh (não tem a permissão de enviar).
+6. Email para fora sai SEMPRE da conta Bora; pelo dsh só com o "sim" do Danilo (o MCP do Google dele só faz rascunhos).
 
 ## Voz: texto E áudio, sempre (regra do Danilo, 30/10/2026)
 - **Dipsy (PC):** um único caminho de envio, `Ponte.dizer` em `~/.dsh/telegram/ponte.py`: texto completo logo + áudio do
@@ -148,6 +154,11 @@ O cartão "DeepSeek" existe, SEM chave e sem pagar nada. Só se liga com **"auto
   segredos das Edge Functions, mas o token, usado por fora do MCP, pode tudo o que a organização pode.
 - Mitigações reais: modelo pago sem chave, Gmail sem permissão de enviar, tokens só com permissão do utilizador, plugins
   só por cópia de commit auditado.
+- **Limites honestos do acesso total (08/11):** o proxy vê o domínio e os bytes, não o conteúdo do HTTPS (sem certificados
+  falsos); o corte de uploads é por tamanho (mais de 1 MB por ligação nas categorias de leitura). A guarda continua a ler o
+  TEXTO do comando: quem o esconder escapa à pergunta, e um programa que ignore `HTTPS_PROXY` sai sem registo (por isso o
+  sandbox de escrita e as regras escritas continuam por baixo). O "sim" é assinado pela ponte (HMAC com uma chave que a guarda
+  não deixa o Dipsy ler) e vale uma vez, para a chamada exata (hash do nome e dos argumentos).
 - Telemetria do dsh: modo `FEEDBACK_ONLY` para `dsh-otel-collector.deepseeksvc.com`.
 
 ## Atualizar
@@ -157,10 +168,18 @@ npm i -g @deepseek-ai/dsh@latest
 Depois correr o `DSH-MISSAO.cmd` (em `~/.dsh/lancadores-antigos`) com uma tarefa pequena. Plugins: `dsh plugin --profile lab add file:<pasta>` (nunca direto no
 `headless`).
 
-## Falta para ser igual ou melhor que o Claude Code
-Conector do Conselho; o corte aos 4.000 caracteres do gateway do Hermes; controlo remoto (login do `claude`, ver
-`remote-control-duas-sessoes`); os hooks do Claude Code (o dsh só tem a guarda do plugin `dsh-bora`); o Read barrado nos
-executores `claude -p` (o hook do context-mode deixa passar); o motor grátis erra contas (31/10 disse 228 tabelas, eram 433).
+## Falta para ser igual ou melhor que o Claude Code (revisto 08/11, missão m3)
+- **Conector do Conselho** (`go_conselho`): falta a senha do Conselho em `~/.dsh/secrets/conselho.token`; com ela é um bloco
+  `mcp-conselho` (streamable-http, `https://conselho.srv1786862.hstgr.cloud`) igual ao do Córtex.
+- **Chrome** (`dsh-browser` por compilar): por agora `passar_ao_claude_code`.
+- **Porteiro da VPS:** a 08/11 uma resposta de ~11 mil tokens (1 a 4000, 190 s) passou inteira pelo perfil claude-dipsy, por
+  isso o tecto antigo de 8000 já não corta; não se confirmou no código (a trava do modo automático barrou o SSH à VPS na
+  sessão m3). Falta também pôr as respostas em fluxo contínuo no `ia_gastos` (essa de 190 s não ficou registada).
+- **Rede na shell do Dipsy:** o TLS do Windows (Schannel) não funciona no sandbox do dsh: `curl.exe` dá
+  `SEC_E_NO_CREDENTIALS` e o `Invoke-WebRequest` "ligação fechada". O PowerShell 5.1 ignora o `HTTPS_PROXY` (a guarda barra
+  o `Invoke-WebRequest` sem `-Proxy`). Na shell, a web faz-se por `python`/`node` (`NODE_USE_ENV_PROXY=1` nos lançadores).
+- O corte aos 4.000 caracteres do gateway do Hermes; controlo remoto (login do `claude`, ver `remote-control-duas-sessoes`);
+  o Read barrado nos executores `claude -p`; o motor grátis erra contas (31/10 disse 228 tabelas, eram 433).
 Voz (31/10): com < 1,5 GB livres vai direto ao Gemini; o whisper local deste PC levou 76 s e errou com 1,55 GB livres.
 Armadilha (31/10): o lab apanhou um erro de esquema (`items.required` não existe no DSL do `dsh-tools`) que DESLIGOU o
 `dsh-bora` inteiro, e com ele a guarda; validar os esquemas antes de promover (carregar o `index.js` com o `dsh-tools` real)

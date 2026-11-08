@@ -1,0 +1,143 @@
+// deno test supabase/functions/client-assistant/amigo_test.ts
+import { assert, assertEquals, assertStringIncludes } from 'https://deno.land/std@0.224.0/assert/mod.ts';
+import {
+  candidatasDeixa,
+  compararLinhas,
+  escolherDeixa,
+  habitoDeAgora,
+  momentoLisboa,
+  pareceConversaLivre,
+  pedeAcao,
+  perfilParaModelo,
+  saudacaoHabitual,
+  saudacaoSimples,
+  textoLinhas,
+  vencedor,
+} from './amigo.ts';
+
+const perfilJyosmi = {
+  nome_tratamento: 'Ana',
+  habitos: [
+    { dia: 5, dia_nome: 'sexta', periodo: 'noite', loja_id: 'jyosmi-sushi-guarda', loja: 'Jyosmi Sushi', vezes: 3, ultimo_pedido_id: 'o3' },
+    { dia: 2, dia_nome: 'terça', periodo: 'almoco', loja_id: 'boom', loja: 'Boom', vezes: 2, ultimo_pedido_id: 'o9' },
+  ],
+  lojas_favoritas: [{ id: 'jyosmi-sushi-guarda', nome: 'Jyosmi Sushi', pedidos: 3 }],
+  recorrentes: [{ nome: 'Combinado Tradicional', loja: 'Jyosmi Sushi', vezes: 3 }],
+  ticket_medio_eur: 19.88,
+  restricoes: ['sem glúten'],
+};
+
+Deno.test('momento em Lisboa: sexta 13/11/2026 às 18:30 UTC (inverno = UTC) é sexta, tarde, 18h', () => {
+  const m = momentoLisboa(new Date('2026-11-13T18:30:00Z'));
+  assertEquals([m.dia, m.diaNome, m.periodo, m.hora], [5, 'sexta', 'tarde', 18]);
+});
+
+Deno.test('momento em Lisboa: no verão é UTC+1 (sexta 23:30 UTC já é sábado 00:30)', () => {
+  const m = momentoLisboa(new Date('2026-07-10T23:30:00Z'));
+  assertEquals([m.dia, m.periodo, m.hora], [6, 'noite', 0]);
+});
+
+Deno.test('hábito: sexta ao fim da tarde já conta para o jantar de sexta', () => {
+  const h = habitoDeAgora(perfilJyosmi, { dia: 5, diaNome: 'sexta', periodo: 'tarde', hora: 18 });
+  assertEquals(h?.loja_id, 'jyosmi-sushi-guarda');
+  assertEquals(habitoDeAgora(perfilJyosmi, { dia: 5, diaNome: 'sexta', periodo: 'noite', hora: 20 })?.ultimo_pedido_id, 'o3');
+});
+
+Deno.test('hábito: fora do dia/hora não há saudação do costume', () => {
+  assertEquals(habitoDeAgora(perfilJyosmi, { dia: 5, diaNome: 'sexta', periodo: 'tarde', hora: 15 }), null);
+  assertEquals(habitoDeAgora(perfilJyosmi, { dia: 4, diaNome: 'quinta', periodo: 'noite', hora: 20 }), null);
+  assertEquals(habitoDeAgora({}, { dia: 5, diaNome: 'sexta', periodo: 'noite', hora: 20 }), null);
+  assertEquals(habitoDeAgora(null, { dia: 5, diaNome: 'sexta', periodo: 'noite', hora: 20 }), null);
+});
+
+Deno.test('saudação do costume como o Danilo pediu', () => {
+  const h = habitoDeAgora(perfilJyosmi, { dia: 5, diaNome: 'sexta', periodo: 'noite', hora: 20 })!;
+  assertEquals(saudacaoHabitual(h, perfilJyosmi),
+    'Olá, Ana! Hoje é sexta. Queres o do costume do Jyosmi Sushi? Tenho o teu último pedido pronto para repetir.');
+  assertStringIncludes(saudacaoSimples({ dia: 1, diaNome: 'segunda', periodo: 'noite', hora: 21 }, {}, ''), 'Boa noite! Sou o Amigo Bora');
+});
+
+Deno.test('conversa livre vai ao modelo pequeno; compras, ajuda e continuações não', () => {
+  const o = { temImagem: false, ultimaTinhaCompra: false };
+  assert(pareceConversaLivre('o que faço para o jantar?', o));
+  assert(pareceConversaLivre('conta-me uma piada', o));
+  assert(pareceConversaLivre('está frio na Guarda hoje', o));
+  assert(!pareceConversaLivre('quero um hambúrguer bom e uma coca', o));
+  assert(!pareceConversaLivre('onde está o meu pedido?', o));
+  assert(!pareceConversaLivre('quantos tokens tenho', o));
+  assert(!pareceConversaLivre('arroz, leite, 2 ovos', o));
+  assert(!pareceConversaLivre('sim', o));
+  assert(!pareceConversaLivre('olá', { temImagem: true, ultimaTinhaCompra: false }));
+  assert(!pareceConversaLivre('obrigado', { temImagem: false, ultimaTinhaCompra: true }));
+});
+
+Deno.test('pedidos de compra/marcação têm de acabar numa ação; ajuda não', () => {
+  assert(pedeAcao('quero um hambúrguer bom e uma coca'));
+  assert(pedeAcao('faz-me a compra da semana'));
+  assert(pedeAcao('preciso de uma faxina sábado'));
+  assert(!pedeAcao('quero saber onde está o meu pedido'));
+  assert(!pedeAcao('quero falar com uma pessoa'));
+  assert(!pedeAcao('o que faço para o jantar?'));
+});
+
+Deno.test('deixa: prioridade tokens > check-in > parceiro novo > promoção, e rotação de 24 h', () => {
+  const ctx = {
+    parceiros_novos: [{ id: 'loja-nova', nome: 'Loja Nova' }],
+    promocoes: [{ id: 'b1', titulo: '5 € de boas-vindas', subtitulo: null, tipo_destino: 'codigo', destino: 'BEMVINDO' }],
+  };
+  const c = candidatasDeixa(ctx, { tokens_balance: 120, expiring_soon_count: 30 },
+    { enabled: true, eligible: true, already_done: false, tokens_today: 5 }, '2026-11-08');
+  assertEquals(c.map((d) => d.tipo), ['tokens', 'checkin', 'parceiro_novo', 'promocao']);
+  assertStringIncludes(c[0].texto, '30 tokens a expirar nos próximos 7 dias');
+  assertStringIncludes(c[1].texto, 'vale 5 tokens');
+  assertEquals(c[2].acao, { tipo: 'abrir_loja', destino: 'loja-nova' });
+  assertEquals(escolherDeixa(c, new Set())?.tipo, 'tokens');
+  assertEquals(escolherDeixa(c, new Set(['tokens:2026-11-08', 'checkin:2026-11-08']))?.tipo, 'parceiro_novo');
+  assertEquals(escolherDeixa(c, new Set(c.map((d) => d.chave))), null);
+});
+
+Deno.test('deixa: sem tokens a expirar e com check-in feito, sobra a promoção', () => {
+  const c = candidatasDeixa({ promocoes: [{ id: 'b1', titulo: 'Hambúrguer do mês na Boom!', tipo_destino: 'produto', destino: 'p1' }] },
+    { expiring_soon_count: 0 }, { enabled: true, eligible: true, already_done: true }, '2026-11-08');
+  assertEquals(c.length, 1);
+  assertEquals(c[0].texto, 'Já viste? Hambúrguer do mês na Boom!');
+});
+
+Deno.test('perfil para o modelo cabe em ~600 tokens e nunca leva o ticket exato', () => {
+  const s = perfilParaModelo(perfilJyosmi);
+  assert(s.length <= 2400);
+  assertStringIncludes(s, 'sexta noite: Jyosmi Sushi (3x)');
+  assertStringIncludes(s, 'cerca de 20 €');
+  assert(!s.includes('19.88'));
+  const grande = { ...perfilJyosmi, notas: 'x'.repeat(5000), gostos: Array(5).fill('y'.repeat(500)) };
+  assert(perfilParaModelo(grande).length <= 2400);
+  assertEquals(perfilParaModelo({}), '(ainda não sei nada deste cliente)');
+});
+
+Deno.test('comparação linha a linha: honesta nos dois sentidos, calculada em código', () => {
+  const outra = [
+    { query: 'gyoza', quantity: 1, preco_cents: 450 },
+    { query: 'combinado tradicional', quantity: 1, preco_cents: 1400 },
+    { query: 'coca-cola', quantity: 1, preco_cents: 250 },
+  ];
+  const bora = [
+    { query: 'gyoza', name: 'Ravioli Frito (Gyoza)', line_total: 4.90 },
+    { query: 'combinado tradicional', name: 'Combinado Tradicional', line_total: 12.00 },
+    { query: 'coca-cola', name: 'Coca-Cola 33cl', line_total: 2.00 },
+  ];
+  const l = compararLinhas(outra, bora);
+  assertEquals(l.map((x) => x.diferenca_cents), [-40, 200, 50]);
+  const t = textoLinhas('Glovo', l, 2510, 2300);
+  assertStringIncludes(t, 'Só esse artigo "gyoza", na Glovo fica 0,40 € mais barato.');
+  assertStringIncludes(t, 'Com os 3 artigos, no Bora poupas 2,10 €, já com a entrega.');
+  assertEquals(vencedor(2510, 2300), 'bora');
+  assertEquals(vencedor(2000, 2300), 'outra');
+  assertEquals(vencedor(null, 2300), 'sem_total');
+});
+
+Deno.test('comparação: sem preço da outra app nessa linha, não se inventa diferença', () => {
+  const l = compararLinhas([{ query: 'pizza', quantity: 1, preco_cents: null }], [{ query: 'pizza', name: 'Pizza', line_total: 9 }]);
+  assertEquals(l[0].outra_cents, null);
+  assertEquals(l[0].diferenca_cents, null);
+  assertStringIncludes(textoLinhas('Uber Eats', l, null, 1150), 'manda-me o print do total da Uber Eats');
+});

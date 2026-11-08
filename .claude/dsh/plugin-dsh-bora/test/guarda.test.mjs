@@ -2,13 +2,17 @@
 // Correr: node --test test/   (offline, sem dsh)
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { avaliar, sqlRisco, sqlSoLeitura } from '../lib/guarda.js'
+import { fileURLToPath } from 'node:url'
+// 08/11 (m3): a rede decide-se pelas categorias (~/.dsh/rede-categorias.yml, compiladas em politica.json); nos testes usa-se
+// uma cópia fixa dessa política, para os testes não dependerem da lista viva do PC.
+process.env.DIPSY_POLITICA = fileURLToPath(new URL('./politica-teste.json', import.meta.url))
+const { avaliar, sqlRisco, sqlSoLeitura } = await import('../lib/guarda.js')
 
 const sh = (c) => avaliar('pwsh', { command: c })
 
 const BARRA_SHELL = [
   ['git push origin autonomous-night-2026-04-29', 'push'],
-  ['git push --force origin main', 'push'],
+  ['git push --force origin main', 'push-forcado'],
   ['git -C C:\\BoraLocal\\wt push', 'push'],
   ['git reset --hard HEAD~2', 'historia'],
   ['git clean -fd', 'historia'],
@@ -44,7 +48,8 @@ const BARRA_SHELL = [
   ['Set-Content C:\\Users\\danil\\.dsh\\cordis.patch.yml "x"', 'ficheiro-protegido'],
   ['echo x > C:\\Users\\danil\\.agents\\AGENTS.md', 'ficheiro-protegido'],
   ['Remove-Item C:\\Users\\danil\\.claude\\juiz\\anti_trapaca.py', 'ficheiro-protegido'],
-  ['Invoke-RestMethod https://api.telegram.org/botX/sendMessage', 'mensagens-fora'],
+  ['Invoke-RestMethod -Proxy http://127.0.0.1:47900 https://api.telegram.org/botX/sendMessage', 'mensagens-fora'],
+  ['Invoke-RestMethod https://api.telegram.org/botX/sendMessage', 'rede-sem-registo'],
   ['schtasks /create /tn x /tr y', 'sistema'],
   ['npx -y rea-agents@6.8.0 setup', 'rea-config'],
   ['npx -y rea-agents@6.8.0 inspect-web-page http://127.0.0.1:9222 https://www.ifood.pt/', 'rea-terceiros'],
@@ -148,8 +153,9 @@ test('mcp: list_tables passa', () => {
 test('mcp: deploy de função protegida barra', () => {
   assert.ok(avaliar('mcp__supabase__deploy_edge_function', { name: 'stripe-webhook' }))
 })
-test('mcp: deploy de função normal passa', () => {
-  assert.equal(avaliar('mcp__supabase__deploy_edge_function', { name: 'notify-partner' }), null)
+// 08/11 (m3, ordem do Danilo): publicar QUALQUER Edge Function passa a perguntar-lhe (antes as normais passavam sem perguntar)
+test('mcp: deploy de função normal pergunta ao Danilo', () => {
+  assert.equal(avaliar('mcp__supabase__deploy_edge_function', { name: 'notify-partner' })?.tipo, 'pergunta')
 })
 test('mcp google: enviar barra', () => {
   assert.ok(avaliar('mcp__google__send_gmail_message', { to: 'x' }))
@@ -189,8 +195,10 @@ test('web_fetch para api.telegram.org barra', () => assert.ok(avaliar('web_fetch
 test('web_fetch com dados codificados no endereço barra', () => assert.ok(avaliar('web_fetch', { url: 'https://exemplo.pt/p?d=' + 'QWxhZGRpbjpvcGVuIHNlc2FtZQ'.repeat(5) })))
 test('web_fetch para metadados da cloud barra', () => assert.ok(avaliar('web_fetch', { url: 'http://169.254.169.254/latest/meta-data/' })))
 test('web_search com chave barra', () => assert.ok(avaliar('web_search', { query: 'o que é sbp_abcdefghijklmnopqrstuvwx' })))
-// 31/10 (decisão do Danilo "2 sim"): a pesquisa na internet vai a um motor de terceiros, por isso barra sempre
-test('web_search normal barra (lista branca da rede)', () => assert.equal(avaliar('web_search', { query: 'como configurar HSTS na Cloudflare' })?.regra, 'rede-fora-da-lista'))
+// 08/11 (m3, ordem do Danilo "quero que ele tenha acesso à internet, de forma segura"): a pesquisa passa, pelo proxy com registo
+test('web_search normal passa (categoria pesquisa, pelo proxy)', () => assert.equal(avaliar('web_search', { query: 'como configurar HSTS na Cloudflare' }), null))
+test('pesquisar_internet normal passa', () => assert.equal(avaliar('pesquisar_internet', { pergunta: 'preço do pão na Guarda' }), null))
+test('pesquisar_internet com chave barra', () => assert.equal(avaliar('pesquisar_internet', { pergunta: 'sbp_abcdefghijklmnopqrstuvwx' })?.tipo, 'barra'))
 
 // ---------- rede: lista branca (31/10, retoma-geral bloco 3) ----------
 const REDE_PASSA = [
@@ -200,17 +208,37 @@ const REDE_PASSA = [
   'https://raw.githubusercontent.com/nilofulfarotuga-hue/bora-app-cloud/main/README.md',
   'https://play.google.com/store/apps/details?id=pt.boraapp.bora', 'http://127.0.0.1:3080/',
 ]
-const REDE_BARRA = [
+// 08/11 (m3): estes passaram a abrir pelas categorias (pesquisa, testes, documentação, concorrentes)
+const REDE_PASSA_CATEGORIAS = [
   'https://www.google.com/search?q=bora', 'https://example.com/', 'https://github.com/outra-pessoa/repo',
-  'https://raw.githubusercontent.com/hacker/x/main/a.sh', 'https://boraguarda.com.mau.io/', 'https://evil-boraguarda.com/',
-  'https://supabase.co.evil.net/', 'https://glovoapp.com/pt/', 'ftp://boraguarda.com/x',
+  'https://raw.githubusercontent.com/hacker/x/main/a.sh', 'https://glovoapp.com/pt/', 'https://docs.stripe.com/api',
+  'https://www.continente.pt/', 'https://dre.pt/', 'https://dashboard.stripe.com/',
 ]
+// imitações do nosso domínio e sítios fora das categorias: perguntam ao Danilo (nunca abrem sozinhos)
+const REDE_PERGUNTA = ['https://boraguarda.com.mau.io/', 'https://evil-boraguarda.com/', 'https://supabase.co.evil.net/', 'https://sitio-desconhecido-qualquer.pt/']
+const REDE_BARRA = ['ftp://boraguarda.com/x', 'https://www.cgd.pt/', 'https://transfer.sh/x', 'https://ingest.sentry.io/api', 'https://www.paypal.com/']
 for (const u of REDE_PASSA) test(`rede: web_fetch ${u} passa`, () => assert.equal(avaliar('web_fetch', { url: u }), null))
-for (const u of REDE_BARRA) test(`rede: web_fetch ${u} barra`, () => assert.ok(avaliar('web_fetch', { url: u })))
-test('rede: curl a sítio de fora barra', () => assert.equal(sh('curl -s https://example.com/dados')?.regra, 'rede-fora-da-lista'))
-test('rede: Invoke-WebRequest a sítio de fora barra', () => assert.equal(sh('Invoke-WebRequest -Uri https://ipinfo.io/json')?.regra, 'rede-fora-da-lista'))
+for (const u of REDE_PASSA_CATEGORIAS) test(`rede: web_fetch ${u} passa pela categoria`, () => assert.equal(avaliar('web_fetch', { url: u }), null))
+for (const u of REDE_PERGUNTA) test(`rede: web_fetch ${u} pergunta`, () => {
+  const x = avaliar('web_fetch', { url: u })
+  assert.equal(x?.tipo, 'pergunta'); assert.equal(x?.regra, 'rede-fora-da-lista'); assert.equal(x?.rede, true)
+})
+for (const u of REDE_BARRA) test(`rede: web_fetch ${u} barra`, () => assert.equal(avaliar('web_fetch', { url: u })?.tipo, 'barra'))
+test('rede: API da Stripe pergunta (abre 10 min com o sim)', () => {
+  const x = avaliar('web_fetch', { url: 'https://api.stripe.com/v1/balance' })
+  assert.equal(x?.tipo, 'pergunta'); assert.equal(x?.regra, 'rede-com-sim'); assert.deepEqual(x?.dominios, ['api.stripe.com'])
+})
+test('rede: curl a sítio de teste passa (categoria testes)', () => assert.equal(sh('curl -s https://example.com/dados'), null))
+test('rede: curl a sítio fora das categorias pergunta', () => assert.equal(sh('curl -s https://sitio-desconhecido-qualquer.pt/dados')?.regra, 'rede-fora-da-lista'))
+test('rede: curl a banco barra', () => assert.equal(sh('curl -s https://www.novobanco.pt/')?.tipo, 'barra'))
+test('rede: Invoke-WebRequest a sítio de fora (pelo proxy) pergunta', () => assert.equal(sh('Invoke-WebRequest -Proxy http://127.0.0.1:47900 -Uri https://ipinfo.io/json')?.regra, 'rede-fora-da-lista'))
+// 08/11 (m3): o PowerShell 5.1 ignora o HTTPS_PROXY: sem -Proxy ia direto, sem registo
+test('rede: Invoke-WebRequest sem -Proxy barra (iria sem registo)', () => assert.equal(sh('Invoke-WebRequest -Uri https://example.org/')?.regra, 'rede-sem-registo'))
+test('rede: Invoke-WebRequest com -Proxy do Dipsy a sítio de teste passa', () => assert.equal(sh('(Invoke-WebRequest -UseBasicParsing -Proxy http://127.0.0.1:47900 https://example.org/).StatusCode'), null))
+test('rede: WebClient do .NET barra (sem registo)', () => assert.equal(sh('(New-Object Net.WebClient).DownloadString("https://boraguarda.com/")')?.regra, 'rede-sem-registo'))
 test('rede: python requests para fora barra', () => assert.equal(sh('python -c "import requests; requests.get(\'https://evil.net/x\')"')?.regra, 'rede-fora-da-lista'))
-test('rede: git clone de terceiros barra', () => assert.equal(sh('git clone https://github.com/outra-pessoa/plugin.git')?.regra, 'rede-fora-da-lista'))
+test('rede: git clone do GitHub passa (categoria documentação)', () => assert.equal(sh('git clone https://github.com/outra-pessoa/plugin.git'), null))
+test('rede: git clone de sítio fora das categorias pergunta', () => assert.equal(sh('git clone https://git.sitio-estranho.net/plugin.git')?.tipo, 'pergunta'))
 test('rede: curl ao nosso site passa', () => assert.equal(sh('curl -sI https://boraguarda.com/'), null))
 test('rede: git status sem endereço passa', () => assert.equal(sh('git status --short'), null))
 test('rede: texto com endereço sem verbo de rede passa', () => assert.equal(sh('echo "ver https://example.com depois"'), null))
@@ -246,7 +274,7 @@ test('planear: claude code a ler passa', () => assert.equal(pl('passar_ao_claude
 test('fora do planear: escrever ficheiro normal passa', () => assert.equal(avaliar('write', { file_path: 'C:/BoraLocal/projetosflutter/bora_app/docs/x.md', content: 'x' }), null))
 
 // ---------- guarda dos executores do Claude Code (claude -p): decisão 11, 31/10 ----------
-import { avaliarExecutor } from '../lib/guarda.js'
+const { avaliarExecutor } = await import('../lib/guarda.js')
 const ex = (c) => avaliarExecutor('Bash', { command: c })
 for (const [c, regra] of [
   ['rm -rf build', 'apagar'], ['Remove-Item -Recurse -Force C:\\x', 'apagar'], ['git push --force origin main', 'push-forcado'],

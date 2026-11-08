@@ -11,9 +11,15 @@
 // Todas as ações ficam em admin_audit_log.
 // =============================================================================
 
-import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { secretKey } from '../_shared/keys.ts';
+import {
+  garantirContaConnect,
+  linkConnect,
+  stripeDaLinhaConnect,
+  TABELAS_CONNECT,
+  type PapelConnect,
+} from '../_shared/connect_conta.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,30 +33,15 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 
-const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
-const stripeSecretKey =
-  STRIPE_MODE === 'test'
-    ? (Deno.env.get('STRIPE_TEST_SECRET_KEY') ?? '')
-    : (Deno.env.get('STRIPE_SECRET_KEY') ?? '');
-const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
-
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SERVICE_KEY = secretKey() ?? '';
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-const RETURN_BASE = 'https://bora-app-web.pages.dev';
-
-type Role = 'partner' | 'provider' | 'driver' | 'cleaner';
-const ROLE_TABLES: Record<Role, string> = {
-  partner: 'restaurants',
-  provider: 'service_providers',
-  driver: 'drivers',
-  cleaner: 'cleaners',
-};
+// M7 (08/11/2026): cada conta Connect é gerida pela Stripe onde nasceu (pessoal ou empresa);
+// contas novas nascem onde o interruptor stripe_connect_conta_nova mandar. Ver _shared/connect_conta.ts.
+type Role = PapelConnect;
+const ROLE_TABLES = TABELAS_CONNECT;
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -76,7 +67,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: row, error: rowErr } = await admin
       .from(table)
-      .select('id, name, stripe_account_id, stripe_account_status')
+      .select('*')
       .eq('id', rowId)
       .maybeSingle();
     if (rowErr) return json({ error: rowErr.message }, 500);
@@ -95,39 +86,25 @@ Deno.serve(async (req: Request) => {
 
     switch (action) {
       case 'onboard_link': {
-        let accountId: string | null = row.stripe_account_id;
-        if (!accountId) {
-          const account = await stripe.accounts.create({
-            type: 'express',
-            country: 'PT',
-            default_currency: 'eur',
-            capabilities: { transfers: { requested: true } },
-            metadata: { bora_role: role, bora_row_id: String(row.id), bora_admin: 'true' },
-          });
-          accountId = account.id;
-          await admin.from(table)
-            .update({ stripe_account_id: accountId, stripe_account_status: 'pending' })
-            .eq('id', row.id);
-        }
-        const link = await stripe.accountLinks.create({
-          account: accountId,
-          type: 'account_onboarding',
-          refresh_url: `${RETURN_BASE}/connect/refresh`,
-          return_url: `${RETURN_BASE}/connect/return`,
+        const { stripe, conta, accountId, criada } = await garantirContaConnect(admin, role, row, {
+          bora_admin: 'true',
         });
-        await audit({ account_id: accountId });
-        return json({ url: link.url, account_id: accountId });
+        const link = await linkConnect(stripe, accountId, false);
+        await audit({ account_id: accountId, plataforma: conta, criada });
+        return json({ url: link.url, account_id: accountId, plataforma: conta });
       }
 
       case 'login_link': {
         if (!row.stripe_account_id) return json({ error: 'sem_conta_connect' }, 400);
+        const { stripe, conta } = stripeDaLinhaConnect(row);
         const login = await stripe.accounts.createLoginLink(row.stripe_account_id);
-        await audit({ account_id: row.stripe_account_id });
+        await audit({ account_id: row.stripe_account_id, plataforma: conta });
         return json({ url: login.url });
       }
 
       case 'resync': {
         if (!row.stripe_account_id) return json({ error: 'sem_conta_connect' }, 400);
+        const { stripe } = stripeDaLinhaConnect(row);
         const acct = await stripe.accounts.retrieve(row.stripe_account_id);
         const { data, error } = await admin.rpc('apply_stripe_account_update', {
           p_account_id: acct.id,

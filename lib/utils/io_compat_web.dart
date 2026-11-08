@@ -44,7 +44,8 @@ class File {
 
   Future<File> writeAsString(String contents) => _noDisk('writeAsString');
 
-  Future<File> writeAsBytes(List<int> bytes) => _noDisk('writeAsBytes');
+  Future<File> writeAsBytes(List<int> bytes, {bool flush = false}) =>
+      _noDisk('writeAsBytes');
 
   Future<void> delete() => _noDisk('delete');
 
@@ -59,6 +60,13 @@ class Directory {
   final String path;
 
   bool existsSync() => false;
+
+  /// Só para compilar: a fila de talões (TalaoPendenteService) cria a pasta
+  /// atrás de um guard kIsWeb.
+  Future<Directory> create({bool recursive = false}) => throw UnsupportedError(
+        'Directory.create não existe no browser. Este caminho devia estar '
+        'atrás de um guard kIsWeb.',
+      );
 }
 
 /// Substituto de `Platform`. No browser não somos Android nem iOS — as

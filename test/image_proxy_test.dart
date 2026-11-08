@@ -15,6 +15,8 @@ void main() {
       'https://production-uq-menu-maker-item-images.s3.eu-west-3.amazonaws.com/x.png', // KFC
       'https://glovo.dhmedia.io/image/produto.jpeg',                  // mercados
       'https://www.continente.pt/dw/image/leite.jpg',
+      // 08/11/2026 (m6): fotos da Jyosmi Sushi tiradas do site da loja.
+      'https://strangeroasis.com/wp-content/uploads/2026/10/Guarana-Antartica.jpg',
     ]) {
       final saida = proxiarSeExterna(externa);
       expect(saida.startsWith('/img?u='), isTrue,

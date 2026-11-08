@@ -66,6 +66,11 @@ int msAteFimDaOferta(String? prazoIso, {int semPrazo = 60000}) {
   return ms < 5000 ? 5000 : ms;
 }
 
+/// [08/11/2026 · m1-dinheiro-favores] Id do toque "Aprova o preço do teu
+/// Favor" (push `errand_budget_request` com ring='true'). O mesmo id no show
+/// (NotificationService) e no dismiss (cartão do pedido, ao responder).
+String idAlertaFavorAprovacao(String orderId) => 'favor-aprovacao-$orderId';
+
 /// Mantido para quem já o importa: os alertas de trabalho usam o canal novo.
 const String kIncomingJobChannelId = kCanalOfertasAlarme;
 const String kIncomingJobChannelName = kCanalOfertasAlarmeNome;

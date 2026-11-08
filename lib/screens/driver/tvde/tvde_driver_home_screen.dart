@@ -30,7 +30,10 @@ import '../../../services/push_token_service.dart';
 import '../../../stores/driver_store.dart';
 import '../../../stores/order_store.dart';
 import '../../../stores/tvde_driver_store.dart';
-import '../../../widgets/aviso_atividade_banner.dart';
+import '../../../widgets/atalho_trabalho_em_curso.dart';
+import '../../../widgets/barra_falta_conta.dart';
+import '../../../services/minha_conta_service.dart';
+import '../minha_conta_screen.dart';
 import '../../../widgets/aviso_toque_banner.dart';
 import '../../../widgets/background_location_disclosure.dart';
 import '../../../widgets/bora_support_sheet.dart';
@@ -542,6 +545,12 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
     return h > 0 ? '${h}h ${m}min' : '${m}min';
   }
 
+  Future<void> _avisarFaltasDaConta() async {
+    final conta = await MinhaContaService.carregar();
+    if (!mounted) return;
+    avisarFaltasAoFicarOnline(context, conta);
+  }
+
   // ── Online toggle (reuso DriverStore + heartbeat + GPS) ────────────────────
   Future<void> _toggleOnline(bool value) async {
     final driverStore = context.read<DriverStore>();
@@ -597,7 +606,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
           content: Text(r.codigo == CodigoOnline.pedidosAtivos
               ? 'Conclui a corrida atual antes de ficar offline.'
                   .rk(context.tvdeDriverKind)
-              : (r.mensagem ?? mensagemOnlineRecusado(r.codigo)))));
+              : (r.mensagemComFaltas ?? mensagemOnlineRecusado(r.codigo)))));
       // A cache dizia "aprovado" e o servidor não: relê para o portão certo.
       if (r.recusaDaConta) {
         unawaited(context.read<AuthStore>().refreshApprovalStatus());
@@ -605,6 +614,10 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
       return;
     }
     if (value) {
+      // Missão m2 (08/11/2026): ficou online — se ainda falta alguma coisa à
+      // conta (recibo verde, IBAN…), diz-se numa linha com "Ver". No TVDE
+      // isto só avisa: o fiscal não impede as corridas.
+      unawaited(_avisarFaltasDaConta());
       // [A] 2026-06-30 — gate MÍNIMO partilhado com o estafeta. Antes o TVDE
       // não tinha gate nenhum. Garante a notificação persistente (best-effort)
       // e oferece o overlay no máximo uma vez. NUNCA bloqueia ir online — o
@@ -982,6 +995,14 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
             onPressed: _abrirFiscalizacao,
             icon: const Icon(Icons.local_police_outlined),
           ),
+          // Missão m2 (08/11/2026): tudo o que a conta precisa, num sítio.
+          IconButton(
+            key: const Key('tvde_minha_conta'),
+            tooltip: 'A minha conta',
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const MinhaContaScreen())),
+            icon: const Icon(Icons.fact_check_outlined),
+          ),
           IconButton(
             key: const Key('tvde_conformidade_entrada'),
             tooltip: 'Conformidade TVDE',
@@ -1023,12 +1044,11 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
             ativo: isOnline,
             margem: const EdgeInsets.fromLTRB(12, 8, 12, 4),
           ),
-          // [20/10/2026] Falta o comprovativo de atividade — aviso, não bloqueia
-          // (fora do Stack, como o de cima: nunca tapa a oferta).
-          const AvisoAtividadeBanner(
-              margem: EdgeInsets.fromLTRB(12, 4, 12, 4),
-              compacto: true,
-              dispensavel: true),
+          // Missão m2 (08/11/2026): a barra fina "Falta: …" (comprovativo,
+          // NIF, IBAN, dívida…) no lugar do aviso só do comprovativo. Nunca
+          // com uma oferta à vista.
+          if (deliveryOffers.isEmpty)
+            const BarraFaltaConta(margem: EdgeInsets.fromLTRB(12, 4, 12, 4)),
           Expanded(
             child: Stack(
               children: [
@@ -1091,7 +1111,12 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
                   Positioned(
                     right: 16,
                     top: MediaQuery.of(context).size.height * 0.55,
-                    child: FloatingActionButton.small(
+                    // Missão m2 · bloco 4: 48 px, à direita, zona do polegar.
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: FloatingActionButton(
+                      key: const Key('tvde_map_recenter'),
                       heroTag: 'tvde_map_recenter',
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
@@ -1104,11 +1129,20 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
                       },
                       child: const Icon(Icons.my_location),
                     ),
+                    ),
                   ),
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: SafeArea(
-                    child: _OnlinePanel(
+                    // Missão m2 · bloco 3: com a faixa do trabalho em curso à
+                    // vista, o painel (e o interruptor) sobe — nunca fica tapado.
+                    child: ValueListenableBuilder<double>(
+                      valueListenable: AtalhoTrabalhoEmCurso.alturaOcupada,
+                      builder: (context, faixa, painel) => Padding(
+                        padding: EdgeInsets.only(bottom: faixa),
+                        child: painel,
+                      ),
+                      child: _OnlinePanel(
                       isOnline: isOnline,
                       encomendasLigadas: _encomendasLigadas,
                       todayEarnCents:
@@ -1123,6 +1157,7 @@ class _TvdeDriverHomeScreenState extends State<TvdeDriverHomeScreen>
                       horasServico: _conformidade == null
                           ? null
                           : TvdeHorasServicoCard.fromConformidade(_conformidade!),
+                    ),
                     ),
                   ),
                 ),

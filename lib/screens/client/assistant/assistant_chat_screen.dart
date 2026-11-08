@@ -30,10 +30,30 @@ import '../../../widgets/bora_support_sheet.dart';
 import '../../errand_form_screen.dart';
 import '../../orders_screen.dart';
 import '../../wallet_history_screen.dart';
+import '../cleaning/cleaning_wizard_screen.dart';
 import '../tvde/tvde_entrada_screen.dart';
+import 'amigo_bora_entrada.dart';
 import 'assistant_cards.dart';
 import 'assistant_encher_carrinho.dart';
 import '../../../utils/euros.dart';
+
+/// Amigo Bora: uma conversa parada há mais de 6 h recomeça com a saudação
+/// (a antiga fica no histórico do servidor).
+const Duration kAmigoConversaNova = Duration(hours: 6);
+
+/// Deve o Amigo saudar ao abrir? (puro, testado)
+bool amigoDeveSaudar({
+  required bool personalidade,
+  required bool temMensagens,
+  required DateTime? ultimaMensagem,
+  required bool temPedidoInicial,
+  DateTime? agora,
+}) {
+  if (!personalidade || temPedidoInicial) return false;
+  if (!temMensagens) return true;
+  if (ultimaMensagem == null) return false;
+  return (agora ?? DateTime.now()).difference(ultimaMensagem) > kAmigoConversaNova;
+}
 
 class AssistantChatScreen extends StatefulWidget {
   const AssistantChatScreen({
@@ -125,11 +145,13 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
 
   Future<void> _arranque() async {
     final id = await AssistantService.conversaGuardada();
+    DateTime? ultimaMensagem;
     if (id != null) {
       try {
         final hist = await AssistantService.historico(id);
         if (!mounted) return;
         _conversationId = id;
+        if (hist.isNotEmpty) ultimaMensagem = hist.last.createdAt;
         for (final h in hist) {
           if (h.role == 'user') {
             _msgs.add(_Msg.utilizador(h.content, imageUrl: h.imageUrl));
@@ -149,6 +171,21 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
     setState(() => _carregando = false);
     _irParaOFim();
 
+    // Amigo Bora (08/11/2026): saudação ao abrir (sem modelo, sem quota) —
+    // "Hoje é sexta. Queres o do costume?" quando bate com um hábito.
+    await AssistantFlags.carregar();
+    if (!mounted) return;
+    final inicial = (widget.mensagemInicial?.trim().isNotEmpty ?? false) ||
+        (widget.propostaInicial?.isNotEmpty ?? false);
+    if (amigoDeveSaudar(
+      personalidade: AssistantFlags.personalidade.value,
+      temMensagens: _msgs.isNotEmpty,
+      ultimaMensagem: ultimaMensagem,
+      temPedidoInicial: inicial,
+    )) {
+      await _saudar(comecarDeNovo: _msgs.isNotEmpty);
+    }
+
     final m = widget.mensagemInicial?.trim();
     if (m != null && m.isNotEmpty) {
       await _enviar(m);
@@ -156,6 +193,66 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
     final p = widget.propostaInicial;
     if (p != null && p.isNotEmpty) {
       await _abrirPropostaPorId(p);
+    }
+  }
+
+  Future<void> _saudar({required bool comecarDeNovo}) async {
+    final cart = context.read<CartStore>();
+    final entrega = cart.deliveryLocation;
+    if (mounted) setState(() => _aPensar = true);
+    final r = await AssistantService.abrir(
+      dropoffLat: entrega?.latitude,
+      dropoffLng: entrega?.longitude,
+      apartmentDelivery: cart.apartmentDelivery,
+    );
+    if (!mounted) return;
+    setState(() {
+      _aPensar = false;
+      if (r == null) return;
+      if (comecarDeNovo) {
+        _msgs.clear();
+        _conversationId = null;
+      }
+      if (r.conversationId != null) _conversationId = r.conversationId;
+      _msgs.add(_Msg.assistente(r));
+    });
+    if (r != null && (comecarDeNovo || r.conversationId != null)) {
+      unawaited(AssistantService.guardarConversa(_conversationId));
+    }
+    _irParaOFim();
+  }
+
+  /// A proposta com este id numa resposta já mostrada (para "Sim, repete").
+  AssistantProposal? _propostaNaConversa(String id) {
+    for (final m in _msgs.reversed) {
+      for (final p in m.reply?.propostas ?? const <AssistantProposal>[]) {
+        if (p.proposalId == id) return p;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _tocarDeixa(AssistantDeixa d) async {
+    unawaited(AssistantService.deixaClicada(d.id));
+    final destino = d.acaoDestino?.trim() ?? '';
+    switch (d.acaoTipo) {
+      case 'abrir_loja':
+        if (destino.isNotEmpty) await abrirLojaPorId(context, destino);
+      case 'abrir_carteira':
+        await Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const WalletHistoryScreen()));
+      case 'abrir_checkin':
+        // O check-in vive no topo da página inicial.
+        Navigator.of(context).popUntil((r) => r.isFirst);
+      case 'abrir_faixa':
+        try {
+          final m = jsonDecode(destino);
+          if (m is Map) {
+            await abrirDestino(context,
+                tipo: (m['tipo_destino'] ?? '').toString(),
+                destino: (m['destino'] ?? '').toString());
+          }
+        } catch (_) {}
     }
   }
 
@@ -470,6 +567,28 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
         if (!TvdeVisibilidade.aberto) return;
         await Navigator.push(context,
             MaterialPageRoute(builder: (_) => const TvdeEntradaScreen()));
+      // Amigo Bora (08/11/2026): a compra acaba numa ação, com uma confirmação.
+      case 'repetir_habitual':
+        final p = _propostaNaConversa(d);
+        if (p != null) {
+          await _encher(p);
+        } else {
+          _snack('Esta proposta já não está disponível.'.tr);
+        }
+      case 'pedir_favor':
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ErrandFormScreen(
+              prefill: ErrandPrefill(
+                  description: d, location: '', hasPurchase: true),
+            ),
+          ),
+        );
+      case 'marcar_limpeza':
+        if (d.isNotEmpty) _snack('Na marcação escolhe: {0}'.trArgs([d]));
+        await Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const CleaningWizardScreen()));
       case 'suporte_humano':
         await showModalBottomSheet<void>(
           context: context,
@@ -530,13 +649,21 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
         flexibleSpace: const DecoratedBox(
           decoration: BoxDecoration(gradient: AppColors.headerGradient),
         ),
-        title: Row(
-          children: [
-            const Icon(Icons.auto_awesome, size: 20),
-            const SizedBox(width: 8),
-            Text('Bora Assistente'.tr,
-                style: const TextStyle(color: Colors.white)),
-          ],
+        // Amigo Bora (08/11/2026): com a personalidade ligada, o nome ao
+        // cliente é "Amigo Bora", com o avatar.
+        title: ValueListenableBuilder<bool>(
+          valueListenable: AssistantFlags.personalidade,
+          builder: (_, amigo, __) => Row(
+            children: [
+              if (amigo)
+                const AmigoBoraAvatar(tamanho: 26)
+              else
+                const Icon(Icons.auto_awesome, size: 20),
+              const SizedBox(width: 8),
+              Text(amigo ? 'Amigo Bora'.tr : 'Bora Assistente'.tr,
+                  style: const TextStyle(color: Colors.white)),
+            ],
+          ),
         ),
         actions: [
           IconButton(
@@ -631,6 +758,7 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
           onFavor: _pedirFavor,
           onAcao: _acao,
           onConfirmarLista: _enviar,
+          onDeixa: _tocarDeixa,
         );
       },
     );
@@ -732,6 +860,7 @@ class _BalaoAssistente extends StatelessWidget {
     required this.onFavor,
     required this.onAcao,
     required this.onConfirmarLista,
+    required this.onDeixa,
   });
 
   final AssistantReply reply;
@@ -740,6 +869,7 @@ class _BalaoAssistente extends StatelessWidget {
   final void Function(List<AssistantFavor>) onFavor;
   final void Function(AssistantAcao) onAcao;
   final void Function(String) onConfirmarLista;
+  final void Function(AssistantDeixa) onDeixa;
 
   @override
   Widget build(BuildContext context) {
@@ -791,6 +921,8 @@ class _BalaoAssistente extends StatelessWidget {
               onPedir: () => onFavor(r.favores),
             ),
           AssistantAcoesChips(acoes: r.acoes, onTap: onAcao),
+          if (r.deixa != null)
+            AmigoDeixaLinha(deixa: r.deixa!, onTap: () => onDeixa(r.deixa!)),
         ],
       ),
     );

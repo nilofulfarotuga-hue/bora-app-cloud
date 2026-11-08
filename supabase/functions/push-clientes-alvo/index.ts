@@ -6,7 +6,7 @@
 // do bug ja corrigido no notify-driver (drivers.fcm_token vs driver_push_tokens).
 // Data-only NAO: aqui queremos que o Android desenhe a notificacao mesmo com a app
 // fechada, e nao ha handler proprio para este tipo.
-// Body: { user_ids: string[], title: string, body: string, type?: string }
+// Body: { user_ids: string[], title: string, body: string, type?: string, extra?: { [chave]: texto } }
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { chamadaDoServidor, respostaAoPing } from '../_shared/chaves.ts'
@@ -38,6 +38,14 @@ Deno.serve(async (req) => {
   const title = String(b?.title ?? '')
   const body = String(b?.body ?? '')
   const type = String(b?.type ?? 'admin_message')
+  // 08/11/2026 (m6, restaurante do dia): campos extra no `data` do FCM (ex.: restaurant_id para o toque abrir a
+  // loja). Só chaves simples e textos curtos; nunca passam por cima de `type` nem `origem`.
+  const extra: Record<string, string> = {}
+  if (b?.extra && typeof b.extra === 'object' && !Array.isArray(b.extra)) {
+    for (const [k, v] of Object.entries(b.extra)) {
+      if (/^[a-z_]{1,40}$/.test(k) && k !== 'type' && k !== 'origem' && v != null) extra[k] = String(v).slice(0, 200)
+    }
+  }
   if (!userIds.length || !title || !body) return json({ ok: false, error: 'user_ids, title e body sao obrigatorios' }, 400)
 
   const sb = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
@@ -70,7 +78,7 @@ Deno.serve(async (req) => {
         message: {
           token: t,
           notification: { title, body },
-          data: { type, origem: 'push-clientes-alvo' },
+          data: { ...extra, type, origem: 'push-clientes-alvo' },
           android: { priority: 'high', notification: { channel_id: 'bora_general', sound: 'default' } },
           apns: { headers: { 'apns-priority': '10' }, payload: { aps: { sound: 'default', badge: 1 } } },
         },

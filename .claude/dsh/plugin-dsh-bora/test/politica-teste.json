@@ -1,0 +1,224 @@
+{
+ "gerado": "2026-11-08T20:14:10+00:00",
+ "categorias": {
+  "bora": {
+   "estado": "aberta",
+   "so_leitura": false,
+   "dominios": [
+    "boraguarda.com",
+    "bora-app-web.pages.dev",
+    "ojykpzwqrtusfeakzrna.supabase.co",
+    "supabase.com",
+    "srv1786862.hstgr.cloud",
+    "bora-vps.tail41776c.ts.net",
+    "100.120.181.115",
+    "play.google.com",
+    "apps.apple.com",
+    "itunes.apple.com",
+    "api.kilo.ai",
+    "generativelanguage.googleapis.com",
+    "oauth2.googleapis.com",
+    "gmail.googleapis.com",
+    "www.googleapis.com",
+    "accounts.google.com",
+    "localhost",
+    "127.0.0.1"
+   ]
+  },
+  "pesquisa": {
+   "estado": "aberta",
+   "so_leitura": true,
+   "dominios": [
+    "duckduckgo.com",
+    "bing.com",
+    "google.com",
+    "google.pt",
+    "wikipedia.org",
+    "wikimedia.org"
+   ]
+  },
+  "documentacao": {
+   "estado": "aberta",
+   "so_leitura": true,
+   "dominios": [
+    "docs.*",
+    "github.com",
+    "githubusercontent.com",
+    "npmjs.com",
+    "registry.npmjs.org",
+    "pypi.org",
+    "files.pythonhosted.org",
+    "pub.dev",
+    "storage.googleapis.com",
+    "flutter.dev",
+    "dart.dev",
+    "developer.mozilla.org",
+    "stackoverflow.com",
+    "learn.microsoft.com",
+    "developer.android.com",
+    "developer.apple.com",
+    "nodejs.org",
+    "python.org",
+    "deno.land",
+    "deno.com",
+    "jsr.io"
+   ]
+  },
+  "concorrentes": {
+   "estado": "aberta",
+   "so_leitura": true,
+   "dominios": [
+    "glovoapp.com",
+    "ubereats.com",
+    "bolt.eu"
+   ]
+  },
+  "lojas": {
+   "estado": "aberta",
+   "so_leitura": true,
+   "dominios": [
+    "continente.pt",
+    "lidl.pt",
+    "pingodoce.pt",
+    "mercadona.pt",
+    "mercadona.es",
+    "auchan.pt",
+    "intermarche.pt",
+    "burgerking.pt",
+    "mcdonalds.pt"
+   ]
+  },
+  "noticias_lei": {
+   "estado": "aberta",
+   "so_leitura": true,
+   "dominios": [
+    "dre.pt",
+    "diariodarepublica.pt",
+    "portaldasfinancas.gov.pt",
+    "seg-social.pt",
+    "imt-ip.pt"
+   ]
+  },
+  "testes": {
+   "estado": "aberta",
+   "so_leitura": true,
+   "dominios": [
+    "example.com",
+    "example.org",
+    "example.net"
+   ]
+  },
+  "stripe_leitura": {
+   "estado": "aberta",
+   "so_leitura": true,
+   "dominios": [
+    "dashboard.stripe.com"
+   ]
+  }
+ },
+ "sempre_bloqueado": {
+  "pagamentos": {
+   "com_sim": true,
+   "dominios": [
+    "api.stripe.com",
+    "checkout.stripe.com",
+    "connect.stripe.com",
+    "files.stripe.com",
+    "uploads.stripe.com"
+   ]
+  },
+  "publicar": {
+   "com_sim": true,
+   "dominios": [
+    "graph.facebook.com",
+    "graph.instagram.com",
+    "api.instagram.com",
+    "rupload.facebook.com",
+    "upload.facebook.com",
+    "api.twitter.com",
+    "api.x.com",
+    "upload.twitter.com",
+    "open.tiktokapis.com",
+    "api.linkedin.com"
+   ]
+  },
+  "mensagens": {
+   "com_sim": true,
+   "dominios": [
+    "api.telegram.org",
+    "api.resend.com",
+    "api.sendgrid.com",
+    "api.brevo.com"
+   ]
+  },
+  "bancos": {
+   "com_sim": false,
+   "dominios": [
+    "paypal.com",
+    "revolut.com",
+    "wise.com",
+    "cgd.pt",
+    "millenniumbcp.pt",
+    "novobanco.pt",
+    "santander.pt",
+    "bancobpi.pt",
+    "activobank.pt",
+    "bancoctt.pt",
+    "creditoagricola.pt",
+    "montepio.pt",
+    "mbway.pt",
+    "sibs.com",
+    "sibsapimarket.com",
+    "m.stripe.com",
+    "js.stripe.com"
+   ]
+  },
+  "uploads": {
+   "com_sim": false,
+   "dominios": [
+    "transfer.sh",
+    "file.io",
+    "0x0.st",
+    "wetransfer.com",
+    "we.tl",
+    "pastebin.com",
+    "paste.ee",
+    "hastebin.com",
+    "webhook.site",
+    "requestbin.com",
+    "requestbin.net",
+    "pipedream.net",
+    "ngrok.io",
+    "ngrok.app",
+    "ngrok-free.app",
+    "ngrok.dev",
+    "mega.nz",
+    "gofile.io",
+    "catbox.moe",
+    "content.dropboxapi.com",
+    "hooks.slack.com",
+    "discord.com",
+    "discordapp.com",
+    "ifttt.com",
+    "burpcollaborator.net",
+    "interact.sh"
+   ]
+  },
+  "telemetria": {
+   "com_sim": false,
+   "dominios": [
+    "deepseeksvc.com",
+    "sentry.io",
+    "segment.io",
+    "mixpanel.com",
+    "amplitude.com",
+    "posthog.com",
+    "datadoghq.com",
+    "google-analytics.com",
+    "doubleclick.net"
+   ]
+  }
+ },
+ "aprovados": [],
+ "recusados": []
+}

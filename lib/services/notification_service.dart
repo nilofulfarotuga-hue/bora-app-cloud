@@ -83,6 +83,21 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     return;
   }
 
+  // [08/11/2026 · m1-dinheiro-favores] "Aprova o preço do teu Favor": com
+  // ring='true' toca como uma oferta (IncomingJobAlert); um aviso sem toque
+  // quer dizer que a aprovação acabou — cala o toque se ainda tocar.
+  if (data['type'] == kTipoFavorAprovacao) {
+    final orderId = data['orderId']?.toString() ?? '';
+    if (favorAprovacaoPedeToque(data)) {
+      await tocarFavorAprovacao(Map<String, dynamic>.from(data),
+          titulo: message.notification?.title,
+          corpo: message.notification?.body);
+    } else if (orderId.isNotEmpty) {
+      await IncomingJobAlert.dismiss(idAlertaFavorAprovacao(orderId));
+    }
+    return;
+  }
+
   // ── Chat: nova mensagem em background (exec6.23) ───────────────────────
   // Antes: caía no default sound-only sem notificação visual → user perdia
   // mensagens. Agora rich notif c/ BigText + Responder + canal v3 + som.
@@ -532,6 +547,11 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 /// [10/10/2026] Tipo do push do botão "Testar o toque" (Edge `testar-toque`).
 const String kTipoTesteToque = 'teste_toque_oferta';
 
+/// [08/11/2026 · m6] Tipo do aviso diário "Restaurante do dia"
+/// (`restaurante_do_dia_processar` → Edge `push-clientes-alvo`, com
+/// `restaurant_id` no data). O toque abre essa loja.
+const String kTipoRestauranteDoDia = 'restaurante_do_dia';
+
 /// [31/10/2026 chaves-varredura] Fases do pedido em que o SERVIDOR avisa o
 /// cliente sozinho (gatilho `trg_push_cliente_fase_pedido` em `orders` →
 /// `notify-client` com a chave do servidor). A app não manda estas — só as
@@ -589,6 +609,39 @@ Future<void> mostrarTesteDoToque(Map<String, dynamic> data) async {
   } catch (e) {
     debugPrint('[BORA-TOQUE] teste do toque falhou: $e');
   }
+}
+
+/// [08/11/2026 · m1-dinheiro-favores] Push "Aprova o preço do teu Favor"
+/// (notify-client, type `errand_budget_request`, com orderId). Com
+/// `ring='true'` toca como uma oferta durante `ring_seconds` (180 por defeito);
+/// o cartão do pedido (ErrandBudgetBanner) cala-o quando o cliente responde.
+const String kTipoFavorAprovacao = 'errand_budget_request';
+
+/// O FCM só leva texto nos dados ('true'/'false'); aceita-se também o booleano.
+bool favorAprovacaoPedeToque(Map<String, dynamic> data) {
+  final r = '${data['ring'] ?? ''}'.trim().toLowerCase();
+  return r == 'true' || r == '1';
+}
+
+/// Mostra o toque persistente da aprovação do Favor. Corre em qualquer isolate.
+@pragma('vm:entry-point')
+Future<void> tocarFavorAprovacao(Map<String, dynamic> data,
+    {String? titulo, String? corpo}) async {
+  final orderId = data['orderId']?.toString() ?? '';
+  if (orderId.isEmpty) return;
+  final segundos = int.tryParse('${data['ring_seconds'] ?? ''}') ?? 180;
+  final t = (titulo ?? data['title']?.toString() ?? '').trim();
+  final c = (corpo ?? data['body']?.toString() ?? '').trim();
+  await IncomingJobAlert.show(
+    id: idAlertaFavorAprovacao(orderId),
+    type: kTipoFavorAprovacao,
+    title: t.isNotEmpty ? t : 'Aprova o preço do teu Favor',
+    body: c.isNotEmpty
+        ? c
+        : 'O estafeta está na loja e o preço é diferente. Abre a app para aprovar, comprar só até ao combinado ou cancelar.',
+    extraPayload: {'orderId': orderId},
+    timeoutMs: (segundos > 0 ? segundos : 180) * 1000,
+  );
 }
 
 /// Tap na notificação local enquanto app em foreground ou background.
@@ -661,6 +714,12 @@ void _onLocalNotifTap(NotificationResponse response) {
           ?.call(data['orderId']?.toString() ?? '');
       return;
     }
+    // [08/11/2026 · m6] "Restaurante do dia" com a app aberta: abre a loja.
+    if (data['type'] == kTipoRestauranteDoDia) {
+      NotificationService.abrirLoja
+          ?.call(data['restaurant_id']?.toString() ?? '');
+      return;
+    }
     if (data['type'] == 'admin_generic' || data['type'] == 'crosstalk_critical') {
       final rota = data['route']?.toString() ?? '/admin';
       final ref = data['ref']?.toString() ?? '';
@@ -720,6 +779,16 @@ void _onLocalNotifTap(NotificationResponse response) {
     if (categoria != null) {
       NotificationService.abrirTrabalho
           ?.call(categoria, data['bookingId']?.toString() ?? '');
+      return;
+    }
+    // [08/11/2026 · m1-dinheiro-favores] Toque "Aprova o preço do teu Favor":
+    // abre o pedido, onde está o cartão Aprovar / Comprar só até / Cancelar.
+    if (data['type'] == kTipoFavorAprovacao) {
+      final orderId = data['orderId']?.toString() ?? '';
+      if (orderId.isNotEmpty) {
+        unawaited(NotificationService.instance
+            .openClientOrderFromNotification(orderId));
+      }
       return;
     }
     if (data['type'] != 'chat') return;
@@ -1480,12 +1549,29 @@ Future<void> _entregarAccaoTvdeAFrio(String rideId, String accao) async {
 /// ou Android com o aviso do próprio FCM): abre o trabalho dessa categoria.
 void _abrirTrabalhoDoPush(RemoteMessage msg) {
   final type = msg.data['type']?.toString();
+  // [08/11/2026 · m6] "Restaurante do dia" (push-clientes-alvo com
+  // restaurant_id): o toque abre a loja sugerida.
+  if (type == kTipoRestauranteDoDia) {
+    NotificationService.abrirLoja
+        ?.call(msg.data['restaurant_id']?.toString() ?? '');
+    return;
+  }
   // [31/10/2026] Toque no push "Preço ajustado ao peso" (notify-client,
   // `order_weight_adjusted`, com orderId): abre o pedido do cliente.
   if (type == kTipoAjustePeso) {
     final orderId = msg.data['orderId']?.toString() ?? '';
     if (orderId.isNotEmpty) {
       AjustesPesoService.avisarNovoAjuste(orderId);
+      unawaited(NotificationService.instance
+          .openClientOrderFromNotification(orderId));
+    }
+    return;
+  }
+  // [08/11/2026 · m1-dinheiro-favores] Toque no push "Aprova o preço do teu
+  // Favor" mostrado pelo sistema: abre o pedido com o cartão de aprovação.
+  if (type == kTipoFavorAprovacao) {
+    final orderId = msg.data['orderId']?.toString() ?? '';
+    if (orderId.isNotEmpty) {
       unawaited(NotificationService.instance
           .openClientOrderFromNotification(orderId));
     }
@@ -2255,6 +2341,10 @@ class NotificationService {
   /// Registado no `main.dart`, ao nível da app — nunca dentro de um ecrã.
   static void Function(String rota, String ref)? abrirAdmin;
 
+  /// [08/11/2026 · m6] Tocar no aviso "Restaurante do dia" abre essa loja.
+  /// Registado no `main.dart`, ao nível da app — nunca dentro de um ecrã.
+  static void Function(String restaurantId)? abrirLoja;
+
   /// [Estafeta web 2026-09-16] O ecrã do estafeta liga aqui um "relê os
   /// pedidos" — chamado quando chega (ou é tocado) um aviso da Edge
   /// notify-driver-assigned: pedido atribuído, reservado, retirado ou
@@ -2763,6 +2853,22 @@ class NotificationService {
             msg.data['orderId']?.toString() ?? '');
         _sound.playOnce();
         return;
+      }
+      // [08/11/2026 · m1-dinheiro-favores] "Aprova o preço do teu Favor" com a
+      // app aberta: toca como uma oferta até o cliente responder no cartão do
+      // pedido. Sem toque (aviso de fim), cala o toque e segue o som curto.
+      if (type == kTipoFavorAprovacao) {
+        final dados = Map<String, dynamic>.from(msg.data);
+        if (favorAprovacaoPedeToque(dados)) {
+          unawaited(tocarFavorAprovacao(dados,
+              titulo: msg.notification?.title,
+              corpo: msg.notification?.body));
+          return;
+        }
+        final orderId = dados['orderId']?.toString() ?? '';
+        if (orderId.isNotEmpty) {
+          unawaited(IncomingJobAlert.dismiss(idAlertaFavorAprovacao(orderId)));
+        }
       }
       if (_kPersistentCategoryTypes.contains(type)) {
         unawaited(_showPersistentCategoryNotification(msg));

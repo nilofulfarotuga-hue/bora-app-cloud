@@ -79,105 +79,14 @@ class _DriverFiscalCardState extends State<DriverFiscalCard> {
   }
 
   Future<void> _confirmarFiscal() async {
-    final ctrl = TextEditingController(text: (_fiscal?['nif'] ?? '').toString());
-    bool atividade = false;
-    String? erro;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setD) => AlertDialog(
-          title: const Text('NIF e atividade nas Finanças'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: ctrl,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                maxLength: 9,
-                decoration: InputDecoration(labelText: 'NIF', errorText: erro),
-              ),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                value: atividade,
-                onChanged: (v) => setD(() => atividade = v ?? false),
-                title: const Text(
-                    'Tenho atividade aberta nas Finanças (trabalhador independente)'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancelar')),
-            FilledButton(
-              onPressed: () {
-                if (ctrl.text.length != 9) {
-                  setD(() => erro = 'O NIF tem 9 dígitos');
-                  return;
-                }
-                if (!atividade) {
-                  setD(() => erro = 'Confirme que tem atividade aberta');
-                  return;
-                }
-                Navigator.pop(ctx, true);
-              },
-              child: const Text('Confirmar'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (ok != true) return;
-    try {
-      final r = await _sb.rpc('driver_confirm_fiscal_activity',
-          params: {'p_nif': ctrl.text});
-      if (!mounted) return;
-      setState(() => _fiscal = r is Map ? Map<String, dynamic>.from(r) : _fiscal);
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Dados fiscais confirmados. Obrigado!')));
-    } catch (e) {
-      if (!mounted) return;
-      final msg = e.toString().contains('nif_invalido')
-          ? 'Esse NIF não é válido. Confirme os 9 dígitos.'
-          : 'Não foi possível gravar. Tente outra vez.';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-    }
+    final r = await confirmarNifEAtividade(context,
+        nifAtual: (_fiscal?['nif'] ?? '').toString());
+    if (r != null && mounted) setState(() => _fiscal = r);
   }
 
   Future<void> _marcarRecibo() async {
-    final ctrl = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Já passei o recibo'),
-        content: TextField(
-          controller: ctrl,
-          decoration:
-              const InputDecoration(labelText: 'N.º do recibo verde (ex.: FR ATSIRE01FR/12)'),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Guardar')),
-        ],
-      ),
-    );
-    if (ok != true || ctrl.text.trim().isEmpty) return;
-    try {
-      await _sb.rpc('driver_mark_invoice_issued', params: {
-        'p_year': _anoRef,
-        'p_month': _mesRef,
-        'p_numero': ctrl.text.trim(),
-      });
+    if (await marcarReciboPassado(context, ano: _anoRef, mes: _mesRef)) {
       await _carregar();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não foi possível gravar. Tente outra vez.')));
     }
   }
 
@@ -225,6 +134,183 @@ class _DriverFiscalCardState extends State<DriverFiscalCard> {
           DriverReciboCard(recibo: r, onMarcar: _marcarRecibo),
       ],
     );
+  }
+}
+
+/// Missão m2 (08/11/2026): o diálogo "NIF e atividade nas Finanças", para o
+/// cartão acima e para o ecrã "A minha conta". Devolve o estado fiscal novo
+/// do servidor, ou null se a pessoa cancelou / não gravou.
+Future<Map<String, dynamic>?> confirmarNifEAtividade(BuildContext context,
+    {String? nifAtual}) async {
+  final sb = Supabase.instance.client;
+  final ctrl = TextEditingController(text: nifAtual ?? '');
+  bool atividade = false;
+  String? erro;
+  final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          title: const Text('NIF e atividade nas Finanças'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: ctrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                maxLength: 9,
+                decoration: InputDecoration(labelText: 'NIF', errorText: erro),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: atividade,
+                onChanged: (v) => setD(() => atividade = v ?? false),
+                title: const Text(
+                    'Tenho atividade aberta nas Finanças (trabalhador independente)'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar')),
+            FilledButton(
+              onPressed: () {
+                if (ctrl.text.length != 9) {
+                  setD(() => erro = 'O NIF tem 9 dígitos');
+                  return;
+                }
+                if (!atividade) {
+                  setD(() => erro = 'Confirme que tem atividade aberta');
+                  return;
+                }
+                Navigator.pop(ctx, true);
+              },
+              child: const Text('Confirmar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  // Sem dispose: o diálogo ainda anima a sair com o campo montado.
+  if (ok != true) return null;
+  final nif = ctrl.text;
+  try {
+    final r = await sb.rpc('driver_confirm_fiscal_activity',
+        params: {'p_nif': nif});
+    if (!context.mounted) return null;
+    ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Dados fiscais confirmados. Obrigado!')));
+    return r is Map ? Map<String, dynamic>.from(r) : null;
+  } catch (e) {
+    if (!context.mounted) return null;
+    final msg = e.toString().contains('nif_invalido')
+        ? 'Esse NIF não é válido. Confirme os 9 dígitos.'
+        : 'Não foi possível gravar. Tente outra vez.';
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    return null;
+  }
+}
+
+/// Missão m2 (08/11/2026): "Já passei o recibo" — para o cartão acima e para
+/// "A minha conta". true = gravado no servidor.
+Future<bool> marcarReciboPassado(BuildContext context,
+    {required int ano, required int mes}) async {
+  final ctrl = TextEditingController();
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Já passei o recibo'),
+      content: TextField(
+        controller: ctrl,
+        decoration: const InputDecoration(
+            labelText: 'N.º do recibo verde (ex.: FR ATSIRE01FR/12)'),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar')),
+        FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Guardar')),
+      ],
+    ),
+  );
+  final numero = ctrl.text.trim();
+  if (ok != true || numero.isEmpty) return false;
+  try {
+    await Supabase.instance.client.rpc('driver_mark_invoice_issued', params: {
+      'p_year': ano,
+      'p_month': mes,
+      'p_numero': numero,
+    });
+    return true;
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Não foi possível gravar. Tente outra vez.')));
+    }
+    return false;
+  }
+}
+
+/// Missão m2 (08/11/2026): o recibo verde do mês passado dentro de
+/// "A minha conta" (antes vivia no ecrã dos pedidos, a aparecer com a oferta).
+/// Lê `driver_monthly_invoice_summary`; sem recibo por passar não mostra nada.
+class DriverReciboSecao extends StatefulWidget {
+  const DriverReciboSecao({super.key, this.aoMarcar});
+
+  /// Chamado depois de gravar "Já passei o recibo".
+  final VoidCallback? aoMarcar;
+
+  @override
+  State<DriverReciboSecao> createState() => _DriverReciboSecaoState();
+}
+
+class _DriverReciboSecaoState extends State<DriverReciboSecao> {
+  Map<String, dynamic>? _recibo;
+  late final int _ano;
+  late final int _mes;
+
+  @override
+  void initState() {
+    super.initState();
+    final ant = DateTime(DateTime.now().year, DateTime.now().month - 1, 1);
+    _ano = ant.year;
+    _mes = ant.month;
+    _carregar();
+  }
+
+  Future<void> _carregar() async {
+    if (DateTime(_ano, _mes).isBefore(DateTime(2026, 10))) return;
+    try {
+      final s = await Supabase.instance.client.rpc(
+          'driver_monthly_invoice_summary',
+          params: {'p_year': _ano, 'p_month': _mes});
+      final lista = s is Map ? s['estafetas'] : null;
+      if (!mounted) return;
+      setState(() => _recibo = (lista is List &&
+              lista.isNotEmpty &&
+              lista.first is Map)
+          ? Map<String, dynamic>.from(lista.first as Map)
+          : null);
+    } catch (e) {
+      debugPrint('[DriverReciboSecao] $e');
+    }
+  }
+
+  Future<void> _marcar() async {
+    if (await marcarReciboPassado(context, ano: _ano, mes: _mes)) {
+      await _carregar();
+      widget.aoMarcar?.call();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r = _recibo;
+    if (r == null || r['recibo_passado'] == true) return const SizedBox.shrink();
+    return DriverReciboCard(recibo: r, onMarcar: _marcar);
   }
 }
 

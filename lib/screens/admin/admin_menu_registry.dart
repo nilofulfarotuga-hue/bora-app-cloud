@@ -39,7 +39,9 @@ import 'admin_reativacao_screen.dart';
 import 'admin_checkin_premios_screen.dart';
 import 'admin_checkin_screen.dart';
 import 'admin_receitas_screen.dart';
+import 'admin_restaurante_do_dia_screen.dart';
 import 'admin_support_escalations_screen.dart';
+import 'admin_suporte_conversas_screen.dart';
 import 'admin_tvde_chats_screen.dart';
 import 'admin_bora_motorista_fechado_screen.dart';
 import 'admin_connect_payments_screen.dart';
@@ -92,6 +94,7 @@ import 'admin_promo_codes_screen.dart';
 import 'admin_home_banners_screen.dart';
 import 'admin_ratings_screen.dart';
 import 'admin_receipts_screen.dart';
+import 'admin_taloes_screen.dart';
 import 'admin_referrals_screen.dart';
 import 'admin_reservations_config_screen.dart';
 import 'admin_reservations_metrics_screen.dart';
@@ -136,6 +139,7 @@ import 'admin_conformidade_legal_screen.dart';
 import 'admin_revisoes_screen.dart';
 import 'admin_comprovativo_atividade_screen.dart';
 import 'admin_robo_documentos_screen.dart';
+import 'admin_estafetas_fila_screen.dart';
 import 'admin_promocoes_screen.dart';
 import 'admin_modo_ocupado_screen.dart';
 import 'admin_fecho_mensal_screen.dart';
@@ -316,14 +320,15 @@ List<AdminMenuSection> adminMenuSections() => [
       keywords: const ['peso', 'peso variavel', 'balanca', 'quilo', 'kg', 'ajuste', 'etiqueta', 'diferenca', 'mercado', 'nao parceiro', 'continente', 'auchan'],
     ),
     // 04/11/2026: Favores pagos por MB Way com compra acima do orçado.
+    // 08/11/2026: no topo, Favores à espera de aprovação do cliente (teto).
     AdminMenuItem(
       id: 'operacao_favor_diferencas',
       title: 'Diferenças de Favor',
-      subtitle: 'Favores pagos por MB Way em que a compra passou o orçado: quanto falta, estado do pedido MB Way (enviado, pago, expirou) e reenviar',
+      subtitle: 'Favores à espera de aprovação do cliente (preço acima do teto, aprovar pelo cliente) e Favores pagos por MB Way em que a compra passou o orçado: quanto falta, estado do pedido MB Way (enviado, pago, expirou) e reenviar',
       icon: Icons.send_to_mobile,
       color: Colors.teal,
       builder: () => const AdminFavorDiferencasScreen(),
-      keywords: const ['favor', 'diferenca', 'mbway', 'mb way', 'orcamento', 'compra', 'reenviar', 'expirou', 'pagar'],
+      keywords: const ['favor', 'diferenca', 'mbway', 'mb way', 'orcamento', 'compra', 'reenviar', 'expirou', 'pagar', 'aprovacao', 'aprovar', 'teto', 'tecto', 'preco maior'],
     ),
     AdminMenuItem(
       id: 'operacao_pedidos_de_cancelamento',
@@ -505,6 +510,20 @@ List<AdminMenuSection> adminMenuSections() => [
       color: AppColors.accent,
       builder: () => const AdminReceiptsScreen(),
       keywords: const ['compras', 'entregador', 'estafetas', 'mercado', 'reembolso', 'reembolsos', 'taloes'],
+    ),
+    // 08/11/2026 (m1, adendo 1): toda foto de talão guardada 10 anos (papel
+    // fiscal); filtro por mês, loja e entregador, ZIP do mês e pedidos sem talão.
+    AdminMenuItem(
+      id: 'dinheiro_taloes_guardados',
+      title: 'Talões (fotos guardadas 10 anos)',
+      subtitle: 'Todas as fotos de talão por mês, loja e entregador, com valor e NIF usado; baixar o mês num ZIP para o contabilista e ver pedidos entregues sem talão',
+      icon: Icons.photo_library_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminTaloesScreen(),
+      keywords: const [
+        'talão', 'talao', 'talões', 'taloes', 'recibo', 'recibos', 'zip', 'contabilista',
+        'fatura', 'factura', 'nif', 'foto', 'fotos', 'drive', 'papel fiscal', 'sem talao', 'sem talão',
+      ],
     ),
     AdminMenuItem(
       id: 'dinheiro_precos_por_talao',
@@ -1040,6 +1059,16 @@ List<AdminMenuSection> adminMenuSections() => [
       builder: () => const AdminSupportEscalationsScreen(),
       keywords: const ['suporte', 'escalamento', 'falar', 'danilo', 'humano', 'responder', 'conversa'],
     ),
+    // Adendo 1 m4 (08/11/2026): TODAS as conversas do chat do suporte, não só as escaladas.
+    AdminMenuItem(
+      id: 'clientes_suporte_conversas',
+      title: 'Conversas do suporte',
+      subtitle: 'Todas as conversas do chat de ajuda da app, as novas primeiro: ler, responder como Equipa Bora e devolver ao robô',
+      icon: Icons.forum_outlined,
+      color: Colors.teal,
+      builder: () => const AdminSuporteConversasScreen(),
+      keywords: const ['suporte', 'conversas', 'chat', 'ajuda', 'responder', 'robô', 'não lidas', 'cliente'],
+    ),
     AdminMenuItem(
       id: 'clientes_reclamacoes',
       title: 'Reclamações',
@@ -1147,6 +1176,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: AppColors.primary,
       builder: () => const AdminReceitasScreen(),
       keywords: const ['receita', 'receitas', 'cozinha', 'todo dia', 'aviso', 'ingredientes', 'carrinho'],
+    ),
+    AdminMenuItem(
+      id: 'clientes_restaurante_do_dia',
+      title: 'Restaurante do dia',
+      subtitle: 'Aviso diário com um restaurante e um prato: ligar/desligar, hora (17:30), rotação e últimos envios',
+      icon: Icons.storefront_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminRestauranteDoDiaScreen(),
+      keywords: const ['restaurante', 'do dia', 'notificacao', 'push', 'aviso', 'rotacao', 'jantar', '17:30'],
     ),
     AdminMenuItem(
       id: 'clientes_personalizacao',
@@ -1323,6 +1361,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.blueGrey,
       builder: () => const AdminComprovativoAtividadeScreen(),
       keywords: const ['atividade', 'comprovativo', 'financas', 'nif', 'prestador', 'estafeta', 'limpeza', 'lavagem', 'tvde', 'cae', 'lembrete', 'documento'],
+    ),
+    // [08/11/2026 · missão m2] Estafetas: fila de espera e semáforo da conta (mesmo da app).
+    AdminMenuItem(
+      id: 'sistema_estafetas_fila',
+      title: 'Estafetas — fila e documentos',
+      subtitle: 'O que falta a cada estafeta (o mesmo semáforo da app), quem está na fila de espera, aprovar, reenviar a mensagem do que falta e marcar atividade confirmada',
+      icon: Icons.fact_check_outlined,
+      color: Colors.blueGrey,
+      builder: () => const AdminEstafetasFilaScreen(),
+      keywords: const ['estafetas', 'fila', 'espera', 'candidatos', 'documentos', 'falta', 'iban', 'nif', 'selfie', 'aprovar', 'valdemir', 'conta'],
     ),
     // [29/10/2026 · Adendo 3] Robô fiscal de documentos dos candidatos (modo sombra por defeito).
     AdminMenuItem(

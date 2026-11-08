@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../config/app_colors.dart';
 import '../providers/support_settings_provider.dart';
@@ -19,6 +20,32 @@ import '../l10n/tr.dart';
 /// histórico + contexto da IA). A chave guarda apenas o UUID; o histórico
 /// vem da DB via _loadHistory().
 const String _kActiveSessionPrefsKey = 'active_support_session_id';
+
+/// Adendo 1 m4 (08/11/2026): papéis que o cliente vê no chat. 'admin' é a
+/// equipa Bora a responder como pessoa; 'tool' e 'system' nunca aparecem
+/// (antes o histórico mostrava as linhas de ferramenta como balões do robô).
+const List<String> kPapeisVisiveisSuporte = ['user', 'assistant', 'admin'];
+
+/// Uma conversa escalada continua a abrir durante 48 h: é por ela que a
+/// resposta da equipa chega ao cliente.
+bool sessaoSuporteContinua({
+  required Object? endedAt,
+  required bool escalada,
+  required String? modo,
+  required DateTime? iniciadaEm,
+  DateTime? agora,
+}) {
+  if (endedAt != null) return false;
+  if (!escalada || modo == 'admin') return true;
+  if (iniciadaEm == null) return false;
+  return (agora ?? DateTime.now()).difference(iniciadaEm) <
+      const Duration(hours: 48);
+}
+
+/// Primeiro link do WhatsApp num texto (o robô dá o da Bora quando o cliente
+/// pede uma pessoa).
+String? linkWhatsAppNoTexto(String texto) =>
+    RegExp(r'https://wa\.me/\d{9,15}').firstMatch(texto)?.group(0);
 
 class SupportChatScreen extends StatefulWidget {
   const SupportChatScreen({
@@ -53,6 +80,12 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
   String? _errorBanner;
   RealtimeChannel? _channel;
 
+  /// A equipa Bora assumiu a conversa (o robô está calado).
+  bool _modoEquipa = false;
+
+  /// Ids das mensagens da equipa já mostradas (o Realtime pode repetir).
+  final Set<String> _idsEquipa = {};
+
   @override
   void initState() {
     super.initState();
@@ -85,7 +118,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
       // user_id explicitamente.
       final session = await _supabase
           .from('support_chatbot_sessions')
-          .select('id, ended_at, escalated, ticket_id')
+          .select('id, ended_at, escalated, ticket_id, mode, started_at')
           .eq('id', saved)
           .maybeSingle();
 
@@ -93,16 +126,24 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
         await prefs.remove(_kActiveSessionPrefsKey);
         return;
       }
-      final ended = session['ended_at'];
       final escalated = (session['escalated'] as bool?) ?? false;
-      if (ended != null || escalated) {
-        // Sessão terminada/escalada — limpar para próxima abertura criar nova.
+      final modo = session['mode'] as String?;
+      // Adendo 1 m4 (08/11/2026): uma conversa escalada já não se descarta
+      // logo — é por ela que a resposta da equipa Bora chega (48 h).
+      if (!sessaoSuporteContinua(
+        endedAt: session['ended_at'],
+        escalada: escalated,
+        modo: modo,
+        iniciadaEm: DateTime.tryParse(session['started_at']?.toString() ?? ''),
+      )) {
         await prefs.remove(_kActiveSessionPrefsKey);
         return;
       }
 
       if (!mounted) return;
       _sessionId = saved;
+      _escalated = escalated;
+      _modoEquipa = modo == 'admin';
       _ticketId = session['ticket_id'] as String?;
       _subscribeRealtime(saved);
       await _loadHistory(saved);
@@ -117,8 +158,9 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
     try {
       final rows = await _supabase
           .from('support_chatbot_messages')
-          .select('role, content, created_at')
+          .select('id, role, content, created_at')
           .eq('session_id', sessionId)
+          .inFilter('role', kPapeisVisiveisSuporte)
           .order('created_at', ascending: true)
           .limit(50);
 
@@ -132,9 +174,14 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
           final role = r['role'] as String?;
           final content = (r['content'] as String?) ?? '';
           if (content.isEmpty) continue;
-          _messages.add(role == 'user'
-              ? _ChatMessage.user(content)
-              : _ChatMessage.assistant(content));
+          if (role == 'admin') {
+            _idsEquipa.add(r['id'].toString());
+            _messages.add(_ChatMessage.equipa(content));
+          } else {
+            _messages.add(role == 'user'
+                ? _ChatMessage.user(content)
+                : _ChatMessage.assistant(content));
+          }
         }
       });
       _scrollToBottom();
@@ -152,14 +199,6 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
     }
   }
 
-  Future<void> _clearPersistedSession() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_kActiveSessionPrefsKey);
-    } catch (e) {
-      debugPrint('[SupportChatScreen] _clearPersistedSession error: $e');
-    }
-  }
 
   @override
   void dispose() {
@@ -185,10 +224,16 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
         final row = payload.newRecord;
         final role = row['role'] as String?;
         final content = (row['content'] as String?) ?? '';
-        if (role == 'assistant' && content.isNotEmpty) {
-          // assistant final já é setado em _send via response.reply,
-          // este callback ajuda em cenários multi-device / logs duplicados
-          // — guardamos apenas o último.
+        // A resposta do robô chega por _send (response.reply). Aqui só entram
+        // as mensagens da equipa Bora, escritas por uma pessoa no painel.
+        if (role == 'admin' && content.isNotEmpty && mounted) {
+          final id = row['id']?.toString() ?? '';
+          if (id.isNotEmpty && !_idsEquipa.add(id)) return;
+          setState(() {
+            _messages.add(_ChatMessage.equipa(content));
+            _modoEquipa = true;
+          });
+          _scrollToBottom();
         }
       },
     ).subscribe();
@@ -225,6 +270,8 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
       final ticketId = data['ticket_id'] as String?;
       final remToday = data['messages_remaining_today'] as int?;
       final remSession = data['messages_remaining_session'] as int?;
+      final modoEquipa = data['modo'] == 'admin';
+      final jaEscalada = _escalated;
 
       if (!mounted) return;
       setState(() {
@@ -234,18 +281,20 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
           // Sessão 2026-05-18 — persistir para sobreviver a dispose() do widget.
           _persistSessionId(sessionId);
         }
-        _messages.add(_ChatMessage.assistant(reply));
+        // Com a equipa a responder, o robô não responde (reply vazio).
+        if (reply.trim().isNotEmpty) _messages.add(_ChatMessage.assistant(reply));
         _escalated = escalated;
-        _ticketId = ticketId;
+        _modoEquipa = _modoEquipa || modoEquipa;
+        _ticketId = ticketId ?? _ticketId;
         _remainingToday = remToday;
         _remainingSession = remSession;
         _sending = false;
       });
       _scrollToBottom();
-      if (escalated && mounted) {
-        // Sessão escalou para humano → limpar persistência para que a
-        // próxima abertura do chatbot inicie sessão IA nova.
-        _clearPersistedSession();
+      if (escalated && !jaEscalada && !modoEquipa && mounted) {
+        // Adendo 1 m4 (08/11/2026): a sessão escalada FICA guardada — é por
+        // ela que a resposta da equipa chega (antes limpava-se e a resposta
+        // perdia-se). O robô já deu o WhatsApp; o painel abre por cima.
         Future<void>.delayed(const Duration(milliseconds: 600), _showHandoff);
       }
     } on FunctionException catch (e) {
@@ -345,7 +394,25 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                 style: const TextStyle(color: Color(0xFFC62828)),
               ),
             ),
-          if (_escalated)
+          if (_modoEquipa)
+            Container(
+              width: double.infinity,
+              color: AppColors.primaryWash,
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  const Icon(Icons.support_agent, color: AppColors.primaryDark),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Estás a falar com a equipa Bora.'.tr,
+                      style: const TextStyle(color: AppColors.primaryDark),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else if (_escalated)
             Container(
               width: double.infinity,
               color: const Color(0xFFE3F2FD),
@@ -428,11 +495,17 @@ class _ChatMessage {
       : role = 'assistant',
         timestamp = DateTime.now();
 
+  /// Adendo 1 m4: resposta escrita por uma pessoa da equipa Bora no painel.
+  _ChatMessage.equipa(this.content)
+      : role = 'admin',
+        timestamp = DateTime.now();
+
   final String role;
   final String content;
   final DateTime timestamp;
 
   bool get isUser => role == 'user';
+  bool get isEquipa => role == 'admin';
 }
 
 class _MessageBubble extends StatelessWidget {
@@ -442,6 +515,7 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = msg.isUser;
+    final wa = isUser ? null : linkWhatsAppNoTexto(msg.content);
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -451,7 +525,11 @@ class _MessageBubble extends StatelessWidget {
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isUser ? AppColors.accent : AppColors.surface,
+          color: isUser
+              ? AppColors.accent
+              : msg.isEquipa
+                  ? AppColors.primaryWash
+                  : AppColors.surface,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -459,12 +537,40 @@ class _MessageBubble extends StatelessWidget {
             bottomRight: Radius.circular(isUser ? 4 : 16),
           ),
         ),
-        child: Text(
-          msg.content,
-          style: TextStyle(
-            color: isUser ? Colors.white : AppColors.textPrimary,
-            fontSize: 14,
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (msg.isEquipa)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Text(
+                  'Equipa Bora'.tr,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryDark,
+                  ),
+                ),
+              ),
+            Text(
+              msg.content,
+              style: TextStyle(
+                color: isUser ? Colors.white : AppColors.textPrimary,
+                fontSize: 14,
+              ),
+            ),
+            if (wa != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: OutlinedButton.icon(
+                  onPressed: () => launchUrl(Uri.parse(wa),
+                      mode: LaunchMode.externalApplication),
+                  icon: const Icon(Icons.chat, size: 18),
+                  label: Text('Abrir o WhatsApp da Bora'.tr),
+                ),
+              ),
+          ],
         ),
       ),
     );

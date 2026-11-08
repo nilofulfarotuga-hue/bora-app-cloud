@@ -1,0 +1,52 @@
+OK   antes da migração o aviso apontava para as escaladas → "/admin/support-escalations"
+OK   migração 20261108210000_amigo_bora_v1.sql correu (volta 1)
+OK   migração 20261108220000_suporte_conversa_admin.sql correu (volta 1)
+OK   migração 20261108210000_amigo_bora_v1.sql correu (volta 2)
+OK   migração 20261108220000_suporte_conversa_admin.sql correu (volta 2)
+OK   factos: 4 pedidos entregues (o cancelado não conta) → 4
+OK   factos: hábito "sexta à noite: Jyosmi" 3 vezes, último pedido o3 → {"dia":5,"loja":"Jyosmi Sushi","vezes":3,"loja_id":"jyosmi-sushi-guarda","periodo":"noite","dia_nome":"sexta","ultimo_pedido_id":"o3"}
+OK   factos: só um hábito (o Continente foi 1 vez) → 1
+OK   factos: artigo recorrente → [{"loja":"Jyosmi Sushi","nome":"Combinado Tradicional","vezes":3}]
+OK   factos: loja favorita → {"id":"jyosmi-sushi-guarda","nome":"Jyosmi Sushi","pedidos":3}
+OK   factos: categorias → {"favores":0,"limpeza":1,"mercado":1,"restaurante":3}
+OK   factos: ticket médio (21,5+15+31+12)/4 → 19.88
+OK   factos: nada de pagamento
+OK   contexto: 5 últimos pedidos, o mais recente primeiro → ["o3","o4","o2","o1","o5"]
+OK   contexto: só promoções ativas e nunca a faixa do assistente → [{"id":"b5183fb3-f69e-4a4e-8994-b4c5d83d198f","titulo":"5 € de boas-vindas","destino":"BEMVINDO","subtitulo":null,"tipo_destino":"codigo"}]
+OK   contexto: parceiro novo (o "em breve" fica fora) → [{"id":"loja-nova","nome":"Loja Nova","categoria":"padaria"}]
+OK   faixa permanente do assistente desligada
+OK   cópia da faixa feita antes de mexer
+OK   definições novas criadas → ["assistant_personality_enabled","deixa_promocoes_enabled","assistant_amigo_model","assistant_amigo_welcome_text"]
+OK   claude_robos: edge-amigo (Haiku) junto, os outros intactos
+OK   cron amigo-bora-perfis marcado
+OK   overview: recusa quem não é admin
+OK   overview: admin vê perfis e interruptores → {"perfis":{"total":1,"esquecidos":0,"com_habitos":0,"nao_lembrar":0,"atualizados_24h":1},"i":true}
+OK   ver perfil: sem motivo não abre → "motivo_obrigatorio: escreve o motivo (mínimo 10 letras)"
+OK   ver perfil: abre com motivo → {"ok":true,"perfil":{"nome_tratamento":"Ana"},"lembrar":true,"memorias":1,"tem_perfil":true,"esquecido_em":null,"atualizado_em":"2026-11-08T20:26:38.363+00:00"}
+OK   ver perfil: fica na auditoria com o motivo
+OK   deixa: outro cliente não marca a deixa de ninguém
+OK   deixa: o próprio marca como clicada
+OK   esquecer tudo: apaga as memórias → {"ok":true,"memorias_apagadas":1}
+OK   esquecer tudo: perfil vazio e data marcada
+OK   esquecer tudo: as métricas deixam de apontar para o cliente
+OK   depois de esquecer, os pedidos antigos já não contam → 0
+OK   não lembrar: o contexto não leva perfil nem pedidos
+OK   aviso antigo corrigido para abrir a conversa → "/admin/support/sessions/44444444-4444-4444-4444-444444444444"
+OK   cópia dos avisos antigos feita
+OK   aviso novo abre a conversa → "/admin/support/sessions/44444444-4444-4444-4444-444444444444"
+OK   pedido de ajuda vindo do chat abre a conversa → "/admin/support/sessions/44444444-4444-4444-4444-444444444444"
+OK   pedido de ajuda sem conversa continua na lista de pedidos → "/admin/support"
+OK   lista de conversas: recusa quem não é admin
+OK   lista: todas as conversas (não escalada incluída), não lida → {"session_id":"44444444-4444-4444-4444-444444444444","user_id":"44444444-4444-4444-4444-444444444444","nome":"S. Teste","telefone":"961000000","papel":"client","iniciada_em":"2026-11-08T20:26:37.974Z","ultima_msg_em":"2026-11-08T20:26:38.536Z","ultima_msg":"olá, alguém?","ultima_msg_papel":"user","mensagens":2,"escalada":false,"modo":"ai","nao_lida":true,"ticket_id":null}
+OK   conversa: cliente, telefone, email e mensagens → {"tel":"961000000","n":2}
+OK   abrir a conversa marca como lida
+OK   responder como Equipa Bora → {"ok":true,"mensagem_id":"10d00546-3ee1-43d0-96d9-220daaaf08e6"}
+OK   ao responder, a sessão passa a modo admin (robô calado) → "admin"
+OK   a mensagem fica com papel admin (o chat da app recebe pelo Realtime)
+OK   o cliente recebe aviso no sininho
+OK   a resposta do admin não gera aviso ao admin
+OK   responder: recusa quem não é admin
+OK   devolver ao robô volta a modo ai
+OK   última mensagem guardada na sessão (ordena a lista)
+
+TUDO OK

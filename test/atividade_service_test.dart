@@ -214,9 +214,22 @@ void main() {
     String ler(String p) => File(p).readAsStringSync();
 
     test('o aviso está no ecrã principal de cada papel (e nos de espera)', () {
+      // Missão m2 (08/11/2026, ordem do Danilo): no estafeta e no motorista o
+      // comprovativo saiu do ecrã das ofertas — vive na barra "Falta: …"
+      // (BarraFaltaConta) e no item 'atividade' de "A minha conta", que abre
+      // o ComprovativoAtividadeScreen.
       for (final p in [
         'lib/screens/driver_home_screen.dart',
         'lib/screens/driver/tvde/tvde_driver_home_screen.dart',
+      ]) {
+        expect(ler(p), contains('BarraFaltaConta('), reason: p);
+      }
+      final conta = ler('lib/screens/driver/minha_conta_screen.dart');
+      expect(conta, contains("'atividade' =>"));
+      expect(conta, contains('ComprovativoAtividadeScreen()'));
+      expect(ler('lib/services/minha_conta.dart'),
+          contains("chave: 'atividade'"));
+      for (final p in [
         'lib/screens/cleaner/cleaner_home_screen.dart',
         'lib/screens/washer/washer_home_screen.dart',
         'lib/screens/partner/services/partner_services_hub_screen.dart',

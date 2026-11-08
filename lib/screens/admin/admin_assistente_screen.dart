@@ -15,6 +15,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import 'admin_assistente_amigo.dart';
 import 'admin_assistente_aprendidas.dart';
 
 class AdminAssistenteScreen extends StatelessWidget {
@@ -23,7 +24,7 @@ class AdminAssistenteScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const DefaultTabController(
-      length: 7,
+      length: 8,
       child: Scaffold(
         backgroundColor: AppColors.background,
         appBar: BoraScreenAppBar(
@@ -35,6 +36,8 @@ class AdminAssistenteScreen extends StatelessWidget {
             indicatorColor: Colors.white,
             tabs: [
               Tab(text: 'Visão geral'),
+              // Missão m4 (08/11/2026): Amigo Bora — números, interruptores e perfis.
+              Tab(text: 'Amigo Bora'),
               Tab(text: 'Conversas'),
               Tab(text: 'Propostas'),
               Tab(text: 'Conhecimento'),
@@ -47,6 +50,7 @@ class AdminAssistenteScreen extends StatelessWidget {
         body: TabBarView(
           children: [
             _VisaoGeralTab(),
+            AdminAssistenteAmigoTab(),
             _ConversasTab(),
             _PropostasTab(),
             _ConhecimentoTab(),

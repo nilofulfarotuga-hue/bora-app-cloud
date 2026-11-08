@@ -10,6 +10,8 @@ import '../../widgets/admin/admin_fatura_nif_section.dart';
 import '../../widgets/admin/admin_substituicao_section.dart';
 import '../../widgets/admin/admin_favor_passos_section.dart';
 import '../../widgets/admin/admin_entregue_sem_codigo_button.dart';
+import '../../widgets/admin/admin_recibo_cliente_section.dart';
+import '../../widgets/admin/admin_talao_pedido_section.dart';
 import '../../widgets/admin/admin_ofertas_do_pedido_section.dart';
 import '../../utils/conta_do_dinheiro_admin.dart';
 import '../../utils/hora_lisboa.dart';
@@ -445,6 +447,21 @@ class _SummaryTab extends StatelessWidget {
           // 31/10/2026: peso variável dos mercados não-parceiros — o valor da
           // balança que o estafeta escreveu. Sem ajustes não desenha nada.
           AdminAjustesPesoSection(orderId: order['id'] as String),
+          // 08/11/2026 (m1-dinheiro-favores): recibo por e-mail ao cliente —
+          // estado, reenviar e ver o PDF. Só em pedidos entregues.
+          if (status == 'delivered') ...[
+            const SizedBox(height: 12),
+            AdminReciboClienteSection(orderId: order['id'] as String),
+          ],
+          // 08/11/2026 (m1, adendo 1): talões guardados 10 anos — todas as
+          // fotos do talão, o valor escrito pelo entregador e o NIF usado.
+          // Loja parceira sem foto não desenha nada.
+          AdminTalaoPedidoSection(
+            orderId: order['id'] as String,
+            status: status,
+            serviceType: order['service_type'] as String?,
+            errandHasPurchase: order['errand_has_purchase'] == true,
+          ),
           const SizedBox(height: 24),
           Text('Acções', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -456,7 +473,8 @@ class _SummaryTab extends StatelessWidget {
             onTap: onCancel,
           ),
           // 04/11/2026: o entregador esqueceu o código (PIN) — fecha com motivo
-          // e fica no log de auditoria. Só aparece em pedidos a caminho.
+          // e fica no log de auditoria. Só aparece em pedidos recolhidos
+          // (pickedUp) ou a caminho (onTheWay) — o próprio botão decide.
           AdminEntregueSemCodigoButton(
             orderId: order['id'] as String,
             status: order['status'] as String? ?? '',

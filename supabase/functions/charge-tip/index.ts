@@ -161,15 +161,28 @@ async function devolverCancelamento(admin: any, body: any, quem: string | null):
   return json({ ok: r.erros === 0, orderId, destino, ...r });
 }
 
+/** M1 08/11/2026: gorjeta cobrada JUNTO com o pedido (mesmo PaymentIntent) — a taxa é a parte
+ *  proporcional da taxa do pagamento inteiro (só contabilidade: o líquido do prestador nestas
+ *  gorjetas é sempre o valor inteiro, ver tips.liquido_prestador_cents). Caso BK 56fa8623:
+ *  80 × 200 / 3662 → 4 cêntimos. */
+async function taxaProporcional(stripe: Stripe, piId: string, gorjetaCents: number): Promise<number | null> {
+  const full = await stripe.paymentIntents.retrieve(piId, { expand: ['latest_charge.balance_transaction'] });
+  // deno-lint-ignore no-explicit-any
+  const fee = (full.latest_charge as any)?.balance_transaction?.fee;
+  const total = Number(full.amount_received ?? full.amount ?? 0);
+  if (typeof fee !== 'number' || total <= 0) return null;
+  return Math.round(fee * gorjetaCents / total);
+}
+
 // deno-lint-ignore no-explicit-any
 async function taxasEmFalta(admin: any): Promise<Response> {
-  // Gorjetas pagas à parte (as do mesmo pagamento da compra não têm taxa própria) dos últimos 60 dias.
+  // Gorjetas pagas à parte (taxa própria) e, desde 08/11, as pagas junto com o pedido (parte
+  // proporcional da taxa do pagamento) dos últimos 60 dias.
   const desde = new Date(Date.now() - 60 * 24 * 3600 * 1000).toISOString();
   const { data: tips, error } = await admin.from('tips')
-    .select('id, stripe_payment_intent_id, stripe_account')
+    .select('id, stripe_payment_intent_id, stripe_account, cobrada_junto, amount_cents')
     .in('status', ['succeeded', 'refunded'])
     .in('method', ['card', 'mbway'])
-    .eq('cobrada_junto', false)
     .is('stripe_fee_cents', null)
     .not('stripe_payment_intent_id', 'is', null)
     .gte('created_at', desde)
@@ -181,9 +194,11 @@ async function taxasEmFalta(admin: any): Promise<Response> {
   let gravadas = 0;
   let semTaxa = 0;
   const erros: string[] = [];
-  for (const t of (tips ?? []) as { id: string; stripe_payment_intent_id: string; stripe_account?: string | null }[]) {
+  for (const t of (tips ?? []) as { id: string; stripe_payment_intent_id: string; stripe_account?: string | null; cobrada_junto?: boolean; amount_cents?: number }[]) {
     try {
-      const fee = await taxaDoPagamento(stripeDaLinha(t).stripe, t.stripe_payment_intent_id); // duas contas
+      const fee = t.cobrada_junto === true
+        ? await taxaProporcional(stripeDaLinha(t).stripe, t.stripe_payment_intent_id, Number(t.amount_cents ?? 0))
+        : await taxaDoPagamento(stripeDaLinha(t).stripe, t.stripe_payment_intent_id); // duas contas
       if (fee === null) { semTaxa++; continue; }
       const { data: up, error: ue } = await admin.from('tips').update({ stripe_fee_cents: fee })
         .eq('id', t.id).is('stripe_fee_cents', null).select('id');

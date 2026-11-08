@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bora - barra de baixo proposta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--verde:#16A34A;--laranja:#F97316;--texto:#111827;--sub:#6B7280;--linha:#E5E7EB;--fundo:#F3F4F6}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,system-ui,sans-serif;background:var(--fundo);color:var(--texto);padding:24px 16px 48px}
+h1{font-size:20px;font-weight:800;text-align:center}
+p.nota{font-size:13px;color:var(--sub);text-align:center;margin:6px auto 24px;max-width:720px}
+.fila{display:flex;gap:28px;justify-content:center;flex-wrap:wrap}
+.col{width:300px}
+.col h2{font-size:15px;font-weight:700;text-align:center;margin-bottom:10px}
+.tel{width:300px;height:610px;border-radius:34px;border:8px solid #111827;background:#fff;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.topo{padding:14px 16px 8px;font-size:12px;color:var(--sub);display:flex;justify-content:space-between}
+.corpo{flex:1;position:relative;overflow:hidden;padding:0 14px}
+.barra{display:flex;border-top:1px solid var(--linha);background:#fff;height:62px}
+.barra div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;color:#9CA3AF;font-weight:500}
+.barra div.on{color:var(--verde);font-weight:700}
+.barra svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.pedido{background:var(--verde);color:#fff;border-radius:12px;padding:10px 12px;font-size:12px;font-weight:600;margin:0 10px 8px;display:flex;justify-content:space-between}
+h3{font-size:17px;font-weight:800;margin:6px 0 10px}
+.grelha{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.cat{background:#F0FDF4;border:1px solid #DCFCE7;border-radius:12px;height:70px;display:flex;align-items:flex-end;padding:6px;font-size:11px;font-weight:600}
+.cat.dest{background:var(--laranja);border-color:var(--laranja);color:#fff}
+.pesq{background:var(--fundo);border-radius:10px;padding:10px;font-size:12px;color:var(--sub);margin-bottom:10px}
+.mapa{position:absolute;inset:0;background:linear-gradient(135deg,#DCFCE7 0%,#ECFDF5 40%,#D1FAE5 100%)}
+.mapa:before{content:"";position:absolute;inset:0;background-image:linear-gradient(#fff 2px,transparent 2px),linear-gradient(90deg,#fff 2px,transparent 2px);background-size:60px 60px;opacity:.7}
+.chip{position:absolute;top:12px;left:14px;background:#fff;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.chip i{display:inline-block;width:8px;height:8px;background:var(--verde);border-radius:50%;margin-right:6px}
+.ganhos{position:absolute;top:50px;left:14px;right:14px;background:#fff;border-radius:12px;padding:10px 12px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.12);display:flex;justify-content:space-between}
+.mira{position:absolute;right:14px;top:62%;width:44px;height:44px;border-radius:50%;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center}
+.mira svg{width:24px;height:24px;stroke:var(--verde);fill:none;stroke-width:2}
+.mira-t{position:absolute;right:62px;top:calc(62% + 12px);font-size:10px;background:#111827;color:#fff;border-radius:6px;padding:3px 6px}
+.cartao{position:absolute;left:14px;right:14px;bottom:12px;background:#fff;border-radius:16px;padding:12px;box-shadow:0 -2px 14px rgba(0,0,0,.15);font-size:12px}
+.cartao b{font-size:14px}
+.lista .it{border:1px solid var(--linha);border-radius:12px;padding:10px;margin-bottom:8px;font-size:12px;display:flex;justify-content:space-between;align-items:center}
+.lista .it b{font-size:13px}
+.etq{font-size:10px;font-weight:700;border-radius:8px;padding:3px 7px;background:#DCFCE7;color:#166534}
+.btn{background:var(--verde);color:#fff;border-radius:10px;padding:8px 12px;font-size:12px;font-weight:700;text-align:center}
+.legenda{max-width:980px;margin:28px auto 0;font-size:13px;color:var(--sub);line-height:1.5}
+.legenda b{color:var(--texto)}
+</style>
+</head>
+<body>
+<h1>Barra de baixo proposta - cliente, estafeta e parceiro</h1>
+<p class="nota">Maquete estática. Só mostra a barra e o que muda à volta. Textos como ficariam na app (PT-PT). Um único elemento laranja por ecrã.</p>
+
+<div class="fila">
+
+<!-- CLIENTE -->
+<div class="col"><h2>Cliente</h2>
+<div class="tel">
+ <div class="topo"><span>9:41</span><span>Guarda, Rua Direita 12</span></div>
+ <div class="corpo">
+  <h3>Olá, Marta. O que precisas hoje?</h3>
+  <div class="pesq">Procurar restaurantes, lojas, serviços...</div>
+  <div class="grelha">
+   <div class="cat dest">Restaurantes</div>
+   <div class="cat">Supermercados</div>
+   <div class="cat">Lojas</div>
+   <div class="cat">Favores</div>
+   <div class="cat">Beleza</div>
+   <div class="cat">Limpeza</div>
+   <div class="cat">Casa</div>
+   <div class="cat">Festas</div>
+   <div class="cat">Sobremesas</div>
+  </div>
+ </div>
+ <div class="pedido"><span>O teu pedido: estafeta a caminho</span><span>~12 min</span></div>
+ <div class="barra">
+  <div class="on"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v10H3z"/></svg>Início</div>
+  <div><svg viewBox="0 0 24 24"><path d="M6 2h12l2 5v15H4V7z"/><path d="M9 11h6"/></svg>Pedidos</div>
+  <div><svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-5.4A8 8 0 1 1 21 12z"/></svg>Mensagens</div>
+  <div><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Perfil</div>
+ </div>
+</div></div>
+
+<!-- ESTAFETA -->
+<div class="col"><h2>Estafeta</h2>
+<div class="tel">
+ <div class="topo"><span>9:41</span><span></span></div>
+ <div class="corpo" style="padding:0">
+  <div class="mapa"></div>
+  <div class="chip"><i></i>Online</div>
+  <div class="ganhos"><span>Ganhos de hoje</span><b>23,40 €</b></div>
+  <div class="mira"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></div>
+  <div class="mira-t">Centrar</div>
+  <div class="cartao"><b>À espera de pedidos</b><br>Fica nesta zona. Avisamos-te assim que houver um.</div>
+ </div>
+ <div class="barra">
+  <div class="on"><svg viewBox="0 0 24 24"><path d="M9 3L3 5v16l6-2 6 2 6-2V3l-6 2z"/><path d="M9 3v16M15 5v16"/></svg>Mapa</div>
+  <div><svg viewBox="0 0 24 24"><path d="M6 2h12l2 5v15H4V7z"/><path d="M9 11h6"/></svg>Pedidos</div>
+  <div><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>Ganhos</div>
+  <div><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Conta</div>
+ </div>
+</div></div>
+
+<!-- PARCEIRO -->
+<div class="col"><h2>Parceiro</h2>
+<div class="tel">
+ <div class="topo"><span>9:41</span><span>Loja aberta</span></div>
+ <div class="corpo">
+  <h3>Pedidos de agora</h3>
+  <div class="lista">
+   <div class="it"><div><b>#4821 · 2 itens</b><br>Nova encomenda, 14,50 €</div><div class="btn">Aceitar</div></div>
+   <div class="it"><div><b>#4820 · 3 itens</b><br>A preparar, pronto às 13:10</div><span class="etq">A preparar</span></div>
+   <div class="it"><div><b>#4818 · 1 item</b><br>Estafeta a chegar</div><span class="etq">Pronto</span></div>
+  </div>
+ </div>
+ <div class="barra">
+  <div class="on"><svg viewBox="0 0 24 24"><path d="M6 2h12l2 5v15H4V7z"/><path d="M9 11h6"/></svg>Pedidos</div>
+  <div><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Menu</div>
+  <div><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Horários</div>
+  <div><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="13" rx="2"/><circle cx="12" cy="12.5" r="3"/></svg>Dinheiro</div>
+  <div><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Conta</div>
+ </div>
+</div></div>
+
+</div>
+
+<div class="legenda">
+<p><b>Cliente:</b> Início, Pedidos, Mensagens e Perfil. As categorias ficam na página de Início (já estão hoje). A faixa verde "O teu pedido" já existe e continua por cima da barra. Reservas passam a viver dentro de Pedidos (separador "Reservas").</p>
+<p style="margin-top:8px"><b>Estafeta:</b> a barra substitui os quatro botões redondos soltos em cima do mapa. A mira "Centrar" fica do lado direito, um pouco abaixo do meio do ecrã.</p>
+<p style="margin-top:8px"><b>Parceiro:</b> cinco separadores com texto. O botão "Loja aberta / fechada" fica no topo de Pedidos.</p>
+<p style="margin-top:8px">Laranja: só o mosaico "Restaurantes" no cliente. Estafeta e parceiro não usam laranja nestes ecrãs.</p>
+</div>
+</body>
+</html>

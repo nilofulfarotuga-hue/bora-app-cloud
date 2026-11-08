@@ -14,9 +14,14 @@
 //   - caso contrário     → Account Link de onboarding
 // =============================================================================
 
-import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { secretKey } from '../_shared/keys.ts';
+import {
+  garantirContaConnect,
+  linkConnect,
+  TABELAS_CONNECT,
+  type PapelConnect,
+} from '../_shared/connect_conta.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,33 +36,14 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 
-// Mesmo interruptor test/live do tvde-payment.
-const STRIPE_MODE = (Deno.env.get('BORA_STRIPE_MODE') ?? 'live').toLowerCase();
-const stripeSecretKey =
-  STRIPE_MODE === 'test'
-    ? (Deno.env.get('STRIPE_TEST_SECRET_KEY') ?? '')
-    : (Deno.env.get('STRIPE_SECRET_KEY') ?? '');
-const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
-
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SERVICE_KEY = secretKey() ?? '';
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
-// A Stripe só aceita http(s) nos Account Links — o deep link nativo
-// (pt.boraapp.bora://) é recusado, por isso o retorno é sempre o web app.
-const RETURN_BASE = 'https://bora-app-web.pages.dev';
-
-type Role = 'partner' | 'provider' | 'driver' | 'cleaner';
-const ROLE_TABLES: Record<Role, string> = {
-  partner: 'restaurants',
-  provider: 'service_providers',
-  driver: 'drivers',
-  cleaner: 'cleaners',
-};
+// Chaves Stripe (pessoal/empresa, live/test) e retorno http(s): ver _shared/connect_conta.ts.
+type Role = PapelConnect;
+const ROLE_TABLES = TABELAS_CONNECT;
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -78,8 +64,8 @@ Deno.serve(async (req: Request) => {
     const table = ROLE_TABLES[role];
 
     // 2. Linha do próprio utilizador (restaurants tem 2 colunas de dono).
-    const select = 'id, name, stripe_account_id, stripe_account_status';
-    let query = admin.from(table).select(select).limit(1);
+    //    select('*') para ler stripe_account_owner quando a migração M7 já estiver aplicada.
+    let query = admin.from(table).select('*').limit(1);
     if (role === 'partner') {
       query = query.or(`user_.eq.${user.id},user_id.eq.${user.id}`);
     } else if (role === 'provider') {
@@ -91,61 +77,26 @@ Deno.serve(async (req: Request) => {
     if (rowErr) return json({ error: `lookup_failed: ${rowErr.message}` }, 500);
     if (!row) return json({ error: 'row_not_found_for_user' }, 404);
 
-    let accountId: string | null = row.stripe_account_id;
-
-    // 3. Conta já ativa → link do Express Dashboard (ver os próprios pagamentos).
-    if (accountId && row.stripe_account_status === 'enabled') {
-      const login = await stripe.accounts.createLoginLink(accountId);
-      return json({
-        url: login.url,
-        account_id: accountId,
-        status: 'enabled',
-        kind: 'login',
-      });
-    }
-
-    // 4. Sem conta → cria a conta Connect Express (PT, EUR, transfers).
-    if (!accountId) {
-      const account = await stripe.accounts.create({
-        type: 'express',
-        country: 'PT',
-        default_currency: 'eur',
-        capabilities: { transfers: { requested: true } },
-        // Inferido pelo papel; o dono pode corrigir no próprio onboarding.
-        business_type: role === 'partner' || role === 'provider' ? 'company' : 'individual',
-        metadata: {
-          bora_role: role,
-          bora_row_id: String(row.id),
-          bora_user_id: user.id,
-        },
-      });
-      accountId = account.id;
-      const { error: updErr } = await admin
-        .from(table)
-        .update({ stripe_account_id: accountId, stripe_account_status: 'pending' })
-        .eq('id', row.id);
-      if (updErr) {
-        console.error('[stripe-connect-onboard] update failed:', updErr.message);
-        return json({ error: `persist_failed: ${updErr.message}` }, 500);
-      }
-    }
-
-    // 5. Account Link de onboarding (retomável — a Stripe continua onde ficou).
-    const link = await stripe.accountLinks.create({
-      account: accountId,
-      type: 'account_onboarding',
-      refresh_url: `${RETURN_BASE}/connect/refresh`,
-      return_url: `${RETURN_BASE}/connect/return`,
+    // 3. Conta na plataforma certa (M7: pessoal ou empresa, pelo interruptor
+    //    stripe_connect_conta_nova). Cria se faltar; troca de plataforma se for preciso.
+    const { stripe, conta, accountId, criada } = await garantirContaConnect(admin, role, row, {
+      bora_user_id: user.id,
     });
+    const ativa = !criada && row.stripe_account_status === 'enabled';
 
-    console.log('[stripe-connect-onboard]', role, row.id, '->', accountId);
+    // 4. Ativa → painel Express (ver os próprios pagamentos); senão → link de cadastro.
+    const link = await linkConnect(stripe, accountId, ativa);
+
+    console.log('[stripe-connect-onboard]', role, row.id, '->', accountId, 'plataforma:', conta);
     return json({
       url: link.url,
       account_id: accountId,
-      status: row.stripe_account_status === 'none' || !row.stripe_account_status
-        ? 'pending'
-        : row.stripe_account_status,
-      kind: 'onboarding',
+      status: ativa
+        ? 'enabled'
+        : (criada || !row.stripe_account_status || row.stripe_account_status === 'none'
+          ? 'pending'
+          : row.stripe_account_status),
+      kind: link.kind,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

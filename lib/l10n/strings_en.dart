@@ -16,6 +16,45 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 08/11/2026 (m1-dinheiro-favores): aprovacao do preco do Favor pelo
+  // cliente (cartao do pedido) e aviso no formulario do Favor
+  // (tool/l10n/traducoes/pt-en-38-favor-aprovacao-cliente.json). Acrescentado a mao.
+  'Aprova o preço do teu Favor':
+      'Approve the price of your errand',
+  'O estafeta está na loja: o total é {0} (podia comprar até {1}).':
+      'The courier is at the shop: the total is {0} (they could spend up to {1}).',
+  'Foto da etiqueta':
+      'Photo of the price tag',
+  'Tens {0} para responder.':
+      'You have {0} to answer.',
+  'O tempo acabou — o estafeta pode comprar só até {0} ou cancelar.':
+      'Time is up — the courier can buy only up to {0} or cancel.',
+  'Aprovar {0}':
+      'Approve {0}',
+  'Comprar só até {0}':
+      'Buy only up to {0}',
+  'Cancelar Favor':
+      'Cancel errand',
+  'Cancelar o Favor?':
+      'Cancel the errand?',
+  'O estafeta não compra nada e pedimos ao suporte para fechar o teu Favor.':
+      'The courier will not buy anything and we will ask support to close your errand.',
+  'Aprovado. Se pagaste por MB Way, aprova também o pedido que chega à app MB Way.':
+      'Approved. If you paid with MB Way, also approve the request that arrives in the MB Way app.',
+  'Aprovado. O estafeta já pode comprar.':
+      'Approved. The courier can buy now.',
+  'Combinado: o estafeta compra só até {0}.':
+      'Agreed: the courier will buy only up to {0}.',
+  'Pedimos o cancelamento do teu Favor. O suporte vai fechar o pedido.':
+      'We have asked to cancel your errand. Support will close the order.',
+  'Este pedido de aprovação já foi respondido.':
+      'This approval request has already been answered.',
+  'Este Favor já terminou.':
+      'This errand has already ended.',
+  'Não foi possível responder. Tenta outra vez.':
+      'Could not send your answer. Try again.',
+  'Fica atento ao telemóvel: se o preço na loja for diferente, o estafeta vai pedir a tua aprovação e tens 3 minutos para responder.':
+      'Keep an eye on your phone: if the price at the shop is different, the courier will ask for your approval and you will have 3 minutes to answer.',
   // 01/11/2026 (app-fechar B1, Casa): erros do profissional (C9), acerto da
   // semana (C8) e aviso sem horarios (C10)
   // (tool/l10n/traducoes/pt-en-37-casa-fecho-b1.json). Acrescentado a mao.
@@ -2674,12 +2713,17 @@ const Map<String, String> kStringsEn = <String, String>{
       'Order status',
   'Estafeta':
       'Courier',
-  'Estafeta a caminho da sua morada':
+  'Estafeta a caminho da tua morada':
       'Courier on the way to your address',
   'Estafeta a caminho da tua casa':
       'Courier on the way to your place',
   'Estafeta a caminho {0}':
       'Courier on the way {0}',
+  // M7 (08/11/2026): paridade Bora Motorista → entregas (order_tracking_screen).
+  'Estafeta já chegou para levantar o pedido':
+      'Your courier has arrived to pick up the order',
+  'às {0}':
+      'at {0}',
   'Estafeta a tratar do teu favor':
       'Courier handling your errand',
   'Estafeta entrega rápida':
@@ -5137,4 +5181,74 @@ const Map<String, String> kStringsEn = <String, String>{
       'Next prize available on {0}.',
   'tokens':
       'tokens',
+  // Adendo 1 m4 (08/11/2026): chat do suporte com a equipa Bora.
+  'Estás a falar com a equipa Bora.':
+      'You are talking to the Bora team.',
+  'Abrir o WhatsApp da Bora':
+      'Open Bora on WhatsApp',
+  // Amigo Bora (08/11/2026, missão m4).
+  'Sou o Amigo Bora. Sei o que há na Guarda e o que costumas pedir. Pergunta-me o que quiseres.':
+      "I'm Amigo Bora. I know what's on in Guarda and what you usually order. Ask me anything.",
+  'Ajuda-me a escolher':
+      'Help me choose',
+  'Amigo Bora':
+      'Amigo Bora',
+  'Na marcação escolhe: {0}':
+      'In the booking choose: {0}',
+  'Sem o total da {0}, comparei artigo a artigo. Manda o print do total para comparar a conta toda.':
+      'Without the {0} total, I compared item by item. Send a screenshot of the total to compare the whole bill.',
+  'Chamo-te {0}.':
+      'I call you {0}.',
+  'à segunda':
+      'on Mondays',
+  'à terça':
+      'on Tuesdays',
+  'à quarta':
+      'on Wednesdays',
+  'à quinta':
+      'on Thursdays',
+  'à sexta':
+      'on Fridays',
+  'ao sábado':
+      'on Saturdays',
+  'ao domingo':
+      'on Sundays',
+  'de manhã':
+      'in the morning',
+  'ao almoço':
+      'at lunch',
+  'à tarde':
+      'in the afternoon',
+  'à noite':
+      'at night',
+  'Costumas pedir no {0} {1} {2}.':
+      'You usually order from {0} {1} {2}.',
+  'Lojas favoritas: {0}.':
+      'Favourite shops: {0}.',
+  'Pedes muitas vezes: {0}.':
+      'You often order: {0}.',
+  'Disseste-me: {0}.':
+      'You told me: {0}.',
+  'Gostas de: {0}.':
+      'You like: {0}.',
+  'O que o Amigo Bora sabe de mim':
+      'What Amigo Bora knows about me',
+  'Esquecer tudo?':
+      'Forget everything?',
+  'O Amigo Bora esquece o que sabe sobre ti e só volta a aprender com o que fizeres daqui para a frente. Os teus pedidos ficam.':
+      'Amigo Bora forgets what it knows about you and only learns again from what you do from now on. Your orders stay.',
+  'Esquecer tudo':
+      'Forget everything',
+  'Pronto: esqueci tudo.':
+      'Done: I forgot everything.',
+  'Não consegui mudar agora. Tenta outra vez.':
+      "I couldn't change it now. Try again.",
+  'O que sei de ti':
+      'What I know about you',
+  'Ainda não sei nada de ti. Vou aprendendo com os teus pedidos e com o que me disseres.':
+      "I don't know anything about you yet. I'll learn from your orders and from what you tell me.",
+  'Deixar o Amigo lembrar-se de mim':
+      'Let Amigo remember me',
+  'Desligado, o Amigo não usa nem guarda o que sabe de ti.':
+      "When off, Amigo doesn't use or keep what it knows about you.",
 };

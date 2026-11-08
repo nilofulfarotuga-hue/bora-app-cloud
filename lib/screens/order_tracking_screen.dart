@@ -34,6 +34,7 @@ import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/constants.dart';
+import '../utils/hora_lisboa_ext.dart';
 import '../utils/map_marker_helper.dart';
 import '../utils/map_utils.dart';
 import '../utils/route_deviation.dart' show distanciaARotaMetros;
@@ -844,6 +845,12 @@ class _BottomCardState extends State<_BottomCard> {
                     status: order.status,
                     serviceType: order.serviceType,
                     vendorName: order.vendorName,
+                    // M7 (08/11/2026): paridade com o Bora Motorista.
+                    chegaAs: OrderEtaService.horaChegada(order,
+                        driverPos: widget.driverPos),
+                    estafetaNaRecolha: OrderEtaService.estafetaNaRecolha(
+                        order,
+                        driverPos: widget.driverPos),
                   ),
                 ],
                 // Festas "na hora" aceite com tempo: mostrar o prazo anunciado.
@@ -1578,6 +1585,8 @@ class _EtaBadge extends StatelessWidget {
     required this.status,
     this.serviceType,
     this.vendorName,
+    this.chegaAs,
+    this.estafetaNaRecolha = false,
   });
 
   final String label;
@@ -1585,6 +1594,21 @@ class _EtaBadge extends StatelessWidget {
   // BUG 3 — opcionais para text dinâmico por service_type.
   final OrderServiceType? serviceType;
   final String? vendorName;
+  // M7 (08/11/2026) — paridade com o Bora Motorista: hora de chegada e
+  // "o estafeta já chegou para levantar o pedido".
+  final DateTime? chegaAs;
+  final bool estafetaNaRecolha;
+
+  /// "Chega em ~15 min · às 19:45" (só no ETA de número, não no intervalo
+  /// "Entrega estimada: A–B min" das compras em lojas sem parceria).
+  String get _labelComHora {
+    final hora = chegaAs;
+    if (hora == null || !label.startsWith('Chega em')) return label;
+    final l = hora.toLisboa();
+    final hhmm =
+        '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
+    return '$label · ${'às {0}'.trArgs([hhmm])}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1616,7 +1640,7 @@ class _EtaBadge extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  label,
+                  _labelComHora,
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
@@ -1677,10 +1701,13 @@ class _EtaBadge extends StatelessWidget {
       case OrderStatus.callingDriver:
         return 'À procura de estafeta'.tr;
       case OrderStatus.driverAccepted:
+        if (estafetaNaRecolha) {
+          return 'Estafeta já chegou para levantar o pedido'.tr;
+        }
         return 'Estafeta a caminho {0}'.trArgs([pickupLabel]);
       case OrderStatus.pickedUp:
       case OrderStatus.onTheWay:
-        return 'Estafeta a caminho da sua morada'.tr;
+        return 'Estafeta a caminho da tua morada'.tr;
       default:
         return '';
     }

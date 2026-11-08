@@ -1,4 +1,6 @@
 // dsh-bora: plugin do Dipsy (dsh) do Bora. Olhos (captura_ecra, ver_imagem) + a guarda de comandos.
+// 08/11/2026 (m3-dipsy-acesso-total): a guarda pergunta ao Danilo pelo Telegram em vez de barrar (dinheiro, publicar,
+// apagar...), ferramentas esperar_autorizacao e pesquisar_internet, e o prompt fala da internet com registo.
 // Código nosso, missão C-liga (30/10/2026). Sem dependências de terceiros: só o que o próprio dsh já traz.
 
 import fs from 'node:fs'
@@ -6,6 +8,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { avaliar, mensagem, FERRAMENTAS_DE_RISCO } from './guarda.js'
+import * as aut from './autorizacoes.js'
+import { pesquisar } from './pesquisa.js'
 import { capturarEcra, verImagem } from './olhos.js'
 import { agendar, listar, cancelar, descrever } from './agenda.js'
 import { passarAoClaudeCode } from './claude.js'
@@ -27,7 +31,7 @@ const PROMPT = [
   '(origem = "ecra" para o ecrã agora, ou o caminho de um ficheiro de imagem). A imagem sai do PC para a Google (plano grátis,',
   'que pode guardar): só a uses quando a tarefa precisar de ver o ecrã e nunca com janelas de banco, palavras-passe ou chaves.',
   'Há uma guarda antes de cada comando. Se ela barrar algo, não contornes: diz ao Danilo e continua com o resto.',
-  'Todo o commit passa pelo Juiz: usa o script C:\\Users\\danil\\.dsh\\dsh-commit.ps1 (nunca git commit à mão) e nunca git push.',
+  'Todo o commit passa pelo Juiz: usa o script C:\\Users\\danil\\.dsh\\dsh-commit.ps1 (nunca git commit à mão); o git push só com o "sim" do Danilo (a guarda pergunta).',
   'Podes agendar tarefas para uma hora marcada com agendar_tarefa (listar_agenda e cancelar_tarefa também existem): a ponte do',
   'Telegram executa-as sozinha e manda o resultado ao Danilo em texto e em voz.',
   'CREATOR MODE: quando o Danilo pedir "faz-me/cria uma ferramenta que...", cria-a tu com criar_ferramenta (uma receita:',
@@ -36,8 +40,20 @@ const PROMPT = [
   'pedido, e explica ao Danilo numa frase o que criaste. Se o teste falhar, corrige a receita. listar_ferramentas_criadas',
   'mostra as que existem; as promovidas aparecem como fc_<nome> nos pedidos seguintes.',
   'Se o Danilo pedir para libertar memória do PC (o PC está lento ou sem memória), usa libertar_memoria.',
-  'A rede tem uma lista branca: só sítios do Bora (boraguarda.com, o nosso Supabase, o Córtex, o nosso GitHub). Outros sítios',
-  'são barrados pela guarda; para pesquisar na internet, passa ao Claude Code.',
+  'INTERNET (08/11): tens internet com registo. Tudo passa pelo proxy do Dipsy (127.0.0.1:47900), que regista cada pedido.',
+  'Abrem sozinhas as categorias da lista ~/.dsh/rede-categorias.yml: bora, pesquisa, documentação, concorrentes (só para',
+  'comparar o que o cliente vê), lojas, lei/Estado e testes. Para pesquisar usa pesquisar_internet (DuckDuckGo); para ler uma',
+  'página usa web_fetch. Um sítio fora das categorias faz a guarda perguntar ao Danilo "Posso abrir?". Bancos, sítios de',
+  'despejar ficheiros e telemetria nunca abrem; nunca mandes ficheiros do PC para fora. Na shell, o TLS do Windows não',
+  'funciona no teu sandbox: o curl.exe e o Invoke-WebRequest falham em https (erro schannel / ligação fechada). Para a',
+  'web usa web_fetch ou pesquisar_internet; num script, usa python ou node (já passam pelo proxy com registo).',
+  'PERGUNTA ANTES DE DINHEIRO E DO QUE NÃO SE DESFAZ (ordem do Danilo de 08/11): escrever em pedidos, estafetas, carteiras,',
+  'tokens ou preços, migrações, publicar funções, git push, publicar, mandar mensagens para fora, apagar em massa, Stripe e',
+  'segredos já NÃO estão proibidos: a guarda pergunta ao Danilo pelo Telegram. Quando a guarda disser PERGUNTEI, chama',
+  'esperar_autorizacao com o id e uma explicação curta e honesta em português simples (o quê, quanto, a quem, porquê). Com SIM,',
+  'repete exatamente a mesma chamada uma vez; com NÃO ou sem resposta, não faças e segue. Nunca tentes outro caminho para',
+  'fazer a mesma coisa sem o sim. O que continua proibido mesmo com sim: reescrever histórico git publicado, apagar dados sem',
+  'backup bkp_, ler segredos, mudar a tua própria guarda, entrar em contas do Claude/ChatGPT/Gemini por cookie.',
 ].join(' ')
 
 const PROMPT_PLANEAR = [
@@ -253,10 +269,42 @@ export function apply(ctx) {
     execute: async (_args, exec) => libertarMemoria(exec.signal),
   }))
 
+  // 08/11 (m3): esperar pela resposta do Danilo a um pedido da guarda (ver lib/autorizacoes.js)
+  ctx.tools.register(defineTool({
+    name: 'esperar_autorizacao',
+    description: 'Quando a guarda disser "PERGUNTEI ao Danilo (pedido <id>)", chama esta ferramenta com esse id e uma explicação curta e honesta, em português simples, do que queres fazer e porquê (o quê, quanto, a quem). A explicação vai na pergunta ao Danilo pelo Telegram. Espera até 10 minutos e devolve SIM (repete então a mesma chamada, uma vez), NÃO ou SEM RESPOSTA (não faças).',
+    parameters: {
+      id: { type: 'string', required: true, description: 'O id do pedido que a guarda deu (ex.: a1b2c3d4).' },
+      explicacao: { type: 'string', required: true, description: 'O que queres fazer e porquê, em português simples, numa ou duas frases.' },
+    },
+    output: TEXTO,
+    execute: async (args, exec) => aut.esperar(args.id, args.explicacao, exec.signal),
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'pesquisar_internet',
+    description: 'Pesquisa na internet (DuckDuckGo) e devolve os primeiros resultados: título, endereço e resumo. Passa pelo proxy do Dipsy, que regista tudo. Para ler uma página dos resultados usa web_fetch. Nunca ponhas segredos, chaves ou dados de clientes na pergunta.',
+    parameters: {
+      pergunta: { type: 'string', required: true, description: 'O que procurar (até 300 letras).' },
+      maximo: { type: 'number', description: 'Quantos resultados (1 a 15; por omissão 8).' },
+    },
+    output: TEXTO,
+    execute: erroEmTexto(async (args, exec) => pesquisar(args.pergunta, args.maximo, exec.signal)),
+  }))
+
   ctx.tools.guard((execucao) => {
     try {
       const r = avaliar(execucao.name, execucao.arguments, { modo: MODO })
       if (!r) return undefined
+      if (r.tipo === 'pergunta' && MODO !== 'planear') {
+        const d = aut.decidir(execucao.name, execucao.arguments, r)
+        if (d.passa) {
+          registar(execucao.name, { regra: `${r.regra}:autorizado-pelo-danilo:${d.id}` }, execucao.arguments)
+          return undefined
+        }
+        registar(execucao.name, { regra: `${r.regra}:${d.estado}${d.id ? ':' + d.id : ''}` }, execucao.arguments)
+        return d.mensagem
+      }
       registar(execucao.name, r, execucao.arguments)
       return mensagem(r)
     } catch (e) {

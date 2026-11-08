@@ -361,6 +361,11 @@ String _nomeApp(AssistantComparacao c) =>
 /// Bora, Continente Guarda dá 21,10 € — mais barato 4,30 €." Só junta os
 /// números que o servidor mandou (`comparacao`); não faz contas.
 String textoComparacao(AssistantComparacao c) {
+  // Amigo Bora (08/11/2026): sem o total da outra app só há linhas.
+  if (!c.temTotalOutra) {
+    return 'Sem o total da {0}, comparei artigo a artigo. Manda o print do total para comparar a conta toda.'
+        .trArgs([_nomeApp(c)]);
+  }
   final args = <Object?>[
     _nomeApp(c),
     _eurCents(c.totalOutraAppCents),
@@ -434,10 +439,17 @@ class AssistantComparacaoCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          _LinhaComparacao(
-            rotulo: 'Total na {0} (do print)'.trArgs([app]),
-            cents: c.totalOutraAppCents,
-          ),
+          // Amigo Bora (08/11/2026): artigo a artigo, como o cliente mostrou.
+          for (final l in c.linhas)
+            if (l.outraCents != null && l.boraCents != null)
+              _LinhaArtigo(linha: l, app: app),
+          if (c.linhas.any((l) => l.outraCents != null && l.boraCents != null))
+            const Divider(height: 14),
+          if (c.temTotalOutra)
+            _LinhaComparacao(
+              rotulo: 'Total na {0} (do print)'.trArgs([app]),
+              cents: c.totalOutraAppCents,
+            ),
           _LinhaComparacao(
             rotulo: 'Total no Bora · {0}'.trArgs([c.lojaBora]),
             cents: c.totalBoraCents,
@@ -457,6 +469,45 @@ class AssistantComparacaoCard extends StatelessWidget {
                 .trArgs([app]),
             style: const TextStyle(fontSize: 12, color: AppColors.textSubtle),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Uma linha "artigo: outra app X € · Bora Y €" (a mais barata a verde).
+class _LinhaArtigo extends StatelessWidget {
+  const _LinhaArtigo({required this.linha, required this.app});
+  final AssistantLinhaComparada linha;
+  final String app;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = linha.diferencaCents ?? 0;
+    final boraGanha = d > 0;
+    final outraGanha = d < 0;
+    TextStyle estilo(bool ganha) => TextStyle(
+          fontSize: 13,
+          fontWeight: ganha ? FontWeight.w700 : FontWeight.w400,
+          color: ganha ? AppColors.primaryDark : AppColors.textSecondary,
+        );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              linha.quantidade > 1
+                  ? '${linha.quantidade}× ${linha.artigo}'
+                  : linha.artigo,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+            ),
+          ),
+          Text('$app ${_eurCents(linha.outraCents!)}', style: estilo(outraGanha)),
+          const SizedBox(width: 8),
+          Text('Bora ${_eurCents(linha.boraCents!)}', style: estilo(boraGanha)),
         ],
       ),
     );
@@ -779,6 +830,56 @@ class _AssistantListaExtraidaCardState
   }
 }
 
+/// Amigo Bora (08/11/2026): a deixa — UMA linha útil por baixo de uma
+/// conversa livre (promoção, parceiro novo, tokens a expirar, check-in).
+/// Discreta: texto pequeno com um ícone, sem cartão grande.
+class AmigoDeixaLinha extends StatelessWidget {
+  const AmigoDeixaLinha({super.key, required this.deixa, required this.onTap});
+
+  final AssistantDeixa deixa;
+  final VoidCallback onTap;
+
+  static IconData icone(String tipo) => switch (tipo) {
+        'tokens' => Icons.toll_outlined,
+        'checkin' => Icons.event_available_outlined,
+        'parceiro_novo' => Icons.storefront_outlined,
+        _ => Icons.local_offer_outlined,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: InkWell(
+        key: const Key('amigo-deixa'),
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icone(deixa.tipo), size: 18, color: AppColors.primary),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  deixa.texto,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.primaryDark,
+                    decoration: TextDecoration.underline,
+                    decorationColor: AppColors.primaryLight,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Chips de acção sugeridos pelo assistente.
 class AssistantAcoesChips extends StatelessWidget {
   const AssistantAcoesChips({
@@ -806,6 +907,13 @@ class AssistantAcoesChips extends StatelessWidget {
         return Icons.checklist;
       case 'abrir_loja':
         return Icons.storefront_outlined;
+      // Amigo Bora (08/11/2026)
+      case 'repetir_habitual':
+        return Icons.replay;
+      case 'pedir_favor':
+        return Icons.directions_run;
+      case 'marcar_limpeza':
+        return Icons.cleaning_services_outlined;
     }
     return Icons.arrow_forward;
   }

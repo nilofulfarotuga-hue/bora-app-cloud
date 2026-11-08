@@ -44,13 +44,13 @@ SEG_POR_100 = 2.0            # minimo de segundos de audio por cada 100 letras
 VOZ_EDGE = "pt-BR-FranciscaNeural"
 NO_WINDOW = 0x08000000
 MODELOS_GEMINI_TTS = ["gemini-3.8-flash-tts", "gemini-2.5-flash-preview-tts"]
-MODELOS_GEMINI_STT = ["gemini-3.1-flash-lite", "gemini-3.6-flash"]
-# 31/10 (retoma-geral b3): medido neste PC com 1553 MB livres, o whisper small levou 76 s e errou o texto
-# ("Vou incitar no vinho." em vez de "Oi, voce esta me ouvindo?"). Regra nova: abaixo de 1,5 GB vai direto ao Gemini;
-# com mais RAM o PC ainda tenta, mas so 10 s, para o "Ouvi:" chegar em menos de 15 s.
-RAM_MINIMA_WHISPER_MB = 1500 # abaixo disto o audio vai direto ao Gemini (antes 700)
-ORCAMENTO_LOCAL_S = 10       # tempo maximo do whisper local antes de passar ao Gemini (antes 45)
-ESPERA_FINAL_LOCAL_S = 200   # se o Gemini tambem falhar, espera-se mais pelo local (a ponte corta aos 300 s)
+# 31/10 medido com o audio 47 do Danilo: 3.5-flash-lite 1,0 s e certo; 3.1-flash-lite 12-20 s ou 503; flash-lite-latest
+# 1,8 s mas comeu o "Oi"; 3.6-flash 39 s, ouviu em PT-PT ("Luis, estas-me a ouvir?") e da 429 depressa (saiu da lista).
+MODELOS_GEMINI_STT = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"]
+# 31/10: ordem do Danilo ("Sim, sempre Google"): a voz vai sempre primeiro ao Gemini (~2 s). Neste PC o whisper small
+# levava 45-76 s e chegou a errar o texto ("Vou incitar no vinho." em vez de "Oi, voce esta me ouvindo?").
+# O whisper local so entra se o Gemini falhar.
+LIMITE_TOTAL_S = 280         # Gemini + whisper de reserva tem de acabar antes do corte da ponte (300 s)
 
 
 def registar(**o):
@@ -210,6 +210,10 @@ def _tts_gemini(texto, base):
 
 
 NIVEIS = (("edge-tts", _tts_edge), ("gemini-tts", _tts_gemini))
+# 08/11/2026 (m3): com o PC cheio (testes do Flutter de outras sessoes) o edge-tts passa dos 120 s e cada mensagem
+# ficava ~4 min presa na fila antes de chegar ao Gemini. Depois de um tempo esgotado no edge-tts, vai-se direto ao
+# Gemini durante 10 minutos (a voz continua a sair inteira; so muda o motor).
+EDGE_LENTO_ATE = [0.0]
 
 
 def gerar_pedaco(texto, indice=1, total=1):
@@ -219,6 +223,9 @@ def gerar_pedaco(texto, indice=1, total=1):
     erros = []
     tentativas = 0
     for nome, fn in NIVEIS:
+        if nome == "edge-tts" and time.time() < EDGE_LENTO_ATE[0]:
+            erros.append("edge-tts: saltado (lento ha menos de 10 min)")
+            continue
         for volta in (1, 2):
             tentativas += 1
             base = os.path.join(TMP, "v-" + uuid.uuid4().hex[:10])
@@ -236,6 +243,10 @@ def gerar_pedaco(texto, indice=1, total=1):
             except Exception as e:
                 erros.append(f"{nome}: {str(e)[:120]}")
                 registar(evento="parte-falhou", parte=indice, de=total, motor=nome, tentativa=tentativas, erro=str(e)[:160])
+                if nome == "edge-tts" and isinstance(e, subprocess.TimeoutExpired):
+                    EDGE_LENTO_ATE[0] = time.time() + 600
+                    registar(evento="edge-lento", ate=int(EDGE_LENTO_ATE[0]))
+                    break
                 if "sem GOOGLE_AI_API_KEY" in str(e) or nome == "gemini-tts":
                     break
     raise RuntimeError("nenhum motor de voz serviu: " + " | ".join(erros)[-300:])
@@ -277,7 +288,8 @@ def _transcrever_gemini(ficheiro):
     with open(ficheiro, "rb") as f:
         dados = base64.b64encode(f.read()).decode()
     corpo = json.dumps({"contents": [{"parts": [
-        {"text": "Transcreve fielmente, em português, o que a pessoa diz neste áudio. Devolve só a transcrição."},
+        {"text": "A pessoa fala português do Brasil. Transcreve fielmente o que ela diz neste áudio, "
+                 "sem corrigir nem traduzir. Devolve só a transcrição."},
         {"inline_data": {"mime_type": "audio/ogg", "data": dados}}]}]}).encode("utf-8")
     ultimo = "sem resposta"
     for ronda in range(2):   # uma segunda volta: o 1.o pedido ja falhou uma vez por limite passageiro (31/10)
@@ -285,8 +297,9 @@ def _transcrever_gemini(ficheiro):
             req = urllib.request.Request(
                 f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent",
                 data=corpo, headers={"content-type": "application/json", "x-goog-api-key": chave})
+            t0 = time.monotonic()
             try:
-                with urllib.request.urlopen(req, timeout=45) as r:
+                with urllib.request.urlopen(req, timeout=30) as r:
                     j = json.loads(r.read().decode("utf-8"))
                 texto = "".join(p.get("text", "") for p in j["candidates"][0]["content"]["parts"]).strip()
                 if texto:
@@ -296,6 +309,8 @@ def _transcrever_gemini(ficheiro):
                 ultimo = f"{modelo}: HTTP {e.code}"
             except Exception as e:
                 ultimo = f"{modelo}: {type(e).__name__}"
+            registar(evento="gemini-stt-modelo-falhou", erro=ultimo, ronda=ronda + 1,
+                     ms=int((time.monotonic() - t0) * 1000))
         if ronda == 0:
             time.sleep(3)
     raise RuntimeError(f"gemini: sem transcricao ({ultimo})")
@@ -321,9 +336,20 @@ def _ram_livre_mb():
 
 
 def transcrever(ficheiro):
-    """Local primeiro (a voz fica no PC). Se a RAM esta curta ou o whisper nao acaba no orcamento, passa ao Gemini
-    em vez de deixar a ponte esperar 300 s e dar erro (31/10: o 1.o audio real do Danilo morreu assim)."""
+    """Gemini primeiro, sempre (ordem do Danilo de 31/10). O whisper local so entra se o Gemini falhar, e com o tempo
+    que sobrar antes do corte da ponte (31/10: o 1.o audio real do Danilo morreu a esperar 300 s pelo whisper)."""
     import threading
+    inicio = time.monotonic()
+    ram = _ram_livre_mb()
+    try:
+        t, motor = _transcrever_gemini(ficheiro)
+        registar(evento="transcrito-gemini", letras=len(t), motor=motor,
+                 ms=int((time.monotonic() - inicio) * 1000), ram_livre_mb=ram)
+        return t, motor
+    except Exception as e:
+        erro_gemini = e
+        registar(evento="gemini-stt-falhou", erro=str(e)[:160], ram_livre_mb=ram)
+
     res = {}
 
     def local():
@@ -332,29 +358,16 @@ def transcrever(ficheiro):
         except Exception as e:
             res["erro"] = e
 
-    ram = _ram_livre_mb()
+    resta = max(0, LIMITE_TOTAL_S - (time.monotonic() - inicio))
     fio = threading.Thread(target=local, daemon=True)
-    if 0 <= ram < RAM_MINIMA_WHISPER_MB:
-        registar(evento="whisper-saltado", motivo="pouca-ram", ram_livre_mb=ram)
-    else:
-        fio.start()
-        fio.join(ORCAMENTO_LOCAL_S)
-        if "ok" in res:
-            return res["ok"]
-        registar(evento="whisper-falhou" if "erro" in res else "whisper-lento",
-                 erro=str(res.get("erro", ""))[:160], orcamento_s=ORCAMENTO_LOCAL_S, ram_livre_mb=ram)
-    try:
-        t, motor = _transcrever_gemini(ficheiro)
-        registar(evento="transcrito-gemini", letras=len(t), ram_livre_mb=ram)
-        return t, motor
-    except Exception as e2:
-        registar(evento="gemini-stt-falhou", erro=str(e2)[:160])
-        if not fio.is_alive() and "ok" not in res and "erro" not in res:
-            fio.start()
-        fio.join(ESPERA_FINAL_LOCAL_S)
-        if "ok" in res:
-            return res["ok"]
-        raise RuntimeError("nem o whisper local nem o Gemini transcreveram") from e2
+    fio.start()
+    fio.join(resta)
+    if "ok" in res:
+        registar(evento="transcrito-local", letras=len(res["ok"][0]), ram_livre_mb=ram)
+        return res["ok"]
+    registar(evento="whisper-falhou" if "erro" in res else "whisper-lento",
+             erro=str(res.get("erro", ""))[:160], orcamento_s=round(resta), ram_livre_mb=ram)
+    raise RuntimeError("nem o Gemini nem o whisper local transcreveram") from erro_gemini
 
 
 def main():

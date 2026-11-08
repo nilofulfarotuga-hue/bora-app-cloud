@@ -51,7 +51,8 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
         final rotulo = rotulosCancelamento[s.key] ??
             rotulosVitrineCliente[s.key] ??
             rotulosGorjetas[s.key] ??
-            rotulosPesoVariavel[s.key];
+            rotulosPesoVariavel[s.key] ??
+            rotulosFavoresRecibos[s.key];
         by.putIfAbsent(s.category ?? 'other', () => []).add(rotulo == null
             ? s
             : _Setting(
@@ -145,6 +146,53 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
             'Desligado = a Bora assume a diferença a mais nos pedidos pagos com cartão.',
   };
 
+  /// [m1-dinheiro-favores 08/11/2026] Favor com teto (categoria 'favores') e
+  /// recibo por e-mail (categoria 'recibos'), com etiqueta PT-BR. Estar aqui
+  /// TORNA a chave editável; o caminho decide-o o _isMoneyKey: a taxa (cents)
+  /// e o multiplicador do teto vão pelo diálogo com motivo e auditoria; o
+  /// tempo e o interruptor do recibo pelo diálogo comum (auditado no servidor).
+  static const rotulosFavoresRecibos = <String, String>{
+    'errand_cash_ceiling_multiplier':
+        'Teto do Favor em dinheiro (estimativa × este valor; 1.15 = até 15% acima). '
+            'Acima do teto o entregador só compra com o "Aprovo" do cliente no app.',
+    'errand_approval_timeout_seconds':
+        'Tempo para o cliente aprovar (segundos; 180 = 3 minutos). Depois disso o entregador '
+            'pode comprar só até o teto ou cancelar o Favor.',
+    'errand_cancel_no_answer_fee_cents':
+        'Taxa de deslocamento sem resposta (centavos; 300 = 3,00 €). Vai no pedido de cancelamento '
+            'quando o cliente não responde à aprovação.',
+    'recibo_cliente_email_enabled':
+        'Recibo por e-mail ao cliente (true liga / false desliga). Vale para todo pedido entregue: '
+            'entrega, mercado e Favor. Desligar não apaga nada.',
+  };
+
+  /// Validação das chaves do Favor com teto e do recibo. O servidor lê-as com
+  /// `::int`, `::numeric` e `::boolean`: um valor do tipo errado partia a
+  /// aprovação do Favor. Devolve a mensagem de erro (PT-BR) ou `null`.
+  String? _validaFavoresRecibos(String key, Object? valor) {
+    switch (key) {
+      case 'errand_cash_ceiling_multiplier':
+        if (valor is! num || valor < 1 || valor > 2) {
+          return 'Use um número entre 1 e 2 (1.15 = até 15% acima da estimativa).';
+        }
+        return null;
+      case 'errand_approval_timeout_seconds':
+        if (valor is! num || valor != valor.roundToDouble() || valor < 30 || valor > 900) {
+          return 'Use segundos INTEIROS entre 30 e 900 (180 = 3 minutos).';
+        }
+        return null;
+      case 'errand_cancel_no_answer_fee_cents':
+        if (valor is! num || valor != valor.roundToDouble() || valor < 0 || valor > 2000) {
+          return 'Use centavos INTEIROS entre 0 e 2000 (300 = 3,00 €).';
+        }
+        return null;
+      case 'recibo_cliente_email_enabled':
+        return valor is bool ? null : 'Use true (liga) ou false (desliga).';
+      default:
+        return null;
+    }
+  }
+
   /// Whitelist operacional: só chaves de dispatch e operação de reservas são
   /// editáveis aqui. Tudo o resto (fees, comissões, markup, tokens, wallet,
   /// valores em cêntimos, Stripe) é READ-ONLY — alterar requer sessão dedicada.
@@ -159,6 +207,9 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     // cobrado ou pago.
     if (rotulosVitrineCliente.containsKey(key)) return true;
     if (rotulosGorjetas.containsKey(key)) return true; // gorjetas-taxa 30/10
+    // m1-dinheiro-favores 08/11: Favor com teto + recibo por e-mail (paridade
+    // admin). As de dinheiro seguem pelo caminho auditado (_isMoneyKey).
+    if (rotulosFavoresRecibos.containsKey(key)) return true;
     if (key.startsWith('robot_b_')) return true; // kill switches Robot B v4
     if (key.startsWith('dispatch_')) return true;
     // [fable-13-09] Minutos que o pedido de parceiro espera em 'preparing'
@@ -455,6 +506,9 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     // Interruptores de ecrã não são dinheiro: `ask_cutlery` tem "_cut" no meio
     // e caía no diálogo de motivo obrigatório (29/10/2026).
     if (kInterruptoresApp.contains(key)) return false;
+    // m1-dinheiro-favores 08/11: chaves de dinheiro sem marca no nome (ex.: o
+    // teto do Favor em dinheiro) — vão pelo caminho com motivo e auditoria.
+    if (kChavesDinheiroSemMarca.contains(key)) return true;
     // `_ratio` e não `ratio`: a palavra "duration" contém "ratio" lá dentro
     // (du-RATIO-n), e sem o underscore o `carwash_duration_min` passava a
     // exigir motivo escrito para se afinar a duração de uma lavagem.
@@ -660,7 +714,8 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       }
       // TAXA DE PEDIDO PEQUENO — validação antes de gravar. Um valor absurdo
       // aqui muda o que TODO cliente paga, por isso não passa sem verificação.
-      final erro = _validaTaxaPedidoPequeno(s.key, parsed);
+      final erro = _validaTaxaPedidoPequeno(s.key, parsed) ??
+          _validaFavoresRecibos(s.key, parsed);
       if (erro != null) {
         if (mounted) {
           ScaffoldMessenger.of(context)
@@ -785,7 +840,8 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     }
 
     // TAXA DE SERVIÇO DO NÃO-PARCEIRO — validação antes de gravar.
-    final erroTaxa = _validaTaxaServicoNaoParceiro(s.key, novo);
+    final erroTaxa = _validaTaxaServicoNaoParceiro(s.key, novo) ??
+        _validaFavoresRecibos(s.key, novo);
     if (erroTaxa != null) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -1040,6 +1096,14 @@ const String kNotaSessaoConvidadoDesligada =
     'Sessão de convidado (conta partilhada só de leitura): ligar agora só '
     'daria erro a cada abertura do app, por isso fica trancado até a função '
     '"sessao-convidado" ir para o ar.';
+
+/// [m1-dinheiro-favores · 08/11/2026] Chaves que mexem em dinheiro mas não têm
+/// nenhuma marca no nome (cents, fee, pct…). O multiplicador do teto do Favor
+/// em dinheiro decide quanto o cliente paga sem precisar de aprovar: vai pelo
+/// diálogo com motivo obrigatório e rasto no admin_audit_log.
+const Set<String> kChavesDinheiroSemMarca = <String>{
+  'errand_cash_ceiling_multiplier',
+};
 
 /// [adendo 4 · 29/10/2026] Interruptores das funções novas das apps (talheres,
 /// troco, barra do pedido ativo, foto de entrega, habituais, etiquetas do menu,

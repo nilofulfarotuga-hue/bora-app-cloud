@@ -12,6 +12,10 @@ verify_jwt = false
 verify_jwt = false
 [functions.stripe-connect-webhook]
 verify_jwt = false
+
+# M7 08/11/2026: convite permanente de cadastro Connect (abre sem sessão; segurança = token).
+[functions.connect-convite]
+verify_jwt = false
 [functions.create-payment-intent]
 verify_jwt = false
 [functions.create-mbway-payment-intent]
@@ -21,6 +25,8 @@ verify_jwt = false
 [functions.support-password-reset]
 verify_jwt = false
 [functions.analyze-conversations]
+verify_jwt = false
+[functions.assistant-profile-refresh]
 verify_jwt = false
 [functions.execute-broadcast]
 verify_jwt = false
@@ -43,4 +49,8 @@ verify_jwt = false
 [functions.agentes-email-receber]
 verify_jwt = false
 [functions.sessao-convidado]
+verify_jwt = false
+[functions.favor-cobrar-diferenca]
+verify_jwt = false
+[functions.recibo-pedido-cliente]
 verify_jwt = false

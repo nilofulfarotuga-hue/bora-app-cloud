@@ -19,6 +19,18 @@ ENTRADA:  telegram_danilo(texto, nivel, origem, ficheiros=None)
   Sem nivel: vale o nivel do remetente (ORIGENS) e o texto pode subir INFO -> URGENTE ("precisas de ti", "autoriza"...).
   Anti-duplicado: hash do texto sem horas/datas/ids, janela de 30 min; o 2.o igual e' descartado e registado.
 
+REGRA DO DANILO 08/11/2026 (missao m6-crescimento-hermes): "so se for urgente mesmo". URGENTE so passa em 5 casos:
+  1) pedido parado: sem estafeta/motorista/limpadora ha mais de 10 min (o vigia dos 10 min trata disto), ou ainda
+     por encomendar a loja depois do 1.o aviso;
+  2) pagamento falhado de cliente real (testes e contas demo nunca);
+  3) app/site/funcao em baixo;
+  4) candidato novo (candidatura completa);
+  5) cliente a reclamar ou a pedir uma pessoa (inclui o cerebro do WhatsApp a escalar um cliente, origem "voz").
+  Tudo o resto que chegasse como URGENTE (mesmo com nivel pedido explicitamente) desce a INFO e vai no resumo das 21:00
+  (ou a RESULTADO, se o remetente for de resultados). Pedido novo, corrida nova e limpeza nova descem a INFO e ficam no
+  VIGIA DOS 10 MIN: se ao fim de 10 min (ou 20 min antes da hora marcada) ainda nao tiverem estafeta, sai um URGENTE.
+  radar-jai: URGENTE so quando um jornalista responde ("RESPOSTA de jornalista") ou o site do Jai esta em baixo.
+
 PORTAS (systemd porteiro.service):
   127.0.0.1:8796 e 172.16.1.1:8796 (so maquina e redes docker):
      POST /telegram_danilo  {"texto","nivel","origem","ficheiros":[{"nome","b64"}]}
@@ -105,6 +117,46 @@ RE_URGENTE = re.compile(
     r"pedido novo|novo pedido|nova encomenda|nova reserva|nova marca[cç][aã]o|marca[cç][aã]o nova|novo cadastro|"
     r"nova candidatura|cliente (?:[àa] espera|em apuros)|reclama[cç]")
 RE_RESULTADO = re.compile(r"(?i)^\W*(feito|conclu[ií]d|acabou|terminad|pronto)|miss[aã]o .{0,40}(acabou|conclu)")
+
+# ── Regra 08/11: os 5 casos que podem ser URGENTE (ver o topo). O resto desce. ──
+RE_URGENTE_OK = re.compile(
+    r"(?i)"
+    # 1) pedido parado
+    r"sem (estafeta|motorista|limpadora|profissional)|ningu[eé]m aceitou|sem estafetas? dispon|ainda por encomendar|"
+    r"pedido parado|corrida parada|"
+    # 2) pagamento falhado de cliente real
+    r"pagamento (falh|recusad|n[aã]o passou)|falhou o pagamento|cart[aã]o recusado|payment_failed|"
+    r"pag(ou|amento) e n[aã]o tem pedido|cobran[cç]a (ao cliente )?falh|"
+    # 3) app em baixo
+    r"fun[cç][aã]o n[aã]o responde|\b(app|site|servidor|painel|base)\b.{0,40}(em baixo|fora do ar|caiu|n[aã]o (abre|responde|carrega))|"
+    # 4) candidato novo
+    r"nova candidatura|candidatura (nova|completa)|novo candidato|candidato novo|"
+    # 5) cliente a reclamar ou a pedir uma pessoa
+    r"reclam|pedido de ajuda|atendimento humano|assistente real|falar com (um |uma )?(humano|pessoa)|"
+    r"cliente (?:[àa] espera|em apuros|zangad|chatead|irritad)|escreveu ao suporte")
+# Nunca urgente: testes, contas demo e "0 reclamacoes" de relatorios.
+RE_NUNCA_URGENTE = re.compile(
+    r"(?i)test user|teste vigia|\[teste\]|\bensaio\b|loja demo|conta demo|@bora\.app\b|"
+    r"\b0 reclama|sem reclama|nenhuma reclama")
+# radar-jai: so jornalista a responder ou o site do Jai em baixo.
+RE_JAI_URGENTE = re.compile(
+    r"(?i)RESPOSTA de jornalista|(jaiagarwala\.com|site do jai).{0,80}(em baixo|fora do ar|caiu|n[aã]o (abre|responde)|"
+    r"offline|HTTP 5\d\d|erro 5\d\d)")
+# Remetentes que por construcao ja sao "cliente a pedir uma pessoa" (cerebro do WhatsApp a escalar).
+ORIGENS_SEMPRE_URGENTES = {"voz", "vigia-10min"}
+# Pedido/corrida/limpeza novos: descem a INFO e entram no vigia dos 10 min. (tabela, coluna de quem faz, hora marcada,
+# estados terminados, antecedencia em min antes da hora marcada)
+NOVOS = [
+    (re.compile(r"(?i)pedido novo|ligar [àa] loja"), "orders", "assigned_driver_id", "scheduled_for",
+     ("delivered", "cancelled", "canceled", "refunded"), 20),
+    (re.compile(r"(?i)corrida tvde"), "tvde_rides", "driver_id", "scheduled_at",
+     ("finalizada", "cancelada_cliente", "cancelada", "cancelada_motorista", "cancelada_admin", "no_show"), 20),
+    (re.compile(r"(?i)limpeza nova"), "cleaning_bookings", "cleaner_id", "scheduled_at",
+     ("completed", "accepted", "cancelled", "cancelled_client", "cancelled_no_cleaner", "cancelled_admin"), 24 * 60),
+]
+RE_ID_CURTO = re.compile(r"#([0-9a-f]{8})\b")
+VIGIA = os.path.join(DIR, "vigia-10min.json")
+VIGIA_MIN = 10
 METODOS_TEXTO = ("sendMessage",)
 METODOS_MEDIA = ("sendPhoto", "sendVideo", "sendDocument", "sendAnimation", "sendMediaGroup", "sendAudio", "sendVoice")
 
@@ -193,7 +245,7 @@ def ja_visto(texto, origem, nivel):
     return None
 
 
-def decidir_nivel(texto, nivel, origem):
+def _decidir_nivel_antigo(texto, nivel, origem):
     n = (nivel or "").strip().upper()
     if n in NIVEIS:
         return n, "pedido"
@@ -207,6 +259,43 @@ def decidir_nivel(texto, nivel, origem):
     if RE_RESULTADO.search(texto or ""):
         return "RESULTADO", "texto"
     return "INFO", "omissao"
+
+
+def urgente_permitido(texto, origem):
+    """Regra do Danilo 08/11: True so nos 5 casos (ver o topo do ficheiro)."""
+    t = texto or ""
+    if RE_NUNCA_URGENTE.search(t):
+        return False
+    base = (origem or "").split(":")[0]
+    if base == "radar-jai":
+        return bool(RE_JAI_URGENTE.search(t))
+    if base in ORIGENS_SEMPRE_URGENTES:
+        return True
+    return bool(RE_URGENTE_OK.search(t))
+
+
+def decidir_nivel(texto, nivel, origem):
+    n, porque = _decidir_nivel_antigo(texto, nivel, origem)
+    base = (origem or "").split(":")[0]
+    # radar-jai: o jornalista a responder sobe a URGENTE mesmo sem as palavras antigas.
+    if base == "radar-jai" and n != "URGENTE" and urgente_permitido(texto, origem):
+        return "URGENTE", "regra-08-11:jai"
+    if n != "URGENTE" or urgente_permitido(texto, origem):
+        return n, porque
+    desce = "RESULTADO" if (ORIGENS.get(base) == "RESULTADO" or RE_RESULTADO.search(texto or "")) else "INFO"
+    return desce, "regra-08-11:" + porque
+
+
+def novo_para_vigiar(texto):
+    """Pedido/corrida/limpeza novo com o #id curto -> (tabela, id8, ...) para o vigia dos 10 min; senao None."""
+    m = RE_ID_CURTO.search(texto or "")
+    if not m:
+        return None
+    for rx, tabela, quem, hora, fim, antes in NOVOS:
+        if rx.search(texto or ""):
+            return {"tabela": tabela, "id8": m.group(1), "quem": quem, "hora": hora, "fim": list(fim), "antes_min": antes,
+                    "titulo": (texto or "").splitlines()[0][:120]}
+    return None
 
 
 def formatar(texto, nivel, sem_corte=False):
@@ -315,13 +404,17 @@ def telegram_danilo(texto, nivel=None, origem="desconhecido", ficheiros=None, cr
     if not texto and not ficheiros and not cru:
         return {"ok": False, "porque": "texto vazio"}
     n, porque = decidir_nivel(texto, nivel, origem)
+    vigiar = novo_para_vigiar(texto) if n != "URGENTE" else None
     if ensaio:
         para_chat, resto = formatar(texto, n, sem_corte)
         r = {"ok": True, "ensaio": True, "nivel": n, "porque": porque, "origem": origem,
              "destino": "bastidores" if n == "INFO" else "chat", "texto_final": texto if n == "INFO" else para_chat,
-             "voz": n != "INFO", "resto_para_bastidores": bool(resto), "anexos": len(ficheiros) + (1 if cru else 0)}
+             "voz": n != "INFO", "resto_para_bastidores": bool(resto), "anexos": len(ficheiros) + (1 if cru else 0),
+             "vigia_10min": (vigiar or {}).get("tabela")}
         registar(evento="ensaio", **{k: v for k, v in r.items() if k not in ("ok", "ensaio", "texto_final")})
         return r
+    if vigiar:
+        vigia_registar(vigiar)
     marca = texto
     if not marca:   # sem legenda: o anexo e' que diz se e' repetido
         h = hashlib.sha1()
@@ -651,8 +744,120 @@ def vigiar_entrada():
         time.sleep(espera)
 
 
+# ───────────────────────────── vigia dos 10 min (regra 08/11) ─────────────────────────────
+
+_trinco_vigia = threading.Lock()
+
+
+def _vigia_ler():
+    try:
+        with open(VIGIA, encoding="utf-8") as fh:
+            return json.load(fh)
+    except Exception:  # noqa: BLE001
+        return []
+
+
+def _vigia_gravar(itens):
+    os.makedirs(DIR, exist_ok=True)
+    tmp = VIGIA + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(itens[-300:], fh, ensure_ascii=False)
+    os.replace(tmp, VIGIA)
+
+
+def vigia_registar(item):
+    """Guarda um pedido/corrida/limpeza novo para rever daqui a VIGIA_MIN minutos. Repetidos nao entram."""
+    with _trinco_vigia:
+        itens = _vigia_ler()
+        if any(i.get("tabela") == item["tabela"] and i.get("id8") == item["id8"] for i in itens):
+            return False
+        t = agora()
+        itens.append(dict(item, desde=t.isoformat(timespec="seconds"),
+                          rever_em=(t + datetime.timedelta(minutes=VIGIA_MIN)).isoformat(timespec="seconds")))
+        _vigia_gravar(itens)
+    registar(evento="vigia-registado", tabela=item["tabela"], id8=item["id8"])
+    return True
+
+
+def _filtro_id(id8):
+    # ids sao uuid (ou texto com forma de uuid): o intervalo serve aos dois e nao precisa de LIKE.
+    return "id=gte.%s-0000-0000-0000-000000000000&id=lte.%s-ffff-ffff-ffff-ffffffffffff" % (id8, id8)
+
+
+def vigia_verificar(item, linha, agora_):
+    """Pura (prova sem base): ('fim'|'esperar'|'alertar', motivo, rever_em|None) para um item do vigia."""
+    if not linha:
+        return "fim", "nao encontrado na base", None
+    if str(linha.get("status") or "") in item["fim"]:
+        return "fim", "estado " + str(linha.get("status")), None
+    if linha.get(item["quem"]):
+        return "fim", "ja tem quem faca", None
+    hora = linha.get(item["hora"])
+    if hora:
+        try:
+            h = datetime.datetime.fromisoformat(str(hora).replace("Z", "+00:00"))
+            if h.tzinfo is None:
+                h = h.replace(tzinfo=datetime.timezone.utc)
+            limite = h - datetime.timedelta(minutes=item.get("antes_min", 20))
+            if limite > agora_:
+                return "esperar", "marcado para " + h.astimezone(TZ).strftime("%d/%m %H:%M"), limite
+        except ValueError:
+            pass
+    return "alertar", "sem ninguem", None
+
+
+def texto_alerta_vigia(item, agora_):
+    quem = {"orders": "estafeta", "tvde_rides": "motorista", "cleaning_bookings": "limpadora"}.get(item["tabela"], "ninguem")
+    try:
+        minutos = int((agora_ - datetime.datetime.fromisoformat(item["desde"])).total_seconds() // 60)
+    except Exception:  # noqa: BLE001
+        minutos = VIGIA_MIN
+    return "%s\nSem %s ha %d min. #%s" % (item.get("titulo") or "Pedido", quem, minutos, item["id8"])
+
+
+def vigiar_pedidos():
+    """De minuto a minuto: pedido/corrida/limpeza que desceu a INFO e ao fim de 10 min (ou perto da hora marcada) ainda
+    nao tem quem o faca -> URGENTE (caso 1 da regra 08/11). So le a base (GET)."""
+    while True:
+        try:
+            agora_ = agora()
+            with _trinco_vigia:
+                itens = _vigia_ler()
+            ficam, alertas = [], []
+            for it in itens:
+                try:
+                    rever = datetime.datetime.fromisoformat(it["rever_em"])
+                except Exception:  # noqa: BLE001
+                    continue
+                if rever > agora_:
+                    ficam.append(it)
+                    continue
+                try:
+                    linhas = _supa("GET", "%s?select=id,status,%s,%s&%s&limit=1" % (
+                        it["tabela"], it["quem"], it["hora"], _filtro_id(it["id8"]))) or []
+                except Exception as e:  # noqa: BLE001
+                    registar(evento="vigia-leitura-falhou", tabela=it["tabela"], id8=it["id8"], erro=str(e)[:150])
+                    ficam.append(it)
+                    continue
+                acao, motivo, novo = vigia_verificar(it, linhas[0] if linhas else None, agora_)
+                registar(evento="vigia-" + acao, tabela=it["tabela"], id8=it["id8"], motivo=motivo)
+                if acao == "esperar":
+                    ficam.append(dict(it, rever_em=novo.isoformat(timespec="seconds")))
+                elif acao == "alertar":
+                    alertas.append(it)
+            with _trinco_vigia:
+                vistos = {(i.get("tabela"), i.get("id8")) for i in itens}
+                _vigia_gravar(ficam + [i for i in _vigia_ler() if (i.get("tabela"), i.get("id8")) not in vistos])
+            for it in alertas:
+                telegram_danilo(texto_alerta_vigia(it, agora_), "URGENTE", "vigia-10min")
+        except Exception as e:  # noqa: BLE001
+            registar(evento="vigia-falhou", erro=str(e)[:200])
+        time.sleep(60)
+
+
 def servir():
     threading.Thread(target=vigiar_entrada, daemon=True).start()
+    threading.Thread(target=vigiar_pedidos, daemon=True).start()
     servidores = []
     for host, porta, cls in [(h, PORTA_LOCAL, _Base) for h in HOSTS_LOCAIS] + [("127.0.0.1", PORTA_PUBLICA, _Publico)]:
         try:

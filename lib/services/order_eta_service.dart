@@ -239,6 +239,31 @@ class OrderEtaService {
     return 'Chega em ~$m min';
   }
 
+  /// M7 (08/11/2026, paridade com o Bora Motorista): hora estimada de chegada
+  /// ("Chega em ~15 min · às 19:45"). Mesma conta de [minutesRemaining];
+  /// null quando não há ETA (agendado, entregue, sem coordenadas).
+  static DateTime? horaChegada(OrderModel order,
+      {LatLng? driverPos, DateTime? now}) {
+    final agora = now ?? DateTime.now();
+    final m = minutesRemaining(order, driverPos: driverPos, now: agora);
+    if (m == null) return null;
+    return agora.add(Duration(minutes: m));
+  }
+
+  /// Raio em que se considera que o estafeta já está no sítio de recolha.
+  static const double raioRecolhaMetros = 150;
+
+  /// M7 (08/11/2026, paridade com o TVDE "o motorista chegou"): o estafeta
+  /// aceitou e já está a ≤ [raioRecolhaMetros] do restaurante/loja. Só lê
+  /// posições — não muda o estado do pedido.
+  static bool estafetaNaRecolha(OrderModel order, {LatLng? driverPos}) {
+    if (order.status != OrderStatus.driverAccepted) return false;
+    final recolha = order.pickupLocation;
+    if (driverPos == null || recolha == null) return false;
+    return _distance.as(LengthUnit.Meter, driverPos, recolha) <=
+        raioRecolhaMetros;
+  }
+
   static double? _fullTripKm(OrderModel order) {
     if (order.distanceKm > 0) return order.distanceKm;
     final pickup = order.pickupLocation;

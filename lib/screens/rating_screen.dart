@@ -308,7 +308,7 @@ class _RatingScreenState extends State<RatingScreen> {
               const SizedBox(height: 8),
               TextButton(
                 onPressed: _submitting ? null : () => Navigator.pop(context),
-                child: Text('Saltar'.tr),
+                child: Text('Agora não'.tr),
               ),
             ],
           ),

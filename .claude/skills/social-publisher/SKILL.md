@@ -43,8 +43,22 @@ metadata:
 - Conteúdo tem de vir de campanha que passou o gate do diretor-criativo (anti-slop + números).
 - Peça alterada à mão depois do gate → volta ao diretor-criativo antes de agendar.
 
+## Voz humana (ordem do Danilo, 08/11/2026 — manda sobre o resto desta skill)
+Texto inteiro em `ferramentas/vps/social/VOZ-HUMANA.md` (VPS: `/opt/data/social/VOZ-HUMANA.md`).
+1. Fala uma pessoa da Guarda que trabalha no Bora, na primeira pessoa do plural ("hoje fomos buscar…"); nunca "a nossa plataforma".
+2. Fotos reais primeiro (parceiros, pratos que o dono mandou, a carrinha, a cidade); IA só para retoque leve; nunca prato inventado por IA.
+3. Legenda curta: um detalhe humano verdadeiro + uma chamada. Nada de números ou factos inventados.
+4. No máximo 1 emoji por legenda.
+5. Stories com bastidores (saco a sair da loja, mota/carrinha, balcão, rua da Guarda).
+6. Nunca Ouro e Prata; parceiros só os ativos (`coming_soon=false`), confirmados na base antes de cada peça; nada de barbearia sem barbearia ativa.
+7. Toda a peça passa pelo juiz com visão antes de sair (nada cortado, imagem = legenda, nada em branco, legível a 200 px).
+Grupos: Facebook em nome da página do Bora; perfil pessoal do Danilo só com o "sim" dele, grupo a grupo, nesse dia.
+WhatsApp: só "Marketing, vendas e propaganda Guarda" e o estado, sempre pelo WhatsApp da Bora 937 501 673 (Chrome pessoal 5b260cdd).
+
 ## Telemetria (fim de execução)
 Incrementar frontmatter + linha em `.claude/.ai/knowledge/wiki/skills-metrics.md`.
 
 ## Admin Panel Needed?
 Coberto pela proposta `AdminMarketingScreen` (inbox) — estados agendada/publicada vêm daqui.
+
+- Formatos de reels e regras visuais: ver `FORMATOS-REELS.md` nesta pasta.

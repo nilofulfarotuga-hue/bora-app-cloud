@@ -54,7 +54,13 @@ class EstafetaDocumentosService {
 
   /// Grava um item ([chave] de [DocEmFalta]) com [valor] (endereço da foto
   /// ou texto). Lança uma mensagem PT-PT quando não dá.
-  static Future<void> gravar(String chave, String valor) async {
+  ///
+  /// [contaAprovada] = true só a partir de "A minha conta" (missão m2,
+  /// 08/11/2026): o estafeta já aprovado a quem falta um documento (caso do
+  /// Vasco) envia-o ali. O ecrã só mostra o botão nos itens que o servidor
+  /// dá como em falta; mudar o que já está certo continua a ser pelo Suporte.
+  static Future<void> gravar(String chave, String valor,
+      {bool contaAprovada = false}) async {
     final parametro = parametroDoRegisto(chave);
     if (parametro == null) {
       throw const EstafetaDocumentoException(
@@ -66,7 +72,7 @@ class EstafetaDocumentosService {
           'A tua sessão terminou. Entra outra vez na app e tenta de novo.');
     }
     final estado = linha['approval_status']?.toString();
-    if (estado != 'pending' && estado != 'rejected') {
+    if (!contaAprovada && estado != 'pending' && estado != 'rejected') {
       throw const EstafetaDocumentoException(
           'A tua conta já foi analisada. Se precisas de mudar um documento, '
           'fala connosco no Suporte.');

@@ -1,0 +1,223 @@
+# Rede do Dipsy — categorias de sítios (missão m3-dipsy-acesso-total-2026-11-08, ordem do Danilo de 08/11/2026).
+#
+# Tudo o que o Dipsy faz na internet passa pelo proxy local (~/.dsh/proxy/proxy.py, só 127.0.0.1) e fica registado em
+# ~/.dsh/proxy/registo.jsonl (domínio, método, tamanho, hora). O proxy e a guarda do Dipsy leem ESTE ficheiro.
+#
+# Como se muda (o Danilo não escreve aqui; fala com o Dipsy pelo Telegram):
+#   /rede                      -> diz as categorias e o estado de cada uma
+#   /rede abrir <categoria>    -> abre a categoria;  /rede fechar <categoria> -> fecha-a
+#   Sítio fora das categorias  -> o Dipsy pergunta "Posso abrir X?" e a resposta fica em aprovados/recusados (abaixo).
+#
+# Regras:
+#   estado: aberta | fechada.  so_leitura: true -> o proxy corta ligações que mandem mais de 1 MB para fora (uploads).
+#   Domínio "x.pt" cobre também os subdomínios (www.x.pt, loja.x.pt). "docs.*" = qualquer sítio que comece por docs.
+#   sempre_bloqueado: nunca abre por "Posso abrir?". Os grupos com com_sim: true abrem só 10 minutos, quando o Danilo
+#   diz "sim" a UMA ação concreta (pagamento na Stripe, publicar, mandar mensagem). Os outros nunca abrem.
+
+categorias:
+  bora:
+    descricao: Sítios do Bora e o que o próprio Dipsy precisa para pensar e trabalhar (motores, Córtex, Supabase, Google)
+    estado: aberta
+    so_leitura: false
+    dominios:
+      - boraguarda.com
+      - bora-app-web.pages.dev
+      - ojykpzwqrtusfeakzrna.supabase.co
+      - supabase.com
+      - srv1786862.hstgr.cloud
+      - bora-vps.tail41776c.ts.net
+      - 100.120.181.115
+      - play.google.com
+      - apps.apple.com
+      - itunes.apple.com
+      - api.kilo.ai
+      - generativelanguage.googleapis.com
+      - oauth2.googleapis.com
+      - gmail.googleapis.com
+      - www.googleapis.com
+      - accounts.google.com
+      - localhost
+      - 127.0.0.1
+  pesquisa:
+    descricao: Motores de pesquisa e enciclopédia
+    estado: aberta
+    so_leitura: true
+    dominios:
+      - duckduckgo.com
+      - bing.com
+      - google.com
+      - google.pt
+      - wikipedia.org
+      - wikimedia.org
+  documentacao:
+    descricao: Documentação técnica e pacotes (GitHub, npm, PyPI, pub.dev, Flutter, Supabase, Stripe docs)
+    estado: aberta
+    so_leitura: true
+    dominios:
+      - docs.*
+      - github.com
+      - githubusercontent.com
+      - npmjs.com
+      - registry.npmjs.org
+      - pypi.org
+      - files.pythonhosted.org
+      - pub.dev
+      - storage.googleapis.com
+      - flutter.dev
+      - dart.dev
+      - developer.mozilla.org
+      - stackoverflow.com
+      - learn.microsoft.com
+      - developer.android.com
+      - developer.apple.com
+      - nodejs.org
+      - python.org
+      - deno.land
+      - deno.com
+      - jsr.io
+  concorrentes:
+    descricao: Concorrentes, só para comparar o que o cliente vê (nunca engenharia reversa)
+    estado: aberta
+    so_leitura: true
+    dominios:
+      - glovoapp.com
+      - ubereats.com
+      - bolt.eu
+  lojas:
+    descricao: Lojas e restaurantes da Guarda (preços e produtos)
+    estado: aberta
+    so_leitura: true
+    dominios:
+      - continente.pt
+      - lidl.pt
+      - pingodoce.pt
+      - mercadona.pt
+      - mercadona.es
+      - auchan.pt
+      - intermarche.pt
+      - burgerking.pt
+      - mcdonalds.pt
+  noticias_lei:
+    descricao: Lei e serviços do Estado (Diário da República, Finanças, Segurança Social, IMT)
+    estado: aberta
+    so_leitura: true
+    dominios:
+      - dre.pt
+      - diariodarepublica.pt
+      - portaldasfinancas.gov.pt
+      - seg-social.pt
+      - imt-ip.pt
+  testes:
+    descricao: Sítios de teste reservados (example.com), para provar que o proxy funciona
+    estado: aberta
+    so_leitura: true
+    dominios:
+      - example.com
+      - example.org
+      - example.net
+  stripe_leitura:
+    descricao: Painel da Stripe, só leitura (a exceção aos pagamentos)
+    estado: aberta
+    so_leitura: true
+    dominios:
+      - dashboard.stripe.com
+
+sempre_bloqueado:
+  pagamentos:
+    descricao: API da Stripe que mexe em dinheiro (abre 10 min só com o "sim" do Danilo a uma ação concreta)
+    com_sim: true
+    dominios:
+      - api.stripe.com
+      - checkout.stripe.com
+      - connect.stripe.com
+      - files.stripe.com
+      - uploads.stripe.com
+  publicar:
+    descricao: Redes sociais para publicar (abre 10 min só com o "sim" do Danilo a uma publicação concreta)
+    com_sim: true
+    dominios:
+      - graph.facebook.com
+      - graph.instagram.com
+      - api.instagram.com
+      - rupload.facebook.com
+      - upload.facebook.com
+      - api.twitter.com
+      - api.x.com
+      - upload.twitter.com
+      - open.tiktokapis.com
+      - api.linkedin.com
+  mensagens:
+    descricao: Mandar mensagens e emails para fora (abre 10 min só com o "sim" do Danilo a um envio concreto)
+    com_sim: true
+    dominios:
+      - api.telegram.org
+      - api.resend.com
+      - api.sendgrid.com
+      - api.brevo.com
+  bancos:
+    descricao: Bancos e carteiras (nunca)
+    com_sim: false
+    dominios:
+      - paypal.com
+      - revolut.com
+      - wise.com
+      - cgd.pt
+      - millenniumbcp.pt
+      - novobanco.pt
+      - santander.pt
+      - bancobpi.pt
+      - activobank.pt
+      - bancoctt.pt
+      - creditoagricola.pt
+      - montepio.pt
+      - mbway.pt
+      - sibs.com
+      - sibsapimarket.com
+      - m.stripe.com
+      - js.stripe.com
+  uploads:
+    descricao: Sítios para despejar ficheiros ou dados (nunca)
+    com_sim: false
+    dominios:
+      - transfer.sh
+      - file.io
+      - 0x0.st
+      - wetransfer.com
+      - we.tl
+      - pastebin.com
+      - paste.ee
+      - hastebin.com
+      - webhook.site
+      - requestbin.com
+      - requestbin.net
+      - pipedream.net
+      - ngrok.io
+      - ngrok.app
+      - ngrok-free.app
+      - ngrok.dev
+      - mega.nz
+      - gofile.io
+      - catbox.moe
+      - content.dropboxapi.com
+      - hooks.slack.com
+      - discord.com
+      - discordapp.com
+      - ifttt.com
+      - burpcollaborator.net
+      - interact.sh
+  telemetria:
+    descricao: Telemetria e analíticas (nunca)
+    com_sim: false
+    dominios:
+      - deepseeksvc.com
+      - sentry.io
+      - segment.io
+      - mixpanel.com
+      - amplitude.com
+      - posthog.com
+      - datadoghq.com
+      - google-analytics.com
+      - doubleclick.net
+
+aprovados_pelo_danilo: []
+recusados_pelo_danilo: []

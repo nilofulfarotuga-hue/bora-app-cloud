@@ -323,3 +323,7 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   04 hora de chamar o estafeta no pedido agendado (zona de despacho: só proposta). O código da app foi para o ramo de
   ensaio `ai/2026-11-08-m2-estafeta-conta-fila` com pedido de revisão; publicar nas 3 é da Claude.ai. A app funciona
   já sem as propostas (monta o semáforo com o que existe no servidor); com elas fica com a fonte única.
+  Além disso, a bora-tranca recusou o `git push origin ai/2026-11-08-m2-estafeta-conta-fila` ("git push é publicar:
+  publica o Claude.ai"). Não contornado (nem por `gh`): o ramo ficou só no PC, no worktree
+  `C:\BoraLocal\wt-m2-2026-11-08`, com os commits `e9777744` (código) e `d7190bf5` (teste + relatório). Sem envio não
+  há pedido de revisão no GitHub; quem publica leva o ramo daqui.

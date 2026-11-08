@@ -30,7 +30,8 @@ create schema net; create table net.calls(id serial, url text, body jsonb);
 create function net.http_post(url text, headers jsonb default '{}', body jsonb default '{}', timeout_milliseconds int default 5000)
   returns bigint language plpgsql as $$ begin insert into net.calls(url, body) values (url, body); return 1; end $$;
 create schema storage; create table storage.buckets(id text primary key, name text, public bool);
-create table storage.objects(bucket_id text, name text); alter table storage.objects enable row level security;
+create table storage.objects(bucket_id text, name text, metadata jsonb, created_at timestamptz default now());
+create function storage.foldername(name text) returns text[] language sql immutable as $$ select (string_to_array(name, '/'))[1:array_length(string_to_array(name, '/'),1)-1] $$; alter table storage.objects enable row level security;
 create function public.is_admin() returns boolean language sql stable as $$ select coalesce(current_setting('test.admin', true), '') = 'true' $$;
 create table public.users(id uuid primary key, name text, email text, phone text);
 create table public.drivers(id uuid primary key default gen_random_uuid(), user_id uuid);
@@ -75,13 +76,13 @@ const ADM = '44444444-4444-4444-4444-444444444444';
 try {
   await db.exec(BASE);
   for (const f of ['01_favor_diferencas_e_entrega_sem_codigo.sql', '02_favor_aprovacao_com_tecto.sql',
-                   '03_nif_estafeta_e_recibo_cliente.sql', '04_gorjeta_conta_ganho_e_robo_talao.sql']) {
+                   '03_nif_estafeta_e_recibo_cliente.sql', '04_gorjeta_conta_ganho_e_robo_talao.sql', '07_taloes_guardados_para_sempre.sql']) {
     try { await db.exec(readFileSync(join(dir, f), 'utf8')); prova(`aplica ${f}`, true); }
     catch (e) { prova(`aplica ${f}`, false, e.message); }
   }
   // reaplicar tudo outra vez (idempotência)
   for (const f of ['01_favor_diferencas_e_entrega_sem_codigo.sql', '02_favor_aprovacao_com_tecto.sql',
-                   '03_nif_estafeta_e_recibo_cliente.sql', '04_gorjeta_conta_ganho_e_robo_talao.sql']) {
+                   '03_nif_estafeta_e_recibo_cliente.sql', '04_gorjeta_conta_ganho_e_robo_talao.sql', '07_taloes_guardados_para_sempre.sql']) {
     try { await db.exec(readFileSync(join(dir, f), 'utf8')); prova(`reaplica ${f} (idempotente)`, true); }
     catch (e) { prova(`reaplica ${f}`, false, e.message); }
   }
@@ -289,6 +290,49 @@ try {
   r = (await q1(`select public.catalog_price_update_from_receipt($1) r`, [rid2])).r;
   const p2 = await q1(`select price from public.products where id='bk-078771af-f4cb-451a-b645-3738400175df'`);
   prova('talão mais caro (12,45 vs 11,08) → sobe a base para 12,37', r.aplicadas === 1 && Number(p2.price) === 12.37, JSON.stringify(r) + ' ' + p2.price);
+
+  // ── Adendo 1: talões guardados para sempre ────────────────────────────
+  await db.exec(`
+    insert into public.orders(id,user_id,assigned_driver_id,service_type,status,payment_method,is_partner_store,vendor_name,restaurant_id,delivered_at)
+      values ('tal-velho','${CLI}','${DRV}','storeShopping','delivered','cash',false,'Continente','continente-guarda', now()),
+             ('tal-sem','${CLI}','${DRV}','storeShopping','delivered','cash',false,'Lidl','lidl-guarda', now());
+    insert into public.order_receipts_v2(order_id, photo_url, photo_taken_at, driver_typed_total_cents)
+      values ('tal-velho','tal-velho.jpg', now(), 1234), ('bk','receipts/bk.jpg', now(), 2995);
+    insert into storage.objects(bucket_id, name, metadata) values
+      ('receipts','tal-velho.jpg','{"size": 2048}'), ('receipts','bk.jpg','{"size": 4096}');`);
+  await db.exec(readFileSync(join(dir, '07_taloes_guardados_para_sempre.sql'), 'utf8'));
+  let nf = await q1(`select count(*)::int n, string_agg(path, ',' order by path) p from public.order_receipt_fotos where origem='antigo'`);
+  prova('fotos antigas entram no registo tal como estão (2)', nf.n === 2 && nf.p === 'bk.jpg,tal-velho.jpg', JSON.stringify(nf));
+  await db.exec(readFileSync(join(dir, '07_taloes_guardados_para_sempre.sql'), 'utf8'));
+  nf = await q1(`select count(*)::int n from public.order_receipt_fotos`);
+  prova('reaplicar o 07 não duplica fotos', nf.n === 2);
+  // duas fotos novas do mesmo pedido (Favor com 2 lojas): as duas ficam
+  await db.exec(`insert into public.order_receipt_fotos(order_id, path, foto_id, total_cents, driver_uid, tirada_em, tamanho_bytes)
+      values ('tal-velho','2026/11/tal-velho/f1.jpg','f1',1234,'${DRV}', now(), 3000),
+             ('tal-velho','2026/11/tal-velho/f2.jpg','f2',800,'${DRV}', now(), 3100)`);
+  try { await db.exec(`insert into public.order_receipt_fotos(order_id, path) values ('tal-velho','2026/11/tal-velho/f1.jpg')`); prova('o mesmo ficheiro não entra duas vezes', false); }
+  catch { prova('o mesmo ficheiro não entra duas vezes', true); }
+  await comoUid(ADM, true);
+  r = (await q1(`select public.admin_talao_do_pedido('tal-velho') r`)).r;
+  prova('painel: 3 fotos do pedido, valor escrito 12,34 e NIF da Bora', r.fotos.length === 3 && r.valor_escrito_cents === 1234 && r.nif.nif === '519686233' && r.nif.origem === 'bora', JSON.stringify(r).slice(0, 300));
+  r = (await q1(`select public.admin_talao_do_pedido('bk') r`)).r;
+  prova('painel: NIF do cliente quando pediu fatura', r.nif.nif === '292811111' && r.nif.origem === 'cliente', JSON.stringify(r.nif));
+  const mesAtual = (await q1(`select to_char(now() at time zone 'Europe/Lisbon', 'YYYY-MM') m`)).m;
+  r = (await q1(`select public.admin_taloes_listar($1, null, null, 500) r`, [mesAtual])).r;
+  prova('página Talões: as 4 fotos do mês', r.ok && r.fotos.length === 4, JSON.stringify(r).slice(0, 200));
+  r = (await q1(`select public.admin_taloes_listar($1, 'continente', null, 500) r`, [mesAtual])).r;
+  prova('filtro por loja (Continente = 3)', r.fotos.length === 3);
+  r = (await q1(`select public.admin_taloes_listar('2020-01', null, null, 500) r`)).r;
+  prova('outro mês vazio', r.fotos.length === 0);
+  r = (await q1(`select public.admin_taloes_listar('2020-1', null, null, 500) r`)).r;
+  prova('mês mal escrito recusado', r.error === 'mes_invalido');
+  r = (await q1(`select public.admin_pedidos_sem_talao(null) r`)).r;
+  prova('pedido entregue sem talão aparece (Lidl)', r.some((x) => x.order_id === 'tal-sem') && !r.some((x) => x.order_id === 'tal-velho'), JSON.stringify(r).slice(0, 300));
+  await comoUid(OUT);
+  try { await q1(`select public.admin_taloes_listar(null, null, null, 10)`); prova('estafeta não lê a página Talões', false); }
+  catch { prova('estafeta não lê a página Talões', true); }
+  const pol = await q1(`select count(*)::int n from pg_policies where tablename='objects' and policyname='driver_select_own_receipt_pasta'`);
+  prova('política de leitura do estafeta no caminho novo criada', pol.n === 1);
 } catch (e) {
   falhas++;
   console.log('ERRO GERAL', e.message);

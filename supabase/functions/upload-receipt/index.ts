@@ -13,10 +13,11 @@
 // API:
 //   POST /functions/v1/upload-receipt
 //   Headers: Authorization: Bearer <user_jwt>, Content-Type: application/json
-//   Body: { orderId: string, fileBase64: string, totalCents?: number }
+//   Body: { orderId: string, fileBase64: string, totalCents?: number, fotoId?: string, tiradaEm?: ISO }
 //
 // Returns:
-//   200 { success: true, path, bucket, order_id, total_cents }
+//   200 { success: true, path, bucket, order_id, total_cents, foto_id, confirmado, tamanho_bytes, repetida }
+//   (path = AAAA/MM/<order_id>/<fotoId>.jpg desde 08/11/2026; as antigas <order_id>.jpg ficam como estão)
 //   400 invalid_json | orderId_required | fileBase64_required | invalid_base64
 //   401 unauthorized
 //   403 not_your_order
@@ -68,7 +69,7 @@ Deno.serve(async (req: Request) => {
   }
   const callerId = userData.user.id
 
-  let body: { orderId?: string; fileBase64?: string; totalCents?: number }
+  let body: { orderId?: string; fileBase64?: string; totalCents?: number; fotoId?: string; tiradaEm?: string }
   try {
     body = await req.json()
   } catch (_) {
@@ -113,16 +114,51 @@ Deno.serve(async (req: Request) => {
     return jsonResp(400, { error: 'invalid_base64' })
   }
 
-  const path = `${body.orderId}.jpg`
+  // M1 adendo 1 (08/11/2026, Danilo: "toda foto de talão ... nunca se pode perder"):
+  // cada foto tem o SEU ficheiro, nunca substituído (antes era <order_id>.jpg com upsert:true e a
+  // 2.ª foto apagava a 1.ª). Caminho: AAAA/MM/<order_id>/<fotoId>.jpg (mês de Lisboa da foto).
+  // fotoId vem da app (o mesmo em cada nova tentativa da MESMA foto) → repetir não duplica nem
+  // apaga: se o ficheiro já existe, é a mesma foto e devolve-se o mesmo caminho.
+  const fotoId = (typeof body.fotoId === 'string' && /^[A-Za-z0-9_-]{6,64}$/.test(body.fotoId))
+    ? body.fotoId
+    : `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`
+  const tirada = typeof body.tiradaEm === 'string' && !Number.isNaN(Date.parse(body.tiradaEm))
+    ? new Date(body.tiradaEm) : new Date()
+  const partes = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon', year: 'numeric', month: '2-digit' })
+    .formatToParts(tirada)
+  const ano = partes.find((p) => p.type === 'year')?.value ?? String(tirada.getUTCFullYear())
+  const mes = partes.find((p) => p.type === 'month')?.value ?? String(tirada.getUTCMonth() + 1).padStart(2, '0')
+  const pasta = `${ano}/${mes}/${body.orderId}`
+  const nome = `${fotoId}.jpg`
+  const path = `${pasta}/${nome}`
   const { error: uploadErr } = await admin.storage.from('receipts').upload(
     path,
     bytes,
-    { contentType: 'image/jpeg', upsert: true },
+    { contentType: 'image/jpeg', upsert: false },
   )
-  if (uploadErr) {
+  const jaExistia = !!uploadErr && /exist|duplicate|409/i.test(`${uploadErr.message} ${(uploadErr as { statusCode?: string }).statusCode ?? ''}`)
+  if (uploadErr && !jaExistia) {
     console.error('[upload-receipt] upload failed:', uploadErr)
     return jsonResp(500, { error: 'upload_failed', detail: uploadErr.message })
   }
+
+  // Confirmação no servidor: o ficheiro existe e não está vazio. Só então a app diz "guardado".
+  const { data: lista, error: listErr } = await admin.storage.from('receipts').list(pasta, { search: nome, limit: 5 })
+  const obj = (lista ?? []).find((o: { name: string }) => o.name === nome) as { metadata?: { size?: number } } | undefined
+  const tamanho = Number(obj?.metadata?.size ?? 0)
+  if (listErr || !obj || tamanho <= 0) {
+    console.error('[upload-receipt] confirmação falhou:', listErr?.message, path, tamanho)
+    return jsonResp(500, { error: 'upload_not_confirmed', detail: listErr?.message ?? `tamanho=${tamanho}` })
+  }
+
+  // Registo de TODAS as fotos (tabela order_receipt_fotos, proposta 07). Sem a tabela no ar, a
+  // foto continua guardada e o pedido fecha na mesma; o erro fica no log.
+  const { error: regErr } = await admin.from('order_receipt_fotos').upsert({
+    order_id: body.orderId, bucket: 'receipts', path, foto_id: fotoId,
+    total_cents: Number.isInteger(body.totalCents) ? body.totalCents : null,
+    driver_uid: callerId, tirada_em: tirada.toISOString(), tamanho_bytes: tamanho, origem: 'upload-receipt',
+  }, { onConflict: 'path', ignoreDuplicates: true })
+  if (regErr) console.warn('[upload-receipt] registo da foto falhou (foto guardada):', regErr.message)
 
   return jsonResp(200, {
     success: true,
@@ -130,5 +166,9 @@ Deno.serve(async (req: Request) => {
     bucket: 'receipts',
     order_id: body.orderId,
     total_cents: body.totalCents ?? null,
+    foto_id: fotoId,
+    confirmado: true,
+    tamanho_bytes: tamanho,
+    repetida: jaExistia,
   })
 })

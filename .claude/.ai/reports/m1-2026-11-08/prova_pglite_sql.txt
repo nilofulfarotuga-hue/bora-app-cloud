@@ -2,10 +2,12 @@ PASS aplica 01_favor_diferencas_e_entrega_sem_codigo.sql
 PASS aplica 02_favor_aprovacao_com_tecto.sql
 PASS aplica 03_nif_estafeta_e_recibo_cliente.sql
 PASS aplica 04_gorjeta_conta_ganho_e_robo_talao.sql
+PASS aplica 07_taloes_guardados_para_sempre.sql
 PASS reaplica 01_favor_diferencas_e_entrega_sem_codigo.sql (idempotente)
 PASS reaplica 02_favor_aprovacao_com_tecto.sql (idempotente)
 PASS reaplica 03_nif_estafeta_e_recibo_cliente.sql (idempotente)
 PASS reaplica 04_gorjeta_conta_ganho_e_robo_talao.sql (idempotente)
+PASS reaplica 07_taloes_guardados_para_sempre.sql (idempotente)
 PASS tecto MB Way = pago − taxas = 14,40 €
 PASS tecto dinheiro = 12,00 × 1,15 = 13,80 €
 PASS outro estafeta não lê o tecto
@@ -60,5 +62,17 @@ PASS menu 2 casa com o 2.º Tripwhopper (12,45 € + 2,50 €)
 PASS robô NÃO sobe o menu (talão mais barato) → pendente
 PASS robô avisa que o EXTRA Bacon está mais caro ao balcão (2,50 vs 0,91)
 PASS talão mais caro (12,45 vs 11,08) → sobe a base para 12,37
+PASS fotos antigas entram no registo tal como estão (2)
+PASS reaplicar o 07 não duplica fotos
+PASS o mesmo ficheiro não entra duas vezes
+PASS painel: 3 fotos do pedido, valor escrito 12,34 e NIF da Bora
+PASS painel: NIF do cliente quando pediu fatura
+PASS página Talões: as 4 fotos do mês
+PASS filtro por loja (Continente = 3)
+PASS outro mês vazio
+PASS mês mal escrito recusado
+PASS pedido entregue sem talão aparece (Lidl)
+PASS estafeta não lê a página Talões
+PASS política de leitura do estafeta no caminho novo criada
 
-RESULTADO: 60 passaram, 0 falharam
+RESULTADO: 74 passaram, 0 falharam

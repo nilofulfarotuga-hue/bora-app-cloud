@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-08T20:37:02.728946+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-08T21:07:03.107413+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-08 20:34 UTC. Páginas listadas: 548.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-08 21:04 UTC. Páginas listadas: 561.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-11-08).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-31).
-3. Estado vivo: `digest-2026-11-08-missao-domingo` (2026-11-08).
+3. Estado vivo: `digest-2026-11-08-m2` (2026-11-08).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -51,8 +51,12 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-11-08)
 
-## digest (210)
+## digest (214)
 
+- digest-2026-11-08-m2 — Missão m2 08/11 — A minha conta do estafeta, fila de espera, faixa e mira (2026-11-08)
+- digest-2026-11-08-m7 — Digest 08/11/2026 — missão M7 (Stripe, parceiros, radar, leis) (2026-11-08)
+- digest-2026-11-08-m6 — Digest 08/11 — M6 crescimento, Hermes, porteiro, redes, Jyosmi, restaurante do dia (2026-11-08)
+- digest-2026-11-08-m4 — Digest 08/11 — m4 Amigo Bora v1 + adendo suporte (não publicado) (2026-11-08)
 - digest-2026-11-08-missao-domingo — Digest 08/11 — super-missão de domingo (2026-11-08)
 - digest-2026-11-05-modo-automatico-seguro — Claude Code 05/11 — modo automático seguro (por ligar) (2026-11-06)
 - digest-2026-11-05-robo-suporte — Digest 05/11 — robô do suporte inteligente (2026-11-05)
@@ -470,7 +474,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (145)
+## outras (154)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -501,7 +505,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - casa-manutencao-proposta — Casa & Manutenção — proposta para o Danilo decidir (29/10/2026) (2026-10-29)
 - comparativo-concorrencia-2026-11 — Bora contra Glovo, Uber Eats, Bolt Food e iFood (novembro 2026) (2026-11-08)
 - diretiva-plataformas-2024-2831 — Diretiva (UE) 2024/2831 trabalho em plataformas — o que obriga o Bora, estado em Portugal, o que está feito e checklist para 02/12/2026 (2026-11-01)
-- dsh-como-usar — Como usar o Dipsy (dsh) (2026-11-01)
+- dsh-como-usar — Como usar o Dipsy (dsh) (2026-11-08)
 - dsh-como-usar-novidades-2026-10-31 — Dipsy: o que ficou novo a 31/10 (complemento da pagina dsh-como-usar) (2026-10-31)
 - em-dia-ios-copiar-pipeline-bora — Em Dia / iOS: nao escrever o CI do zero, copiar o da Bora que ja funciona (2026-09-22)
 - em-dia-iphone-identificador — Em Dia / iPhone: identificadores da Apple (bundle id, app id, SKU) (2026-09-22)
@@ -551,7 +555,6 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - meta-anuncios-2026-10-31-criativos — Anúncios Meta 31/10 — criativos finais (juiz ≥ 9) e porque o anúncio antigo não deu pedidos (2026-10-31)
 - motor-claude-2026-10-31 — Motor Claude 31/10 - estado final (Bloco 2 da retoma-geral) (2026-10-31)
 - motores-rotacao-2026-10-29 — Motores gratis em rotacao - medicoes e cadeias (29/10/2026) (2026-10-29)
-- pagamentos-recorrentes — Pagamentos recorrentes da Bora e do Danilo (lido a 08/11/2026) (2026-11-08)
 - paridade-mundo-2026-10-29 — Paridade do mundo, segunda volta (Rappi, DoorDash, Zomato, Meituan) 29/10/2026 (2026-10-29)
 - paridade-mundo-e-lei-2026-10-17 — Bora vs Uber/Glovo/iFood/Bolt/Grab/Meituan + obrigações da lei em Portugal (pesquisa 17/10/2026) (2026-10-17)
 - paridade-rea-2026-10-26 — Paridade REA 26/10 — Glovo, Uber Eats, iFood e Bora vistos de fora (resumo) (2026-10-26)
@@ -563,6 +566,15 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - plano-14-dias-dia6-a-14 — Plano de 14 dias — do dia 6 ao dia 14 (29/10 a 06/11/2026) (2026-10-29)
 - plano-melhor-que-uber-glovo-2026-10-29 — Plano "100% melhor que a Uber e a Glovo" — volta ao mundo 29/10/2026 (2026-10-29)
 - playbook-redes-emdia — Playbook das redes — Em Dia (28/09) (2026-09-28)
+- proposta-m1-2026-11-08-edge-favor-cobrar-diferenca — M1 08/11 — Edge favor-cobrar-diferenca (index.ts, verify_jwt=false) (2026-11-08)
+- proposta-m1-2026-11-08-edge-recibo-pedido-cliente — M1 08/11 — Edge nova recibo-pedido-cliente (index.ts, verify_jwt=false) (2026-11-08)
+- proposta-m1-2026-11-08-leia-primeiro — M1 08/11 — guia para aplicar e publicar (Claude.ai) (2026-11-08)
+- proposta-m1-2026-11-08-patch-charge-tip — M1 08/11 — remendo charge-tip (taxa proporcional das gorjetas junto) (2026-11-08)
+- proposta-m1-2026-11-08-patch-notify-client — M1 08/11 — remendo notify-client (toque persistente) (2026-11-08)
+- proposta-m1-2026-11-08-sql-01 — M1 08/11 — SQL 01 diferenças MB Way + entregue sem código (2026-11-08)
+- proposta-m1-2026-11-08-sql-02 — M1 08/11 — SQL 02 aprovação com tecto + finalize remendado (2026-11-08)
+- proposta-m1-2026-11-08-sql-03 — M1 08/11 — SQL 03 NIF ao estafeta + recibo por email (2026-11-08)
+- proposta-m1-2026-11-08-sql-04 — M1 08/11 — SQL 04 gorjeta, ganho do dia, robô do talão (2026-11-08)
 - radar-2026-10-05 — Radar de vídeos 05/10 — filme (5 caminhos) e negócio (2026-10-05)
 - radar-2026-10-06 — Radar de vídeos 06/10 — negócio e reforços para o filme (2026-10-06)
 - radar-2026-10-07 — Radar de vídeos 07/10 — skills, mods do Claude Code e regras de reels (2026-10-07)
@@ -595,6 +607,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - radar-2026-11-05 — Radar de vídeos 05/11/2026 — 25 revistos, 2 novos, 8 pendentes (2026-11-05)
 - radar-2026-11-06 — Radar de vídeos 06/11/2026 — 40 revistos, 4 novos, 20 pendentes (2026-11-06)
 - radar-2026-11-07 — Radar de vídeos 07/11/2026 — 40 revistos, 8 novos, 20 pendentes (2026-11-07)
+- radar-2026-11-08 — Radar de vídeos 08/11/2026 — 40 revistos, 1 novo, 13 pendentes (2026-11-08)
 - reembolsos-b2-00-leia-me — reembolsos-b2-00-leia-me (2026-10-29)
 - reembolsos-b2-01-shared-cobranca — reembolsos-b2-01-shared-cobranca (2026-10-29)
 - reembolsos-b2-ef-admin-cancel-order — reembolsos-b2-ef-admin-cancel-order (2026-10-29)
@@ -620,7 +633,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 ## Páginas pessoais
 
-40 páginas com título [PESSOAL] (vida do Danilo). Não se listam aqui nem vão para o espelho público nem para o LIVRO.md; só se leem quando a tarefa é dele, e nunca vão para motores grátis que treinam com o conteúdo.
+41 páginas com título [PESSOAL] (vida do Danilo). Não se listam aqui nem vão para o espelho público nem para o LIVRO.md; só se leem quando a tarefa é dele, e nunca vão para motores grátis que treinam com o conteúdo.
 
 ## Skills partilhadas (152 no repo + 8 só na VPS)
 

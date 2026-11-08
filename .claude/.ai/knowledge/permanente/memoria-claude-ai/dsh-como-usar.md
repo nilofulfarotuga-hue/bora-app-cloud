@@ -2,7 +2,7 @@
 id: memoria-claude-ai-dsh-como-usar
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-01
+ultima_confirmacao: 2026-11-08
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Como usar o Dipsy (dsh)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `dsh-como-usar`, origem `claude-code`, atualizada em 2026-11-01T22:09:03.680399+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `dsh-como-usar`, origem `claude-code`, atualizada em 2026-11-08T20:38:39.634496+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: dsh como usar · memoria claude.ai · claude_ai_memoria
 
@@ -87,19 +87,39 @@ avisos, relatórios e respostas dele chegam em texto e em áudio completos.
 - **Lembrar-se entre conversas.** O Dipsy guarda o que aprende contigo (por exemplo, que queres tudo em texto e áudio) e
   lembra-se na conversa seguinte. Nunca guarda palavras-passe nem chaves.
 
-## O que ele não faz
-- Não envia emails nem mensagens para fora. Não publica nada. Não envia código para o servidor.
-- Não mexe em dinheiro, preços, comissões, carteiras, tokens nem no Stripe sem o teu "autorizo".
-- Não apaga dados de produção, não apaga ficheiros em massa e não lê nem escreve segredos.
-- Não mexe em apps ou sites de outras empresas.
+## O que o Dipsy pode fazer agora (desde 08/11)
+- **Tem internet.** Pode pesquisar e ler páginas da internet. Tudo passa por um porteiro no teu PC que regista cada sítio
+  que ele abre (que sítio, a que horas, quanto trouxe). Abre sozinho os sítios do Bora, os de pesquisa (Google, Bing,
+  DuckDuckGo, Wikipédia), documentação técnica, a Glovo, a Uber Eats e a Bolt (só para comparar o que o cliente vê), as
+  lojas da Guarda (Continente, Lidl, Pingo Doce, Mercadona, Auchan, Intermarché, Burger King, McDonald's) e os sítios do
+  Estado (Diário da República, Finanças, Segurança Social, IMT).
+- **Sítio novo, pergunta-te.** Se quiser abrir um sítio que não está nessa lista, manda-te no Telegram "Permites? O Dipsy
+  quer abrir o sítio X". Tocas em Sim ou Não. A resposta fica guardada: com sim passa a abrir sempre; com não, nunca mais.
+- **Bancos, sítios para despejar ficheiros e telemetria nunca abrem.** E ele nunca manda ficheiros do teu PC para fora.
+- **Antes de mexer no que dói, pergunta-te.** Dinheiro, pedidos, estafetas, carteiras, tokens, preços, Stripe, publicar
+  (lojas de apps, site, Instagram, Facebook), enviar código para o servidor, mandar emails ou mensagens para fora, apagar
+  muitos ficheiros: ele manda-te no Telegram "Permites?" com o que vai fazer, o valor, para quem e o comando exato, e
+  espera. Respondes sim (escrito, falado ou no botão) e ele faz, uma vez só. Com não, ou se não responderes em 10
+  minutos, não faz e segue com o resto. Cada coisa pede o seu sim; nunca fica um sim guardado para sempre.
+- **No Telegram:** /rede diz que categorias de sítios estão abertas; /rede fechar lojas fecha uma; /rede abrir lojas volta
+  a abrir. Todos os dias às 21:00 manda-te o resumo da internet dele.
+- **Respostas compridas:** no PC o limite subiu ao máximo e, se mesmo assim a resposta for cortada, ele continua sozinho.
+- **Missões grandes:** a missão fica escrita em Desktop\Bora\prompt-dsh.md e carrega-se no DIPSY-MISSAO, no Ambiente de
+  Trabalho. O Dipsy trabalha numa cópia própria do projeto, regista tudo e no fim manda-te o resumo em texto e voz.
+
+## O que ele não faz, nem com o teu sim
+- Não entra nas contas do Claude, ChatGPT ou Gemini por cookie.
+- Não reescreve o histórico do código já publicado e não apaga dados do Bora sem fazer cópia antes.
+- Não lê palavras-passe nem chaves, e não mexe na própria guarda nem na lista de sítios.
+- Não mexe em apps ou sites de outras empresas (só compara o que o cliente vê).
 
 ## Como ele fica seguro
 Antes de cada coisa que ele faz, uma guarda confere se pode. Se a guarda barrar, ele diz-te o que queria fazer e segue
 com o resto. Todo o trabalho que ele guarda no git passa primeiro pelo Juiz, o mesmo que vigia os outros ajudantes.
 A telemetria do motor oficial do dsh está desligada: medimos a rede durante um pedido e ele só falou com o motor grátis
 (Kilo), o Supabase e o Córtex.
-Desde 31/10: o Dipsy só fala com sítios do Bora na internet (boraguarda.com, o nosso Supabase, o Córtex, o nosso GitHub e
-as lojas de apps). Qualquer outro sítio é barrado pela guarda; para pesquisar na internet, pede ao Claude Code. Se a guarda
+Desde 08/11: tudo o que o Dipsy faz na internet passa pelo porteiro do PC, que regista cada sítio e barra o que não pode
+abrir; um sítio novo só abre com o teu sim. Se a guarda
 não ligar por algum erro, o Dipsy recusa-se a trabalhar e diz-te. E quando o Dipsy passa trabalho ao Claude Code, esse
 Claude Code também leva uma guarda que barra apagar em massa, apagar tabelas, push forçado, matar processos e segredos.
 

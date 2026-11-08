@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-08T20:21:02.222971+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-08T20:55:10.941007+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -552,3 +552,16 @@ Fonte: tabela radar_videos, nota >= 8, últimas 3 semanas, ainda pendentes (quas
 - APIs de IA grátis como reserva no OmniRoute, sem dados de clientes → fila (m8-reserva-motores).
 - Ferramenta paga (Tella e afins) → não, por agora.
 Formatos de reels novos (ganchos "troquei X por Y", AIDA, reels de teste, post de grupo sem link): .claude/skills/social-publisher/FORMATOS-REELS.md.
+
+## 08/11/2026 — radar diário (agente na nuvem)
+40 vídeos revistos (36 com nota >= 6): 1 novo, 13 PENDENTES, 14 já temos, 12 rejeitados (4 por nota baixa). Nenhum do tema animacao_ia. Proposta prop-0012a6f7.
+- BORA (novo, prop-0012a6f7): skill tipo "Stage Show" (7 passos, bom gosto em demos, versão própria para telemóvel) para as capturas da ficha da Play Store e os ecrãs da missão de domingo. https://www.youtube.com/watch?v=of628n5754g
+- SISTEMA (aviso, já coberto): o DeepSeek Harness manda registos de sessão com variáveis de ambiente para a DeepSeek; no Dipsy a telemetria está desligada e a guarda bloqueia — nunca pôr segredos em variáveis de ambiente do Dipsy nem ligar o motor oficial DeepSeek. https://www.youtube.com/watch?v=0dq9wicIdTs
+- DINHEIRO (PENDENTE, prop-2f8e76dc de 30/10): pacote de avaliações Google para PMEs — o vídeo vende-o com GoHighLevel (pago), nós com Claude Code + Hermes. https://www.youtube.com/watch?v=CiJYpw_oU40
+- DINHEIRO (PENDENTE desde 13/10): agência de automação para clínicas/oficinas, auditoria grátis antes de vender, cardápios e WhatsApp Business para restaurantes. https://www.youtube.com/watch?v=dLLtHRa1gOw , https://www.youtube.com/watch?v=C6Jv5smE5ok , https://www.youtube.com/watch?v=O-HFR39g3u4
+- DINHEIRO (PENDENTE desde 18/10): Clint (CRM WhatsApp pago) → lente grátis DeskCRM na VPS (fila m8-pme-crm-teste). https://www.youtube.com/watch?v=qTeaShsS-6c
+- SISTEMA (PENDENTE desde 15/10): Free LLM API como reserva no OmniRoute (fila m8-reserva-motores). https://www.youtube.com/watch?v=H9yy1DD79vk
+- EM DIA (PENDENTE desde 11/10): skill grátis de motion graphics com Claude Code para reels. https://www.youtube.com/watch?v=zdou9zJlfhg
+- JÁ TEMOS: Dipsy/DeepSeek Harness (7 vídeos), CLAUDE.md/skills/permissões, Córtex (Beacon = memória partilhada), atendente WhatsApp (Mister Navalha), vídeos longos no Flow guardando o último frame.
+- RECUSADO: Super Agent DeepSeek, Seedance/BytePlus, Vidu/Gencraft e geradores grátis genéricos, plataformas de freelancer.
+- Radar aprende 08/11: +1 termo da conversa (assistente de IA com memória de cada cliente, Amigo Bora); -1 sem rendimento (divulgar limpeza doméstica, 0 vídeos bons em 14 dias); 70 ativos.

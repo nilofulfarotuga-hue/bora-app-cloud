@@ -103,3 +103,4 @@ confianca: auto
 | protocolo-missao-bora | 2026-11-02 | stripe-empresa-2026-11-01 retoma | e2e_log R0–R6 (ids ≥6139), relatório + Obsidian + livro; buraco da tranca (npx) reportado | ok |
 | ceo-ai | 2026-11-02 | chaves-varredura-2026-10-31 (PC, Opus) | 37 Edge Functions pela regra da casa + notify-client dono; varredor 99/0/23; vigia chaves e pagamentos provados; app com token da sessão; painel órfãos + saúde das chaves; P3/P4 no emulador não feitos (RAM) | ok |
 | trocar-chaves-servidor | 2026-11-02 | chaves-varredura-2026-10-31 (criada) | skill nova a partir da missão | ok |
+| ceo-ai | 2026-11-08 | m2-estafeta-conta-fila-2026-11-08 (PC, Opus 5.5) | A minha conta + barra Falta + folha Online + painel /admin/estafetas + faixa 3 h/60 s/× + mira 48 px + aviso agendado; 4 propostas SQL provadas só a ler; bateria 2931/2933 (2 desta missão, re-corridas 243/243); push recusado pela bora-tranca; sem emulador (RAM) | ok |

@@ -10,6 +10,7 @@ import '../../services/roles_service.dart';
 import '../../stores/cleaner_store.dart';
 import '../../stores/session_store.dart';
 import '../../widgets/aviso_atividade_banner.dart';
+import '../../widgets/proximo_trabalho_card.dart';
 import '../../widgets/aviso_toque_banner.dart';
 import '../../widgets/bora/bora.dart';
 import '../../widgets/bora_support_sheet.dart';
@@ -308,6 +309,10 @@ class _PanelView extends StatelessWidget {
           ),
           // [20/10/2026] Falta o comprovativo de atividade — aviso, não bloqueia.
           const AvisoAtividadeBanner(margem: EdgeInsets.only(bottom: Spacing.md)),
+          // Missão m2 (08/11/2026): limpeza aceite para outro dia — cartão
+          // pequeno aqui, nunca na faixa "a decorrer".
+          const ProximoTrabalhoCard(
+              categoria: 'limpeza', margem: EdgeInsets.only(bottom: Spacing.md)),
           // O total do dia de TUDO o que ela faz — o mesmo cartão dos ecrãs
           // do estafeta, do TVDE e da lavagem.
           GanhoDeHojeCard(recarregarQuando: store),

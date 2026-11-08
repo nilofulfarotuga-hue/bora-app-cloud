@@ -91,6 +91,7 @@ import 'screens/admin/admin_tvde_chats_screen.dart';
 import 'screens/admin/admin_tvde_pagos_sem_corrida_screen.dart';
 import 'screens/admin/admin_tvde_roundtrips_screen.dart';
 import 'screens/admin/admin_drivers_screen.dart';
+import 'screens/admin/admin_estafetas_fila_screen.dart';
 import 'screens/admin/admin_tvde_cancellations_screen.dart';
 import 'screens/admin/admin_stuck_reservations_screen.dart';
 import 'screens/admin/admin_platform_settings_screen.dart';
@@ -1126,6 +1127,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/tvde/pagos-sem-corrida': (_) =>
               const AdminTvdePagosSemCorridaScreen(),
           '/admin/drivers': (_) => const AdminDriversScreen(),
+          // [08/11/2026 · missão m2] fila de espera + semáforo da conta.
+          '/admin/estafetas': (_) => const AdminEstafetasFilaScreen(),
           '/admin/tvde/cancelamentos': (_) =>
               const AdminTvdeCancellationsScreen(),
           '/admin/reservas/presas': (_) => const AdminStuckReservationsScreen(),

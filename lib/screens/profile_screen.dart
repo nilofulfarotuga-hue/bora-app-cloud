@@ -57,6 +57,7 @@ import '../services/tvde_visibilidade.dart';
 import '../l10n/tr.dart';
 import 'client_login_screen.dart';
 import '../utils/euros.dart';
+import 'driver/minha_conta_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -635,6 +636,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // sem este ecrã o estafeta não tinha onde ver o ❌.
               _SectionCard(
                 children: [
+                  // Missão m2 (08/11/2026): o semáforo de tudo o que a conta
+                  // precisa (documentos, NIF, IBAN, recibo, dívida).
+                  ListTile(
+                    key: const Key('perfil_minha_conta'),
+                    leading: const Icon(Icons.fact_check_outlined,
+                        color: AppColors.primary),
+                    title: const Text('A minha conta'),
+                    subtitle: const Text(
+                        'Documentos, NIF, IBAN, recibo verde e pagamentos'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const MinhaContaScreen(),
+                      ),
+                    ),
+                  ),
                   ListTile(
                     leading: const Icon(Icons.phonelink_ring_outlined,
                         color: AppColors.primary),

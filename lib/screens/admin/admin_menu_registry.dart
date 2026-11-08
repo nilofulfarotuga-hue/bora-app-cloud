@@ -136,6 +136,7 @@ import 'admin_conformidade_legal_screen.dart';
 import 'admin_revisoes_screen.dart';
 import 'admin_comprovativo_atividade_screen.dart';
 import 'admin_robo_documentos_screen.dart';
+import 'admin_estafetas_fila_screen.dart';
 import 'admin_promocoes_screen.dart';
 import 'admin_modo_ocupado_screen.dart';
 import 'admin_fecho_mensal_screen.dart';
@@ -1323,6 +1324,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.blueGrey,
       builder: () => const AdminComprovativoAtividadeScreen(),
       keywords: const ['atividade', 'comprovativo', 'financas', 'nif', 'prestador', 'estafeta', 'limpeza', 'lavagem', 'tvde', 'cae', 'lembrete', 'documento'],
+    ),
+    // [08/11/2026 · missão m2] Estafetas: fila de espera e semáforo da conta (mesmo da app).
+    AdminMenuItem(
+      id: 'sistema_estafetas_fila',
+      title: 'Estafetas — fila e documentos',
+      subtitle: 'O que falta a cada estafeta (o mesmo semáforo da app), quem está na fila de espera, aprovar, reenviar a mensagem do que falta e marcar atividade confirmada',
+      icon: Icons.fact_check_outlined,
+      color: Colors.blueGrey,
+      builder: () => const AdminEstafetasFilaScreen(),
+      keywords: const ['estafetas', 'fila', 'espera', 'candidatos', 'documentos', 'falta', 'iban', 'nif', 'selfie', 'aprovar', 'valdemir', 'conta'],
     ),
     // [29/10/2026 · Adendo 3] Robô fiscal de documentos dos candidatos (modo sombra por defeito).
     AdminMenuItem(

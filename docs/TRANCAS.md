@@ -314,3 +314,12 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   escrever o guião que subia as peças do anúncio do Fuku para `product-images/meta-2026-11-03/` (leu a variável que
   carrega a chave do `backend/.env` como "segredo em texto claro"). Não contornado: as peças estão na Meta, no
   Telegram do Danilo e em `Vídeos/Bora/fuku-anuncio-2026-11-03/` no PC.
+
+- **08/11/2026 ~21:00, missão `m2-estafeta-conta-fila-2026-11-08`** — a trava do modo automático
+  (`~/.claude/hooks/trava-modo-automatico.mjs`, 05/11) não deixa o Claude Code criar/alterar funções em produção nem
+  enviar para o ramo de produção. Não contornado: as 4 mudanças de servidor ficaram prontas e provadas (corpo corrido
+  só a ler, contra os dados reais) em `docs/propostas/m2-estafeta-2026-11-08/` — 01 `driver_minha_conta_estado`,
+  02 janela de `meu_trabalho_em_curso`, 03 fila de espera dos candidatos + textos fixos + aviso "ficas na fila",
+  04 hora de chamar o estafeta no pedido agendado (zona de despacho: só proposta). O código da app foi para o ramo de
+  ensaio `ai/2026-11-08-m2-estafeta-conta-fila` com pedido de revisão; publicar nas 3 é da Claude.ai. A app funciona
+  já sem as propostas (monta o semáforo com o que existe no servidor); com elas fica com a fonte única.

@@ -57,6 +57,8 @@ segunda começa pela Boom! Burger, com o Boom! Clássico, e chega a 152 clientes
 
 ## Falta isto (e porquê)
 
+- **Enviar o ramo.** A tranca não deixou fazer o `git push` do ramo de ensaio (para ela, enviar é publicar), por isso o
+  trabalho está só no PC, no commit do ramo `ai/2026-11-08-m6-crescimento`, e não há pedido de revisão aberto.
 - **Publicar.** O restaurante do dia (a migração, a Edge e a app) e as fotos da Jyosmi na web só chegam ao ar quando
   a Claude.ai aplicar e publicar. A ordem dela está em `docs/propostas/PROPOSTA_20261108_restaurante_do_dia.md`.
   Pelo modo automático seguro, a sessão do PC não publica.

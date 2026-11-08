@@ -323,3 +323,6 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   check-in continuam desligados; o que falta está em `docs/propostas/PROPOSTA_20261104_*` (precisa do AUTORIZO do
   Danilo e da Claude.ai). (3) A bora-tranca recusou `rm -r` de uma pasta de cópia que a própria sessão criou
   (`ferramentas/vps/voz/`); ficou por apagar, fora do commit.
+  (4) A bora-tranca recusou `git push origin ai/2026-11-08-m6-crescimento` ("git push é publicar: publica o
+  Claude.ai"). Não contornado: o ramo ficou só no PC (commit f60fb29a, worktree `C:\BoraLocal\wt-m6-2026-11-08`) e
+  não há pedido de revisão aberto; quem o envia é a Claude.ai ou uma sessão do Danilo com permissão.

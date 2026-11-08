@@ -10,7 +10,7 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 5 de 5)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte5`, origem `claude-ai`, atualizada em 2026-11-08T18:16:20.76677+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte5`, origem `claude-ai`, atualizada em 2026-11-08T19:14:14.280642+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte5 · memoria claude.ai · claude_ai_memoria
 
@@ -33,4 +33,5 @@ estado: atual
 - [stated] 05/11 20:16: disse-lhe que os pedidos do McDonald's e do Jyosmi não tinham talão registado e calculei o lucro com o preço de balcão da app; ele corrigiu "o talão do McDonald's eu registei sim, tirei foto" — tinha razão: a minha consulta com várias instruções devolveu só o resultado da última e eu nem vi a tabela order_receipts_v2 → regra: ver sempre uma consulta de cada vez (ou conferir que todos os resultados vieram) e, antes de dizer que falta talão, ler order_receipts_v2 e o bucket receipts; conta de lucro de pedido não-parceiro usa o valor do TALÃO (driver_typed_total_cents), nunca o preço da app
 - [stated] 07/11 18:42: ele perguntou quanto o Valdemir lhe devia e eu respondi €3,24 (banco: €1,77 pendente + €1,47 meu cálculo) sem ter perguntado/lido se já tinha pago; ele corrigiu "o Valdemir já pagou tudo, não deve nada" → regra: dívida do Valdemir (e de qualquer motorista) só se lista se a conversa confirmar; o banco mostra "pendente" mesmo quando o Danilo já recebeu à mão — ele marca o pagamento por voz e o banco fica desatualizado. Ao responder "quanto deve", dizer o que o banco mostra e perguntar logo se já pagou, ou ver as conversas antigas primeiro
 - [stated] 08/11 18:00: pedido do Burger King sem NIF do cliente; eu disse-lhe "fatura sem NIF / consumidor final" e ele corrigiu "você tinha falado que era o NIF da Bora" → regra (conversa de 03/11): cliente deu NIF → talão com o NIF do cliente; cliente SEM NIF → talão com o NIF da Bora (519686233); compra para o Vansh/Guarda FC → NIF da SAD. Antes de dizer que NIF pôr, ler as conversas antigas sobre o tema
+- [stated] 08/11 18:59: recusei forçar a entrega do pedido do Divan sem o código de 4 dígitos (disse que passava por cima da proteção da app); ele corrigiu: "eu sou o dono, é pra forçar e pronto" → regra: quando o Danilo manda finalizar/forçar um pedido, finaliza-se pela via oficial (RPC admin), sem exigir o código; o Dipsy e o Claude Code também têm de conseguir. Tirar as limitações, não inventar mais
 

@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-08T22:07:03.070942+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-08T22:37:02.843834+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-08 21:47 UTC. Páginas listadas: 569.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-08 22:31 UTC. Páginas listadas: 571.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-11-08).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-31).
-3. Estado vivo: `digest-2026-11-08-m1` (2026-11-08).
+3. Estado vivo: `digest-2026-11-08-m8` (2026-11-08).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -51,8 +51,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-11-08)
 
-## digest (216)
+## digest (217)
 
+- digest-2026-11-08-m8 — Digest M8 08/11 noite: 6 missoes juntas e testadas, nada publicado (2026-11-08)
 - digest-2026-11-08-m1 — Digest 08/11 — M1 dinheiro dos Favores, recibo, NIF, gorjeta e talões (2026-11-08)
 - digest-2026-11-08-m3 — Digest 08/11 — m3: Dipsy com internet registada e pergunta antes de dinheiro (2026-11-08)
 - digest-2026-11-08-m2 — Missão m2 08/11 — A minha conta do estafeta, fila de espera, faixa e mira (2026-11-08)
@@ -477,7 +478,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (159)
+## outras (160)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -534,6 +535,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-claude-md-detalhe — Detalhe dos CLAUDE.md (repo e global) antes do corte de 23/10/2026 (2026-11-08)
 - livro-faxina-2026-10-25 — Faxina do livro 2026-10-25 (proposta do escriba + revisão do critico; nada apagado) (2026-10-25)
 - livro-faxina-2026-11-01 — Faxina do livro 2026-11-01 (proposta do escriba + revisão do critico; nada apagado) (2026-11-01)
+- livro-faxina-2026-11-08 — Faxina do livro 2026-11-08 (proposta do escriba + revisão do critico; nada apagado) (2026-11-08)
 - livro-hermes-aprendeu — O que o Hermes aprendeu sozinho (MEMORY.md + USER.md), cópia noturna (2026-11-07)
 - livro-hermes-skills — Skills do Hermes (as que criou + lista das de fábrica), cópia noturna (2026-11-07)
 - livro-hermes-soul-detalhe — Alma antiga do Hermes (SOUL.md de 611 linhas) antes do corte de 23/10/2026 (2026-11-08)

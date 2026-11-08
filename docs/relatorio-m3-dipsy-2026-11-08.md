@@ -88,7 +88,9 @@ gastar o processador todo) a voz edge-tts passava dos 120 segundos e cada mensag
 logo para a voz do Gemini durante dez minutos. Os teus seis toques seguidos geraram seis mensagens com voz; agora um toque num
 pedido já fechado só mostra um aviso no próprio botão. Na VPS, a resposta longa de 190 segundos não ficou no registo de
 gastos do Claude (ia_gastos): as respostas em fluxo contínuo não estão a ser contadas. Ao reiniciar a ponte, a conversa
-seguida do Dipsy recomeçou do zero. A trava do Claude Code leu uma chave falsa de teste e um SQL citado num registo como se
+seguida do Dipsy recomeçou do zero. Ao reabrir o DIPSY no fim, a página morreu duas vezes uns 18 segundos depois de
+arrancar, sem deixar erro; à mão arrancava bem. Pus o lançador a guardar a saída do servidor num registo
+(~/.dsh/logs/dipsy-web-*.txt) e à terceira abriu e ficou de pé (às 21:16). Se voltar a falhar, o registo diz porquê. A trava do Claude Code leu uma chave falsa de teste e um SQL citado num registo como se
 fossem a sério; reescrevi sem os citar à letra.
 
 ## Próximo passo

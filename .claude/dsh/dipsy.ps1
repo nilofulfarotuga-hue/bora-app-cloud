@@ -65,7 +65,10 @@ try { Invoke-RestMethod -Uri 'http://100.120.181.115:8792/saude' -Headers @{ 'X-
 $senha = $null
 if (-not $porteiroVivo) { $argsWeb += ' --patch "' + (Join-Path $dsh 'reserva-kilo-nemotron.patch.yml') + '"' }
 if ($env:DIPSY_SEM_NAVEGADOR) { $argsWeb += ' --no-open' }   # DIPSY_SEM_NAVEGADOR so serve para testes
-$p = Start-Process -FilePath $exe -ArgumentList $argsWeb -WorkingDirectory $repo -WindowStyle Hidden -PassThru
+# 08/11/2026 (m3): a saida do servidor web fica num registo (para saber porque morre, se morrer)
+$logWeb = Join-Path $dsh ('logs\dipsy-web-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.txt')
+New-Item -ItemType Directory -Force (Join-Path $dsh 'logs') | Out-Null
+$p = Start-Process -FilePath $exe -ArgumentList $argsWeb -WorkingDirectory $repo -WindowStyle Hidden -PassThru -RedirectStandardOutput $logWeb -RedirectStandardError ($logWeb + '.erros')
 Set-Content -Path $pidWeb -Value $p.Id -Encoding ASCII
 $fim = (Get-Date).AddSeconds(150)
 while (-not (PortaAOuvir 3080) -and (Get-Date) -lt $fim) { Start-Sleep -Seconds 2 }

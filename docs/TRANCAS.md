@@ -314,3 +314,12 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   escrever o guião que subia as peças do anúncio do Fuku para `product-images/meta-2026-11-03/` (leu a variável que
   carrega a chave do `backend/.env` como "segredo em texto claro"). Não contornado: as peças estão na Meta, no
   Telegram do Danilo e em `Vídeos/Bora/fuku-anuncio-2026-11-03/` no PC.
+
+- **08/11/2026 ~20:20, missão `m3-dipsy-acesso-total-2026-11-08` (item 5, limite de saída do porteiro)** — a TRAVA do
+  modo automático (gancho PreToolUse do Bash) barrou o SSH à VPS, porque o comando de sempre leva o caminho da chave
+  (`ssh -i ~/.ssh/...vps root@srv1786862.hstgr.cloud`) e a trava lê-o como "ficheiro de segredos". Sem `-i`, a VPS
+  recusa (não há agente SSH com a chave). Não se contornou (nem `ssh-agent`, nem `~/.ssh/config`). Ficou por fazer:
+  tirar o tecto de 8000 tokens do perfil `claude-dipsy` (e 4000 do `claude-volume`) em
+  `/opt/motor-bora/motor_bora/porteiro.py`/`catalogo.py`, com cópia `.bak` e `docker restart` cuidadoso. O lado do PC
+  (`~/.dsh/cordis.patch.yml`, `maxTokens: 64000`) já estava feito desde as 10:36, e a ponte passou a continuar sozinha
+  quando a resposta é cortada. Para fechar: uma sessão onde o SSH à VPS seja permitido, ou a Claude.ai pelo canal dela.

@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-08T00:07:02.589985+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-08T00:37:03.449154+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-07 23:40 UTC. Páginas listadas: 543.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-08 00:13 UTC. Páginas listadas: 543.
 
 ## O que é o Bora
 
@@ -269,7 +269,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-analise-apps-emulador — Ideia do Danilo (08/10/2026) de usar emulador Android + agente de IA para testar bugs do Bora e comparar com iFood/Uber/Glovo; adiada para… (2026-10-26)
 - livro-areas-arandelas-quadros-jai — Trabalho de montar as arandelas de vidro e pendurar os quadros em casa do [[jai-agarwal]] — e o material que ficou a faltar comprar (2026-10-23)
 - livro-areas-assistente-cliente — Ideia do Danilo de um assistente virtual de IA para o cliente dentro do Bora App (compras por conversa, comparar preços, Favores) — ler ant… (2026-10-23)
-- livro-areas-assistente-cliente-ia — Ideia do Danilo (out/2026) de um assistente virtual com IA para o cliente dentro do Bora App — o que ele quer; ler antes de propor ou monta… (2026-10-23)
+- livro-areas-assistente-cliente-ia — Ideia do Danilo (out/2026) de um assistente virtual com IA para o cliente dentro do Bora App — o que ele quer; ler antes de propor ou monta… (2026-11-08)
 - livro-areas-auditoria-pagamentos — Missão "auditoria geral" pedida 15/08 — unificar pagamentos num jeito só; achados da Fase 1 (dados MCP) e estado das fases (parte 1 de 4 —… (2026-10-23)
 - livro-areas-auditoria-pagamentos-parte2 — Missão "auditoria geral" pedida 15/08 — unificar pagamentos num jeito só; achados da Fase 1 (dados MCP) e estado das fases (parte 2 de 4) (2026-10-23)
 - livro-areas-auditoria-pagamentos-parte3 — Missão "auditoria geral" pedida 15/08 — unificar pagamentos num jeito só; achados da Fase 1 (dados MCP) e estado das fases (parte 3 de 4) (2026-10-23)

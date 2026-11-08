@@ -2,7 +2,7 @@
 id: memoria-claude-ai-tokens-metade-do-saldo-2026-10-14
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-14
+ultima_confirmacao: 2026-11-08
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Tokens do cliente: metade do saldo + desconto chega à cobrança (14/10/2026)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `tokens-metade-do-saldo-2026-10-14`, origem `claude-ai`, atualizada em 2026-10-14T21:57:04.962195+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `tokens-metade-do-saldo-2026-10-14`, origem `claude-ai`, atualizada em 2026-11-08T20:15:51.157383+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: tokens metade do saldo 2026 10 14 · memoria claude.ai · claude_ai_memoria
 
@@ -26,3 +26,5 @@ TVDE: tvde_request_ride corta à metade do saldo e conta só os tokens que deram
 
 ONDE: migration supabase/migrations/20261014221500_tokens_metade_do_saldo.sql (aplicada por MCP); commits 9edb164 (app) e c4a55f1 (painel) na branch autonomous-night-2026-04-29; publicado web + Play + iPhone.
 FICA A SABER: apps antigas (antes da atualização) ainda podem mostrar o desconto antigo e gastar tokens a mais; no cartão a app antiga cobra cheio. Pedidos antigos com tokens não descontados (possível reembolso, precisa do vai do Danilo): Divan 03/10 5,51; Leticia Cosmo 24/09 5,02; Rosa Costa 11/09 5,24; Cristina Batista 14/09 2,80.
+
+SUPERADO em 01/11/2026 por digest-2026-11-01-fechar-tudo-claude-ai (verificado pela missão M7 a 08/11/2026): os 4 pedidos antigos com tokens não descontados, listados acima, NÃO são reembolsados — ordem do Danilo de 15/10, repetida a 01/11 ("decisões de dinheiro antigas: esquecer, não devolver nada a ninguém"). A regra dos tokens continua: no máximo metade do saldo de tokens (token_balance_max_use_pct=50) e no máximo 50% do pedido (token_payment_max_pct=50).

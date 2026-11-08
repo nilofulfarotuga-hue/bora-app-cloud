@@ -2,7 +2,7 @@
 id: memoria-claude-ai-adendo-9-checkin-escada-premios-2026-10-29
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-29
+ultima_confirmacao: 2026-11-08
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # ADENDO 9 (Danilo 22:20) - check-in diario: calendario de 30 dias e escada de premios "levanta ou continua" (um premio por sequencia)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `adendo-9-checkin-escada-premios-2026-10-29`, origem `claude.ai`, atualizada em 2026-10-29T22:22:19.651964+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `adendo-9-checkin-escada-premios-2026-10-29`, origem `claude.ai`, atualizada em 2026-11-08T20:15:40.986445+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: adendo 9 checkin escada premios 2026 10 29 · memoria claude.ai · claude_ai_memoria
 
@@ -31,3 +31,5 @@ Pedido do Danilo 29/10 22:20 (capturas do iPhone, ecra Check-in diario e Os prem
 3) COMO OS GRANDES FAZEM (referencia para o desenho, nao copiar nomes): Duolingo (faixa de 7 dias + calendario mensal escondido atras de um toque, festa ao atingir marcos); Shopee/Temu/Mercado Livre (check-in diario com moedas que acumulam e premios por sequencia); Starbucks Rewards (ao trocar as estrelas por um premio, as estrelas gastam-se: nao se acumula premio sobre premio); programas "levanta ou arrisca" (o patamar atingido fica seguro, continuar da acesso ao premio maior). Juntar os tres: calendario do Duolingo + tokens que acumulam + escada de premios onde levantar reinicia.
 
 4) Provas: emulador Android (capturas do cartao fechado/aberto, festa no dia 10, escolha levantar vs continuar, vale trocado no 15, reinicio ao levantar), testes de unidade nas funcoes do servidor (um vale pendente no maximo; levantar reinicia; falhar guarda o patamar), e2e_log fluxo publica-2026-10-29 passo G-checkin-escada, publicacao nas 3 lojas. Terminar com /ctx doctor e /ctx stats.
+
+SUPERADO em 04/11/2026 por digest-2026-11-04-checkin-escada-premios (verificado pela missão M7 a 08/11/2026): os prémios já não ficam só nos dias 10, 15 e 30 — vale a escada de 30 dias com prémios do dia 8 ao 30 e no máximo um prémio levantado a cada 30 dias (checkin_premio_intervalo_dias=30); continua a valer um prémio por sequência e a sequência recomeça quando o cliente levanta.

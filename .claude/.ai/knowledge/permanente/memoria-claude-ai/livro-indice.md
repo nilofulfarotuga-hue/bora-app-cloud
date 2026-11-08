@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-08T19:37:03.361138+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-08T20:37:02.728946+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-08 19:21 UTC. Páginas listadas: 544.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-08 20:34 UTC. Páginas listadas: 548.
 
 ## O que é o Bora
 
@@ -42,9 +42,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 ## regras (4)
 
-- regras-checkin-v2-2026-10-30 — Check-in v2 — regras decididas pelo Danilo a 30/10/2026 (escada grande única + escada pequena mensal, só com compra) (2026-10-30)
+- regras-checkin-v2-2026-10-30 — Check-in v2 — regras decididas pelo Danilo a 30/10/2026 (escada grande única + escada pequena mensal, só com compra) (2026-11-08)
 - regras-do-danilo — Regras do Danilo — versão 23/10/2026 (vale para Claude.ai, Hermes/Emerson, Claude Code, ChatGPT, OpenCode) (2026-10-31)
-- regras-operacao-agentes — O que podes e o que não podes fazer no Bora em produção (ChatGPT, OpenCode, Hermes, Claude Code) (2026-09-16)
+- regras-operacao-agentes — O que podes e o que não podes fazer no Bora em produção (ChatGPT, OpenCode, Hermes, Claude Code) (2026-11-08)
 - regras-reels-radar-2026-10-04 — Regras de reels Em Dia e Bora (radar 04/10) (2026-10-22)
 
 ## erros (1)
@@ -68,9 +68,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - digest-2026-11-02-stripe-retoma — Stripe duas contas — retoma Opus 02/11 — resultado (2026-11-02)
 - digest-2026-11-02-chaves-varredura — Digest 02/11 — varredura das chaves (Claude Code PC) (2026-11-02)
 - digest-2026-11-02-stripe-empresa — Digest 02/11/2026 — missão stripe-empresa (duas contas Stripe) (2026-11-02)
+- digest-2026-11-01-fechar-tudo-claude-ai — Digest 01/11 noite — Claude.ai fechou a lista de pendências com 9 agentes em paralelo + missão no PC (2026-11-08)
 - digest-2026-11-01-app-fechar — Digest 01-02/11/2026 — missão app-fechar (Casa, peso, convidado, online, limpeza, assistente, robô, revisão humana) (2026-11-02)
 - digest-2026-11-01-infra-claude-tudo — Digest 01/11/2026: Claude sem ração em todos os robôs, Dipsy pelo porteiro, VPS arrumada, Bora Bastidores (2026-11-01)
-- digest-2026-11-01-fechar-tudo-claude-ai — Digest 01/11 noite — Claude.ai fechou a lista de pendências com 9 agentes em paralelo + missão no PC (2026-11-01)
 - digest-2026-11-01-assistente-cliente-claude — Digest 01/11 — Bora Assistente com Claude primeiro + 3 melhorias de 10/10; stories em breve (2026-11-01)
 - digest-2026-11-01-conta-jai-186-pago — Conta do Jai — 186 € de 24/10 já pagos; semana de 26/10 = 28 € (juntar à memória) (2026-11-01)
 - digest-2026-11-01-mercadona-reaberta — Digest 01/11/2026 — Mercadona reaberta só com beleza e higiene (2026-11-01)
@@ -160,10 +160,10 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - digest-2026-10-06-quatro-blocos-continuacao — Claude Code 06/10 (continuação) — PC arrumado e 23 fichas do Guarda FC (2026-10-06)
 - digest-2026-10-06-quatro-blocos — Claude Code 06/10 — Jai (julho), VPS (alarme falso), fotos da Diana no site do Guarda FC, diagnóstico do PC (2026-10-06)
 - digest-2026-10-06-jai-formatura-fix — Digest 06/10 — jai-site: data da compra do Guarda FC corrigida no artigo da formatura (2026-10-06)
+- digest-2026-10-05-dinheiro-bloco-a-aplicado — 05/10 13:05 — consertos de pagamento do Bloco A publicados (vai do Danilo) (2026-11-08)
 - digest-2026-10-05-fecho-home-dinheiro — Claude Code 05/10 noite — fecho da home e da ronda de dinheiro (2026-10-05)
 - digest-2026-10-05-jai-formatura — Claude Code 05/10 — artigo da graduação do Jai na LaLiga Business School (2026-10-05)
 - digest-2026-10-05-repo-igual-ao-ar-bloco-a — Repo igual ao ar — Bloco A de dinheiro (2026-10-05)
-- digest-2026-10-05-dinheiro-bloco-a-aplicado — 05/10 13:05 — consertos de pagamento do Bloco A publicados (vai do Danilo) (2026-10-05)
 - digest-2026-10-05-ronda-auditoria-04-10-pc — Claude Code PC 05/10 — revisão geral 04/10, blocos A/B/C (2026-10-05)
 - digest-2026-10-05-claude-ai-manha — Claude.ai 05/10 manhã — dinheiro, despacho v62, segurança, secretário (2026-10-05)
 - digest-2026-10-05-v62-favor-push — v62 do despacho no ar, Favor por função própria, envio feito (2026-10-05)
@@ -470,7 +470,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (141)
+## outras (145)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -482,7 +482,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - adendo-7-retomar-missao-2026-10-29 — ADENDO 7 (Claude.ai, 21:30) - RETOMAR a missao publica-2026-10-29 depois de a sessao ter perdido a ligacao ao PC (2026-10-29)
 - adendo-8-noite-automatica-2026-10-29 — ADENDO 8 (Claude.ai, 21:58) - noite automatica: no fim da missao da Bora, acordar a missao do Harness sem ninguem no PC (2026-10-29)
 - adendo-8-nota-telemovel-2026-10-29 — Nota ao adendo 8: o Enter na sessao do Harness e dado pelo Danilo no telemovel (2026-10-29)
-- adendo-9-checkin-escada-premios-2026-10-29 — ADENDO 9 (Danilo 22:20) - check-in diario: calendario de 30 dias e escada de premios "levanta ou continua" (um premio por sequencia) (2026-10-29)
+- adendo-9-checkin-escada-premios-2026-10-29 — ADENDO 9 (Danilo 22:20) - check-in diario: calendario de 30 dias e escada de premios "levanta ou continua" (um premio por sequencia) (2026-11-08)
 - adendo-harness-servidor-remote-control-2026-10-29 — ADENDO para a missao do Harness (sessao DeepSeek Harness installation): no fim, servidor de Remote Control para duas sessoes ao mesmo tempo (2026-10-29)
 - adendo-infra-2026-11-01 — Adendo à missão infra-claude-tudo-2026-11-01 (B10-B14: site /baixar, Meta ads, cartazes A3, grupos Facebook + Em Dia, stories) (2026-11-01)
 - adendo-vozes-omnivoice-2026-10-22 — Adendo de vozes: A/B do motor OmniVoice (k2-fsa) no filme Ep1 (2026-10-22)
@@ -499,6 +499,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - caminhos-animacao-filme — Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos) (2026-11-06)
 - casa-manutencao-pesquisa-2026-10-29 — Casa & Manutencao — pesquisa das 10 apps do mundo e burocracia em Portugal (29/10/2026) (2026-10-29)
 - casa-manutencao-proposta — Casa & Manutenção — proposta para o Danilo decidir (29/10/2026) (2026-10-29)
+- comparativo-concorrencia-2026-11 — Bora contra Glovo, Uber Eats, Bolt Food e iFood (novembro 2026) (2026-11-08)
 - diretiva-plataformas-2024-2831 — Diretiva (UE) 2024/2831 trabalho em plataformas — o que obriga o Bora, estado em Portugal, o que está feito e checklist para 02/12/2026 (2026-11-01)
 - dsh-como-usar — Como usar o Dipsy (dsh) (2026-11-01)
 - dsh-como-usar-novidades-2026-10-31 — Dipsy: o que ficou novo a 31/10 (complemento da pagina dsh-como-usar) (2026-10-31)
@@ -516,18 +517,19 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - fecho-outubro-2026 — Fecho de outubro/2026 (em nome individual) — por prestador, o que cada um faz, email corrigido (2026-11-01)
 - habilidades-propostas — Habilidades propostas pelo vigia (dinheiro/publicacao) — a Claude.ai decide (2026-09-17)
 - ideias-pendentes-decisao-danilo — Ideias grandes à espera da decisão do Danilo (29/10/2026) (2026-10-29)
-- ideias-videos-danilo — Ideias tiradas dos vídeos que o Danilo manda (2026-11-07)
+- ideias-videos-danilo — Ideias tiradas dos vídeos que o Danilo manda (2026-11-08)
 - jai-entrevista-kalinga-mensagem — Mensagem ao Jai — entrevista do Professor Kalinga já no site (30/10/2026) (2026-10-30)
 - jai-sportsdunia-mensagem — Confirmação para o Jai — artigo da SportsDunia no site (31/10/2026) (2026-10-31)
 - legal-gestao-algoritmica-prestadores — Como o Bora decide — informação sobre sistemas automáticos (Diretiva 2024/2831, art. 9.º-11.º) — texto para a app, v2026-11-01 (2026-11-01)
 - legal-politica-suspensao-revisao-humana — Política de suspensão e revisão humana (nenhuma suspensão automática; motivo+quem+data; revisão por pessoa em 7 dias) — v2026-11-01 (2026-11-01)
+- leis-bora — Leis do Bora — o que a lei diz e o que falta (08/11/2026) (2026-11-08)
 - livro-claude-code-aprendeu — O que o Claude Code aprendeu sozinho (memória automática do PC), cópia (2026-10-25)
-- livro-claude-md-detalhe — Detalhe dos CLAUDE.md (repo e global) antes do corte de 23/10/2026 (2026-10-23)
+- livro-claude-md-detalhe — Detalhe dos CLAUDE.md (repo e global) antes do corte de 23/10/2026 (2026-11-08)
 - livro-faxina-2026-10-25 — Faxina do livro 2026-10-25 (proposta do escriba + revisão do critico; nada apagado) (2026-10-25)
 - livro-faxina-2026-11-01 — Faxina do livro 2026-11-01 (proposta do escriba + revisão do critico; nada apagado) (2026-11-01)
 - livro-hermes-aprendeu — O que o Hermes aprendeu sozinho (MEMORY.md + USER.md), cópia noturna (2026-11-07)
 - livro-hermes-skills — Skills do Hermes (as que criou + lista das de fábrica), cópia noturna (2026-11-07)
-- livro-hermes-soul-detalhe — Alma antiga do Hermes (SOUL.md de 611 linhas) antes do corte de 23/10/2026 (2026-10-23)
+- livro-hermes-soul-detalhe — Alma antiga do Hermes (SOUL.md de 611 linhas) antes do corte de 23/10/2026 (2026-11-08)
 - livro-porta-unica — Livro — porta única: como ligar qualquer IA ao livro (MCP do Córtex ou LIVRO.md com senha) (2026-10-29)
 - livro-resumo — Livro do Bora — resumo para o ChatGPT (regras + erros + índice, sem pessoais), gerado (2026-11-07)
 - livro-topics-communication — How Danilo communicates and the language conventions across his tools (2026-10-23)
@@ -544,11 +546,12 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - mensagem-hugo-2026-11-01 — Mensagem ao Hugo (WhatsApp, grupo Contabilidade) — fecho de outubro e Stripe desde o início (CORRIGIDA 01/11 21:30) (2026-11-01)
 - mensagem-hugo-pendente-2026-10-29 — Mensagem para o Hugo (grupo Contabilidade) preparada 29/10 17:40 — por enviar quando o Danilo disser (2026-10-29)
 - mercadona-reabrir-loja — Mercadona Guarda — reabrir só com perfumaria/cosmética/higiene (preparado 14-15/10/2026) (2026-11-01)
-- meta-anuncios-2026-10-30-textos — Textos finais dos 2 anúncios Meta de 30/10/2026 (Instala e pede + Check-in diário) (2026-10-31)
+- meta-anuncios-2026-10-30-textos — Textos finais dos 2 anúncios Meta de 30/10/2026 (Instala e pede + Check-in diário) (2026-11-08)
 - meta-anuncios-2026-10-31-adendo-revisao — Adendo G-REVISÃO dos anúncios Meta (31/10 06:52) — correções do Danilo + juiz visual (2026-10-31)
 - meta-anuncios-2026-10-31-criativos — Anúncios Meta 31/10 — criativos finais (juiz ≥ 9) e porque o anúncio antigo não deu pedidos (2026-10-31)
 - motor-claude-2026-10-31 — Motor Claude 31/10 - estado final (Bloco 2 da retoma-geral) (2026-10-31)
 - motores-rotacao-2026-10-29 — Motores gratis em rotacao - medicoes e cadeias (29/10/2026) (2026-10-29)
+- pagamentos-recorrentes — Pagamentos recorrentes da Bora e do Danilo (lido a 08/11/2026) (2026-11-08)
 - paridade-mundo-2026-10-29 — Paridade do mundo, segunda volta (Rappi, DoorDash, Zomato, Meituan) 29/10/2026 (2026-10-29)
 - paridade-mundo-e-lei-2026-10-17 — Bora vs Uber/Glovo/iFood/Bolt/Grab/Meituan + obrigações da lei em Portugal (pesquisa 17/10/2026) (2026-10-17)
 - paridade-rea-2026-10-26 — Paridade REA 26/10 — Glovo, Uber Eats, iFood e Bora vistos de fora (resumo) (2026-10-26)
@@ -556,6 +559,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - paridade-uber-ifood-2026-10-13 — Paridade Bora vs Uber/Uber Eats/iFood + REA (vídeos de 13/10) (2026-10-13)
 - pendencias-2026-11-01 — Pendências dos últimos 30 dias (lista numerada dada ao Danilo a 01/11 ~19:35) (2026-11-01)
 - perfil — Quem é o Danilo (2026-09-13)
+- plano-14-dias-2 — Plano de 14 dias, parte 2 (09/11 a 22/11/2026) (2026-11-08)
 - plano-14-dias-dia6-a-14 — Plano de 14 dias — do dia 6 ao dia 14 (29/10 a 06/11/2026) (2026-10-29)
 - plano-melhor-que-uber-glovo-2026-10-29 — Plano "100% melhor que a Uber e a Glovo" — volta ao mundo 29/10/2026 (2026-10-29)
 - playbook-redes-emdia — Playbook das redes — Em Dia (28/09) (2026-09-28)
@@ -610,8 +614,8 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - sistema-motores-e-portas — Quem faz o quê — uma porta só (atualizado 17/09/2026) (2026-09-17)
 - skills-indice — Índice das skills da pasta comum (Claude Code, Hermes, Claude.ai) — uma linha cada (2026-10-25)
 - stripe-declaracao-2026-11-01 — Stripe do Bora desde o início — extrato para o contabilista (01/11/2026) (2026-11-01)
-- stripe-duas-contas — Duas contas Stripe — empresa e pessoal (01/11/2026) (2026-11-03)
-- tokens-metade-do-saldo-2026-10-14 — Tokens do cliente: metade do saldo + desconto chega à cobrança (14/10/2026) (2026-10-14)
+- stripe-duas-contas — Duas contas Stripe — empresa e pessoal (01/11/2026) (2026-11-08)
+- tokens-metade-do-saldo-2026-10-14 — Tokens do cliente: metade do saldo + desconto chega à cobrança (14/10/2026) (2026-11-08)
 - whatsapp-a-discutir — WhatsApp — o que ainda está por discutir com o Danilo (esqueleto desligado) (2026-10-25)
 
 ## Páginas pessoais

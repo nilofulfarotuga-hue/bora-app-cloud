@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-07
+ultima_confirmacao: 2026-11-08
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-07T20:56:09.434003+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-08T20:21:02.222971+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -540,3 +540,15 @@ Filme caminho 4 (fontes htROyMzUbA8, rxZZ1xi81a4): no Google Flow (Omniflash 1.1
 - RECUSADO: Antigravity/Stitch (2), tradução multi-agente Gemini, HitPaw (pago), anúncio de concorrente da limpeza, vídeo de crédito.
 
 - Radar aprende 07/11: +1 termo aprendido (GEO — ser recomendado pelo ChatGPT/Gemini), +1 da conversa (notificação diária e check-in para abrir a app todos os dias, missão de domingo); -2 sem rendimento (promoção do mês com restaurante; check-in diário antigo, fundido no novo); 70 ativos.
+
+## Radar de vídeos — triagem da missão M7 (08/11/2026, Claude Code)
+Fonte: tabela radar_videos, nota >= 8, últimas 3 semanas, ainda pendentes (quase todos de sistema e dinheiro, poucos do Bora). Ficheiro: docs/radar/videos-2026-11-08.md (ramo ai/2026-11-08-m7-stripe-parceiros-radar-leis).
+- REA a auditar o NOSSO APK e site (chaves no front, regras de dinheiro no cliente) → relatório no e2e_log → fila (m8-rea-auditoria).
+- QR físico na Guarda (cafés, IPG, residências) → cartaz A5 pronto em docs/marketing/qr-cartaz-a5.html, lista de 10 sítios em docs/marketing/qr-cafes-ipg-2026-11-08.md (só IPG/residências/campus verificados) → falta imprimir (Danilo e A3). Link certo: https://www.boraguarda.com/baixar?de=<origem>.
+- Ficha da loja na Play Store forte (ícone, subtítulo com o problema, 3 primeiras capturas, nome "Bora — Entregas na Guarda") → fila.
+- Perfil Google dos parceiros + respostas a avaliações redigidas pela IA e aprovadas pelo dono → guia escrito em docs/parceiros/guia-perfil-google-da-tua-loja.md → feito (falta entregar aos parceiros).
+- Cortes automáticos de reels com ffmpeg → a skill existe, falta a prova → fila (m8-prova-corte-reels).
+- CRM de WhatsApp aberto na VPS → não é do Bora (pacote PMEs) → fila (m8-pme-crm-teste).
+- APIs de IA grátis como reserva no OmniRoute, sem dados de clientes → fila (m8-reserva-motores).
+- Ferramenta paga (Tella e afins) → não, por agora.
+Formatos de reels novos (ganchos "troquei X por Y", AIDA, reels de teste, post de grupo sem link): .claude/skills/social-publisher/FORMATOS-REELS.md.

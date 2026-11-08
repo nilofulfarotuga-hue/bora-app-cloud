@@ -2,7 +2,7 @@
 id: memoria-claude-ai-meta-anuncios-2026-10-30-textos
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-31
+ultima_confirmacao: 2026-11-08
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Textos finais dos 2 anúncios Meta de 30/10/2026 (Instala e pede + Check-in diário)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `meta-anuncios-2026-10-30-textos`, origem `claude-code`, atualizada em 2026-10-31T06:43:05.366772+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `meta-anuncios-2026-10-30-textos`, origem `claude-code`, atualizada em 2026-11-08T20:15:43.667285+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: meta anuncios 2026 10 30 textos · memoria claude.ai · claude_ai_memoria
 
@@ -66,3 +66,5 @@ Instala com o código BEMVINDO e começas com 5 € em tokens.
 Cenas e personagens criadas com IA. Os ecrãs são da app verdadeira.
 Título: Favores na Guarda, entregues em casa · Botão: Descarregar · UTM utm_campaign=favores-video · 1,00 €/dia · vídeo reel-favores-30s.mp4 (9:16, legendas já gravadas, aprovado a 17/10).
 Nota: o prompt da Claude.ai dizia "pagas em dinheiro ou MB Way" e "tens 5 € no 1.º pedido"; nenhum dos dois ficou porque não se confirmou o MB Way nos Favores e o 1.º pedido só usa até metade dos tokens.
+
+SUPERADO em 04/11/2026 por digest-2026-11-04-checkin-escada-premios (verificado pela missão M7 a 08/11/2026): os textos com prémios aos 10, 15 e 30 dias estão desatualizados — hoje há prémios do dia 8 ao 30 (chaves checkin_marco_* em platform_settings) e no máximo um prémio a cada 30 dias; não reutilizar estes textos sem os refazer.

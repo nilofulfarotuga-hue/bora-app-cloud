@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-08T19:14:14.280642+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-08T20:13:40.215146+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -139,4 +139,5 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 07/11 18:42 (Claude.ai): disse que o Valdemir devia €3,24 (banco: €1,77 pendente + €1,47 calculado) sem ver se já tinha pago; ele corrigiu "já pagou tudo, não deve nada" → dívida de motorista só se lista se a conversa confirmar; o banco mostra "pendente" mesmo quando o Danilo já recebeu à mão. Ao responder "quanto deve", dizer o que o banco mostra e perguntar se já pagou, ou ler as conversas antigas primeiro.
 - 08/11 18:00 (claude-ai): pedido do Burger King sem NIF do cliente; eu disse-lhe "fatura sem NIF / consumidor final" e ele corrigiu "você tinha falado que era o NIF da Bora" → regra (conversa de 03/11): cliente deu NIF → talão com o NIF do cliente; cliente SEM NIF → talão com o NIF da Bora (519686233); compra para o Vansh/Guarda FC → NIF da SAD. Antes de dizer que NIF pôr, ler as conversas antigas sobre o tema.
 - [stated] 08/11 18:59: recusei forçar a entrega do pedido do Divan sem o código de 4 dígitos (disse que passava por cima da proteção da app); ele corrigiu: "eu sou o dono, é pra forçar e pronto" → regra: quando o Danilo manda finalizar/forçar um pedido, finaliza-se pela via oficial (RPC admin), sem exigir o código; o Dipsy e o Claude Code também têm de conseguir. Tirar as limitações, não inventar mais.
+08/11 (quem errou: claude-ai): entreguei 6 missões sem cobrir tudo o que ele ditou (Stripe da empresa/parceiros/WhatsApp, vídeos do radar, briefs, pagamentos, plano de 14 dias, leis, menu, motorista→delivery) e o LEIA-ME sem dizer "não colar"; ele colou-o como missão e disse "você não ouviu tudo, ler palavra por palavra" → regra: antes de entregar, ler a mensagem dele frase a frase e marcar cada pedido num bloco (checklist 1:1); ficheiro de instruções leva no topo "NÃO colar".
 

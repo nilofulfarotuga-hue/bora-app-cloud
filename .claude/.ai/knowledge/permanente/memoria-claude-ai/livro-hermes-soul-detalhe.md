@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-hermes-soul-detalhe
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-23
+ultima_confirmacao: 2026-11-08
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Alma antiga do Hermes (SOUL.md de 611 linhas) antes do corte de 23/10/2026
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-hermes-soul-detalhe`, origem `claude-code`, atualizada em 2026-10-23T13:32:10.845306+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-hermes-soul-detalhe`, origem `claude-code`, atualizada em 2026-11-08T20:15:58.160007+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro hermes soul detalhe · memoria claude.ai · claude_ai_memoria
 
@@ -626,3 +626,7 @@ quando o estafeta não vai receber) e "Mandar para todos". O teu caminho: `ops_r
 # - Limite: 80 envios por dia (todas as caixas juntas). Não envio em massa por aqui.
 # - Anexos ficam no armazenamento privado; o Danilo vê-os no painel admin (Agentes · E-mail).
 
+
+SUPERADO em 31/10/2026 por regras-do-danilo (verificado pela missão M7 a 08/11/2026): o reembolso para a carteira já não é 80% saldo + 20% tokens — o cliente escolhe Carteira Bora (100% saldo livre, wallet_split_free_pct=1.0) ou estorno total pelo mesmo meio.
+
+SUPERADO em 30/10/2026 por digest-2026-10-30-gorjetas-claude-ai (verificado pela missão M7 a 08/11/2026): a gorjeta já não se divide 80% estafeta / 20% Bora — a Bora não ganha nada com gorjetas; no carrinho e em dinheiro vai inteira ao prestador; paga depois por cartão/MB Way vai menos a taxa exata da Stripe (tips.liquido_prestador_cents).

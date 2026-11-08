@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-claude-md-detalhe
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-23
+ultima_confirmacao: 2026-11-08
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Detalhe dos CLAUDE.md (repo e global) antes do corte de 23/10/2026
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-claude-md-detalhe`, origem `claude-code`, atualizada em 2026-10-23T05:55:20.527129+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-claude-md-detalhe`, origem `claude-code`, atualizada em 2026-11-08T20:16:17.637533+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro claude md detalhe · memoria claude.ai · claude_ai_memoria
 
@@ -1109,3 +1109,15 @@ Marca e empresa
 Mercadona
 - Loja Mercadona só com perfumaria/cosmética/higiene fica parada até ele dizer "vamos reabrir a loja". Preço na loja = só o preço de prateleira (nunca somar 15% à mão). Dados em claude_ai_memoria, página mercadona-reabrir-loja.
 
+
+SUPERADO em 31/10/2026 por regras-do-danilo (verificado pela missão M7 a 08/11/2026): o reembolso para a carteira já não é 80% saldo livre + 20% tokens — o cliente escolhe Carteira Bora (100% saldo livre, wallet_split_free_pct=1.0) ou estorno total pelo mesmo meio.
+
+SUPERADO em 25/10/2026 por livro-areas-precos-catalogo-nao-parceiro e erros-aprendidos (verificado pela missão M7 a 08/11/2026): a pré-autorização dos não-parceiros já não leva margem (nem ×1.2 nem ×1.15) — non_partner_payment_buffer_multiplier=1.0, cobra-se exatamente o preço da app.
+
+SUPERADO em 08/09/2026 por livro-areas-precos-catalogo-nao-parceiro (verificado pela missão M7 a 08/11/2026): a taxa de serviço do não-parceiro é 0,99 € (platform_settings.non_partner_service_fee_cents=99; os 2,50 € só aparecem riscados); a margem de 15% sobre o preço de balcão continua (quote_order_pricing usa 0.15 por defeito).
+
+SUPERADO em 29/10/2026 por decisao-ganho-estafeta-nao-parceiro-2026-10-29 (verificado pela missão M7 a 08/11/2026): no não-parceiro os 0,80 € do estafeta só entram em compras de mercado e os 30% calculam-se sem a taxa de pedido pequeno nem o saco — fica como o sistema paga, não mexer sem ordem nova do Danilo.
+
+SUPERADO em 01/11/2026 por stripe-duas-contas (verificado pela missão M7 a 08/11/2026): há duas Stripe — a da EMPRESA (acct_1UX67LGWwQxC9wR2) recebe todas as categorias desde 02/11 (stripe_conta_nao_tvde=empresa); a PESSOAL (acct_1T8MFaGlT3R2jCYp) era só do Bora Motorista, fechado a 04/11.
+
+SUPERADO em 01/11/2026 por digest-2026-11-01-mercadona-reaberta (verificado pela missão M7 a 08/11/2026): a Mercadona já não está parada — reabriu como "Mercadona · Beleza e Higiene" com 543 produtos fotografados; os outros produtos da Mercadona ficam escondidos.

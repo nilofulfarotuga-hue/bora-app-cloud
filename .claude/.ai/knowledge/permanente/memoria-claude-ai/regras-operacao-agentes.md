@@ -2,7 +2,7 @@
 id: memoria-claude-ai-regras-operacao-agentes
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-09-16
+ultima_confirmacao: 2026-11-08
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # O que podes e o que não podes fazer no Bora em produção (ChatGPT, OpenCode, Hermes, Claude Code)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `regras-operacao-agentes`, origem `claude-ai`, atualizada em 2026-09-16T17:25:05.557746+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `regras-operacao-agentes`, origem `claude-ai`, atualizada em 2026-11-08T20:30:19.854222+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: regras operacao agentes · memoria claude.ai · claude_ai_memoria
 
@@ -33,3 +33,5 @@ NÃO PODES, nunca:
 DEPOIS de agir: confirma por SELECT que ficou como querias (status do pedido, assigned_driver_id, estafeta online) e diz ao Danilo o estado real numa frase curta, sem jargão.
 
 Caminho do Danilo: no painel admin, o botão de escolher estafeta (quando estiver pronto). O teu caminho: a função ops_reassign_order.
+
+Forçar entrega sem o código de 4 dígitos (08/11/2026, ordem do Danilo: "Eu sou o dono do aplicativo. É pra forçar e pronto."): só com a ordem dele dada na conversa, select public.ops_marcar_entregue_sem_codigo('<pedido>', '<frase do Danilo + porquê>', 'claude-ai'); (p_quem: claude-ai, claude-code, dipsy ou hermes). Só pedidos em pickedUp ou onTheWay; fecha pelo mesmo caminho do PIN (ganho, ledger, tokens, fatura, recibo) e fica no admin_audit_log. No painel: botão "Marcar entregue sem código" com motivo. VALE QUANDO A FUNÇÃO ESTIVER NO AR (proposta m1-dinheiro-favores-2026-11-08, ficheiro 01, aplicada pela Claude.ai); até lá a função não existe.

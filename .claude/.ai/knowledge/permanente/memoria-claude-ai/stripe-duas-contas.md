@@ -2,7 +2,7 @@
 id: memoria-claude-ai-stripe-duas-contas
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-03
+ultima_confirmacao: 2026-11-08
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Duas contas Stripe — empresa e pessoal (01/11/2026)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `stripe-duas-contas`, origem `claude.ai + claude-code 02/11`, atualizada em 2026-11-03T11:02:28.577223+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `stripe-duas-contas`, origem `claude.ai + claude-code 02/11`, atualizada em 2026-11-08T20:23:52.802378+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: stripe duas contas · memoria claude.ai · claude_ai_memoria
 
@@ -66,3 +66,14 @@ Publicado o commit c76c18be no autonomous-night-2026-04-29 (push normal 08:38 UT
 - Interruptor stripe_conta_nao_tvde = 'empresa'. TVDE continua na conta pessoal.
 - Pendentes pequenos (reportados, não aplicados): CI escreve app_latest_version_code_ios logo após o upload (aviso de versão que ainda não está na loja); teste instável test/rastreio_interpolacao_test.dart:198 (tolerância 1e-9); charge-extra devolve 500 a GET sem corpo (devia ser 400/405).
 
+
+SUPERADO em 04/11/2026 por digest-2026-11-04-fechar-bora-motorista (verificado pela missão M7 a 08/11/2026): com o Bora Motorista fechado, a conta PESSOAL já não deve receber pagamentos novos — de 04/11 a 08/11 todos os pedidos pagos por cartão/MB Way ficaram na EMPRESA (orders.stripe_account); um pagamento novo na pessoal é erro a investigar (ex.: a gorjeta do Burger King citada em digest-2026-11-08-missao-domingo).
+
+## 08/11/2026 ~21:00 — estado verificado pela missão M7 (Claude Code, API da Stripe, só leitura)
+- Conta da empresa acct_1UX67LGWwQxC9wR2 COMPLETA: requirements vazios (currently_due, past_due, eventually_due), charges_enabled e payouts_enabled true, IBAN BCP ...3905 ligado. O dinheiro NÃO está preso por cadastro.
+- Saldo 08/11: 0 disponível, 155,79 € pendentes em 7 pagamentos (líquido de taxas). É o atraso normal do 1.º pagamento de conta nova. Fica disponível: 38,63 € a 09/11, 16,33 € a 10/11, 28,31 € a 11/11, 72,52 € a 12/11.
+- PORQUE NUNCA HOUVE PAYOUT: os repasses ao banco estão em MODO MANUAL (settings.payouts.schedule.interval = manual, delay 3 dias). Mesmo com saldo disponível, nada vai ao Millennium sozinho. Para ficar semanal: painel da Stripe da empresa → Definições → Pagamentos (https://dashboard.stripe.com/settings/payouts) → Agenda semanal. É mexer em levantamentos de dinheiro: quem carrega é o Danilo.
+- Connect na empresa: 0 contas conectadas. As contas Connect antigas estão na pessoal (no banco: Goola acct_1U9JSJGaqvfVyyow enabled, Sabores de Casa acct_1UIYGXGx0JZ7r2bp enabled, Danilo estafeta acct_1U1RpKGdkGTRCF27 enabled, Ouro e Prata disabled). stripe_connect_enabled continua false: os acertos semanais são manuais (transferência), com ou sem Connect.
+- Código pronto (ramo ai/2026-11-08-m7-stripe-parceiros-radar-leis, por publicar pela Claude.ai): as 3 funções stripe-connect-* passam a saber das duas contas; função nova connect-convite (link de cadastro PERMANENTE, para WhatsApp); interruptor platform_settings.stripe_connect_conta_nova (nasce 'pessoal' — nada muda até se virar); webhook de contas conectadas aceita o segredo da pessoal e STRIPE_CONNECT_WEBHOOK_SECRET_EMPRESA; painel Pagamentos Connect mostra "Stripe pessoal / Stripe da empresa" e o botão "Link permanente de cadastro (WhatsApp)". SQL em docs/propostas/m7-connect-empresa/01_conta_dona_e_convites.sql.
+- Ordem para ligar: (1) Danilo ativa o Connect no painel da empresa e aceita as responsabilidades da plataforma (mesmas escolhas de 06/08 na pessoal: separate charges and transfers, onboarding hospedado, Express); (2) criar o destino de webhook de contas conectadas da empresa para https://ojykpzwqrtusfeakzrna.supabase.co/functions/v1/stripe-connect-webhook com account.updated, account.application.deauthorized, payout.paid, payout.failed e gravar o whsec_ como STRIPE_CONNECT_WEBHOOK_SECRET_EMPRESA; (3) Claude.ai aplica o SQL e publica connect-convite, stripe-connect-onboard, stripe-connect-admin, stripe-connect-webhook (NOTA: estas 3 no ar são a versão de 06/08 — o repo tem desde 16/10 a troca para secretKey() que nunca foi publicada; vai junto); (4) virar stripe_connect_conta_nova para empresa; (5) gerar os links no painel e mandar aos parceiros.
+- ATENÇÃO antes do passo (4): STRIPE_SECRET_KEY_EMPRESA é a chave RESTRITA criada a 02/11 para pagamentos. Confirmar que tem permissões de Connect em escrita (Accounts, Account Links, Login Links); senão, ao virar o interruptor, o cadastro dá erro (sem efeito nos parceiros: com o interruptor em pessoal tudo continua como hoje).

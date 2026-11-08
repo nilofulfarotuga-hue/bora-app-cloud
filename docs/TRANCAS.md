@@ -314,3 +314,18 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   escrever o guião que subia as peças do anúncio do Fuku para `product-images/meta-2026-11-03/` (leu a variável que
   carrega a chave do `backend/.env` como "segredo em texto claro"). Não contornado: as peças estão na Meta, no
   Telegram do Danilo e em `Vídeos/Bora/fuku-anuncio-2026-11-03/` no PC.
+
+## 05/11/2026 — modo automático seguro
+
+Três recusas da bora-tranca, todas corretas e nenhuma contornada: escrever `~/.claude/hooks/trava-modo-automatico.mjs`
+(zona `.claude/hooks/**`), escrever `.github/workflows/revisao.yml` (zona dos workflows) e, pela mesma lista, os
+settings, que nem se tentaram. Ficou tudo pronto em `docs/propostas/modo-automatico/`, ligado por um duplo clique do
+Danilo em `ATIVAR-MODO-AUTOMATICO.cmd`. Registo: `e2e_log` fluxo `modo-automatico-seguro-2026-11-05`.
+
+Defeito novo, provado em sessões reais: o `allow` do `tool.check` da tranca passa por cima do "não" de outro gancho
+`PreToolUse`. Com a trava nova sozinha, o `Read` e o `cat` de um `.env` falso passaram, apesar de ela ter recusado. Só
+o `deny` dos settings e a tranca sem aprovar é que travam. Corrigido no remendo `guardas-ramo-ai.patch`, por aplicar.
+
+Atualização de 06/11/2026: remendos aplicados pelo Danilo (05/11 às 20:37 e 06/11 às 05:15). A tranca deixou de
+perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy são recusados logo, menos as cópias
+`bkp_`. Um "Permitir" passava por cima da trava, provado num remoto falso. A tabela de cima é anterior a isto.

@@ -189,6 +189,13 @@ function eContextoSql(seg: string[]): boolean {
   return /^(psql|pg_dump|pg_restore|supabase)$/.test(c) || seg.some(x => /PGPASSWORD|postgres(ql)?:\/\//.test(x))
 }
 
+// Ramo de ensaio do modo automatico: não publica nada, não precisa de pergunta.
+function pushDeEnsaio(args: string[]): boolean {
+  const pos = args.filter(a => !a.startsWith('-'))
+  const destino = (pos[1] ?? '').replace(/^.*:/, '').replace(/^refs\/heads\//, '')
+  return pos.length === 2 && /^ai\/\d{4}-\d{2}-\d{2}-[\w.-]+$/.test(destino)
+}
+
 export function avaliaComando(comando: string, ctx: Contexto): Veredito {
   const segs = segmentos(comando)
   let pedePush = false
@@ -199,7 +206,7 @@ export function avaliaComando(comando: string, ctx: Contexto): Veredito {
       const { sub, args } = g
       if (sub === 'push') {
         if (pushForcado(args)) return nega('git push forçado (bandeira de força ou refspec com +)')
-        pedePush = true
+        if (!pushDeEnsaio(args)) pedePush = true
       }
       if (sub === 'add' && args.some(a => ['-A', '--all', '.', ':/', './', '*'].includes(a))) {
         return nega('git add -A / git add . (arrasta trabalho alheio; adiciona por caminho)')
@@ -317,7 +324,11 @@ export function avaliaSql(sqlBruto: string, ctx: Contexto, eMigracao: boolean, d
       pergunta: 'bora-tranca: o Claude quer aplicar uma migration na base de PRODUÇÃO. Deixo seguir?',
     }
   }
-  if (/\b(create|alter)\s+(table|index|type|view|materialized\s+view|function|trigger|policy|schema)\b|\b(grant|revoke)\b/.test(sql)) {
+  // a copia bkp_ e o ponto de restauro antes de corrigir: nao e publicar
+  const semBackup = sql
+    .replace(/\bcreate\s+table\s+(if\s+not\s+exists\s+)?(public\.)?"?bkp_[a-z0-9_]+"?/g, ' ')
+    .replace(/\balter\s+table\s+(public\.)?"?bkp_[a-z0-9_]+"?\s+enable\s+row\s+level\s+security/g, ' ')
+  if (/\b(create|alter)\s+(table|index|type|view|materialized\s+view|function|trigger|policy|schema)\b|\b(grant|revoke)\b/.test(semBackup)) {
     return {
       acao: 'pergunta',
       motivo: 'DDL em produção',
@@ -512,7 +523,13 @@ function segmentoSoLeitura(t: string[]): boolean {
   return false
 }
 
+// Prova de 05/11: o allow daqui passa por cima do deny da trava do modo automatico.
+// Segredos nunca se aprovam sozinhos.
+const TOCA_SEGREDO =
+  /(^|[\s"'\\/=:])(\.env(?!\.(example|sample|template)\b)|\.dev\.vars|\.dart_defines|\.credentials\.json|\.git-credentials|\.netrc|\.npmrc|key\.properties|\.supabase|\.aws|_segredos)|[\w-]\.env\b|hosts\.yml|service-account|firebase-adminsdk|id_(rsa|ed25519)(?!\S*\.pub)|\.(jks|keystore|pem|p12|p8|pfx)\b/i
+
 export function aprovaSemPerguntar(tool: string, args: Args, raizes: string[]): string | null {
+  if (TOCA_SEGREDO.test(`${str(args.file_path)} ${str(args.path)} ${str(args.command)}`)) return null
   if (SEMPRE_SIM.has(tool)) return 'leitura'
   if (tool === 'Agent' || tool === 'Task') {
     return /^(Explore|Plan)$/.test(str(args.subagent_type)) ? 'agente só de leitura' : null

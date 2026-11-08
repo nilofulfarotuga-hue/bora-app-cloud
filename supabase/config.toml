@@ -44,3 +44,7 @@ verify_jwt = false
 verify_jwt = false
 [functions.sessao-convidado]
 verify_jwt = false
+[functions.favor-cobrar-diferenca]
+verify_jwt = false
+[functions.recibo-pedido-cliente]
+verify_jwt = false

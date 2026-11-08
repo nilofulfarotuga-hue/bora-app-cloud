@@ -1,0 +1,36 @@
+diff --git a/supabase/functions/notify-client/index.ts b/supabase/functions/notify-client/index.ts
+index 0f24cf50..919eeba9 100644
+--- a/supabase/functions/notify-client/index.ts
++++ b/supabase/functions/notify-client/index.ts
+@@ -103,6 +103,10 @@ Deno.serve(async (req) => {
+   const status         = payload.status        as string | undefined
+   const kind           = payload.kind          as string | undefined
+   const notifType      = payload.type          as string | undefined
++  // M1 08/11/2026: { ring: true, ring_seconds } → canal de alarme das ofertas (bora_offers_alarm_v4,
++  // som bora_alert) e o mesmo pedido de toque no payload de dados. Só para a aprovação do Favor.
++  const tocar          = payload.ring === true || payload.ring === 'true'
++  const tocarSegundos  = Math.min(600, Math.max(10, Number(payload.ring_seconds ?? 180) || 180))
+   let title            = payload.title         as string | undefined
+   let body             = payload.body          as string | undefined
+ 
+@@ -212,6 +216,9 @@ Deno.serve(async (req) => {
+     ...(appointmentId ? { appointmentId: String(appointmentId) } : {}),
+     ...(status        ? { status:        String(status) }        : {}),
+     ...(kind          ? { kind:          String(kind) }          : {}),
++    // M1 08/11/2026: aprovação do preço do Favor — a app do cliente toca como as ofertas do
++    // estafeta (IncomingJobAlert) durante ring_seconds.
++    ...(tocar         ? { ring: 'true', ring_seconds: String(tocarSegundos) } : {}),
+   }
+ 
+   let enviados = 0
+@@ -226,7 +233,9 @@ Deno.serve(async (req) => {
+         data: dataPayload,
+         android: {
+           priority: 'high',
+-          notification: { channel_id: 'bora_orders', sound: 'default' },
++          notification: tocar
++            ? { channel_id: 'bora_offers_alarm_v4', sound: 'bora_alert' }
++            : { channel_id: 'bora_orders', sound: 'default' },
+         },
+         apns: {
+           headers: { 'apns-priority': '10' },

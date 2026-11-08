@@ -314,3 +314,17 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   escrever o guião que subia as peças do anúncio do Fuku para `product-images/meta-2026-11-03/` (leu a variável que
   carrega a chave do `backend/.env` como "segredo em texto claro"). Não contornado: as peças estão na Meta, no
   Telegram do Danilo e em `Vídeos/Bora/fuku-anuncio-2026-11-03/` no PC.
+
+- **08/11/2026 ~20:00, missão `m1-dinheiro-favores-2026-11-08` (blocos 1 a 5)** — (1) a trava do modo automático
+  (`~/.claude/hooks/trava-modo-automatico.mjs`, ligada a 05/11) bloqueia nesta sessão `apply_migration`/DDL em
+  produção, `deploy_edge_function` e o envio para `autonomous-night-2026-04-29`; (2) a bora-tranca recusou escrever
+  `supabase/migrations/20261108210000_m1_favor_diferencas_e_entrega_sem_codigo.sql` ("migration que toca
+  tokens/wallet/pagamentos/ledger"). Não contornado. Tudo ficou pronto e provado no PGlite (60/60):
+  SQL em `docs/propostas/m1-dinheiro-favores-2026-11-08/01..04_*.sql`, guia de aplicação em
+  `docs/propostas/m1-dinheiro-favores-2026-11-08/LEIA-PRIMEIRO.md`, a versão do ar do `stripe-webhook/index.ts` em
+  `supabase/functions/_propostas/m1-dinheiro-favores-2026-11-08/stripe-webhook/`. Trabalho no ramo
+  `ai/2026-11-08-m1-dinheiro-favores` com pedido de revisão; aplica e publica a Claude.ai.
+  (3) A trava recusou `git add` de `supabase/functions/notify-client/index.ts` ("segredo em ... (-----BE...)"): o
+  ficheiro já tem, desde antes, o texto do cabeçalho de chave privada usado para ler a conta de serviço do Firebase.
+  Não contornado: a mudança do toque persistente ficou em
+  `docs/propostas/m1-dinheiro-favores-2026-11-08/05_notify-client_toque_persistente.patch` e o ficheiro voltou ao original.

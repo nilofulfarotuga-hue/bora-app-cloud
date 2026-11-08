@@ -10,11 +10,11 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 5 de 5)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte5`, origem `claude-ai`, atualizada em 2026-11-08T21:13:27.974207+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte5`, origem `claude-ai`, atualizada em 2026-11-08T23:13:43.629481+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte5 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 5 de 5), copiada a 08/11/2026 21:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 5 de 5), copiada a 08/11/2026 23:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - [stated] 31/10 16:44: ao marcar a limpeza do Divan para as 18h copiei a tentativa que ele tinha cancelado na app (pacote T2, 4 horas, 45 €) em vez das 3 horas de sempre; o Divan cancelou e a app registou-lhe 45 € de taxa → regra: a limpeza do Divan é de 3 horas por hora (produtos dele, 2 gatos), não o pacote T2; ao marcar uma limpeza por um cliente, seguir o formato das marcações habituais dele, nunca uma tentativa cancelada
 - [stated] 30/10 17:04: na mensagem ao Ricardo (cliente Uber, a quem faltava pagar um pouco) escrevi um limite duro ("até uma semana, não deixo acumular mais de 20 €, senão fica pesado para mim"); ele achou grosso → regra: com cliente que deve pouco, a mensagem é leve — diz quanto falta e pergunta quando consegue pagar; o limite vai só como ajuda futura ("se um dia precisares outra vez, posso ajudar, só não com um valor muito alto"), sem números, prazos nem queixas
@@ -36,4 +36,6 @@ estado: atual
 - [stated] 08/11 18:59: recusei forçar a entrega do pedido do Divan sem o código de 4 dígitos (disse que passava por cima da proteção da app); ele corrigiu: "eu sou o dono, é pra forçar e pronto" → regra: quando o Danilo manda finalizar/forçar um pedido, finaliza-se pela via oficial (RPC admin), sem exigir o código; o Dipsy e o Claude Code também têm de conseguir. Tirar as limitações, não inventar mais
 - [stated] 08/11 19:55: entreguei 6 missões sem cobrir tudo o que ele ditou (Stripe da empresa/parceiros/WhatsApp, vídeos do radar, briefs, pagamentos, plano de 14 dias, leis, menu, motorista→delivery) e o LEIA-ME sem dizer "não colar"; ele colou-o como missão e disse "você não ouviu tudo, ler palavra por palavra" → regra: antes de entregar, ler a mensagem dele frase a frase e marcar cada pedido num bloco (checklist 1:1); ficheiro de instruções leva no topo "NÃO colar"
 - [stated] 08/11 20:21: no pedido do McDonald's voltei a oferecer mandar ao Hugo a pergunta do NIF; ele irritou-se: "não é para mandar" → regra: dúvida do NIF não vai ao Hugo; respondo eu direto, com a lei, sem propor envios
+- [stated] 08/11 22:49: listei os 186 € do Jai (24/10) como dívida; ele corrigiu "já está pago" → regra (repete 20/10 e 07/11): conta do Jai/Vansh só se lista como em aberto depois de confirmar na conversa recente que não foi paga; o livro fica desatualizado
+- [stated] 08/11 22:51: na M9 pus "texto para o Danilo mandar ao Jai" e "mandar o recibo dos 36 €"; ele corrigiu: "não é pra mandar mensagem nenhuma pro Jai" → regra: a missão do Jai é trabalho por trás (Wikipédia, Google, site, radar); nenhuma mensagem, recibo ou resumo vai ao Jai a não ser que o Danilo mande explicitamente
 

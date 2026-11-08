@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-08T21:13:27.974207+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-08T23:13:43.629481+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -141,4 +141,6 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - [stated] 08/11 18:59: recusei forçar a entrega do pedido do Divan sem o código de 4 dígitos (disse que passava por cima da proteção da app); ele corrigiu: "eu sou o dono, é pra forçar e pronto" → regra: quando o Danilo manda finalizar/forçar um pedido, finaliza-se pela via oficial (RPC admin), sem exigir o código; o Dipsy e o Claude Code também têm de conseguir. Tirar as limitações, não inventar mais.
 08/11 (quem errou: claude-ai): entreguei 6 missões sem cobrir tudo o que ele ditou (Stripe da empresa/parceiros/WhatsApp, vídeos do radar, briefs, pagamentos, plano de 14 dias, leis, menu, motorista→delivery) e o LEIA-ME sem dizer "não colar"; ele colou-o como missão e disse "você não ouviu tudo, ler palavra por palavra" → regra: antes de entregar, ler a mensagem dele frase a frase e marcar cada pedido num bloco (checklist 1:1); ficheiro de instruções leva no topo "NÃO colar".
 08/11 (quem errou: claude-ai): no pedido do McDonald's voltei a oferecer mandar ao Hugo a pergunta do NIF; ele irritou-se: "não é para mandar" → regra: dúvida do NIF não vai ao Hugo; respondo eu direto, com a lei, sem propor envios.
+08/11 (quem errou: claude-ai): listei os 186 € do Jai (24/10) como dívida; ele corrigiu "já está pago" → regra (repete 20/10 e 07/11): conta do Jai/Vansh só se lista como em aberto depois de confirmar na conversa recente que não foi paga; o livro fica desatualizado.
+08/11 (quem errou: claude-ai): na M9 pus "texto para o Danilo mandar ao Jai" e "mandar o recibo dos 36 €"; ele corrigiu: "não é pra mandar mensagem nenhuma pro Jai" → regra: a missão do Jai é trabalho por trás (Wikipédia, Google, site, radar); nenhuma mensagem, recibo ou resumo vai ao Jai a não ser que o Danilo mande explicitamente.
 

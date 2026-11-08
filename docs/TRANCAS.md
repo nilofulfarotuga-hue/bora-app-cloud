@@ -318,3 +318,8 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   `rm -rf` de uma pasta de trabalho no scratchpad da sessão (cópia das funções para correr `deno check` fora do
   repo). Não contornado: usou-se uma pasta nova com outro nome, sem apagar nada. Lição: no PC, nunca planear
   apagar pastas de trabalho; criar sempre uma pasta nova.
+- **08/11/2026 ~22:30, missão `m7-stripe-parceiros-radar-leis-2026-11-08`** — a bora-tranca recusou
+  `git push origin ai/2026-11-08-m7-stripe-parceiros-radar-leis` ("git push é publicar: publica o Claude.ai"),
+  mesmo sendo o ramo de ensaio do modo automático. Não contornado: o ramo ficou só no PC
+  (worktree `C:\BoraLocal\wt-m7-2026-11-08`, commit 8af1aa1b e seguintes) para a Claude.ai enviar e abrir o
+  pedido de revisão. Nota: a skill `modo-automatico` diz que o agente envia o ramo `ai/...`; a tranca não deixa.

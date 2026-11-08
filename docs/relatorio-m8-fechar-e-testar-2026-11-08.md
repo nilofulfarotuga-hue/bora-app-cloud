@@ -66,12 +66,34 @@ antigo com esses dados não sair do PC. Está no ramo `ai/2026-11-08-m8-junto-e-
 (https://github.com/nilofulfarotuga-hue/bora-app-cloud/pull/7). Os seis ramos de cada missão não foram enviados,
 pela mesma razão.
 
-Os testes no emulador Android não foram feitos. Para compilar a app nova são precisas duas chaves públicas (o
-endereço do Supabase e a chave anónima, que qualquer pessoa vê no site). A trava não deixa ler o ficheiro das
-chaves, e a tranca recusou gravá-las num ficheiro à parte porque viu um "token" e não sabe que esta chave é
-pública. E mesmo com a app compilada, sem o SQL e as funções no ar os cenários novos (Favores, talão, recibo,
-gorjeta, A minha conta, fila, Amigo Bora, suporte, restaurante do dia, Connect) não tinham com quem falar. Os dois
-emuladores estão prontos no PC (emdia e emdia35).
+Testes no emulador Android, depois do teu segundo "Sim, deixa" (usar as chaves públicas da app para compilar). Passei
+as duas chaves só na linha de comando, sem as gravar em ficheiro. A compilação precisou também da configuração do
+Firebase da app, copiada da pasta principal (continua fora do git). A app parava no arranque sem chave da Stripe, por
+isso compilei em modo de testes da Stripe com uma chave falsa: esta versão não consegue cobrar cartões, e os testes
+foram todos sem pagamentos. App instalada no emulador emdia35 às 23:21, com as contas demo do projeto.
+
+O que funciona na app nova: no cliente, o botão "Ajuda-me a escolher" por baixo da pesquisa, o botão verde antigo do
+assistente desaparecido e o ecrã do assistente a abrir. No estafeta, a barra vermelha "Falta: …" no mapa, que abre "A
+minha conta" com o semáforo (9 coisas a vermelho, o NIF a verde). Gravei a data de nascimento: a linha ficou verde
+e o contador desceu de 9 para 8 sem fechar a app, e confirmei na base que ficou gravada. A mira está a meio do ecrã,
+do lado direito, e volta a centrar o mapa no estafeta; a mira antiga lá em cima desapareceu. No parceiro, a barra diz
+"Loja fechada". Os três papéis entram sem a app morrer. A loja da Jyosmi abre com o menu e a hora de abertura certa.
+
+Defeitos que o emulador mostrou. O mais grave já está no ar e não vem de hoje: a pesquisa dentro de qualquer loja dá
+sempre "Sem resultados". A função da pesquisa usa por dentro duas funções de texto (`assistant_tokens` e
+`assistant_singular`) a que os clientes deixaram de ter acesso na migração de 20/10. Simulei a chamada como cliente
+e dá "permissão negada". A correção é devolver aos clientes o acesso a essas duas funções, que só tratam texto e
+não leem dados. É SQL em produção, por isso não o apliquei; fica para a M10 ou a Claude.ai, com a tua decisão. Os
+outros são pequenos. No parceiro, o nome da loja fica cortado em "Loj…" porque o texto novo "Loja fechada" é mais
+comprido. O cartão "Os meus habituais" da página inicial passa 1 pixel do espaço (é de 29/10). E 21 produtos da Jyosmi
+não têm foto, quase todos bebidas.
+
+O que não deu para testar, porque precisa do SQL e das funções novas no ar: diferença de preço nos Favores, entregue
+sem código, talão, NIF e recibo, gorjeta, faixa da limpeza, agendado, fila no painel, restaurante do dia, Connect e o
+cartão de boas-vindas do Amigo Bora, que só aparece quando o interruptor da personalidade existir no servidor. O
+suporte com "falar com uma pessoa" não testei, para não avisar a equipa a meio da noite. Não pus o estafeta demo
+online, porque em produção podia receber pedidos de clientes reais. As capturas estão em
+`.claude/.ai/provas/m8-2026-11-08/` (só no PC).
 
 A publicação nas três lojas e as provas nas três plataformas não aconteceram, porque dependem de tudo o que está
 acima.
@@ -106,7 +128,7 @@ o código todo junto.
 M3 — junto ao ramo. O resto da M3 (SSH à VPS, senha do Conselho) não é desta missão.
 
 Juntar os ramos, análise, testes, Juiz: ok. Envio do ramo de ensaio e pedido de revisão: ok, depois do teu sim.
-Publicação nas três: não feita (a trava recusa por regra o envio para o ramo de produção).
+Publicação nas três: não feita por esta sessão; a M10 (lançada às 23:20) ficou com o SQL, as funções e a publicação. Emulador: ver acima.
 
 ## Erros encontrados fora do âmbito (só reportados)
 

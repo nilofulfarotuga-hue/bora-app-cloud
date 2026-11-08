@@ -56,9 +56,15 @@ contornar a regra dela, por isso não usei.
 
 As funções do servidor não foram publicadas: a trava recusa a publicação por todos os caminhos.
 
-O código não foi para o GitHub: a tranca recusou o envio do ramo de ensaio ("é publicar: publica o Claude.ai"). As
-outras seis missões bateram na mesma parede. Por isso a Claude.ai também não consegue ver o código: ele só existe
-neste PC.
+O código foi para o GitHub só depois do teu "Sim, deixa" (08/11, no chat). A primeira tentativa foi recusada, mas a
+causa era o comando, não a regra: a tranca já deixa enviar ramos `ai/…`, mas o comando levava `2>&1` no fim, e ela
+contou isso como um segundo destino. As outras seis missões caíram na mesma armadilha. Antes de enviar, encontrei
+dados pessoais no código das missões: o telemóvel verdadeiro de um cliente em dois testes da M4, e os nomes dos
+candidatos a estafeta com os documentos que faltam a cada um no relatório da M2. Troquei-os por valores falsos e
+iniciais (os testes desses ficheiros voltaram a dar 47 e 3 certos) e enviei tudo num registo único, para o histórico
+antigo com esses dados não sair do PC. Está no ramo `ai/2026-11-08-m8-junto-e-testado`, com o pedido de revisão n.º 7
+(https://github.com/nilofulfarotuga-hue/bora-app-cloud/pull/7). Os seis ramos de cada missão não foram enviados,
+pela mesma razão.
 
 Os testes no emulador Android não foram feitos. Para compilar a app nova são precisas duas chaves públicas (o
 endereço do Supabase e a chave anónima, que qualquer pessoa vê no site). A trava não deixa ler o ficheiro das
@@ -99,24 +105,28 @@ o código todo junto.
 
 M3 — junto ao ramo. O resto da M3 (SSH à VPS, senha do Conselho) não é desta missão.
 
-Juntar os ramos, análise, testes, Juiz: ok. Envio para o GitHub, CI e publicação nas três: bloqueado.
+Juntar os ramos, análise, testes, Juiz: ok. Envio do ramo de ensaio e pedido de revisão: ok, depois do teu sim.
+Publicação nas três: não feita (a trava recusa por regra o envio para o ramo de produção).
 
 ## Erros encontrados fora do âmbito (só reportados)
 
 1. A trava do modo automático não vigia o comando `supabase db query` do programa do Supabase: por ali passa
    qualquer SQL para produção, incluindo mudanças de estrutura que ela recusa por todos os outros caminhos. Não usei.
    Fica para quem cuida da trava decidir se fecha esse caminho.
-2. As duas guardas contradizem a skill do modo automático: a skill manda enviar o ramo `ai/…` e abrir o pedido de
-   revisão, e a tranca recusa esse envio desde 06/11. Resultado: há sete ramos desta noite presos no PC.
+2. A tranca conta `2>&1` (e qualquer palavra a mais) como destino do envio, e então trata o envio de um ramo `ai/…`
+   como publicação. Foi isso que prendeu no PC os ramos das sete sessões desta noite. Com o comando simples
+   `git push origin ai/…` passa.
 3. A tranca trata a chave anónima do Supabase (que é pública e está no site) como segredo; isso impede qualquer sessão
    do PC de compilar a app para o emulador.
 4. A sessão da M1 continuava a trabalhar no Chrome depois de ter registado o fim às 21:48.
 5. `flutter pub get` suja sozinho os ficheiros gerados de Linux, macOS e Windows no worktree; ficaram fora do registo.
+6. O telemóvel verdadeiro de um cliente já está público no GitHub, numa página do livro que o espelho do Córtex
+   publica (`livro-areas-missao-domingo-noite.md`, registo c813b6a8). O espelho publica o livro inteiro num
+   repositório público.
 
 ## SÓ O DANILO
 
-1. Decidir se as sessões do PC podem enviar ramos de ensaio `ai/…` para o GitHub (sem força). Sem isto, nada do que
-   se fez hoje chega à Claude.ai nem às lojas.
+1. Enviar ramos de ensaio `ai/…` para o GitHub: decidido, disseste "Sim, deixa".
 2. Decidir se as sessões do PC podem usar as duas chaves públicas da app para compilar para o emulador. Sem isto, não
    há testes no Android feitos pelo PC.
 3. Ativar o Connect na Stripe da empresa.
@@ -129,6 +139,5 @@ Juntar os ramos, análise, testes, Juiz: ok. Envio para o GitHub, CI e publicaç
 
 ## Próximo passo
 
-Com o sim ao ponto 1, uma sessão do PC envia o ramo `ai/2026-11-08-m8-fechar-e-testar` (já tem as seis missões
-juntas e testadas) e a Claude.ai aplica o SQL e as funções pela ordem dos guias, junta o ramo e publica nas três. Com
+A Claude.ai revê o pedido n.º 7, aplica o SQL e as funções pela ordem dos guias, junta o ramo e publica nas três. Com
 o sim ao ponto 2, a sessão seguinte faz os cenários no emulador.

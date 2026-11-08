@@ -424,3 +424,7 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
    contornei. Sem isso a app nova não compila e não houve testes no emulador. e2e_log passo 04-emulador.
 3. SQL de estrutura e Edge Functions em produção: a trava do modo automático nega por regra ("publica a Claude.ai").
    Não tentei pelo caminho do CLI que a trava não vê, porque seria contornar a regra dela. e2e_log passos 02-sql e 03-edge.
+4. CORREÇÃO do ponto 1 (mesma noite): a recusa veio do comando, não da regra. A tranca deixa enviar `ai/AAAA-MM-DD-…`
+   quando o envio tem exatamente dois argumentos; o `2>&1` no fim contou como um terceiro e passou a "publicar".
+   Depois do "Sim, deixa" do Danilo, o envio simples passou: ramo `ai/2026-11-08-m8-junto-e-testado`, pedido de
+   revisão n.º 7. Foi a mesma armadilha nas sessões M1 a M7.

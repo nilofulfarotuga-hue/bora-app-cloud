@@ -323,3 +323,9 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   `/opt/motor-bora/motor_bora/porteiro.py`/`catalogo.py`, com cópia `.bak` e `docker restart` cuidadoso. O lado do PC
   (`~/.dsh/cordis.patch.yml`, `maxTokens: 64000`) já estava feito desde as 10:36, e a ponte passou a continuar sozinha
   quando a resposta é cortada. Para fechar: uma sessão onde o SSH à VPS seja permitido, ou a Claude.ai pelo canal dela.
+
+- **08/11/2026 ~21:10, missão `m3-dipsy-acesso-total-2026-11-08` (fecho)** — a bora-tranca recusou o
+  `git push origin ai/2026-11-08-m3-dipsy-acesso-total` ("git push é publicar: publica o Claude.ai"), apesar de o
+  guardrail aceitar ramos `ai/AAAA-MM-DD-*`. Não se contornou: o trabalho ficou no ramo local
+  `ai/2026-11-08-m3-dipsy-acesso-total` do worktree `C:\BoraLocal\wt-m3-2026-11-08` (commit f7cca4a9 e este), por
+  enviar e rever pela Claude.ai. O que corre no PC (`~/.dsh`) já está instalado e provado.

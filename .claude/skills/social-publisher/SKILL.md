@@ -48,3 +48,5 @@ Incrementar frontmatter + linha em `.claude/.ai/knowledge/wiki/skills-metrics.md
 
 ## Admin Panel Needed?
 Coberto pela proposta `AdminMarketingScreen` (inbox) — estados agendada/publicada vêm daqui.
+
+- Formatos de reels e regras visuais: ver `FORMATOS-REELS.md` nesta pasta.

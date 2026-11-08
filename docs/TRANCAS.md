@@ -314,3 +314,7 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   escrever o guião que subia as peças do anúncio do Fuku para `product-images/meta-2026-11-03/` (leu a variável que
   carrega a chave do `backend/.env` como "segredo em texto claro"). Não contornado: as peças estão na Meta, no
   Telegram do Danilo e em `Vídeos/Bora/fuku-anuncio-2026-11-03/` no PC.
+- **08/11/2026 ~20:50, missão `m7-stripe-parceiros-radar-leis-2026-11-08`** — a bora-tranca recusou
+  `rm -rf` de uma pasta de trabalho no scratchpad da sessão (cópia das funções para correr `deno check` fora do
+  repo). Não contornado: usou-se uma pasta nova com outro nome, sem apagar nada. Lição: no PC, nunca planear
+  apagar pastas de trabalho; criar sempre uma pasta nova.

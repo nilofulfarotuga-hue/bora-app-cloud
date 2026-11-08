@@ -2674,12 +2674,17 @@ const Map<String, String> kStringsEn = <String, String>{
       'Order status',
   'Estafeta':
       'Courier',
-  'Estafeta a caminho da sua morada':
+  'Estafeta a caminho da tua morada':
       'Courier on the way to your address',
   'Estafeta a caminho da tua casa':
       'Courier on the way to your place',
   'Estafeta a caminho {0}':
       'Courier on the way {0}',
+  // M7 (08/11/2026): paridade Bora Motorista → entregas (order_tracking_screen).
+  'Estafeta já chegou para levantar o pedido':
+      'Your courier has arrived to pick up the order',
+  'às {0}':
+      'at {0}',
   'Estafeta a tratar do teu favor':
       'Courier handling your errand',
   'Estafeta entrega rápida':

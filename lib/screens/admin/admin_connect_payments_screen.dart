@@ -146,6 +146,70 @@ class _AdminConnectPaymentsScreenState
     );
   }
 
+  /// M7 (08/11/2026): link de cadastro PERMANENTE (para mandar por WhatsApp).
+  /// O link da Stripe expira em minutos; este abre sempre um link novo, na
+  /// Stripe certa (pessoal ou empresa). `novo: true` cancela o anterior.
+  Future<void> _permanentInvite(Map<String, dynamic> account,
+      {bool novo = false}) async {
+    String? url;
+    try {
+      final res = await Supabase.instance.client.rpc(
+        'admin_connect_convite',
+        params: {
+          'p_role': account['role'],
+          'p_row_id': account['row_id'],
+          'p_novo': novo,
+        },
+      );
+      url = res is Map ? res['url'] as String? : null;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Falhou (a migração M7 do Connect já foi aplicada?): $e')));
+      }
+      return;
+    }
+    if (url == null || !mounted) return;
+    final link = url;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Link permanente de cadastro'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+                'Pode mandar por WhatsApp: não expira. Cada vez que a pessoa '
+                'abre, a Stripe gera um cadastro novo. Só mande para o dono '
+                'da conta.',
+                style: TextStyle(fontSize: 12)),
+            const SizedBox(height: 8),
+            SelectableText(link),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await _permanentInvite(account, novo: true);
+            },
+            child: const Text('Gerar outro (cancela este)'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: link));
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Copiar'),
+          ),
+        ],
+      ),
+    );
+    await _load();
+  }
+
   Future<void> _openInStripe(Map<String, dynamic> account) async {
     final id = account['account_id'] as String?;
     if (id == null) return;
@@ -463,6 +527,19 @@ class _AdminConnectPaymentsScreenState
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
+                      const Card(
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text(
+                              'Duas contas Stripe: a PESSOAL fica só para o '
+                              'Bora Motorista (TVDE); a da EMPRESA fica para '
+                              'tudo o resto (lojas, estafetas, serviços). As '
+                              'contas novas nascem onde a chave '
+                              'stripe_connect_conta_nova mandar.',
+                              style: TextStyle(fontSize: 13)),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                       _settingsCard(),
                       const SizedBox(height: 16),
                       _filterChips(),
@@ -558,6 +635,16 @@ class _AdminConnectPaymentsScreenState
                   ),
                   const Text('repasses', style: TextStyle(fontSize: 11)),
                 ],
+                if (a['account_id'] != null)
+                  Text(
+                      a['owner'] == 'empresa'
+                          ? 'Stripe da empresa'
+                          : 'Stripe pessoal',
+                      style: const TextStyle(
+                          fontSize: 11, fontWeight: FontWeight.w600)),
+                if (a['convite_url'] != null)
+                  const Text('link permanente criado',
+                      style: TextStyle(fontSize: 11)),
                 if (due.isNotEmpty)
                   Text('falta: ${due.length} item(ns)',
                       style: const TextStyle(
@@ -572,6 +659,7 @@ class _AdminConnectPaymentsScreenState
         trailing: PopupMenuButton<String>(
           onSelected: (v) => switch (v) {
             'link' => _resendLink(a),
+            'convite' => _permanentInvite(a),
             'stripe' => _openInStripe(a),
             'resync' => _resync(a),
             'statement' => _showStatement(a),
@@ -580,7 +668,11 @@ class _AdminConnectPaymentsScreenState
           },
           itemBuilder: (ctx) => [
             const PopupMenuItem(
-                value: 'link', child: Text('Reenviar link de cadastro')),
+                value: 'convite',
+                child: Text('Link permanente de cadastro (WhatsApp)')),
+            const PopupMenuItem(
+                value: 'link',
+                child: Text('Link de cadastro rápido (expira em minutos)')),
             if (a['account_id'] != null)
               const PopupMenuItem(
                   value: 'stripe', child: Text('Abrir no dashboard Stripe')),

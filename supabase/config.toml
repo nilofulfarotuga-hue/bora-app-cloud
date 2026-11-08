@@ -12,6 +12,10 @@ verify_jwt = false
 verify_jwt = false
 [functions.stripe-connect-webhook]
 verify_jwt = false
+
+# M7 08/11/2026: convite permanente de cadastro Connect (abre sem sessão; segurança = token).
+[functions.connect-convite]
+verify_jwt = false
 [functions.create-payment-intent]
 verify_jwt = false
 [functions.create-mbway-payment-intent]

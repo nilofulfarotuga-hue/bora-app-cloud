@@ -1,0 +1,240 @@
+[
+ {
+  "id": "prop-bfe857d7",
+  "titulo": "Radar 07/11: Hermes 0.23 Hearth (WebApp por túnel privado)",
+  "decisao": "PÔR NA FILA",
+  "motivo": "Mexe na VPS; o painel já esteve exposto em IPv6 a 01/11. Só por túnel privado, com prova de que a porta não é pública.",
+  "missao": "m8-hermes-0-23-tunel"
+ },
+ {
+  "id": "prop-ca31cc9d",
+  "titulo": "Radar 06/11: caça-clientes por email com domínio secundário aquecido",
+  "decisao": "PÔR NA FILA",
+  "motivo": "Comprar domínio é decisão do Danilo (custo não dito). Preparar o plano, não comprar.",
+  "missao": "m8-caca-clientes-dominio"
+ },
+ {
+  "id": "prop-9137a334",
+  "titulo": "Proposta GPS: app avisa a posição mesmo com o estafeta parado",
+  "decisao": "PÔR NA FILA",
+  "motivo": "Zona vermelha (despacho). Só propor; aplica-se com o 'vai' do Danilo.",
+  "missao": "m8-gps-heartbeat"
+ },
+ {
+  "id": "prop-03b58e8d",
+  "titulo": "Radar 05/11: legendas em AIDA + gravar o ecrã da tarefa repetitiva",
+  "decisao": "FAZER AGORA",
+  "motivo": "AIDA entra como regra nos formatos de reels (FORMATOS-REELS.md). O método 'gravar o ecrã' fica na fila do sistema.",
+  "missao": "m8-gravar-ecra-tarefa"
+ },
+ {
+  "id": "prop-carteiro-ordem-20261105171121-32cf-aprovado-chat",
+  "titulo": "Ordem 05/11: aviso de atualização iOS a toda a hora",
+  "decisao": "REJEITAR",
+  "motivo": "Duplicado da prop-2367a01b, já encaminhada (ordem do Danilo 'autorizo, 05/11'). Verificar o resultado nessa, não nesta.",
+  "missao": ""
+ },
+ {
+  "id": "prop-37fe46dc",
+  "titulo": "BOOM: preços de balcão verdadeiros (SQL pronto)",
+  "decisao": "PÔR NA FILA",
+  "motivo": "Dinheiro/preços: só a Claude.ai aplica, com 'autorizo' e backup. Fora desta missão.",
+  "missao": "m8-boom-precos-balcao"
+ },
+ {
+  "id": "prop-b95538b5",
+  "titulo": "Boom Burger: material de partida para cartazes",
+  "decisao": "REJEITAR",
+  "motivo": "Cumprida: cartazes feitos no Canva a 29/10 (página boom-cartazes-canva-2026-10-29). Arquivar.",
+  "missao": ""
+ },
+ {
+  "id": "prop-7731b2cb",
+  "titulo": "Radar 28/10: 'melhorar foto' do prato só retoca a foto real",
+  "decisao": "PÔR NA FILA",
+  "motivo": "Mexe na app/painel do parceiro; só retoque (luz, fundo, recorte), nunca inventar o prato. Precisa de ecrã no painel.",
+  "missao": "m8-melhorar-foto-parceiro"
+ },
+ {
+  "id": "prop-a85fb216",
+  "titulo": "Radar 28/10: Token Economizer + micro-skills",
+  "decisao": "PÔR NA FILA",
+  "motivo": "Confirmar licença e se o repo é aberto; testar num executor e medir tokens antes de adotar.",
+  "missao": "m8-economizar-tokens"
+ },
+ {
+  "id": "prop-6556a6cd",
+  "titulo": "Radar 26/10: post de grupo Facebook sem link e com chamada para comentar",
+  "decisao": "FAZER AGORA",
+  "motivo": "Teste pequeno; fica escrito no FORMATOS-REELS.md (secção grupos). O Hermes corre-o. Nada de postador em massa.",
+  "missao": ""
+ },
+ {
+  "id": "prop-37efe6a9",
+  "titulo": "Radar 26/10: hook PreToolUse nos executores claude -p",
+  "decisao": "PÔR NA FILA",
+  "motivo": "Config do Claude Code no PC e na VPS; já há tranca bora-mods e git-guardrails, falta provar a cobertura nos executores headless.",
+  "missao": "m8-hook-executores"
+ },
+ {
+  "id": "prop-757b1697",
+  "titulo": "Radar 26/10: Em Dia, comparador contrato vs recibos verdes",
+  "decisao": "PÔR NA FILA",
+  "motivo": "Mexe no site do Em Dia; juntar à prop-9fb4a0a2. Confirmar taxas no Portal das Finanças/SS antes de publicar.",
+  "missao": "m8-emdia-calculadoras"
+ },
+ {
+  "id": "prop-c23e26bc",
+  "titulo": "Radar 26/10: ganchos 'troquei X por Y' e 'reels de teste'",
+  "decisao": "FAZER AGORA",
+  "motivo": "Entra no banco de formatos (FORMATOS-REELS.md). Só ficheiros.",
+  "missao": ""
+ },
+ {
+  "id": "prop-4499ca8a",
+  "titulo": "Radar 25/10: Limpeza com orçamento instantâneo e página local SEO",
+  "decisao": "PÔR NA FILA",
+  "motivo": "Orçamento mexe em preços: espera 'autorizo'. A página local SEO é separada e mais segura.",
+  "missao": "m9-limpeza-orcamento-seo"
+ },
+ {
+  "id": "prop-cee1336b",
+  "titulo": "Radar 24/10: alerta de licenças de obra da Câmara da Guarda",
+  "decisao": "REJEITAR",
+  "motivo": "Negócio novo e fora de foco (uma coisa de cada vez). Reabrir só se a Câmara publicar os dados e o Danilo pedir.",
+  "missao": ""
+ },
+ {
+  "id": "prop-09235e27",
+  "titulo": "Radar 23/10: QR físico em cafés/IPG/residências; nome na Play Store; áudio de 1 min",
+  "decisao": "FAZER AGORA",
+  "motivo": "QR: lista e cartaz A5 prontos (docs/marketing). Nome na Play Store e áudio→roteiro ficam na fila.",
+  "missao": "m8-ficha-loja-nome"
+ },
+ {
+  "id": "prop-c9a93ddc",
+  "titulo": "Radar 23/10: classificador leve antes do OmniRoute",
+  "decisao": "PÔR NA FILA",
+  "motivo": "Confirmar repositório, licença e se corre em CPU na VPS; medir poupança antes.",
+  "missao": "m8-classificador-triagem"
+ },
+ {
+  "id": "prop-9fb4a0a2",
+  "titulo": "Radar 23/10: Em Dia, calculadoras grátis (SS e IRS recibos verdes)",
+  "decisao": "PÔR NA FILA",
+  "motivo": "Mexe no site; íman de pesquisa. Roteiros a partir de fontes oficiais.",
+  "missao": "m8-emdia-calculadoras"
+ },
+ {
+  "id": "prop-0b100b7a",
+  "titulo": "Radar 19/10: REA no NOSSO app + rececionista de voz",
+  "decisao": "PÔR NA FILA",
+  "motivo": "Auditar só o nosso APK/site (chaves no front, regras de dinheiro no cliente). Pendente desde 13/10: já é altura. Voz fica à parte.",
+  "missao": "m8-rea-auditoria"
+ },
+ {
+  "id": "prop-a680d2a5",
+  "titulo": "Radar 18/10: REA (duplicado)",
+  "decisao": "REJEITAR",
+  "motivo": "Duplicado de prop-0b100b7a; juntar lá.",
+  "missao": ""
+ },
+ {
+  "id": "prop-14a29454",
+  "titulo": "Radar 17/10: REA (duplicado)",
+  "decisao": "REJEITAR",
+  "motivo": "Duplicado de prop-0b100b7a; juntar lá.",
+  "missao": ""
+ },
+ {
+  "id": "prop-d2fcdfed",
+  "titulo": "Business-rules: linha do §58 no mapa (cancelamento tardio)",
+  "decisao": "PÔR NA FILA",
+  "motivo": "Edição de página de regras: só a Claude.ai. A regra já está no canónico e no servidor.",
+  "missao": "m8-cortex-arrumar"
+ },
+ {
+  "id": "prop-carteiro-bugs-resolvidos-aprovado-chat",
+  "titulo": "Cópia da página bugs-resolvidos",
+  "decisao": "REJEITAR",
+  "motivo": "Duplicado de prop-67e6ccd3 (já encaminhada).",
+  "missao": ""
+ },
+ {
+  "id": "prop-d50ef1ac",
+  "titulo": "Radar 13/10: REA + 3 outras (duplicado em parte)",
+  "decisao": "REJEITAR",
+  "motivo": "REA já em prop-0b100b7a; restantes pontos vistos nas propostas seguintes.",
+  "missao": ""
+ },
+ {
+  "id": "prop-f2900408",
+  "titulo": "Radar 10/10: Em Dia, lembrete do recibo e simulador de retenção/IVA",
+  "decisao": "PÔR NA FILA",
+  "motivo": "Função nova do Em Dia (tempo de desenvolvimento).",
+  "missao": "m8-emdia-funcoes"
+ },
+ {
+  "id": "prop-daf2a61b",
+  "titulo": "Radar 06/10: anúncio UGC de 30 s com personagem fixa por IA",
+  "decisao": "PÔR NA FILA",
+  "motivo": "Teste pequeno, um anúncio; depende de ferramenta grátis e do fiscal de reels.",
+  "missao": "m8-reels-ugc-teste"
+ },
+ {
+  "id": "prop-675f8b39",
+  "titulo": "Radar 05/10: atualizar página radar-2026-10-05 (UPDATE recusado)",
+  "decisao": "PÔR NA FILA",
+  "motivo": "Escrita em claude_ai_memoria: Claude.ai ou sessão principal; esta missão só faz SELECT.",
+  "missao": "m8-cortex-arrumar"
+ },
+ {
+  "id": "prop-3a361266",
+  "titulo": "Radar 05/10: atualizar caminhos-animacao-filme",
+  "decisao": "PÔR NA FILA",
+  "motivo": "Idem: edição de página do livro pela sessão principal.",
+  "missao": "m8-cortex-arrumar"
+ },
+ {
+  "id": "prop-68081f33",
+  "titulo": "Radar 04/10: programa 'código amigo' e microinfluenciadores da Guarda",
+  "decisao": "PÔR NA FILA",
+  "motivo": "Desconto = dinheiro. Ver primeiro o que já existe (indicar amigo, check-in). Ecrã no painel obrigatório.",
+  "missao": "m9-codigo-amigo"
+ },
+ {
+  "id": "prop-carteiro-mods-claude-code-bora-aprovado-chat",
+  "titulo": "Mods do Claude Code (bora-mods)",
+  "decisao": "REJEITAR",
+  "motivo": "Duplicado de prop-805dfc79 (já encaminhada); o plugin existe.",
+  "missao": ""
+ },
+ {
+  "id": "prop-f79e820f",
+  "titulo": "(já encaminhada) Guia do Perfil Google para lojas parceiras",
+  "decisao": "FAZER AGORA",
+  "motivo": "Guia escrito: docs/parceiros/guia-perfil-google-da-tua-loja.md. Falta só a mensagem de WhatsApp (Danilo/Hermes).",
+  "missao": ""
+ },
+ {
+  "id": "prop-ceee650b",
+  "titulo": "(já encaminhada) Radar 24/10: 4 coisas pequenas",
+  "decisao": "FAZER AGORA",
+  "motivo": "Parte dos formatos de reels entra no FORMATOS-REELS.md; o resto ver texto completo no Córtex.",
+  "missao": ""
+ },
+ {
+  "id": "prop-507390d3",
+  "titulo": "(já encaminhada) Métrica de sucesso em todo agente novo",
+  "decisao": "FAZER AGORA",
+  "motivo": "Secção obrigatória no template.md e regra no README dos agentes.",
+  "missao": ""
+ },
+ {
+  "id": "prop-ffb7bcaf",
+  "titulo": "(já encaminhada) Hermes vigia quedas de pedidos e uptime",
+  "decisao": "PÔR NA FILA",
+  "motivo": "Só leitura e alerta; precisa de limiares definidos pelo Danilo.",
+  "missao": "m8-hermes-vigia-quedas"
+ }
+]

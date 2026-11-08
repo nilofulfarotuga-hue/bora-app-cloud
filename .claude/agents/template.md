@@ -44,3 +44,6 @@ O resultado mensurável que entrego.
 ## Admin Panel Check (OBRIGATÓRIO)
 **Admin Panel Needed?** SIM/NÃO — se SIM, que ecrã(s) em `lib/screens/admin/` (existente a
 actualizar ou novo a criar, com prioridade). Em dúvida, invocar o agente `admin`.
+
+## Métrica de sucesso (obrigatória)
+Todo agente novo declara AQUI, antes de existir: (1) o número que diz que funciona (ex.: pedidos tratados, minutos poupados, erros apanhados), (2) como se mede (consulta SQL, log ou ficheiro), (3) o valor de partida e a meta, (4) a data em que se revê. Sem métrica medível, o agente não entra na tabela do README.

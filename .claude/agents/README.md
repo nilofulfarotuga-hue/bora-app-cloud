@@ -78,3 +78,5 @@ RLS em `orders`/`wallets`/`ledger_entries`/`bora_tokens`. Robot A e Robot B são
 3. Adiciona uma linha à tabela acima **e** à secção "## Sistema de Agentes" do `CLAUDE.md`.
 4. Frontmatter: `name` (== nome do ficheiro) e `description` obrigatórios. Omite `tools` se o
    agente precisar de MCP (herda tudo); declara `tools` explícitos se for só ficheiros/git.
+
+5. **Métrica de sucesso obrigatória:** todo agente novo traz no contrato a secção "Métrica de sucesso (obrigatória)" (número, como se mede, meta, data de revisão), senão não entra.

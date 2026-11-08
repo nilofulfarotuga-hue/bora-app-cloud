@@ -331,3 +331,9 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   (4) A bora-tranca recusou editar `lib/widgets/errand_execution_sheet.dart` (zona vermelha `_finalizePurchase`).
   Não contornado: o fluxo novo do estafeta ficou no widget `lib/widgets/favor_teto_compra_card.dart` e a ligação à
   folha em `docs/propostas/m1-dinheiro-favores-2026-11-08/06_errand_execution_sheet_tecto.patch` (aplica-se limpo).
+  (5) A bora-tranca recusou `git push origin ai/2026-11-08-m1-dinheiro-favores` ("git push é publicar"): a regra
+  do push em `.claude/plugins/bora-mods/hooks/regras.ts` não distingue os ramos de ensaio `ai/…` (que a trava do
+  modo automático e a skill `modo-automatico` mandam enviar). Nenhuma sessão de 08/11 (M2…M7) conseguiu enviar o
+  seu ramo. Não contornado. O servidor (guia, 4 SQL, 2 Edge, 2 remendos) ficou no livro, páginas
+  `proposta-m1-2026-11-08-*`; os ecrãs ficam no ramo local do PC. Decisão para o Danilo/Claude.ai: deixar a tranca
+  aceitar `git push origin ai/AAAA-MM-DD-…` (sem --force), como a trava já aceita.

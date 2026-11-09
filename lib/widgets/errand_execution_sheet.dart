@@ -30,6 +30,15 @@ import '../utils/safe_image_picker.dart';
 
 enum _Phase { collect, purchase, deliver, done }
 
+/// M10 09/11/2026 (regra 08/10 do livro: "botão tipo 'peguei a receita'"): o
+/// botão da recolha em casa diz o que o estafeta recolhe, conforme o motivo.
+String rotuloConfirmarRecolha(String? motivo) => switch (motivo) {
+      'receita' => 'Peguei a receita',
+      'cartao' => 'Peguei o cartão',
+      'dinheiro' => 'Peguei o dinheiro',
+      _ => 'Já passei em casa da cliente',
+    };
+
 class ErrandExecutionSheet extends StatefulWidget {
   const ErrandExecutionSheet({super.key, required this.order});
   final OrderModel order;
@@ -422,7 +431,8 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
         const SizedBox(height: 16),
         ElevatedButton(
           onPressed: _busy ? null : _confirmCollect,
-          child: Text(_busy ? 'A guardar…' : 'Confirmar recolha'),
+          child: Text(
+              _busy ? 'A guardar…' : rotuloConfirmarRecolha(reason)),
         ),
       ],
     );

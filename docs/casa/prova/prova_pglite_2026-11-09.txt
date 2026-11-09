@@ -1,0 +1,56 @@
+(função is_demo_user não carregou em PGlite: function public.is_demo_email(text) does not exist — fica stub)
+funções reais de produção carregadas: 19 de 20
+✓ 03_ligar_casa_e_selo.sql recusou como devia: falta o passo 1 (migracao 20261109074000_casa_novidade_selo_novo)
+✓ 00_estado_antes.sql
+    {"item":"casa_enabled","valor":"false"}
+    {"item":"valores_autorizados","valor":"true"}
+    {"item":"casa_novo_ate","valor":"(não existe)"}
+    {"item":"max_cash_amount_cents","valor":"4000"}
+    {"item":"profissional_danilo","valor":"pending | sem_comissao_ate=-"}
+    {"item":"oficios_danilo","valor":"fixacao=pending+, montagem=pending+"}
+    {"item":"aparelhos_danilo_pro","valor":null}
+    {"item":"faixa_casa","valor":"(nenhuma)"}
+    {"item":"difusao_casa","valor":"(nenhuma)"}
+    {"item":"migracao_selo","valor":"(por aplicar)"}
+    {"item":"publico_da_difusao","valor":"2"}
+✓ 01_migracao_selo_novo.sql
+    {"version":"20261109074000","name":"casa_novidade_selo_novo"}
+✓ 01_migracao_selo_novo.sql
+    {"version":"20261109074000","name":"casa_novidade_selo_novo"}
+✓ 02_aprovar_danilo.sql
+    {"approval_status":"approved","is_active":true,"tem_data_aprovacao":true,"sem_comissao_ate":"2027-01-09T00:00:00.000Z","oficios":"canalizacao=approved+ligado, fixacao=approved+ligado, jardinagem=approved+ligado, montagem=approved+ligado, reparacoes=approved+ligado"}
+✓ 02_aprovar_danilo.sql
+    {"approval_status":"approved","is_active":true,"tem_data_aprovacao":true,"sem_comissao_ate":"2027-01-09T00:00:00.000Z","oficios":"canalizacao=approved+ligado, fixacao=approved+ligado, jardinagem=approved+ligado, montagem=approved+ligado, reparacoes=approved+ligado"}
+✓ 05_notificacao_clientes.sql recusou como devia: a Casa ainda esta desligada: liga primeiro (passo 3)
+✓ 03_ligar_casa_e_selo.sql
+    {"casa_visivel":"true","valores_autorizados":"true","servicos_visiveis":1,"casa_enabled":"true","casa_novo_ate":"\"2026-11-23\"","o_que_a_app_le":"\"2026-11-23\""}
+✓ 04_faixa_home.sql
+    {"id":"d8172c79-bdc0-4f30-855a-7541890fbdde","titulo":"Novidade: Casa & Manutenção","subtitulo":"Montar móveis, pendurar, pequenas reparações","tipo_destino":"categoria","destino":"casa","ordem":1,"ativo":true,"inicio":"2026-11-09T07:46:57.717Z","fim":"2026-11-23T07:46:57.717Z"}
+✓ 04_faixa_home.sql
+    {"id":"d8172c79-bdc0-4f30-855a-7541890fbdde","titulo":"Novidade: Casa & Manutenção","subtitulo":"Montar móveis, pendurar, pequenas reparações","tipo_destino":"categoria","destino":"casa","ordem":1,"ativo":true,"inicio":"2026-11-09T07:46:57.717Z","fim":"2026-11-23T07:46:57.717Z"}
+✓ 05_notificacao_clientes.sql
+    {"id":"5c19f404-c611-4d12-a60b-d2af5c073579","segment":"clients","kind":"promo","only_marketing_opt_in":true,"pessoas":2,"status":"pending","sent_count":null,"failed_count":null,"status_note":null,"created_at":"2026-11-09T07:46:57.725Z"}
+✓ 05_notificacao_clientes.sql recusou como devia: ja houve uma difusao "Novidade: Casa & Manutenção": nao se manda segunda
+✓ 06_verificar_depois.sql
+    {"item":"casa_visivel_para_clientes","valor":"true"}
+    {"item":"servicos_visiveis","valor":"1"}
+    {"item":"servicos_preco_fixo_ou_hora_com_material","valor":"1 de 1"}
+    {"item":"selo_novo_ate","valor":"\"2026-11-23\""}
+    {"item":"profissional_danilo","valor":"approved"}
+    {"item":"oficios_danilo","valor":"canalizacao=approved+, fixacao=approved+, jardinagem=approved+, montagem=approved+, reparacoes=approved+"}
+    {"item":"aparelho_handyman_danilo","valor":"(nenhum: abrir a app como profissional da Casa)"}
+    {"item":"faixa_casa","valor":"Novidade: Casa & Manutenção ativo=true ate 2026-11-23"}
+    {"item":"difusao_casa","valor":"pending enviados=0"}
+    {"item":"migracao_selo","valor":"20261109074000"}
+    {"item":"auditoria_hoje","valor":"11"}
+--- verificações ---
+faixas da Casa: 1
+difusões: [{"segment":"clients","kind":"promo","only_marketing_opt_in":true,"pessoas":2,"status":"pending"}]
+sininho: 2 (esperado 2: só os clientes com opt-in)
+avisos ao Danilo: [{"tipo":"casa_status","titulo":"Candidatura Casa aprovada"},{"tipo":"casa_status","titulo":"Ofício aprovado: Montagem"},{"tipo":"casa_status","titulo":"Ofício aprovado: Fixação"},{"tipo":"casa_status","titulo":"Ofício aprovado: Reparações"},{"tipo":"casa_status","titulo":"Ofício aprovado: Canalização"},{"tipo":"casa_status","titulo":"Ofício aprovado: Jardinagem"}]
+auditoria: [{"action":"broadcast_notification","n":1},{"action":"casa_definicao_guardar","n":1},{"action":"casa_interruptor","n":1},{"action":"casa_oficio_aprovar","n":5},{"action":"casa_oficio_juntar","n":1},{"action":"casa_profissional_aprovar","n":1},{"action":"home_banner_criar","n":1}]
+valores ainda autorizados: true
+promoção do Danilo (sem_comissao_ate): 2027-01-09T00:00:00.000Z
+get_setting(casa_novo_ate) = "2026-11-23"
+✓ 99_reverter.sql
+    {"casa_visivel":"false","selo":"\"\"","faixas_ativas":0}

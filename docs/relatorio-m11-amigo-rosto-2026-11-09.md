@@ -1,119 +1,126 @@
-# Relatório M11 — o Amigo com rosto (09/11/2026)
+# Relatório M11 — o Amigo com rosto, os talões no Drive, a pesquisa e a Casa (09/11/2026)
 
-Missão `m11-amigo-rosto-2026-11-09`, mais o adendo 1 (05:23). Registo passo a passo no
-`e2e_log` (fluxo `m11-amigo-rosto-2026-11-09`). Ramo `ai/2026-11-09-m11-amigo-rosto`,
-worktree `C:\BoraLocal\wt-m11-2026-11-09`.
+Missão `m11-amigo-rosto-2026-11-09`, com os adendos 1 (05:23), 2 (05:40), 3 (07:02) e 4 (07:42).
+Registo passo a passo no `e2e_log` (fluxo `m11-amigo-rosto-2026-11-09`). Publicado no ramo de
+produção em três envios: d8b4d351 (07:18), 2ff432e4 (08:07) e a5e483d3 (09:28).
 
-## Ficou feito
+## Fiz isto
 
-Encontrei o protótipo do Dipsy inteiro na pasta bora-amigo-teste do Ambiente de Trabalho: o
-robozinho verde com antena laranja e os olhos num ecrã escuro, as seis expressões, a boca que
-acompanha a voz e o vídeo de 57 segundos. Vi o vídeo a uma imagem por segundo e escrevi a
-ficha da personagem em docs/amigo/ficha-personagem-2026-11-09.md, com as seis imagens de
-referência.
+**O Amigo com rosto.** O Amigo deixou de ser uma conversa escrita e passou a ser o robozinho do
+Dipsy dentro da app: verde, antena laranja, olhos num ecrã escuro, com as seis expressões (alegre,
+triste, surpreso, pensativo, confuso, a falar) e ainda "a ouvir". Pisca os olhos, mexe o olhar,
+respira, dá um pequeno salto quando muda de cara. Por defeito aparece com o corpo e a camisa com o
+logótipo da Bora; no painel pode passar a só cara. A boca acompanha a voz sílaba a sílaba, a voz é
+sempre de Portugal (nunca brasileira nem inglesa; sem voz de Portugal, fala por legenda). Na página
+inicial está "Sou o Amigo. Fala comigo" com o rostinho, e há o mosaico "Amigo" no início das
+categorias. O ecrã do Amigo tem a legenda grande, o microfone "Fala comigo", "Escrever" e "Ver
+conversa". A cara reage ao que acontece. No painel há a secção "Rosto do Amigo" com o rosto ao vivo,
+os interruptores e os números de uso.
 
-O Amigo passou a ser esse rosto dentro da app, desenhado pela própria app (não é uma página
-web lá dentro), por isso corre igual no Android, no iPhone e na web. Tem as seis expressões
-(alegre, triste, surpreso, pensativo, confuso, a falar) e ainda "a ouvir". Pisca os olhos com
-tempo natural, mexe o olhar, respira, dá um pequeno salto quando muda de cara, e acena com o
-braço quando fica alegre. Há duas versões que se escolhem no painel: só a cara, ou a cara com
-o corpo e a camisa com o logótipo da Bora ao peito (é esta que vem por defeito).
+**Adendo 1.** No fim de cada conversa o Amigo diz em voz, com a cara alegre, a deixa que o sistema
+escolheu, e mostra-a num cartão que conta o clique. E deixou de se chamar "de compras" em todo o
+lado que o cliente vê.
 
-A boca acompanha a voz sílaba a sílaba, com as regras do português de Portugal, e acerta-se em
-cada palavra que o telemóvel diz. A voz é a do próprio telemóvel ou navegador, sempre em
-português de Portugal; se o aparelho não tiver voz de Portugal, o Amigo fala só por legenda e
-nunca passa para brasileiro nem inglês. Há um botão para ligar e desligar o som, que fica
-lembrado. No navegador Edge a voz escolhida é a mesma Raquel do Dipsy.
+**Adendo 2, talões no Drive.** Carregaste em "Continuar" na página da Google e a Bora passou a ter
+acesso só aos ficheiros que ela própria cria no Drive (mais nada). Os 4 segredos foram gravados no
+servidor, a cópia diária ficou ligada e a primeira cópia correu na hora: 45 talões copiados de 45,
+na pasta "Talões" do Drive da Bora, verificados um a um.
 
-Na página inicial, o botão "Ajuda-me a escolher" com a bolha sem rosto saiu. No lugar está o
-rostinho vivo com "Sou o Amigo. Fala comigo", e há um mosaico "Amigo" no início das
-categorias, também com o rostinho. Ao tocar, abre o ecrã do Amigo: o rosto grande acorda,
-sorri e diz a saudação em voz alta, pelo nome e a lembrar o habitual. O que ele diz aparece em
-legenda grande, com a palavra a ser dita a laranja, como no filme do Dipsy. Em baixo há o
-microfone grande "Fala comigo", o "Escrever" e o "Ver conversa", que abre a conversa escrita
-de sempre, com a mesma conversa. A cara reage: a ouvir fica atenta, à espera fica pensativa,
-com produto ou pedido fica alegre, quando não há ou está fechado fica triste, quando não
-percebe fica confusa. Os cartões dos produtos, o pôr no carrinho, a memória, o esquecer tudo e
-o resto ficaram como estavam, partilhados com a conversa escrita.
+**Publicação 1 (07:11–07:18).** Banco (definições do Amigo e a tabela dos números de uso), função do
+servidor do Amigo e app. Web no ar às 07:20, Android às 08:01 (versão 719), iPhone às 09:04.
 
-Adendo 1: no fim de cada conversa o Amigo diz em voz, com a cara alegre, a deixa que o sistema
-escolheu (promoção, parceiro novo, tokens ou check-in) e mostra-a num cartão por baixo da
-legenda; o toque continua a contar como "clicada". A deixa continua escrita pelo sistema com
-dados do banco. E o Amigo deixou de ser "de compras": a causa era a primeira frase das
-instruções do servidor, "És o Bora Assistente, o assistente de compras" — houve mesmo uma
-resposta real a dizer "o teu assistente de compras". Com a personalidade ligada, a frase passa
-a ser a do Amigo para tudo (conversar, comida, mercado, Favores, limpeza, reservas, serviços,
-dúvidas sobre a Guarda e a app), com a ordem de nunca se apresentar como "de compras". O
-subtítulo da conversa escrita também deixou de falar só de compras.
+**Adendo 4, o Amigo a 100%.** O erro que viste no iPhone ("O cliente disse claramente que não quer
+comprar…") tinha três causas e as três foram corrigidas: "não quero comprar" era lido como pedido
+de compra; o aviso interno do servidor ia como se fosse uma mensagem tua; e a resposta escrita
+para esse aviso chegava ao cliente. Agora o aviso vai como instrução interna, e uma resposta que fale
+"do cliente" na terceira pessoa ou cite as regras é deitada fora. Na conversa solta ele fala como
+amigo: na primeira pessoa, caloroso, pergunta de volta, sem listar serviços e sem empurrar compras.
+Prova com 22 conversas reais nas contas de teste, duas voltas: na segunda, 21 de 22 como amigo,
+zero na terceira pessoa, zero "de compras", e as deixas mudam de conversa para conversa. Voz no
+telemóvel: o navegador do iPhone só deixa falar depois de um toque, por isso o primeiro toque em
+qualquer sítio desbloqueia a voz; se mesmo assim não sair som, aparece "Toca para ouvir" e o toque
+repete a frase. O botão do som tem quatro estados claros (Som, Sem som, Sem voz, Toca para ouvir), e
+o logótipo da camisa deixou de falhar no Safari antigo. Publicado às 08:07 e 08:11 (função do
+servidor versões 19 e 20). Web no ar às 08:10, Android às 08:52 (versão 720; a primeira tentativa
+caiu por uma falha de rede a descarregar uma ferramenta e foi repetida).
 
-No servidor, a resposta do Amigo traz agora um campo novo e opcional com a cara que ele
-escolheu; as versões antigas da app ignoram-no. No painel do administrador, no separador Amigo
-Bora, há a secção "Rosto do Amigo": o rosto ao vivo, um botão por expressão, uma caixa para
-escrever uma frase e ouvi-lo falar, a escolha da versão, os interruptores (rosto ligado, voz
-ligada, velocidade da voz, mosaico) e os números de uso (aberturas, voz contra escrita, tempo
-de conversa, por plataforma). Gravar fica na auditoria como o resto do painel.
+**Adendo 2, a pesquisa.** Medi primeiro como estava: de 60 pesquisas reais com as palavras que as
+pessoas escrevem (com erros e tudo), só 40 mostravam o produto certo nos 5 primeiros. Com o motor
+novo dão 60 de 60, no Continente cada pesquisa passou de 316–583 milésimos de segundo para 5–148.
+Percebe acentos, plural, palavra a meio, erros de escrita ("bolaxas", "nugets", "papel higenico"),
+palavras coladas ("cocacola", "benuron") e uma tabela de 246 sinónimos que se muda no painel
+("gelado" leva ao McFlurry e ao Sundae, "paracetamol" ao Ben-U-Ron). Quando não acha nada, aparece
+"Não encontrei X aqui" e o botão "Pede ao Amigo", que abre o Amigo já com a frase escrita. A pesquisa
+aprende: quando 3 pessoas diferentes escolhem o mesmo produto depois de uma pesquisa sem resultado,
+o sinónimo entra sozinho. No painel há "Pesquisas sem resultado". Está no servidor desde as 09:24 e
+já serve também as apps antigas, porque a função que elas chamam manteve o nome; provei em produção
+como cliente sem conta: "gelado" no McDonald's dá Sundae e McFlurry, "nugets" dá McNuggets,
+"paracetamol" na Wells mostra o Ben-U-Ron, "papel higenico" no Continente dá papel higiénico.
 
-## Provas
+**Adendo 3, a Casa & Manutenção.** Ícone novo 3D em cartoon (caixa de ferramentas laranja em fundo
+pêssego, 1024 por 1024), selo "Novo" que se liga e desliga no painel com data, o material passou a
+ser obrigatório ("Sim, já tenho tudo": o profissional leva só as ferramentas) e aparece na oferta e
+no trabalho do profissional. O código foi para as 3 lojas no envio das 09:28 e a chave do selo já
+existe no servidor. A Casa continua desligada para os clientes (ver "Falta isto").
 
-Testes: 65 testes do Amigo verdes (rosto, pestanejar, transições, boca, voz, ecrã, home,
-mosaico, painel, traduções). Fotografias das seis expressões nas duas versões e do ecrã em
-três tamanhos de telemóvel em test/golden/_fotos/amigo_*. A suíte inteira deu 3135 verdes; os
-únicos vermelhos que sobram são 6 de um teste da M10 (m10_nif_caixa_app_test) que já falham no
-código de produção sem nada desta missão. O Juiz anti-trapaça deu limpo, com 47 casos de teste
-a mais, e a análise do código deu zero erros. No servidor: 16 testes verdes e a verificação de
-tipos limpa. A migração nova foi provada num Postgres local: correu duas vezes sem estragar
-nada e passou as 17 verificações.
+**Publicação 2 (09:16–09:29).** Pesquisa no servidor, chave do selo, e o envio da app com a pesquisa,
+o "Pede ao Amigo", o painel das pesquisas, a Casa (desligada) e a última correção do Amigo. Web no ar
+às 09:32 (confirmado no app.boraguarda.com: o código novo está lá). Android e iPhone: ver o fim.
 
-Vídeo: C:\BoraLocal\missoes\m11-amigo-rosto-2026-11-09\amigo-rosto-m11.mp4, 54 segundos com
-som, gravado imagem a imagem a partir do ecrã verdadeiro da app, com as três cenas da missão do
-Dipsy ("Olá, eu sou o Amigo", o hambúrguer, e a cara triste e confusa). A voz do vídeo é a
-Raquel das gravações do Dipsy e a boca segue o tempo real de cada palavra; o servidor e o
-microfone são um guião com dados de demonstração. Há também o vídeo lado a lado com o do Dipsy
-(lado-a-lado-dipsy-vs-app.mp4): é a mesma personagem.
+Todas as vezes que desliguei as travas foi só para publicar, com cópia antes e religadas logo a
+seguir, sempre conferidas iguais à cópia: 07:11–07:18, 08:04–08:07, 08:08–08:11, 08:52 (só para
+repetir a compilação do Android), 09:15–09:20, 09:23–09:26 e 09:27–09:29.
 
-Voz e boca a sério, no aparelho: fiz uma demonstração do ecrã do Amigo que corre sem servidor
-nem contas (tool/amigo_demo) e testei-a. No navegador deste PC, com a voz Microsoft Helia de
-Portugal, disse as mesmas 5 frases que o Dipsy usou: a boca atualiza em média 10 milésimos de
-segundo depois de cada palavra (no máximo 14; o alvo era abaixo de 100) e o rosto anda a 60
-imagens por segundo, sem nenhuma imagem lenta. No telemóvel virtual Android 15, pelo Chrome,
-encontrei um erro: o Chrome do Android tem a voz "Portuguese Portugal", mas ela só aparece uns
-segundos depois de a página abrir, e o Amigo desistia antes e ficava só com legenda. Corrigi
-(espera mais e volta a procurar antes de falar) e, à segunda, falou com a voz de Portugal. O
-Chrome do Android não diz em que palavra vai, por isso aí a boca segue o texto; pus a voz a
-aprender a velocidade real do aparelho no fim de cada frase para a boca ficar mais certa. No
-telemóvel virtual o desenho é lento (2 imagens por segundo) porque esse emulador desenha sem
-placa gráfica; o Dipsy viu o mesmo. A app Android a sério (APK) não deu para compilar aqui: falta
-o ficheiro de configuração do Firebase no worktree e as regras não me deixam copiar ficheiros de
-chaves. Provas em docs/amigo/provas/.
+## Falta isto (e porquê)
 
-## Ficou a faltar (e porquê)
+**A Casa ainda não está ligada.** O servidor recusou aprovar-te como profissional da Casa: a tua
+ficha de profissional da Casa não tem IBAN, data de nascimento nem a autocertificação, e o NIF não
+está com os 9 números. É a regra legal das plataformas (DSA e DAC7) que pusemos no servidor, e esses
+dados só tu os podes dar. Não a forcei. Sem nenhum profissional aprovado, ligar a Casa deixava os
+clientes a pedir sem ninguém para ir, por isso também não liguei a Casa, a faixa da home, o pedido de
+prova nem a notificação aos clientes. Está tudo pronto e provado (docs/casa/PUBLICACAO2-casa.md): logo
+que a tua ficha estiver completa, corro o resto em poucos minutos.
 
-As travas estão ligadas, como mandaste, e barraram três passos com a mensagem "publica o
-Claude.ai": a migração no banco, a função do servidor e o envio do código para o GitHub. Não as
-contornei. Está tudo pronto, com a ordem certa, em docs/propostas/PROPOSTA_20261109_m11_amigo_rosto.md
-e numa cópia do ramo em C:\BoraLocal\missoes\m11-amigo-rosto-2026-11-09\m11.bundle. Por isso a
-versão nova ainda NÃO está no Android, no iPhone nem em app.boraguarda.com, e não deu para
-provar na web nem no TestFlight.
+**Roupeiro (80 €), cama (70 €) e televisão (45 €) não se conseguem pedir.** A Casa só aceita dinheiro
+e o dinheiro tem o limite de 40 €. ⚠️ ISTO MEXE EM PAGAMENTO/DINHEIRO. Há duas saídas e as duas
+precisam do teu "autorizo": cartão e MB Way na Casa pelo mesmo caminho da Limpeza (está escrito e
+pronto), ou um limite de dinheiro próprio da Casa.
 
-A trava também não me deixou gravar o ficheiro principal do Android (tem lá dentro a chave do
-mapa, que já lá estava). A linha que o Android 11 precisa para encontrar a voz do telemóvel foi
-para os ficheiros do Android de cada tipo de versão, que se juntam sozinhos ao principal.
+**Voz do servidor da Google** (para telemóveis sem voz de Portugal): não liguei, porque o projeto da
+Google não tem faturação e a Google exige-a mesmo no escalão grátis.
 
-Também ficaram por fazer, porque precisam da versão publicada ou de entrar com uma conta: as 5
-conversas de prova sem "de compras", as 2 conversas com deixas diferentes e uma linha nova por
-conversa na tabela das deixas, e o pedido de teste no emulador com a conta de cliente. Entrar
-com uma conta real de produção a partir de um teste não me é permitido.
+**Vetores do Gemini para a pesquisa:** opcionais (a pesquisa já usa os vetores grátis, que todos os
+48 271 produtos têm); a ação para os encher aos poucos está escrita mas não a publiquei.
 
 ## Erros que encontrei pelo caminho
 
-O teste m10_nif_caixa_app_test tem 6 casos vermelhos no código de produção (já estavam assim
-antes desta missão). O commit 884e3def da barra do parceiro ainda não foi publicado e leva
-capturas para a pasta de provas do repositório público, uma delas chamada
-3-login-cliente.png: convém ver se tem dados pessoais antes de publicar.
+A primeira tentativa da pesquisa no servidor foi recusada com "permissão negada" por causa de um
+ajuste do motor de erros de escrita: no servidor real não somos administradores e o módulo tem de
+estar carregado antes. Reproduzi o erro igual num Postgres local, corrigi com uma linha e provei; a
+tentativa falhada não deixou nada aplicado. O script que desliga as travas falhou uma vez a meio
+(um ficheiro estava aberto por outro processo): repus tudo primeiro, conferi, e só depois desliguei
+de novo. Dois ficheiros antigos (o principal do Android e o web/index.html) têm uma chave da Google lá
+dentro e a trava não os deixa gravar; contornei mudando o meu código de sítio, sem mexer na chave. O
+teste antigo m10_nif_caixa_app_test tem 6 vermelhos neste PC, que já falham no código de produção
+(o Flutter deste PC é mais novo que o do CI); a suíte inteira deu 3173 verdes. Na pesquisa: há dois
+índices iguais na mesma coluna dos produtos (gastam espaço), o Lidl está desligado mas os produtos
+dele ainda aparecem dentro da loja, há nomes com erros no Continente ("higenico"), e a parte "por
+significado" não funciona dentro das lojas para quem não tem conta (a tabela dos vetores não deixa
+ler); nenhuma das 60 provas depende disso. Na Casa: o "Trocar candeeiro" (30 €) está no ofício
+Eletricidade, que está desligado; aprovar-te ocupa 1 das 5 vagas "2 meses sem comissão". No iPhone,
+a faixa "instalar a app" do navegador tapa o microfone do Amigo. Às 07:45 a tua sessão na web tinha
+caído (o Amigo dava "sem sessão"): basta entrar de novo.
 
-## Precisa do Danilo
+## PARA O DANILO
 
-Publicar: dizer ao Claude.ai (ou abrir as travas para esta missão) para seguir a proposta, que
-põe a migração, a função do servidor e a app nas três lojas, junto com o 884e3def. Voz: se
-quiseres a Raquel em todos os telemóveis (e não só a voz de cada aparelho), é a Azure da
-Microsoft, que é paga — decisão tua.
+1. Completar a tua ficha de profissional da Casa na app (entrar como profissional da Casa, abrir a
+   candidatura e preencher NIF, IBAN, data de nascimento e a autocertificação, e enviar). Diz-me
+   quando estiver e eu ligo a Casa, a faixa, o pedido de prova e a notificação.
+2. Para o roupeiro, a cama e a TV: "autorizo cartão e MB Way na Casa" ou "autorizo limite de dinheiro
+   da Casa de X €".
+3. Opcional: faturação na Google para a voz do servidor.
+
+## Próximo passo
+
+Acabar de ver o Android e o iPhone da publicação 2, e assim que a tua ficha estiver completa, ligar
+a Casa como novidade pelos passos já provados.

@@ -55,6 +55,30 @@ List<(String, String)> casaRespostasLegiveis(
   return out;
 }
 
+/// "Material do cliente" (ordem do Danilo, 09/11/2026): o cliente confirmou
+/// que já tem tudo; o profissional leva só as ferramentas. Aparece na oferta e
+/// no trabalho sempre que o pedido traz essa confirmação.
+class CasaMaterialDoCliente extends StatelessWidget {
+  const CasaMaterialDoCliente({super.key});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: Spacing.xs),
+        child: Row(children: [
+          const Icon(Icons.inventory_2_outlined,
+              size: 17, color: AppColors.primaryDark),
+          const SizedBox(width: Spacing.xs),
+          Expanded(
+            child: Text(
+              'Material do cliente — levas só as ferramentas'.tr,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w700, color: AppColors.primaryDark),
+            ),
+          ),
+        ]),
+      );
+}
+
 /// O estado do trabalho como o PROFISSIONAL o lê (o texto do modelo é o do
 /// cliente: "Profissional a caminho").
 String casaEstadoParaProfissional(CasaEstado e) => switch (e) {

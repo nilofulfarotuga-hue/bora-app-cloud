@@ -30,6 +30,8 @@ const _categorias = <(String, String)>[
   ('Enviar Encomenda', 'assets/categories/cat_encomenda.png'),
   ('Favores', 'assets/categories/cat_favores.png'),
   ('Limpeza', 'assets/categories/cat_limpeza.png'),
+  // Casa & Manutenção (lançamento 09/11/2026): ícone 3D próprio e selo "Novo".
+  ('Casa', 'assets/categories/cat_casa.png'),
   ('Reservar Mesa', 'assets/categories/cat_reservar_mesa.png'),
   ('Beleza', 'assets/categories/cat_beleza.png'),
   ('Bora Motorista', 'assets/categories/cat_motorista.png'),
@@ -67,6 +69,7 @@ class _GrelhaCategorias extends StatelessWidget {
                   imageAsset: asset,
                   onTap: () {},
                   compacto: compacto,
+                  selo: nome == 'Casa' ? 'Novo' : null,
                 ),
             ],
           ),
@@ -162,7 +165,7 @@ void main() {
     expect(alturas.length, 1,
         reason: 'ladrilhos com alturas diferentes: $alturas');
 
-    // E 4 por linha: 14 categorias => 4 linhas (4+4+4+2).
+    // E 4 por linha: 15 categorias => 4 linhas (4+4+4+3).
     final larguras = tester
         .widgetList(find.byType(BoraTileCard))
         .map((w) => tester.getSize(find.byWidget(w)).width)

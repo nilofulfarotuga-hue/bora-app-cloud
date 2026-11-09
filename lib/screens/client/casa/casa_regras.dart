@@ -359,6 +359,16 @@ CasaFalta? casaFaltaNoServico({
   required String descricao,
 }) {
   for (final p in servico.perguntas) {
+    // Material (ordem do Danilo, 09/11): só se pede com "Sim, já tenho tudo",
+    // mesmo que o painel um dia acrescente outra opção à pergunta.
+    if (p.id == kCasaPerguntaMaterial &&
+        (respostas[p.id] ?? '').trim() != kCasaMaterialSim) {
+      return CasaFalta(
+        CasaCampo.pergunta,
+        'Para pedir, confirma que já tens todo o material: o profissional leva só as ferramentas.'.tr,
+        perguntaId: p.id,
+      );
+    }
     if (p.escolha && (respostas[p.id] ?? '').trim().isEmpty) {
       return CasaFalta(
         CasaCampo.pergunta,

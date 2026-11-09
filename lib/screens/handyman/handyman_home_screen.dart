@@ -954,6 +954,8 @@ class CasaOfertaCartao extends StatelessWidget {
           if (o.expiraEm != null)
             _Info(Icons.timer_outlined,
                 'Responde até {0}'.trArgs([dataHoraLisboa(o.expiraEm!.toUtc().toIso8601String())])),
+          if (casaMaterialDoCliente(o.respostas))
+            const CasaMaterialDoCliente(key: Key('casa_oferta_material')),
           if (o.descricao.trim().isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: Spacing.xs),

@@ -314,6 +314,9 @@ class _HandymanTrabalhoScreenState extends State<HandymanTrabalhoScreen> {
                     Expanded(
                         child: Text(casaJanelaTexto(p.scheduledAt, p.duracaoMin))),
                   ]),
+                  if (casaMaterialDoCliente(p.respostas))
+                    const CasaMaterialDoCliente(
+                        key: Key('casa_trabalho_material')),
                 ],
               ),
             ),

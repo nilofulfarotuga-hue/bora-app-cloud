@@ -26,7 +26,8 @@ class BoraTileCard extends StatelessWidget {
     this.imageAsset,
     this.height = 140,
     this.compacto = false,
-  }) : _useImageLayout = false;
+  })  : selo = null,
+        _useImageLayout = false;
 
   /// Construtor recomendado — usa PNG 3D cartoon (assets/categories/).
   const BoraTileCard.image({
@@ -37,9 +38,14 @@ class BoraTileCard extends StatelessWidget {
     required this.onTap,
     this.height = 140,
     this.compacto = false,
+    this.selo,
   })  : icon = null,
         iconData = null,
         _useImageLayout = true;
+
+  /// Selo pequeno no canto de cima (ex.: "Novo" de uma categoria lançada
+  /// há pouco). `null` = sem selo. O texto chega já traduzido.
+  final String? selo;
 
   final String label;
   final Gradient gradient;
@@ -146,6 +152,36 @@ class BoraTileCard extends StatelessWidget {
             ),
           ),
         ),
+        if (selo != null)
+          Positioned(
+            top: compacto ? 5 : 8,
+            right: compacto ? 5 : 8,
+            child: Container(
+              key: const Key('bora_tile_selo'),
+              padding: EdgeInsets.symmetric(
+                  horizontal: compacto ? 5 : 8, vertical: compacto ? 1.5 : 3),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(Radii.pill),
+                boxShadow: const [
+                  BoxShadow(
+                      color: Color(0x33000000),
+                      blurRadius: 3,
+                      offset: Offset(0, 1)),
+                ],
+              ),
+              child: Text(
+                selo!,
+                maxLines: 1,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: compacto ? 9.5 : 12,
+                  fontWeight: FontWeight.w800,
+                  height: 1.1,
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }

@@ -633,15 +633,15 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       // nasce desligada) — no molde da Lavagem: mostrar o ladrilho com o
       // serviço fechado só daria erro ao toque. Sem guarda de morada: a
       // morada pede-se dentro do próprio fluxo.
-      // TODO(catalogo-visual): trocar o ícone por
-      // imageAsset: 'assets/categories/cat_casa.png' quando o PNG 3D existir
-      // (a geração por IA falhou a 31/10 por falta de quota). Um asset em
-      // falta mostraria uma imagem partida, por isso fica o ícone até lá.
+      // 09/11/2026 (lançamento): ícone 3D cartoon próprio (caixa de
+      // ferramentas, gerado no Gemini) e o selo "Novo" enquanto durar a
+      // definição `casa_novo_ate` (painel > Casa > Definições > Novidade).
       if (context.watch<CasaStore>().enabled)
         _TileData(
           label: 'Casa',
           gradient: AppColors.tileCasa,
-          iconData: Icons.handyman_rounded,
+          imageAsset: 'assets/categories/cat_casa.png',
+          selo: context.watch<CasaStore>().seloNovo() ? 'Novo'.tr : null,
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const CasaCategoriaScreen()),
@@ -780,6 +780,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
             imageAsset: t.imageAsset!,
             onTap: t.onTap,
             compacto: true,
+            selo: t.selo,
           );
         } else {
           // Fallback legacy (ainda sem PNG da categoria) — ver TODO no tile.
@@ -811,12 +812,16 @@ class _TileData {
     required this.onTap,
     this.imageAsset,
     this.iconData,
+    this.selo,
   }) : assert(imageAsset != null || iconData != null,
             'tile precisa de imageAsset ou iconData');
 
   final String label;
   final Gradient gradient;
   final VoidCallback onTap;
+
+  /// Selo do canto (ex.: "Novo"), já traduzido. Só no ladrilho com PNG.
+  final String? selo;
 
   /// Asset PNG 3D (preferido). Quando ausente, usa [iconData] no tile legacy.
   final String? imageAsset;

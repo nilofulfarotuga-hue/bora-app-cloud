@@ -3,6 +3,8 @@
 // servidor (RPC casa_criar_pedido / casa_aceitar_orcamento). Contrato completo em
 // .claude/.ai/provas/casa-manutencao-2026-10-30/ESPEC.md.
 
+import '../utils/hora_lisboa.dart';
+
 DateTime? _data(dynamic v) =>
     v == null ? null : DateTime.tryParse(v.toString())?.toLocal();
 
@@ -30,6 +32,41 @@ List<Map<String, dynamic>> _lista(dynamic v) => v is List
 /// Euros com vírgula, como no resto da app: 2500 → "25,00 €".
 String casaEuro(int cents) =>
     '${(cents / 100).toStringAsFixed(2).replaceAll('.', ',')} €';
+
+// ── Material (ordem do Danilo, 09/11/2026 06:54) ─────────────────────────────
+// "O profissional leva só as ferramentas, o material é pelo cliente que tem que
+// comprar, eu tenho que certificar que tem tudo." No catálogo, cada serviço de
+// preço fixo ou à hora tem a pergunta de id `material` com a única opção
+// "Sim, já tenho tudo". A app só deixa pedir com ESSA resposta.
+
+/// Id da pergunta do material no catálogo (`casa_servicos.perguntas`).
+const String kCasaPerguntaMaterial = 'material';
+
+/// A única resposta que deixa pedir.
+const String kCasaMaterialSim = 'Sim, já tenho tudo';
+
+/// O serviço pergunta pelo material (tem a pergunta `material`)?
+bool casaServicoPedeMaterial(CasaServico s) =>
+    s.perguntas.any((p) => p.id == kCasaPerguntaMaterial);
+
+/// O cliente confirmou que tem o material (nas respostas do pedido).
+bool casaMaterialDoCliente(Map<String, dynamic> respostas) =>
+    (respostas[kCasaPerguntaMaterial] ?? '').toString().trim() ==
+    kCasaMaterialSim;
+
+// ── Selo "Novo" do ladrilho (lançamento de 09/11/2026) ───────────────────────
+
+/// O selo "Novo" aparece até ao fim do dia [ate] (AAAA-MM-DD, relógio de
+/// Lisboa), lido da definição `casa_novo_ate`. Vazio, nulo ou ilegível = sem
+/// selo (é assim que o painel o desliga).
+bool casaSeloNovoVisivel(String? ate, DateTime agora) {
+  final m = RegExp(r'^\s*"?(\d{4})-(\d{2})-(\d{2})').firstMatch(ate ?? '');
+  if (m == null) return false;
+  final limite = DateTime.utc(
+      int.parse(m[1]!), int.parse(m[2]!), int.parse(m[3]!));
+  final l = paredeLisboa(agora); // dia de hoje no relógio de Lisboa
+  return !DateTime.utc(l.year, l.month, l.day).isAfter(limite);
+}
 
 /// Extensão e tipo MIME de uma foto da Casa, a partir do que a app sabe dela
 /// ('png', 'image/webp', 'JPEG', 'heic'…). Só há três no balde `casa-fotos`:

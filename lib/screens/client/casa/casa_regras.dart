@@ -8,6 +8,8 @@
 // indicativo — o servidor (casa_criar_pedido / casa_aceitar_orcamento) recalcula
 // sempre e é a única fonte de verdade.
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 import '../../../l10n/tr.dart';
 import '../../../models/casa_models.dart';
 import '../../../utils/hora_lisboa.dart';
@@ -119,6 +121,7 @@ class CasaMetodoPagamento {
 List<CasaMetodoPagamento> casaMetodosPagamento({
   required int totalCents,
   required CasaConfig config,
+  bool cartaoNestaPlataforma = !kIsWeb,
 }) {
   final dinheiro = casaDinheiroPermitido(totalCents, config.maxCashCents);
   final cartao = config.pagamentoCartao;
@@ -132,8 +135,13 @@ List<CasaMetodoPagamento> casaMetodosPagamento({
     ),
     CasaMetodoPagamento(
       codigo: 'card',
-      rotulo: cartao ? 'Cartão'.tr : 'Cartão — brevemente'.tr,
-      disponivel: cartao,
+      // O cartão (folha da Stripe) só existe na app do telemóvel; na web fica o MB Way (m11).
+      rotulo: !cartao
+          ? 'Cartão — brevemente'.tr
+          : cartaoNestaPlataforma
+              ? 'Cartão'.tr
+              : 'Cartão — só na app do telemóvel'.tr,
+      disponivel: cartao && cartaoNestaPlataforma,
     ),
     CasaMetodoPagamento(
       codigo: 'mbway',
@@ -172,6 +180,10 @@ String casaPorqueIndisponivel(
   required CasaConfig config,
 }) {
   final dinheiro = casaDinheiroPermitido(totalCents, config.maxCashCents);
+  // Cartão ligado mas cinzento = estamos na web (a folha do cartão só existe na app do telemóvel).
+  if (codigo == 'card' && config.pagamentoCartao) {
+    return 'O cartão só dá na app do telemóvel. Aqui, paga com MB Way.'.tr;
+  }
   if (codigo == 'cash' || !dinheiro) return casaExplicacaoDinheiro(config);
   return 'Cartão e MB Way chegam brevemente. Por agora, paga em dinheiro.'.tr;
 }

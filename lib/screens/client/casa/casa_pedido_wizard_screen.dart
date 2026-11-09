@@ -18,6 +18,7 @@ import '../../../widgets/auto_address_hint.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/checkout_legal_notice.dart';
 import 'casa_meus_pedidos_screen.dart';
+import 'casa_pagamento_flow.dart';
 import 'casa_pedido_screen.dart';
 import 'casa_regras.dart';
 import 'casa_widgets.dart';
@@ -359,6 +360,13 @@ class _CasaPedidoWizardScreenState extends State<CasaPedidoWizardScreen> {
         pedido = await store.pedido(pedido.id) ?? pedido;
       }
       if (!mounted) return;
+      // Cartão/MB Way (m11): cobra já. Se não fechar, o pedido fica "À espera do pagamento" e o
+      // ecrã do pedido tem "Pagar agora"; só vai aos profissionais depois de pago.
+      if (casaPorPagarNaApp(pedido)) {
+        final pago = await CasaPagamentoFlow.pagar(context, store, pedido);
+        if (pago) pedido = await store.pedido(pedido.id) ?? pedido;
+        if (!mounted) return;
+      }
       if (falhadas > 0) {
         _snack(
             'Não consegui enviar {0} foto(s). Podes juntá-las no ecrã do pedido.'.trArgs([falhadas]));

@@ -11,6 +11,7 @@ import '../../../widgets/bora/bora.dart';
 import '../../../widgets/checkout_legal_notice.dart';
 import 'casa_chat_screen.dart';
 import 'casa_meus_pedidos_screen.dart';
+import 'casa_pagamento_flow.dart';
 import 'casa_regras.dart';
 import 'casa_widgets.dart';
 
@@ -82,6 +83,21 @@ class _CasaPedidoScreenState extends State<CasaPedidoScreen>
       if (!mounted) return;
       _store.abrirPedido(widget.pedido);
       _store.refreshTracked();
+      // Pago na app e cancelado/sem profissional com o pagamento ainda retido: pede a devolução
+      // (o servidor decide quanto e nunca devolve duas vezes).
+      if (casaPrecisaDeDevolucao(widget.pedido)) {
+        _store.devolverPagamento(widget.pedido.id);
+      }
+    });
+  }
+
+  /// "Pagar agora": pedido por cartão/MB Way que ainda não ficou pago.
+  Future<void> _pagarAgora() async {
+    await _comTrava(() async {
+      final pago = await CasaPagamentoFlow.pagar(context, _store, _pedido);
+      if (pago && mounted) {
+        _snack('Pagamento feito. Já estamos a procurar o profissional.'.tr);
+      }
     });
   }
 
@@ -205,7 +221,17 @@ class _CasaPedidoScreenState extends State<CasaPedidoScreen>
     );
     if (escolhido == null || !mounted) return;
     await _comTrava(() async {
-      await _store.aceitarOrcamento(o.id, escolhido);
+      final aceite = await _store.aceitarOrcamento(o.id, escolhido);
+      if (!mounted) return;
+      if (casaPorPagarNaApp(aceite)) {
+        // Cartão/MB Way (m11): o profissional só é avisado depois de pago.
+        final pago = await CasaPagamentoFlow.pagar(context, _store, aceite);
+        if (!mounted) return;
+        _snack(pago
+            ? 'Orçamento aceite e pago. O profissional já foi avisado.'.tr
+            : 'Orçamento aceite. Falta o pagamento: toca em "Pagar agora".'.tr);
+        return;
+      }
       _snack('Orçamento aceite. O profissional já foi avisado.'.tr);
     });
   }
@@ -581,6 +607,23 @@ class _CasaPedidoScreenState extends State<CasaPedidoScreen>
                 style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: Spacing.md),
+            ],
+            if (casaPorPagarNaApp(p)) ...[
+              BoraPrimaryButton(
+                key: const Key('casa_pagar_agora'),
+                label: 'Pagar agora'.tr,
+                icon: Icons.lock_outline,
+                loading: _acaoEmCurso,
+                onPressed: _pagarAgora,
+              ),
+              const SizedBox(height: Spacing.xs),
+              Text(
+                'O pedido só segue para os profissionais depois de pago. Se não pagares em 30 minutos, cai sozinho e não pagas nada.'.tr,
+                textAlign: TextAlign.center,
+                style:
+                    const TextStyle(color: AppColors.textSubtle, fontSize: 12),
               ),
               const SizedBox(height: Spacing.md),
             ],

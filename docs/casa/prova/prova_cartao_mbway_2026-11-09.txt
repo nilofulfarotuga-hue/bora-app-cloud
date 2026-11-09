@@ -1,0 +1,49 @@
+OK    stubs de avisos/ofertas carregados
+OK    ANTES: cartão recusado (pagamento_cartao_indisponivel), como hoje em produção
+OK    ANTES: roupeiro 80 € em dinheiro recusado (limite 40 €)
+OK    proposta aplicada 2 vezes sem erro (idempotente)
+OK    casa_pedidos ganhou as 5 colunas do pagamento (5)
+OK    interruptor casa_pagamento_app_ativo nasce false
+OK    casa_pagamento_confirmado: anon e clientes NÃO podem chamar; só o servidor (service_role)
+OK    casa_reembolso_registado: anon e clientes NÃO podem chamar; só o servidor (service_role)
+OK    interruptor desligado: cartão continua recusado
+OK    interruptor desligado: MB Way continua recusado
+OK    casa_config.pagamento_cartao = false
+OK    dinheiro 40 € continua igual: nasce em procura
+OK    dinheiro: vai logo aos profissionais (1 chamada da rotação)
+OK    ligado: casa_config.pagamento_cartao = true
+OK    ligado: roupeiro 80 € em DINHEIRO continua recusado (o limite é só do dinheiro)
+OK    roupeiro 80 € por cartão: aguarda_pagamento, unpaid, 8000 (aguarda_pagamento, unpaid, 8000)
+OK    por pagar: NÃO vai a nenhum profissional e não avisa o painel
+OK    mesma chave de idempotência devolve o mesmo pedido
+OK    MB Way 80 €: aguarda_pagamento
+OK    cancelar por pagar: 0 € (0)
+OK    cancelado por pagar: taxa 0
+OK    valor diferente do pedido: recusado
+OK    id de pagamento inválido: recusado
+OK    pagamento retido → procura ({"ok":true,"estado":"procura"})
+OK    pedido fica held, com o pagamento e a conta Stripe gravados
+OK    só agora vai aos profissionais (1 chamada da rotação)
+OK    e o painel é avisado uma vez
+OK    repetir o mesmo pagamento: idempotente (ja_estava)
+OK    segundo pagamento diferente no mesmo pedido: recusado (a Edge devolve-o)
+OK    o mesmo pagamento não pode ficar em dois pedidos (índice único)
+OK    MB Way aprovado depois de cancelado: marcado para devolver ({"ok":true,"estado":"cancelado","reembolsar":true})
+OK    reembolso pendente, taxa 0
+OK    pago e cancelado com mais de 12 h: taxa 0
+OK    fica reembolso pendente
+OK    devolver mais do que o pedido: recusado
+OK    devolução registada
+OK    pedido fica estornado, sem pendente, 8000 devolvidos, com a referência da Stripe
+OK    o cliente é avisado da devolução
+OK    registar outra vez: idempotente
+OK    pedido de orçamento nasce em orcamentos
+OK    orçamento de 120 € aceite com cartão: aguarda_pagamento (aguarda_pagamento, 12000)
+OK    o profissional ainda NÃO é avisado (falta o pagamento)
+OK    pago → aceite ({"ok":true,"estado":"aceite"})
+OK    só agora o profissional é avisado ("aceitou e pagou")
+OK    pedido pago na app: pedir valor extra dá recusa clara (fase 2)
+OK    confirmado: held → released (released)
+OK    acerto semanal: a Bora paga 10200 cêntimos ao profissional (ganho 10200, comissão 1800)
+
+TUDO CERTO

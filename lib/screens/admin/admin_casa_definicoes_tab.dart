@@ -24,6 +24,9 @@ import 'admin_home_banners_screen.dart';
 /// Chave do selo "Novo" do atalho da Casa (data AAAA-MM-DD; vazia = sem selo).
 const String kCasaChaveNovoAte = 'casa_novo_ate';
 
+/// Cartão e MB Way na Casa (m11, 09/11/2026). Mexe em dinheiro: ligar só com o "autorizo" do Danilo.
+const String kCasaChavePagamentoApp = 'casa_pagamento_app_ativo';
+
 /// Quantos dias dura o selo "Novo" quando se liga sem data (lançamento).
 const int kCasaDiasSeloNovo = 14;
 
@@ -37,6 +40,7 @@ String casaGrupoDefinicao(String key) {
   if (key == 'casa_enabled') return 'interruptor';
   if (key == 'casa_valores_autorizados') return 'autorizacao';
   if (key == 'casa_testadores') return 'testadores';
+  if (key == kCasaChavePagamentoApp) return 'pagamento';
   if (key.startsWith('casa_bora_pct') ||
       key.startsWith('casa_promo_') ||
       key.contains('comissao')) {
@@ -171,6 +175,35 @@ class _AdminCasaDefinicoesTabState extends State<AdminCasaDefinicoesTab> {
         ligar ? 'Casa LIGADA.' : 'Casa desligada.');
   }
 
+  // ── Cartão e MB Way na app ─────────────────────────────────────────────
+
+  Future<void> _pagamentoApp(bool ligar) async {
+    final ok = ligar
+        ? await casaConfirmar(
+            context,
+            titulo: 'LIGAR cartão e MB Way na Casa?',
+            texto: 'ISTO MEXE EM PAGAMENTO/DINHEIRO. Os clientes passam a pagar na app; '
+                'o pedido só vai aos profissionais depois de pago e o cancelamento devolve '
+                'sozinho o que passar da taxa. Só com o "autorizo" do Danilo.\n\n'
+                'Para confirmar, escreva LIGAR.',
+            botao: 'Ligar cartão e MB Way',
+            perigo: true,
+            exigido: 'LIGAR',
+            rotuloTexto: 'Confirmação',
+          )
+        : await casaConfirmar(
+            context,
+            titulo: 'Desligar cartão e MB Way na Casa?',
+            texto: 'Pedidos novos voltam a ser só em dinheiro (até ao limite). '
+                'Os já pagos continuam e as devoluções continuam a funcionar.',
+            botao: 'Desligar',
+          );
+    if (ok == null) return;
+    await _correr('admin_casa_guardar_definicao',
+        {'p_key': kCasaChavePagamentoApp, 'p_value': ligar},
+        ligar ? 'Cartão e MB Way LIGADOS na Casa.' : 'Cartão e MB Way desligados.');
+  }
+
   // ── Autorização ─────────────────────────────────────────────────────────
 
   Future<void> _autorizar() async {
@@ -287,6 +320,11 @@ class _AdminCasaDefinicoesTabState extends State<AdminCasaDefinicoesTab> {
             defs.where((d) => casaGrupoDefinicao('${d['key']}') == 'proposta');
         final tempos =
             defs.where((d) => casaGrupoDefinicao('${d['key']}') == 'tempos');
+        // null = a chave ainda não existe no servidor (entra com o "autorizo").
+        bool? pagamentoApp;
+        for (final d in defs) {
+          if (d['key'] == kCasaChavePagamentoApp) pagamentoApp = d['value'] == true;
+        }
         // null = a chave ainda não existe no servidor (entra na publicação).
         String? novoAte;
         for (final d in defs) {
@@ -315,6 +353,26 @@ class _AdminCasaDefinicoesTabState extends State<AdminCasaDefinicoesTab> {
                   subtitle: const Text(
                       'Interruptor geral. Nasce desligado; ligar pede '
                       'confirmação forte.'),
+                ),
+              ),
+              const SizedBox(height: Spacing.sm),
+
+              // Cartão e MB Way (m11)
+              Card(
+                child: SwitchListTile(
+                  key: const ValueKey('casa-pagamento-app'),
+                  value: pagamentoApp ?? false,
+                  onChanged: (_busy || pagamentoApp == null) ? null : _pagamentoApp,
+                  title: Text(
+                    pagamentoApp == true
+                        ? 'Cartão e MB Way LIGADOS'
+                        : 'Cartão e MB Way desligados (só dinheiro)',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  subtitle: Text(pagamentoApp == null
+                      ? 'Ainda não existe no servidor: entra com o "autorizo" do Danilo.'
+                      : 'Mexe em dinheiro. Com isto ligado, roupeiro, cama e TV '
+                          '(acima do limite do dinheiro) pedem-se pagando na app.'),
                 ),
               ),
               const SizedBox(height: Spacing.md),

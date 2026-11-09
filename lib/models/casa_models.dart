@@ -859,3 +859,15 @@ class CasaPerfil {
         valoresAutorizados: m['valores_autorizados'] == true,
       );
 }
+
+/// Pago na app (cartão/MB Way) e ainda por pagar: a app mostra "Pagar agora" (m11, 09/11/2026).
+bool casaPorPagarNaApp(CasaPedido p) =>
+    p.estado == CasaEstado.aguardaPagamento &&
+    (p.paymentMethod == 'card' || p.paymentMethod == 'mbway');
+
+/// Cancelado ou sem profissional com o pagamento da app ainda retido: há devolução por fazer.
+/// A devolução em si (quanto e se já foi feita) decide-a sempre o servidor (casa-checkout).
+bool casaPrecisaDeDevolucao(CasaPedido p) =>
+    (p.estado == CasaEstado.cancelado || p.estado == CasaEstado.expirado) &&
+    p.paymentStatus == 'held' &&
+    (p.paymentMethod == 'card' || p.paymentMethod == 'mbway');

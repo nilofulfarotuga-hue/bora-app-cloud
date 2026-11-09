@@ -16,6 +16,24 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 09/11/2026 (m11): cartão e MB Way na Casa. Acrescentado à mão.
+  'Este valor é baixo demais para cartão ou MB Way. Paga em dinheiro.':
+      'This amount is too low for card or MB Way. Pay in cash.',
+  'O cliente pagou na app: valores extra ainda não dão neste pedido. Combina um pedido novo.':
+      'The client paid in the app: extra amounts are not available on this order yet. Arrange a new order.',
+  'Cartão — só na app do telemóvel': 'Card — only in the mobile app',
+  'O cartão só dá na app do telemóvel. Aqui, paga com MB Way.':
+      'Card only works in the mobile app. Here, pay with MB Way.',
+  'Pagamento feito. Já estamos a procurar o profissional.':
+      'Payment done. We are already looking for the professional.',
+  'Orçamento aceite e pago. O profissional já foi avisado.':
+      'Quote accepted and paid. The professional has been notified.',
+  'Orçamento aceite. Falta o pagamento: toca em "Pagar agora".':
+      'Quote accepted. Payment is missing: tap "Pay now".',
+  'O pedido só segue para os profissionais depois de pago. Se não pagares em 30 minutos, cai sozinho e não pagas nada.':
+      'The request only goes to professionals once paid. If you do not pay within 30 minutes, it is cancelled and you pay nothing.',
+  'Enviámos um pedido de {0} para o teu MB WAY. Aprova-o para confirmar o serviço.':
+      'We sent a request of {0} to your MB WAY. Approve it to confirm the service.',
   // 09/11/2026 (m11 adendo 4): o botão do som do Amigo.
   'Som': 'Sound',
   'Sem som': 'Muted',

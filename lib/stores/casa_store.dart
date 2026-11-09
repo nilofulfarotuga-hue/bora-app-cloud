@@ -547,8 +547,94 @@ class CasaStore extends ChangeNotifier {
     }).timeout(kAcaoTimeout);
     final m = _asMap(res);
     await _recarregarDepoisDeAcao(pedidoId);
+    // Pago na app (cartão/MB Way): devolve já o que passar da taxa. Segura de repetir no servidor.
+    final p = _pedidoEmMemoria(pedidoId);
+    if (p != null && casaPrecisaDeDevolucao(p)) await devolverPagamento(pedidoId);
     final v = m['cancel_fee_cents'];
     return v is num ? v.round() : int.tryParse('${v ?? 0}') ?? 0;
+  }
+
+  // ── PAGAMENTO NA APP (cartão e MB Way) — Edge isolada casa-checkout ───────
+  // Lista Vermelha (m11, 09/11/2026): o Dart nunca manda valores, só o id do pedido; o servidor lê o
+  // total de casa_pedidos e só manda o pedido aos profissionais quando o pagamento fica retido.
+
+  CasaPedido? _pedidoEmMemoria(String id) {
+    for (final p in _pedidos) {
+      if (p.id == id) return p;
+    }
+    return _aberto?.id == id ? _aberto : null;
+  }
+
+  /// Cartão: cria o pagamento (cobra na hora; guarda ou reusa o cartão).
+  Future<Map<String, dynamic>?> criarPagamentoCartao(String pedidoId,
+      {String? savedPmId}) async {
+    try {
+      final res = await _sb.functions.invoke('casa-checkout', body: {
+        'action': 'create',
+        'pedidoId': pedidoId,
+        if (savedPmId != null) 'saved_pm_id': savedPmId,
+        'stripe_contas_v2': true, // duas contas Stripe (02/11/2026)
+      });
+      final data = res.data;
+      if (data is Map && data['clientSecret'] != null) {
+        return Map<String, dynamic>.from(data);
+      }
+      debugPrint('CasaStore.criarPagamentoCartao resposta má => $data');
+      return null;
+    } catch (e) {
+      debugPrint('CasaStore.criarPagamentoCartao => $e');
+      return null;
+    }
+  }
+
+  /// MB Way: manda o pedido para a app MB WAY do telemóvel indicado.
+  Future<Map<String, dynamic>?> criarPagamentoMbway(
+      String pedidoId, String telemovel) async {
+    try {
+      final res = await _sb.functions.invoke('casa-checkout', body: {
+        'action': 'create_mbway',
+        'pedidoId': pedidoId,
+        'phone': telemovel,
+        'stripe_contas_v2': true,
+      });
+      final data = res.data;
+      if (data is Map && data['paymentIntentId'] != null) {
+        return Map<String, dynamic>.from(data);
+      }
+      debugPrint('CasaStore.criarPagamentoMbway resposta má => $data');
+      return null;
+    } catch (e) {
+      debugPrint('CasaStore.criarPagamentoMbway => $e');
+      return null;
+    }
+  }
+
+  /// Confirma o pagamento no servidor (que o relê na Stripe: dono, pedido e valor).
+  Future<bool> marcarPagamento(String pedidoId, String paymentIntentId) async {
+    try {
+      final res = await _sb.functions.invoke('casa-checkout', body: {
+        'action': 'mark_held',
+        'pedidoId': pedidoId,
+        'paymentIntentId': paymentIntentId,
+      });
+      final ok = res.data is Map && (res.data as Map)['ok'] == true;
+      if (ok) await _recarregarDepoisDeAcao(pedidoId);
+      return ok;
+    } catch (e) {
+      debugPrint('CasaStore.marcarPagamento => $e');
+      return false;
+    }
+  }
+
+  /// Pedido cancelado ou sem profissional: devolve o que passar da taxa. Nunca devolve duas vezes.
+  Future<void> devolverPagamento(String pedidoId) async {
+    try {
+      await _sb.functions.invoke('casa-checkout',
+          body: {'action': 'reverse', 'pedidoId': pedidoId});
+      await _recarregarDepoisDeAcao(pedidoId);
+    } catch (e) {
+      debugPrint('CasaStore.devolverPagamento => $e');
+    }
   }
 
   Future<CasaPedido> _acaoQueDevolvePedido(
@@ -788,6 +874,12 @@ String casaMensagemDeErro(Object erro, {int? maxCashCents}) {
   }
   if (tem('pagamento_cartao_indisponivel')) {
     return 'Cartão e MB Way chegam brevemente. Por agora, paga em dinheiro.'.tr;
+  }
+  if (tem('valor_abaixo_do_minimo')) {
+    return 'Este valor é baixo demais para cartão ou MB Way. Paga em dinheiro.'.tr;
+  }
+  if (tem('extra_indisponivel_pago_na_app')) {
+    return 'O cliente pagou na app: valores extra ainda não dão neste pedido. Combina um pedido novo.'.tr;
   }
   if (tem('antecedencia_minima')) {
     return 'Escolhe uma hora com mais antecedência.'.tr;

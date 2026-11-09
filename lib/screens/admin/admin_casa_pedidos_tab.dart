@@ -9,6 +9,7 @@ library;
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
@@ -192,9 +193,12 @@ class _CartaoPedido extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════
 
 class AdminCasaPedidoScreen extends StatefulWidget {
-  const AdminCasaPedidoScreen({super.key, required this.id, this.rpc});
+  const AdminCasaPedidoScreen({super.key, required this.id, this.rpc, this.devolver});
   final String id;
   final ChamarRpcPainel? rpc;
+
+  /// Devolução de um pedido pago na app (Edge casa-checkout, ação reverse). Injetável nos testes.
+  final Future<dynamic> Function(String pedidoId)? devolver;
 
   @override
   State<AdminCasaPedidoScreen> createState() => _AdminCasaPedidoScreenState();
@@ -227,6 +231,43 @@ class _AdminCasaPedidoScreenState extends State<AdminCasaPedidoScreen> {
   }
 
   // ── Ações ───────────────────────────────────────────────────────────────
+
+  /// Pago na app (cartão/MB Way) com devolução pendente: devolve pela Stripe o que passar da taxa.
+  /// O servidor decide o valor e nunca devolve duas vezes (m11, 09/11/2026).
+  Future<void> _devolver(Map<String, dynamic> p) async {
+    final ok = await casaConfirmar(
+      context,
+      titulo: 'Devolver ao cliente?',
+      texto: 'ISTO MEXE EM DINHEIRO. Devolve ao ${p['payment_method'] == 'mbway' ? 'MB Way' : 'cartão'} '
+          'do cliente o que passar da taxa de cancelamento (${casaEuroAdmin(p['cancel_fee_cents'] ?? 0)}). '
+          'Se já foi devolvido, não devolve outra vez.',
+      botao: 'Devolver',
+      perigo: true,
+    );
+    if (ok == null || _busy) return;
+    setState(() => _busy = true);
+    try {
+      final res = await (widget.devolver ??
+          (id) async => (await Supabase.instance.client.functions.invoke('casa-checkout',
+                  body: {'action': 'reverse', 'pedidoId': id}))
+              .data)(widget.id);
+      final m = res is Map ? res : const {};
+      if (mounted) {
+        casaMsg(
+            context,
+            m['ok'] == true
+                ? (m['note'] == 'reversed'
+                    ? 'Devolvido: ${casaEuroAdmin(m['backCents'])}.'
+                    : 'Nada a devolver (${m['note']}).')
+                : 'Não deu: ${m['error'] ?? res}');
+      }
+    } catch (e) {
+      if (mounted) casaMsg(context, casaErroPtBr(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+    if (mounted) await _refresh();
+  }
 
   Future<void> _reatribuir(Map<String, dynamic> p) async {
     final oficio = p['oficio']?.toString();
@@ -461,6 +502,15 @@ class _AdminCasaPedidoScreenState extends State<AdminCasaPedidoScreen> {
                     FilledButton.styleFrom(backgroundColor: AppColors.warning),
                 onPressed: _busy ? null : _resolverDisputa,
                 child: const Text('Resolver disputa'),
+              ),
+            if (p['reembolso_pendente'] == true &&
+                (p['payment_method'] == 'card' || p['payment_method'] == 'mbway'))
+              FilledButton.icon(
+                key: const ValueKey('casa-pedido-devolver'),
+                style: FilledButton.styleFrom(backgroundColor: AppColors.warning),
+                onPressed: _busy ? null : () => _devolver(p),
+                icon: const Icon(Icons.undo, size: 18),
+                label: const Text('Devolver ao cliente'),
               ),
             OutlinedButton(
               key: const ValueKey('casa-pedido-teste'),

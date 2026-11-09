@@ -40,7 +40,7 @@ void main() {
   });
 
   test('responder à caixa do NIF só para quem leva o pedido (não a oferta)', () {
-    final sql = _ler('supabase/migrations/20261109010000_m10_nif_na_caixa.sql');
+    final sql = _ler('supabase/migrations/20261109005413_m10_nif_na_caixa.sql');
     final ini = sql.indexOf('FUNCTION public.estafeta_confirmar_nif_caixa');
     final trava = sql.indexOf("RETURN jsonb_build_object('ok', false, 'error', 'nao_e_o_teu_pedido')", ini);
     final info = sql.indexOf('v_info := public.driver_order_invoice_nif(p_order_id);', ini);

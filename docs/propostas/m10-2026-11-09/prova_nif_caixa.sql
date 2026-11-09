@@ -1,5 +1,5 @@
 -- ============================================================================
--- PROVA EM ROLLBACK — supabase/migrations/20261109010000_m10_nif_na_caixa.sql
+-- PROVA EM ROLLBACK — supabase/migrations/20261109005413_m10_nif_na_caixa.sql
 -- M10 b2-nif (09/11/2026). Corre a migração INTEIRA e as provas dentro de UM só bloco DO; o
 -- RAISE EXCEPTION 'PROVA_OK ...' do fim desfaz tudo (funções, tabela, setting, respostas, avisos,
 -- auditoria) e a mensagem do erro é a prova. Nada fica escrito na base.
@@ -20,7 +20,7 @@ DECLARE
   t_fsc text; t_fsc_drv text;
   t_adm uuid;
 BEGIN
-  -- >>> MIGRAÇÃO (cópia literal de 20261109010000_m10_nif_na_caixa.sql) >>>
+  -- >>> MIGRAÇÃO (cópia literal de 20261109005413_m10_nif_na_caixa.sql) >>>
 -- ============================================================================
 -- M10 b2-nif (09/11/2026) — NIF na caixa, uma regra só.
 -- Missão m10-noite-toda-sem-travas-2026-11-08, item 2.1. Junta as duas propostas:

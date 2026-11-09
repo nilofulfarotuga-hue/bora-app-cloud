@@ -7,7 +7,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-const _mig = 'supabase/migrations/20261109010000_m10_nif_na_caixa.sql';
+const _mig = 'supabase/migrations/20261109005413_m10_nif_na_caixa.sql';
 const _prova = 'docs/propostas/m10-2026-11-09/prova_nif_caixa.sql';
 
 String _corpo(String sql, String funcao) {

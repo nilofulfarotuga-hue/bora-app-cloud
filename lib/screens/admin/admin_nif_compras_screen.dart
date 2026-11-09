@@ -9,7 +9,7 @@
 // exporta CSV; e muda o NIF da Bora (setting `nif_compras_nao_parceiro`).
 //
 // Servidor: RPC admin_nif_caixa_listar e admin_nif_bora_definir (migração
-// 20261109010000_m10_nif_na_caixa.sql). Sem ela: aviso "ainda não publicada".
+// 20261109005413_m10_nif_na_caixa.sql). Sem ela: aviso "ainda não publicada".
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 

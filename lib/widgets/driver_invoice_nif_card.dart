@@ -7,7 +7,7 @@
 // loja o estafeta dá SEMPRE um NIF: o que o cliente pediu na fatura; sem
 // pedido de fatura, o da Bora (setting `nif_compras_nao_parceiro`). Nunca
 // "consumidor final". O NIF e se aparece vêm do servidor (RPC
-// `driver_order_invoice_nif`, migração 20261109010000_m10_nif_na_caixa.sql) —
+// `driver_order_invoice_nif`, migração 20261109005413_m10_nif_na_caixa.sql) —
 // a app não decide nada.
 //
 // Na loja parceira (a loja trata da fatura), num erro, sem rede ou com a função

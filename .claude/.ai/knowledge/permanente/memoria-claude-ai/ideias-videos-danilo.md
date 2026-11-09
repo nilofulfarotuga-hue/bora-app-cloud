@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-08
+ultima_confirmacao: 2026-11-09
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-08T20:55:10.941007+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-09T00:18:44.986792+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -565,3 +565,32 @@ Formatos de reels novos (ganchos "troquei X por Y", AIDA, reels de teste, post d
 - JÁ TEMOS: Dipsy/DeepSeek Harness (7 vídeos), CLAUDE.md/skills/permissões, Córtex (Beacon = memória partilhada), atendente WhatsApp (Mister Navalha), vídeos longos no Flow guardando o último frame.
 - RECUSADO: Super Agent DeepSeek, Seedance/BytePlus, Vidu/Gencraft e geradores grátis genéricos, plataformas de freelancer.
 - Radar aprende 08/11: +1 termo da conversa (assistente de IA com memória de cada cliente, Amigo Bora); -1 sem rendimento (divulgar limpeza doméstica, 0 vídeos bons em 14 dias); 70 ativos.
+
+## 09/11/2026 — REGRA NOVA M10 para o radar (ordem do Danilo 08/11 23:21: "pega todos os vídeos, analisa as coisas boas e FAZ")
+- PENDENTE VIRA TAREFA: todo o vídeo com veredito pendente e nota >= 8 entra numa TAREFA por tema (não por vídeo): cortex_propor com id radar-tarefa-<tema> e a linha "MISSÃO: <nome curto>" no topo. Antes de criar, procurar se a tarefa do tema já existe (não duplicar; acrescentar o vídeo novo à lista). A tarefa só sai da lista com PROVA de feito (e2e_log, ficheiro, SELECT) ou rejeitada com a razão escrita.
+- A mensagem diária ao Danilo leva SEMPRE: (1) a MODA — tema com 3 ou mais vídeos nota >= 8 nos últimos 7 dias, com desde quando; (2) "Tarefas abertas: N, a mais antiga desde DD/MM" e as 3 mais antigas pelo nome.
+- JÁ TEMOS só com prova: antes de escrever "já temos", ver docs/radar/INVENTARIO.md (ramo ai/2026-11-08-m10-radar, depois no ramo principal). O que não estiver lá com prova é "registado", nunca "já temos".
+- Fonte primária sempre: repo real (licença, estrelas, atualizado há menos de 90 dias); "grátis" só se for grátis de verdade; hardware medido; nada de proxy/router dentro do Claude Code; nada que use conta Claude/ChatGPT/Gemini por fora; dados de clientes nunca em motores grátis.
+- VARREDURA MUNDIAL: desde 09/11 o radar-ia.sh da VPS (domingo 09:00) junta ao material a varredura do GitHub por país (Brasil, Portugal, Espanha, França, Alemanha, Índia, China, Japão, Coreia, Rússia, Turquia, Indonésia, Nigéria, Polónia) e acaba com uma linha "Mundo:"; o resumo fica em /opt/data/radar/mundo-<semana>/resumo.md. E o radar-ia passou a pedir o texto ao Motor Bora (estava parado desde a semana 40: os 5 modelos do hermes -z falhavam no mesmo segundo).
+- Feito na M10 (08-09/11, prova no e2e_log fluxo m10-noite-toda-sem-travas-2026-11-08, passos 2B.x e 2.15-2.18): Córtex 20 pendentes tratadas; Dipsy com 64 000 tokens também na reserva grátis; painel do Hermes fora da internet; corte automático de reels provado com fala; auditoria da nossa app web (sem segredos no código; 1 achado de configuração registado só no e2e_log); radar-ia semanal reparado. Relatório: docs/radar/o-que-os-videos-ensinaram-2026-11-08.md.
+
+## 05/10/2026 — radar diário (secção que faltava; copiada da página radar-2026-10-05 na M10 a 09/11, proposta prop-675f8b39)
+Radar diário 05/10/2026 (agente na nuvem). 60 vídeos lidos (50 do filme, 10 de negócio/IA); 42 com nota >= 6; 17 novos úteis, 8 já temos, 35 rejeitados.
+AVISO: nesta corrida os UPDATE à radar_videos e à claude_ai_memoria ficaram presos (o conector do Supabase pede confirmação humana para UPDATE e a corrida é sem ninguém). Por isso os vereditos NÃO ficaram gravados na radar_videos e as páginas ideias-videos-danilo e caminhos-animacao-filme não foram atualizadas: esta página nova guarda tudo. Quem tiver permissão: copiar a secção "Filme" para caminhos-animacao-filme e a secção "Ideias" para ideias-videos-danilo.
+
+## Filme "A Semente da Luz" — 5 caminhos grátis, por ordem (revê a versão das 07:55: o Kaggle sai do top 5)
+1. PERSONAGEM FIXO — Google Flow (já incluído no Google AI Plus): fazer a folha de referência de cada personagem (Nano Banana) e guardá-la como personagem; usar essa folha como frame inicial de cada cena. Ataca cabelo e roupa a mudar. Custo: grátis nos vídeos, limite de créditos por dia. https://www.youtube.com/watch?v=cKcZdTZCqyk , https://www.youtube.com/watch?v=s9sqD_TegXc (ignorar a dica de alternar contas Google).
+2. BÍBLIA DE CONTINUIDADE — um Gem no Gemini como "diretor criativo" com a ficha fixa de cada personagem (cabelo, roupa, voz) que escreve todos os prompts; roteiro e prompt de cada cena prontos antes de gerar, montagem no CapCut. Ataca os 31 erros de continuidade. Custo: zero (Gemini e ChatGPT já pagos). https://www.youtube.com/watch?v=4TNA72FO7Lw , https://www.youtube.com/watch?v=f-o0T6471Gk
+3. VOZES — Google AI Studio "Native Speech Generation": diálogo com várias vozes e emoção, uma voz fixa por personagem; gerar o áudio da cena inteira antes do vídeo. Ataca voz trocada e falas cortadas. Custo: grátis. O vídeo não mostra voz de criança em concreto; tem de se testar. https://www.youtube.com/watch?v=FARRYZzvuno
+4. BOCA SINCRONIZADA — Flow: imagem + fala no prompt dá vídeo com lábios sincronizados. Quando acabarem os créditos: Hedra com o áudio do caminho 3, ou Pipt.ai (plano grátis, clipes curtos). https://www.youtube.com/watch?v=zBv_DHEUptc , https://www.youtube.com/watch?v=BFeou4v8ejA , https://www.youtube.com/watch?v=EFUwAsHVqvg
+5. MOVIMENTO E DURAÇÃO (acabar com as imagens paradas com zoom) — animar em volume no Meta Vibes (grátis; entra com a conta do Instagram, o que pode destravar o botão de conta onde parou; tem trilha sonora e estender vídeo) com a extensão do Chrome que faz cena a cena; e encadear clipes usando o último frame de um como início do seguinte (timeline prompting) para chegar a episódios longos. https://www.youtube.com/watch?v=Ea32jNGhsmM , https://www.youtube.com/watch?v=QSGQtDSRaPg , https://www.youtube.com/watch?v=ohVkowjrDpo
+Música: ferramentas grátis de música + trilha do Vibes, atenção ao uso comercial: https://www.youtube.com/watch?v=sT0u_QgaNI4
+Reserva, não caminho principal: Kaggle 2 GPUs com LTX-2.3/MiniMax H3 (fluxos ComfyUI; o próprio vídeo do LTX-2 diz que é inconsistente). Rejeitados: Skywork, Magic Hour, InsMind, Newport, Nan (créditos/custo não claro), Veo grátis via teste Google Cloud (pede cartão), Kimodo (jogos/GPU).
+
+## Ideias (negócio/sistema)
+- SISTEMA: quando o Jev estiver pago, usá-lo para classificar e etiquetar páginas novas do Córtex sozinho, perguntando ao Danilo só quando a confiança for baixa. https://www.youtube.com/watch?v=sOJQSPjJYaM
+- Nada mais novo: Agent Skills, Jev roteador, segundo cérebro (= Córtex), animações minimalistas com Claude já estavam registados a 04/10; Pulso Social e OpenAI Dots continuam recusados.
+
+## Radar aprendeu
+Termos novos: "Google Flow personagem fixo desenho animado longo" (animacao_ia) e "Jev TypeSafe AI casos de uso" (ferramentas_ia). Limite de 70 ativos atingido (70).
+

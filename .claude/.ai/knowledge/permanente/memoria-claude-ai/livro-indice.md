@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-09T00:07:04.369167+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-09T00:37:02.5968+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-08 23:43 UTC. Páginas listadas: 573.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-09 00:18 UTC. Páginas listadas: 574.
 
 ## O que é o Bora
 
@@ -272,7 +272,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - digest-2026-09-13-janela-4-ux-portao — Janela 4 13/09 — ordem UX OpenCode chegou ao Claude Code e parou no portão (2026-09-13)
 - digest-2026-09-13-janela-3 — Janela 3 13/09 — portas (correu em Fable, não Opus) (2026-09-13)
 
-## livro-areas (140)
+## livro-areas (141)
 
 - livro-areas-alertas-notificacoes — Alertas do Bora para o Danilo (Telegram + push admin persistente) — o que já dispara, por que caminho, e o que falta (2026-10-23)
 - livro-areas-analise-apps-emulador — Ideia do Danilo (08/10/2026) de usar emulador Android + agente de IA para testar bugs do Bora e comparar com iFood/Uber/Glovo; adiada para… (2026-10-26)
@@ -358,7 +358,8 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-mercadona-reabrir-loja — Plano do Danilo de reabrir a loja Mercadona no Bora só com perfumaria/cosmética/higiene — o que ele mandou guardar e onde estão os preços l… (2026-11-01)
 - livro-areas-metodo-sites — Método obrigatório para construir QUALQUER site (referência → design system → prompt → build → prémio) + agente classificador por nicho, pú… (2026-10-23)
 - livro-areas-mini-site-business — Parallel mini-site web-dev business for local clients using a cinematic HTML/Cloudflare Pages workflow (2026-10-23)
-- livro-areas-missao-domingo-noite — Missão grande de domingo à noite (08/11/2026) para terminar o que falta no Bora — lista de pendências que o Danilo vai ditando; ler antes d… (2026-11-08)
+- livro-areas-missao-domingo-noite — Missão grande de domingo à noite (08/11/2026) para terminar o que falta no Bora — lista de pendências que o Danilo vai ditando; ler antes d… (2026-11-09)
+- livro-areas-missao-domingo-noite-parte2 — Missão grande de domingo à noite (08/11/2026) para terminar o que falta no Bora — lista de pendências que o Danilo vai ditando; ler antes d… (2026-11-09)
 - livro-areas-missao-fable-13-09 — Auditoria de 13/09 depois de 3-4 dias sem Claude (limite esgotado) — o que se achou (Apple aprovou, 2 pedidos com problema, 6 migrações do… (2026-10-23)
 - livro-areas-missao-voar — Missão grande pós-PC-novo (prompt-missao-voar.md, 30/08) — fases, decisões do Danilo e estado; ler antes de retomar qualquer fase (2026-10-23)
 - livro-areas-mister-kebab — Mr Kebab & Restaurant (Guarda) — novo parceiro de Restaurantes fechado por Danilo; montar loja no app (catálogo via Glovo/Uber) + mini-site… (2026-10-23)
@@ -527,7 +528,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - fecho-outubro-2026 — Fecho de outubro/2026 (em nome individual) — por prestador, o que cada um faz, email corrigido (2026-11-01)
 - habilidades-propostas — Habilidades propostas pelo vigia (dinheiro/publicacao) — a Claude.ai decide (2026-09-17)
 - ideias-pendentes-decisao-danilo — Ideias grandes à espera da decisão do Danilo (29/10/2026) (2026-10-29)
-- ideias-videos-danilo — Ideias tiradas dos vídeos que o Danilo manda (2026-11-08)
+- ideias-videos-danilo — Ideias tiradas dos vídeos que o Danilo manda (2026-11-09)
 - jai-entrevista-kalinga-mensagem — Mensagem ao Jai — entrevista do Professor Kalinga já no site (30/10/2026) (2026-10-30)
 - jai-sportsdunia-mensagem — Confirmação para o Jai — artigo da SportsDunia no site (31/10/2026) (2026-10-31)
 - legal-gestao-algoritmica-prestadores — Como o Bora decide — informação sobre sistemas automáticos (Diretiva 2024/2831, art. 9.º-11.º) — texto para a app, v2026-11-01 (2026-11-01)

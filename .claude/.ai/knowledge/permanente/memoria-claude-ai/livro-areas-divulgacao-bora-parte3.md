@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-divulgacao-bora-parte3
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-30
+ultima_confirmacao: 2026-11-09
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Divulgação do Bora App ao público — site oficial (bora-site, agora um só, a crescer para várias páginas), vídeos de apresentação e código promocional BEMVINDO (parte 3 de 4)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-divulgacao-bora-parte3`, origem `claude-ai`, atualizada em 2026-10-30T22:17:09.839667+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-divulgacao-bora-parte3`, origem `claude-ai`, atualizada em 2026-11-09T17:15:54.317444+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas divulgacao bora parte3 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/divulgacao-bora.md), copiada a 2026-10-30 22:12 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/divulgacao-bora.md), copiada a 2026-11-09 17:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 (continuação, parte 3 de 4)
 

@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-divulgacao-bora-parte4
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-30
+ultima_confirmacao: 2026-11-09
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Divulgação do Bora App ao público — site oficial (bora-site, agora um só, a crescer para várias páginas), vídeos de apresentação e código promocional BEMVINDO (parte 4 de 4)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-divulgacao-bora-parte4`, origem `claude-ai`, atualizada em 2026-10-30T22:17:42.269456+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-divulgacao-bora-parte4`, origem `claude-ai`, atualizada em 2026-11-09T17:15:54.317444+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas divulgacao bora parte4 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/divulgacao-bora.md), copiada a 2026-10-30 22:12 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/divulgacao-bora.md), copiada a 2026-11-09 17:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 (continuação, parte 4 de 4)
 
@@ -30,4 +30,4 @@ estado: atual
 - 27/10/2026 22:13 PROMPT REGISTADO: ordem `ordem-20261027221351-220b` (loop do Córtex, MOTOR OPUS, zona verde), fluxo e2e_log 'redes-coming-soon-2026-10-27' — o robô das redes passa a saltar lojas coming_soon em todos os escolhedores + exclusão fixa por id (Ouro e Prata, Mr Kebab, Boom! Burger até abrir); refaz a ordem de 05/10 que travou. Estado: aberta
 - [stated] 27/10/2026 22:18: aprovou publicar o reel do Tesla voador (r5, enviada no Telegram 10851/10852 às 07:49) e quer também nos grupos de WhatsApp, sempre pelo WhatsApp da Bora. PROMPT REGISTADO: continuação colada por mim às ~22:22 na sessão "Tesla Roadster Bora reel production" (session_016wANLzhodav6jXBARFT1u4, PC, Opus 5.5), fluxo e2e_log 'reel-tesla-bora-2026-10-26' passos b18+: reel 15 s + story 8 s no Instagram e no Facebook pela API (só orgânico), estado e grupos do WhatsApp da Bora. Estado: a correr
 - [stated] 30/10 21:38: anúncio Meta de 26-31/10 (25 €) trouxe visitas e contas, 0 pedidos; ele põe mais 25 € e quer 2 anúncios novos (instalar app com BEMVINDO; carrossel do que o cliente ganha no check-in), foco forte no IPG, "bem profissional e convincente", e os dados da empresa postos na Meta. PROMPT: página `prompt-meta-anuncios-2026-10-30`, sessão "Meta ads 2026-10-30" (session_01HPEpV9MUQ1XHGwsDJXBvQH, Opus). Estado: a correr
-
+- [stated] 09/11/2026 REGRA DOS GRUPOS DE FACEBOOK: o Bora publica SÓ em grupos da Guarda (cidade e distrito) — comunidades (brasileiros, angolanos/africanos, indianos), trabalho/emprego, comerciantes; grupos de Gouveia, Belmonte e outros concelhos são só para o Em Dia, nunca para o Bora. Quer que a publicação em grupos seja automática

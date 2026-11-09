@@ -35,11 +35,11 @@ void main() {
     final h = _ler('lib/screens/client_home_screen.dart');
     expect(h, contains('if (context.watch<CasaStore>().enabled)'));
     expect(h, contains('AppColors.tileCasa'));
-    expect(h, contains("'Casa': 'tile_casa'"));
+    expect(h, contains("'Casa e\\nManutenção': 'tile_casa'"));
     expect(h, contains('const CasaCategoriaScreen()'));
     // Logo a seguir à Limpeza, antes da Lavagem Auto.
-    expect(h.indexOf("label: 'Limpeza'"), lessThan(h.indexOf("label: 'Casa'")));
-    expect(h.indexOf("label: 'Casa'"),
+    expect(h.indexOf("label: 'Limpeza'"), lessThan(h.indexOf("label: 'Casa e\\nManutenção'")));
+    expect(h.indexOf("label: 'Casa e\\nManutenção'"),
         lessThan(h.indexOf("label: 'Lavagem Auto'.tr")));
   });
 

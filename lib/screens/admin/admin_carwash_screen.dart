@@ -10,7 +10,7 @@ import '../../config/app_spacing.dart';
 import '../../services/carwash_upload_service.dart';
 import '../../utils/hora_lisboa_ext.dart';
 import '../../services/admin_export_service.dart';
-import '../../widgets/admin/confirmar_dinheiro.dart';
+import '../../widgets/admin/meio_pagamento_acerto.dart';
 import '../../widgets/admin/papeis_da_pessoa.dart';
 import '../../widgets/bora/bora_bottom_action_bar.dart';
 import '../../widgets/bora_foto_ecra_inteiro.dart';
@@ -1103,7 +1103,9 @@ class _AbaAcertosState extends State<_AbaAcertos> {
 
   Future<void> _marcarPago(Map<String, dynamic> s) async {
     final cents = ((s['net_payout_cents'] as num?) ?? 0).toInt();
-    final ok = await confirmarDinheiro(
+    // 09/11: o meio escolhido vai na referência (é o que o comprovativo diz);
+    // antes ia sempre 'mbway' sem perguntar.
+    final escolha = await confirmarDinheiroComMeio(
       context,
       titulo: cents < 0 ? 'Marcar como recebido' : 'Marcar como pago',
       nome: '${s['washer_name'] ?? '—'}',
@@ -1112,12 +1114,12 @@ class _AbaAcertosState extends State<_AbaAcertos> {
           ? 'O lavador deve este valor à Bora. Confirma que já o recebeu?'
           : 'Confirma que a Bora já pagou este valor ao lavador?',
     );
-    if (!ok || !mounted) return;
+    if (escolha == null || !mounted) return;
     try {
       await _sb.rpc('admin_mark_carwash_settlement_paid', params: {
         'p_id': s['id'].toString(),
-        'p_method': 'mbway',
-        'p_reference': ''
+        'p_method': escolha.codigo,
+        'p_reference': escolha.referencia() ?? ''
       });
       if (mounted) _msg(context, 'Marcado como pago.');
       _load();

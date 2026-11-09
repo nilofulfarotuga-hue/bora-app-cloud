@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../utils/hora_lisboa_ext.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../widgets/admin/meio_pagamento_acerto.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 
 /// FASE 5 — Admin Settlements Screen
@@ -115,13 +116,17 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
       );
       if (ok2 != true || !mounted) return;
     } else if (newStatus == 'paid' || newStatus == 'received') {
+      // 09/11: o meio escolhido vai na referência — é o que o comprovativo do
+      // parceiro diz (o da Boom saiu "MB Way" quando foi transferência).
       final ctrl = TextEditingController();
+      var escolha = const EscolhaMeioPagamento(MeioPagamentoAcerto.naoInformar);
       final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
           title: Text(newStatus == 'paid'
               ? 'Marcar PAGO ao parceiro'
               : 'Marcar RECEBIDO do parceiro'),
+          scrollable: true,
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,10 +138,12 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
                   style: const TextStyle(
                       fontWeight: FontWeight.w800, fontSize: 22)),
               const SizedBox(height: 12),
+              SeletorMeioPagamento(onChanged: (e) => escolha = e),
+              const SizedBox(height: 8),
               TextField(
                 controller: ctrl,
                 decoration: const InputDecoration(
-                  labelText: 'Referência da transferência (opcional)',
+                  labelText: 'Observação (opcional)',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -153,7 +160,7 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
         ),
       );
       if (ok != true || !mounted) return;
-      payRef = ctrl.text.trim().isEmpty ? null : ctrl.text.trim();
+      payRef = escolha.referencia(observacao: ctrl.text);
     } else if (newStatus == 'disputed') {
       final ctrl = TextEditingController();
       final ok = await showDialog<bool>(
@@ -212,13 +219,15 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
     String? payRef;
     String? notes;
     if (newStatus == 'paid' || newStatus == 'received') {
+      // 09/11: o título falava sempre em MBWay, fosse qual fosse o meio. Agora o meio
+      // escolhido vai na referência — é o que o comprovativo do estafeta diz.
       final ctrl = TextEditingController();
+      var escolha = const EscolhaMeioPagamento(MeioPagamentoAcerto.naoInformar);
       final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text(newStatus == 'paid'
-              ? 'Marcar PAGO via MBWay'
-              : 'Marcar RECEBIDO via MBWay'),
+          title: Text(newStatus == 'paid' ? 'Marcar PAGO' : 'Marcar RECEBIDO'),
+          scrollable: true,
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,11 +239,12 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
                   style: const TextStyle(
                       fontWeight: FontWeight.w800, fontSize: 22)),
               const SizedBox(height: 12),
+              SeletorMeioPagamento(onChanged: (e) => escolha = e),
+              const SizedBox(height: 8),
               TextField(
                 controller: ctrl,
                 decoration: const InputDecoration(
-                  labelText: 'Referência MBWay (opcional)',
-                  hintText: 'ex: 123456',
+                  labelText: 'Observação (opcional)',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -251,7 +261,7 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
         ),
       );
       if (ok != true) return;
-      payRef = ctrl.text.trim().isEmpty ? null : ctrl.text.trim();
+      payRef = escolha.referencia(observacao: ctrl.text);
     } else if (newStatus == 'disputed') {
       final ctrl = TextEditingController();
       final ok = await showDialog<bool>(

@@ -15,6 +15,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
+import '../../widgets/admin/meio_pagamento_acerto.dart';
 import 'admin_receipts_screen.dart';
 import 'admin_vigia_dinheiro_screen.dart';
 
@@ -135,30 +136,33 @@ class _AdminExtratoDonoScreenState extends State<AdminExtratoDonoScreen> {
     }
     if (accao == null) return;
     final rpc = accao['rpc'] as String? ?? '';
-    final metodoCtrl = TextEditingController(text: 'mbway');
+    // 09/11: o meio escolhido vai na referência do acerto — é o que o
+    // comprovativo da pessoa diz (antes dizia sempre "MB Way"). Perdoar dívida
+    // não é um pagamento: aí não se pergunta o meio.
+    final ehAcerto = !rpc.startsWith('admin_forgive_wallet_debt');
+    var escolha = const EscolhaMeioPagamento(MeioPagamentoAcerto.naoInformar);
     final refCtrl = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(boraPaga ? 'Marcar como pago' : 'Marcar como recebido'),
+        scrollable: true,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('${l['quem'] ?? '—'} · ${eur(l['cents'])}\n${l['motivo'] ?? ''}'),
             const SizedBox(height: 12),
-            if (rpc.startsWith('admin_marcar_acerto_pago'))
-              TextField(
-                controller: metodoCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Método (mbway / cash / transferencia)',
-                    border: OutlineInputBorder()),
-              ),
+            if (ehAcerto)
+              SeletorMeioPagamento(onChanged: (e) => escolha = e),
             const SizedBox(height: 8),
             TextField(
               controller: refCtrl,
-              decoration: const InputDecoration(
-                  labelText: 'Referência (opcional)', border: OutlineInputBorder()),
+              decoration: InputDecoration(
+                  labelText: ehAcerto
+                      ? 'Observação (opcional)'
+                      : 'Referência (opcional)',
+                  border: const OutlineInputBorder()),
             ),
           ],
         ),
@@ -176,18 +180,19 @@ class _AdminExtratoDonoScreenState extends State<AdminExtratoDonoScreen> {
     setState(() => _busy = true);
     try {
       final sb = Supabase.instance.client;
+      final referencia = escolha.referencia(observacao: refCtrl.text);
       if (rpc.startsWith('admin_marcar_acerto_pago')) {
         await sb.rpc('admin_marcar_acerto_pago', params: {
           'p_user_id': accao['p_user_id'],
           'p_semana': accao['p_semana'],
-          'p_metodo': metodoCtrl.text.trim().isEmpty ? null : metodoCtrl.text.trim(),
-          'p_referencia': refCtrl.text.trim().isEmpty ? null : refCtrl.text.trim(),
+          'p_metodo': escolha.codigo,
+          'p_referencia': referencia,
         });
       } else if (rpc.startsWith('admin_set_partner_settlement_status')) {
         await sb.rpc('admin_set_partner_settlement_status', params: {
           'p_settlement_id': accao['p_settlement_id'],
           'p_new_status': accao['p_new_status'],
-          'p_payment_reference': refCtrl.text.trim().isEmpty ? null : refCtrl.text.trim(),
+          'p_payment_reference': referencia,
           'p_notes': 'Marcado na folha do dono (contas claras)',
         });
       } else if (rpc.startsWith('admin_set_settlement_state')) {
@@ -196,8 +201,7 @@ class _AdminExtratoDonoScreenState extends State<AdminExtratoDonoScreen> {
           'p_subject_type': accao['p_subject_type'],
           'p_subject_id': accao['p_subject_id'],
           'p_week_start': accao['p_week_start'],
-          'p_payment_reference':
-              refCtrl.text.trim().isEmpty ? null : refCtrl.text.trim(),
+          'p_payment_reference': referencia,
         });
       } else if (rpc.startsWith('admin_forgive_wallet_debt')) {
         await sb.rpc('admin_forgive_wallet_debt', params: {

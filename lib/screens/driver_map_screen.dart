@@ -1849,6 +1849,13 @@ class _BottomPanelState extends State<_BottomPanel> {
                   ),
                 ],
 
+                // M10 09/11/2026 (pendências A): compra em loja NÃO-parceira —
+                // o mesmo NIF à vista até fechar o talão (sem caixa aqui).
+                NifCompraCartaoPrincipal(
+                  key: ValueKey('nif_compra_${focusOrder.id}'),
+                  order: focusOrder,
+                ),
+
                 const SizedBox(height: 16),
                 const Divider(height: 1),
                 const SizedBox(height: 14),
@@ -2430,6 +2437,42 @@ class _StopRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ─── NIF da fatura no cartão principal (compras NÃO-parceiras) ────────────────
+
+/// M10 09/11/2026 (pendências, bloco A): compra em loja NÃO-parceira
+/// (restaurante ou mercado — McDonald's, Burger King, KFC, Continente…) — o
+/// NIF para a fatura à vista no cartão principal do mapa, como no Favor, para
+/// não passar na caixa. Desde que o estafeta aceita até fechar o talão (o
+/// "Recolher pedido" só aparece depois do talão). Só o NIF: a caixa "Dei este
+/// NIF na caixa" continua na folha do talão. Se aparece decide-o o servidor
+/// (`driver_order_invoice_nif`). Público só para o teste de widget.
+@visibleForTesting
+class NifCompraCartaoPrincipal extends StatelessWidget {
+  const NifCompraCartaoPrincipal({super.key, required this.order, this.rpc});
+
+  final OrderModel order;
+
+  /// Só para testes: em vez do Supabase.
+  final NifRpc? rpc;
+
+  /// Loja não-parceira, compras ou restaurante, já aceite e ainda sem talão.
+  static bool aplica(OrderModel o) =>
+      !o.isPartnerStore &&
+      (o.serviceType == OrderServiceType.storeShopping ||
+          o.serviceType == OrderServiceType.restaurant) &&
+      o.status == OrderStatus.driverAccepted &&
+      !o.isPurchaseFinalized;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!aplica(order)) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: DriverInvoiceNifCard(orderId: order.id, rpc: rpc),
     );
   }
 }

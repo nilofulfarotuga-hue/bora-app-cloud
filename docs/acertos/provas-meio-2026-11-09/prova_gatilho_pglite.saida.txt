@@ -1,0 +1,21 @@
+--- FUNÇÃO ANTIGA (20260907000353) — a fila não tem onde guardar o meio
+  {"subject_type":"cleaner","kind":"paid","subject_name":"Limpeza","amount_cents":2000,"payment_reference_na_fila":null}
+  {"subject_type":"driver","kind":"paid","subject_name":"Estafeta","amount_cents":3213,"payment_reference_na_fila":null}
+  {"subject_type":"partner","kind":"paid","subject_name":"Boom! Burger","amount_cents":1360,"payment_reference_na_fila":null}
+  {"subject_type":"provider","kind":"paid","subject_name":"Barbearia","amount_cents":900,"payment_reference_na_fila":null}
+  {"subject_type":"washer","kind":"received","subject_name":"Lavador","amount_cents":-500,"payment_reference_na_fila":null}
+  pedidos enfileirados à Edge (net.http_post): 5
+  erros registados pelo gatilho: 0
+  coluna settlement_receipts.payment_reference existe? false
+migração nova aplicada 2x sem erro (idempotente)
+--- FUNÇÃO NOVA (20261109213000)
+  {"subject_type":"cleaner","kind":"paid","subject_name":"Limpeza","amount_cents":2000,"payment_reference_na_fila":null}
+  {"subject_type":"driver","kind":"paid","subject_name":"Estafeta","amount_cents":3213,"payment_reference_na_fila":"MB Way 910000001"}
+  {"subject_type":"partner","kind":"paid","subject_name":"Boom! Burger","amount_cents":1360,"payment_reference_na_fila":"Transferência bancária 09/11/2026"}
+  {"subject_type":"provider","kind":"paid","subject_name":"Barbearia","amount_cents":900,"payment_reference_na_fila":"Stripe"}
+  {"subject_type":"washer","kind":"received","subject_name":"Lavador","amount_cents":-500,"payment_reference_na_fila":null}
+  pedidos enfileirados à Edge (net.http_post): 5
+  erros registados pelo gatilho: 0
+Boom depois de mudar só a referência e de voltar a pagar: {"n":1,"ref":"Transferência bancária 09/11/2026"} (tem de ser 1 linha, a referência original)
+VEREDICTO função antiga sem meio (tem de ser true): true
+VEREDICTO função nova copia o meio certo nos 5 papéis (tem de ser true): true

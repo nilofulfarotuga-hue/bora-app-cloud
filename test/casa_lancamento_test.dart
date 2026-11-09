@@ -300,7 +300,7 @@ void main() {
                 width: 90,
                 height: 102,
                 child: BoraTileCard.image(
-                  label: 'Casa',
+                  label: 'Casa e\nManutenção',
                   gradient: const LinearGradient(
                       colors: [Colors.brown, Colors.brown]),
                   imageAsset: 'assets/categories/cat_casa.png',
@@ -315,7 +315,7 @@ void main() {
       await tester.pumpWidget(ladrilho('Novo'));
       expect(find.byKey(const Key('bora_tile_selo')), findsOneWidget);
       expect(find.text('Novo'), findsOneWidget);
-      expect(find.text('Casa'), findsOneWidget);
+      expect(find.text('Casa e\nManutenção'), findsOneWidget);
       expect(tester.takeException(), isNull);
 
       await tester.pumpWidget(ladrilho(null));
@@ -413,7 +413,7 @@ void main() {
 
     test('está ligado ao ladrilho da Casa na home (sem o ícone provisório)', () {
       final h = File('lib/screens/client_home_screen.dart').readAsStringSync();
-      final i = h.indexOf("label: 'Casa'");
+      final i = h.indexOf("label: 'Casa e\\nManutenção'");
       expect(i, greaterThan(0));
       final bloco = h.substring(i, h.indexOf('onTap:', i));
       expect(bloco, contains("imageAsset: 'assets/categories/cat_casa.png'"));

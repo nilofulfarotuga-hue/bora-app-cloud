@@ -140,6 +140,12 @@
 	<!-- Recuperação de palavra-passe (2026-07-14) — deep link de volta ao app
 	     depois do clique no email de reset do Supabase Auth. Tem de bater
 	     certo com o redirectTo em auth_store.dart. -->
+	<!-- 09/11/2026 (entrar com Google/Apple): as ligacoes pt.boraapp.bora://
+	     (auth/callback, reset-password) sao tratadas pelo app_links do
+	     supabase_flutter. Sem isto o Flutter (3.27+) tambem as empurrava como
+	     rota e abria "Este atalho ja nao existe" por cima da app. -->
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

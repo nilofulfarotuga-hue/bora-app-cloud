@@ -242,6 +242,14 @@ class AmigoFala {
 
   bool get comecada => _ancoraAgora != null;
 
+  /// A duração real do áudio é conhecida (voz do servidor, sem eventos de
+  /// palavra): a boca estica ou encolhe a estimativa para acabar com o som.
+  void ajustarDuracao(double duracaoRealMs) {
+    final est = duracaoEstimada;
+    if (duracaoRealMs < 200 || est <= 0) return;
+    _escala = (est / duracaoRealMs).clamp(0.4, 2.5).toDouble();
+  }
+
   /// Posição na fala (ms do texto estimado) no instante [agoraMs].
   double posicao(double agoraMs) {
     final a = _ancoraAgora;

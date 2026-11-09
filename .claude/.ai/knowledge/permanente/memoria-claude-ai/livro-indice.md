@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-09T20:37:03.663149+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-09T22:07:03.584392+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-09 20:13 UTC. Páginas listadas: 578.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-09 22:06 UTC. Páginas listadas: 585.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-11-09).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-31).
-3. Estado vivo: `digest-2026-11-09-m11` (2026-11-09).
+3. Estado vivo: `digest-2026-11-09-volta-deposito-kfc` (2026-11-09).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -51,8 +51,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-11-09)
 
-## digest (220)
+## digest (221)
 
+- digest-2026-11-09-volta-deposito-kfc — Claude Code 09/11 — depósito Volta e robô do talão do KFC (2026-11-09)
 - digest-2026-11-09-m11 — M11 — Amigo com rosto, talões no Drive, pesquisa inteligente e Casa (09/11/2026) (2026-11-09)
 - digest-2026-11-08-m10 — M10 08-09/11 — noite toda sem travas: Bloco 1 no ar, app publicada 2x nas 3, Bloco 2 e radar (2026-11-09)
 - digest-2026-11-08-m8 — Digest M8 08/11 noite: 6 missoes juntas e testadas, nada publicado (2026-11-08)
@@ -274,7 +275,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - digest-2026-09-13-janela-4-ux-portao — Janela 4 13/09 — ordem UX OpenCode chegou ao Claude Code e parou no portão (2026-09-13)
 - digest-2026-09-13-janela-3 — Janela 3 13/09 — portas (correu em Fable, não Opus) (2026-09-13)
 
-## livro-areas (142)
+## livro-areas (143)
 
 - livro-areas-alertas-notificacoes — Alertas do Bora para o Danilo (Telegram + push admin persistente) — o que já dispara, por que caminho, e o que falta (2026-10-23)
 - livro-areas-analise-apps-emulador — Ideia do Danilo (08/10/2026) de usar emulador Android + agente de IA para testar bugs do Bora e comparar com iFood/Uber/Glovo; adiada para… (2026-10-26)
@@ -304,6 +305,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-contas-claras — Missão "contas claras" (20/09) — extratos de dinheiro compreensíveis para estafetas, motoristas, parceiros e o Danilo, estilo Uber/Glovo; e… (2026-10-23)
 - livro-areas-contas-parceiros — Como se calcula e se paga o dinheiro das lojas parceiras do Bora (ledger vs registo do pedido), erros corrigidos a 22/09 e a decisão em abe… (2026-10-23)
 - livro-areas-cortex-bora — Córtex Bora orchestration system — MCP-connected knowledge base + autonomous loop (carteiro/Claude Code/Juiz/Telegram) (2026-10-23)
+- livro-areas-deposito-volta — Depósito Volta (0,10 € por lata/garrafa de plástico) no Bora — regra do Danilo para cobrar ao cliente e a missão de 09/11/2026; ler antes d… (2026-11-09)
 - livro-areas-divulgacao-bora — Divulgação do Bora App ao público — site oficial (bora-site, agora um só, a crescer para várias páginas), vídeos de apresentação e código p… (2026-11-09)
 - livro-areas-divulgacao-bora-parte2 — Divulgação do Bora App ao público — site oficial (bora-site, agora um só, a crescer para várias páginas), vídeos de apresentação e código p… (2026-11-09)
 - livro-areas-divulgacao-bora-parte3 — Divulgação do Bora App ao público — site oficial (bora-site, agora um só, a crescer para várias páginas), vídeos de apresentação e código p… (2026-11-09)
@@ -484,7 +486,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (161)
+## outras (166)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -518,6 +520,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - diretiva-plataformas-2024-2831 — Diretiva (UE) 2024/2831 trabalho em plataformas — o que obriga o Bora, estado em Portugal, o que está feito e checklist para 02/12/2026 (2026-11-01)
 - dsh-como-usar — Como usar o Dipsy (dsh) (2026-11-08)
 - dsh-como-usar-novidades-2026-10-31 — Dipsy: o que ficou novo a 31/10 (complemento da pagina dsh-como-usar) (2026-10-31)
+- duvidas-dipsy-filme — Dúvidas do Dipsy na missão do filme (Ep1) — ele acrescenta no fim; o Claude.ai responde em respostas-claude-ai-filme (2026-11-09)
 - em-dia-ios-copiar-pipeline-bora — Em Dia / iOS: nao escrever o CI do zero, copiar o da Bora que ja funciona (2026-09-22)
 - em-dia-iphone-identificador — Em Dia / iPhone: identificadores da Apple (bundle id, app id, SKU) (2026-09-22)
 - em-dia-play-classificacao-conteudo — Em Dia / Play: respostas da classificacao IARC e o que muda quando as assinaturas abrirem (2026-09-22)
@@ -565,6 +568,8 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - meta-anuncios-2026-10-30-textos — Textos finais dos 2 anúncios Meta de 30/10/2026 (Instala e pede + Check-in diário) (2026-11-08)
 - meta-anuncios-2026-10-31-adendo-revisao — Adendo G-REVISÃO dos anúncios Meta (31/10 06:52) — correções do Danilo + juiz visual (2026-10-31)
 - meta-anuncios-2026-10-31-criativos — Anúncios Meta 31/10 — criativos finais (juiz ≥ 9) e porque o anúncio antigo não deu pedidos (2026-10-31)
+- missao-dipsy-filme-ep1-2026-11-09 — Missão do Dipsy: acabar o filme das meninas (Ep1 Haja Luz) perfeito, plano a plano, motores grátis (09/11/2026) (2026-11-09)
+- missao-pendencias-2026-11-09 — Missão pendências 30 dias (09/11/2026) (2026-11-09)
 - motor-claude-2026-10-31 — Motor Claude 31/10 - estado final (Bloco 2 da retoma-geral) (2026-10-31)
 - motores-rotacao-2026-10-29 — Motores gratis em rotacao - medicoes e cadeias (29/10/2026) (2026-10-29)
 - paridade-mundo-2026-10-29 — Paridade do mundo, segunda volta (Rappi, DoorDash, Zomato, Meituan) 29/10/2026 (2026-10-29)
@@ -625,6 +630,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - radar-2026-11-06 — Radar de vídeos 06/11/2026 — 40 revistos, 4 novos, 20 pendentes (2026-11-06)
 - radar-2026-11-07 — Radar de vídeos 07/11/2026 — 40 revistos, 8 novos, 20 pendentes (2026-11-07)
 - radar-2026-11-08 — Radar de vídeos 08/11/2026 — 40 revistos, 1 novo, 13 pendentes (2026-11-08)
+- radar-2026-11-09 — Radar de vídeos 09/11/2026 — 40 revistos, 4 novos, 15 pendentes (2026-11-09)
 - reembolsos-b2-00-leia-me — reembolsos-b2-00-leia-me (2026-10-29)
 - reembolsos-b2-01-shared-cobranca — reembolsos-b2-01-shared-cobranca (2026-10-29)
 - reembolsos-b2-ef-admin-cancel-order — reembolsos-b2-ef-admin-cancel-order (2026-10-29)
@@ -639,6 +645,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - regra-gmail-links-embrulhados — REGRA para todos os agentes: emails com links NUNCA pelo conector Gmail (embrulha os links em google.com/url) (2026-11-01)
 - resposta-contabilista-iva-2026-10-28 — Resposta do Hugo (DC Consultores): IVA normal trimestral, programa de faturação, modelo aceite — 28/10/2026 (2026-10-28)
 - resposta-contabilista-iva-parte2-2026-10-28 — Hugo (15:54-15:55): faturas emitidas pelo escritório, não ficar no art. 53.º, IVA não mexe na margem — e as contas de outubro com IVA (2026-10-28)
+- respostas-claude-ai-filme — Respostas do Claude.ai às dúvidas do Dipsy no filme (Ep1) (2026-11-09)
 - robo-documentos-2026-10-29 — Robô fiscal de documentos — relatório (adendo 3, 29/10/2026) (2026-10-29)
 - seguranca-auditoria-2026-10-21 — Auditoria de seguranca do app (21/10, agente N4) (2026-10-21)
 - sistema-motores-e-portas — Quem faz o quê — uma porta só (atualizado 17/09/2026) (2026-09-17)

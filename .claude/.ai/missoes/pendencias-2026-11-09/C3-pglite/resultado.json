@@ -1,0 +1,385 @@
+{
+ "inicio": {
+  "menu": "13.25",
+  "bacon": "0.91",
+  "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513",
+  "fn": {
+   "robo": "b6993ee2b13bd2fb7432ad7f1e9321e7",
+   "aprovar": "97a3a8f7ffb19deccd077ba3ed739aa4"
+  }
+ },
+ "A_antes": {
+  "nome": "antes",
+  "res": {
+   "ok": true,
+   "aplicadas": 0,
+   "ja_batiam": 0,
+   "pendentes": 1,
+   "sem_match": 0,
+   "segunda_volta": 0,
+   "extras_mais_caros": 2
+  },
+  "linhas": [
+   {
+    "produto": "bk-078771af-f4cb-451a-b645-3738400175df",
+    "old": "13.25",
+    "new": "12.37",
+    "status": "pending",
+    "linha": "Tripwhopper + EXTRA BACON 2 FATIAS + Com Cebola + Batatas Media + Cola Media + 3C Whopper",
+    "opcao": null,
+    "conf": "0.588"
+   }
+  ],
+  "precos_antes": {
+   "menu": "13.25",
+   "bacon": "0.91",
+   "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513"
+  },
+  "precos_depois": {
+   "menu": "13.25",
+   "bacon": "0.91",
+   "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513"
+  },
+  "aviso_extra": 1
+ },
+ "B_antes_menu12": {
+  "nome": "antes, menu a 12,00",
+  "res": {
+   "ok": true,
+   "aplicadas": 1,
+   "ja_batiam": 0,
+   "pendentes": 0,
+   "sem_match": 0,
+   "segunda_volta": 0,
+   "extras_mais_caros": 2
+  },
+  "linhas": [
+   {
+    "produto": "bk-078771af-f4cb-451a-b645-3738400175df",
+    "old": "12.00",
+    "new": "12.37",
+    "status": "applied",
+    "linha": "Tripwhopper + EXTRA BACON 2 FATIAS + Com Cebola + Batatas Media + Cola Media + 3C Whopper",
+    "opcao": null,
+    "conf": "0.588"
+   }
+  ],
+  "precos_antes": {
+   "menu": "12.00",
+   "bacon": "0.91",
+   "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513"
+  },
+  "precos_depois": {
+   "menu": "12.37",
+   "bacon": "0.91",
+   "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513"
+  },
+  "aviso_extra": 1
+ },
+ "C_migracao": {
+  "md5_1": {
+   "robo": "6a22819b36c6df0b312b8763ab2d37f4",
+   "aprovar": "f4f573d755a9073ee4ec209f25ea0a1d"
+  },
+  "md5_2": {
+   "robo": "6a22819b36c6df0b312b8763ab2d37f4",
+   "aprovar": "f4f573d755a9073ee4ec209f25ea0a1d"
+  },
+  "idempotente": true,
+  "coluna": true,
+  "bkp": [
+   {
+    "nome": "admin_approve_catalog_price_update",
+    "md5": "97a3a8f7ffb19deccd077ba3ed739aa4"
+   },
+   {
+    "nome": "catalog_price_update_from_receipt",
+    "md5": "b6993ee2b13bd2fb7432ad7f1e9321e7"
+   }
+  ]
+ },
+ "D_depois": {
+  "nome": "depois",
+  "res": {
+   "ok": true,
+   "aplicadas": 0,
+   "ja_batiam": 0,
+   "pendentes": 1,
+   "sem_match": 0,
+   "segunda_volta": 0,
+   "extras_pendentes": 1,
+   "extras_mais_caros": 2
+  },
+  "linhas": [
+   {
+    "produto": "bk-078771af-f4cb-451a-b645-3738400175df",
+    "old": "0.91",
+    "new": "2.50",
+    "status": "pending",
+    "linha": "EXTRA: EXTRA BACON 2 FATIAS (na app: EXTRA Bacon)",
+    "opcao": "bk-078771af-f4cb-451a-b645-3738400175df-g4-i7",
+    "conf": "1.000"
+   },
+   {
+    "produto": "bk-078771af-f4cb-451a-b645-3738400175df",
+    "old": "13.25",
+    "new": "12.37",
+    "status": "pending",
+    "linha": "Tripwhopper + EXTRA BACON 2 FATIAS + Com Cebola + Batatas Media + Cola Media + 3C Whopper",
+    "opcao": null,
+    "conf": "0.588"
+   }
+  ],
+  "precos_antes": {
+   "menu": "13.25",
+   "bacon": "0.91",
+   "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513"
+  },
+  "precos_depois": {
+   "menu": "13.25",
+   "bacon": "0.91",
+   "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513"
+  },
+  "aviso_extra": 1,
+  "aprovar_extra": {
+   "ok": false,
+   "error": "extra_corrige_se_nas_opcoes",
+   "preco_balcao": 2.5,
+   "option_item_id": "bk-078771af-f4cb-451a-b645-3738400175df-g4-i7"
+  },
+  "estado_extra": "pending",
+  "precos_apos_aprovar_extra": {
+   "menu": "13.25",
+   "bacon": "0.91",
+   "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513"
+  },
+  "segunda_corrida": {
+   "extras_pendentes": 0,
+   "linhas_extra": 1
+  },
+  "aprovar_produto": {
+   "ok": true,
+   "preco_novo": 12.37
+  },
+  "precos_apos_aprovar_produto": {
+   "menu": "12.37",
+   "bacon": "0.91",
+   "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513"
+  }
+ },
+ "E_depois_menu12": {
+  "nome": "depois, menu a 12,00",
+  "res": {
+   "ok": true,
+   "aplicadas": 1,
+   "ja_batiam": 0,
+   "pendentes": 0,
+   "sem_match": 0,
+   "segunda_volta": 0,
+   "extras_pendentes": 1,
+   "extras_mais_caros": 2
+  },
+  "linhas": [
+   {
+    "produto": "bk-078771af-f4cb-451a-b645-3738400175df",
+    "old": "0.91",
+    "new": "2.50",
+    "status": "pending",
+    "linha": "EXTRA: EXTRA BACON 2 FATIAS (na app: EXTRA Bacon)",
+    "opcao": "bk-078771af-f4cb-451a-b645-3738400175df-g4-i7",
+    "conf": "1.000"
+   },
+   {
+    "produto": "bk-078771af-f4cb-451a-b645-3738400175df",
+    "old": "12.00",
+    "new": "12.37",
+    "status": "applied",
+    "linha": "Tripwhopper + EXTRA BACON 2 FATIAS + Com Cebola + Batatas Media + Cola Media + 3C Whopper",
+    "opcao": null,
+    "conf": "0.588"
+   }
+  ],
+  "precos_antes": {
+   "menu": "12.00",
+   "bacon": "0.91",
+   "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513"
+  },
+  "precos_depois": {
+   "menu": "12.37",
+   "bacon": "0.91",
+   "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513"
+  },
+  "aviso_extra": 1,
+  "aprovar_extra": {
+   "ok": false,
+   "error": "extra_corrige_se_nas_opcoes",
+   "preco_balcao": 2.5,
+   "option_item_id": "bk-078771af-f4cb-451a-b645-3738400175df-g4-i7"
+  },
+  "estado_extra": "pending",
+  "precos_apos_aprovar_extra": {
+   "menu": "12.37",
+   "bacon": "0.91",
+   "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513"
+  },
+  "segunda_corrida": {
+   "extras_pendentes": 0,
+   "linhas_extra": 1
+  }
+ },
+ "fim": {
+  "menu": "13.25",
+  "bacon": "0.91",
+  "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513"
+ },
+ "F_volta_depois_c3": {
+  "ordem": "volta_depois_c3",
+  "tem_volta": true,
+  "tem_c3": true,
+  "cenario": {
+   "nome": "volta_depois_c3",
+   "res": {
+    "ok": true,
+    "absurdas": 0,
+    "aplicadas": 0,
+    "ja_batiam": 0,
+    "pendentes": 1,
+    "sem_match": 0,
+    "segunda_volta": 0,
+    "extras_pendentes": 1,
+    "extras_mais_caros": 2
+   },
+   "linhas": [
+    {
+     "produto": "bk-078771af-f4cb-451a-b645-3738400175df",
+     "old": "0.91",
+     "new": "2.50",
+     "status": "pending",
+     "linha": "EXTRA: EXTRA BACON 2 FATIAS (na app: EXTRA Bacon)",
+     "opcao": "bk-078771af-f4cb-451a-b645-3738400175df-g4-i7",
+     "conf": "1.000"
+    },
+    {
+     "produto": "bk-078771af-f4cb-451a-b645-3738400175df",
+     "old": "13.25",
+     "new": "12.37",
+     "status": "pending",
+     "linha": "Tripwhopper + EXTRA BACON 2 FATIAS + Com Cebola + Batatas Media + Cola Media + 3C Whopper",
+     "opcao": null,
+     "conf": "0.588"
+    }
+   ],
+   "precos_antes": {
+    "menu": "13.25",
+    "bacon": "0.91",
+    "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513"
+   },
+   "precos_depois": {
+    "menu": "13.25",
+    "bacon": "0.91",
+    "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513"
+   },
+   "aviso_extra": 1,
+   "aprovar_extra": {
+    "ok": false,
+    "error": "extra_corrige_se_nas_opcoes",
+    "preco_balcao": 2.5,
+    "option_item_id": "bk-078771af-f4cb-451a-b645-3738400175df-g4-i7"
+   },
+   "estado_extra": "pending",
+   "precos_apos_aprovar_extra": {
+    "menu": "13.25",
+    "bacon": "0.91",
+    "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513"
+   },
+   "segunda_corrida": {
+    "extras_pendentes": 0,
+    "linhas_extra": 1
+   },
+   "aprovar_produto": {
+    "ok": true,
+    "preco_novo": 12.37
+   },
+   "precos_apos_aprovar_produto": {
+    "menu": "12.37",
+    "bacon": "0.91",
+    "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513"
+   }
+  }
+ },
+ "F_c3_depois_volta": {
+  "ordem": "c3_depois_volta",
+  "tem_volta": true,
+  "tem_c3": true,
+  "cenario": {
+   "nome": "c3_depois_volta",
+   "res": {
+    "ok": true,
+    "absurdas": 0,
+    "aplicadas": 0,
+    "ja_batiam": 0,
+    "pendentes": 1,
+    "sem_match": 0,
+    "segunda_volta": 0,
+    "extras_pendentes": 1,
+    "extras_mais_caros": 2
+   },
+   "linhas": [
+    {
+     "produto": "bk-078771af-f4cb-451a-b645-3738400175df",
+     "old": "0.91",
+     "new": "2.50",
+     "status": "pending",
+     "linha": "EXTRA: EXTRA BACON 2 FATIAS (na app: EXTRA Bacon)",
+     "opcao": "bk-078771af-f4cb-451a-b645-3738400175df-g4-i7",
+     "conf": "1.000"
+    },
+    {
+     "produto": "bk-078771af-f4cb-451a-b645-3738400175df",
+     "old": "13.25",
+     "new": "12.37",
+     "status": "pending",
+     "linha": "Tripwhopper + EXTRA BACON 2 FATIAS + Com Cebola + Batatas Media + Cola Media + 3C Whopper",
+     "opcao": null,
+     "conf": "0.588"
+    }
+   ],
+   "precos_antes": {
+    "menu": "13.25",
+    "bacon": "0.91",
+    "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513"
+   },
+   "precos_depois": {
+    "menu": "13.25",
+    "bacon": "0.91",
+    "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513"
+   },
+   "aviso_extra": 1,
+   "aprovar_extra": {
+    "ok": false,
+    "error": "extra_corrige_se_nas_opcoes",
+    "preco_balcao": 2.5,
+    "option_item_id": "bk-078771af-f4cb-451a-b645-3738400175df-g4-i7"
+   },
+   "estado_extra": "pending",
+   "precos_apos_aprovar_extra": {
+    "menu": "13.25",
+    "bacon": "0.91",
+    "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513"
+   },
+   "segunda_corrida": {
+    "extras_pendentes": 0,
+    "linhas_extra": 1
+   },
+   "aprovar_produto": {
+    "ok": true,
+    "preco_novo": 12.37
+   },
+   "precos_apos_aprovar_produto": {
+    "menu": "12.37",
+    "bacon": "0.91",
+    "opcoes": "bfa4fd3f0643a36e27e56ee7eb6d9513"
+   }
+  }
+ }
+}

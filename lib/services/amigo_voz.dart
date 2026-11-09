@@ -7,9 +7,11 @@
 // No navegador Edge a voz "Microsoft Raquel (Natural) - Portuguese (Portugal)"
 // aparece sozinha e é escolhida primeiro.
 //
-// Regra: se o aparelho não tiver uma voz pt-PT, o Amigo fala SÓ por legenda
-// (a boca mexe-se ao ritmo da legenda). Nunca cai para pt-BR nem para inglês.
-// O botão de som fica lembrado (SharedPreferences).
+// Regra: se o aparelho não tiver uma voz pt-PT, o Amigo pede a frase em áudio
+// à Edge amigo-voz (Google, pt-PT; amigo_voz_servidor.dart) quando o painel tem
+// a voz do servidor ligada; senão (ou se o servidor disser "usa o aparelho")
+// fala SÓ por legenda (a boca mexe-se ao ritmo da legenda). Nunca cai para
+// pt-BR nem para inglês. O botão de som fica lembrado (SharedPreferences).
 //
 // A boca: cada frase vira uma [AmigoFala] (amigo_boca.dart) com tempos
 // estimados, acertados em cada evento de palavra do motor de voz.
@@ -23,6 +25,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/amigo/amigo_boca.dart';
 import 'amigo_voz_desbloqueio_stub.dart'
     if (dart.library.js_interop) 'amigo_voz_desbloqueio_web.dart';
+import 'amigo_voz_servidor.dart';
 
 export 'amigo_voz_desbloqueio_stub.dart'
     if (dart.library.js_interop) 'amigo_voz_desbloqueio_web.dart';
@@ -87,6 +90,12 @@ abstract class AmigoMotorVoz {
 
   /// O motor recusou falar (ex.: "not-allowed" no Safari sem toque).
   void Function(String motivo)? aoErro;
+
+  /// A duração real da fala (ms), quando o motor a sabe (o áudio do servidor).
+  void Function(double duracaoMs)? aoDuracao;
+
+  /// O ecrã fechou: liberta o que o motor tiver aberto (ex.: o leitor de áudio).
+  void libertar() {}
 }
 
 /// O estado do som que o botão do ecrã do Amigo mostra (m11 adendo 4).
@@ -178,7 +187,7 @@ class AmigoVoz {
     double velocidade = 1,
     bool somPorDefeito = true,
     double Function()? relogio,
-  })  : _motor = motor ?? AmigoMotorVozSistema(),
+  })  : _motor = motor ?? AmigoMotorVozComServidor(),
         _velocidade = velocidade,
         _relogioExterno = relogio,
         somLigado = ValueNotifier<bool>(somPorDefeito);
@@ -264,6 +273,7 @@ class AmigoVoz {
     _motor.aoPalavra = _palavra;
     _motor.aoAcabar = _acabouNatural;
     _motor.aoErro = _erroDoMotor;
+    _motor.aoDuracao = _duracaoReal;
     nomeVoz = await _motor.preparar(_velocidade);
     vozPronta.value = nomeVoz != null;
     _ultimaTentativa = DateTime.now();
@@ -295,7 +305,38 @@ class AmigoVoz {
 
   void _erroDoMotor(String motivo) {
     debugPrint('[AmigoVoz] o motor recusou: $motivo');
+    if (motivo == kAmigoSemVozServidor) {
+      // o servidor não dá voz neste ecrã (desligado, teto, sem chave...): fica a legenda
+      nomeVoz = null;
+      vozPronta.value = false;
+      _semVozNestaFrase();
+      return;
+    }
+    if (motivo == kAmigoSemVozFrase) {
+      _semVozNestaFrase();
+      return;
+    }
     if (motivo.contains('not-allowed') || motivo.contains('notallowed')) precisaDeToque.value = true;
+  }
+
+  /// Esta frase segue sem som: a legenda e a boca vão pelo tempo estimado.
+  void _semVozNestaFrase() {
+    _comVoz = false;
+    _vigiaArranque?.cancel();
+    _arranqueRelogio?.cancel();
+    final f = _fala;
+    if (f == null) return;
+    if (!f.comecada) f.comecou(_agora);
+    _armarSeguranca(silencio: true);
+  }
+
+  /// O motor sabe quanto dura o áudio (voz do servidor): a boca acaba com o som.
+  bool _duracaoConhecida = false;
+  void _duracaoReal(double ms) {
+    final f = _fala;
+    if (f == null) return;
+    f.ajustarDuracao(ms);
+    _duracaoConhecida = true;
   }
 
   /// Repete a última frase (o toque que pede isto desbloqueia a voz).
@@ -338,6 +379,7 @@ class AmigoVoz {
     estado.value = AmigoVozEstado.aFalar;
     final fim = _fim = Completer<void>();
     _comVoz = somLigado.value && temVozPtPt;
+    _duracaoConhecida = false;
     if (_comVoz) {
       try {
         await _motor.falar(t);
@@ -345,6 +387,11 @@ class AmigoVoz {
         debugPrint('[AmigoVoz] falar: $e');
         _comVoz = false;
       }
+      // Outra fala (ou um "parar") começou enquanto esta esperava — ex.: pelo
+      // áudio do servidor: os relógios desta já não mandam em nada.
+      if (!identical(_fala, fala)) return fim.future;
+    }
+    if (_comVoz) {
       // Sem aviso de início em 1,6 s: o navegador bloqueou (falta um toque).
       _vigiaArranque?.cancel();
       _vigiaArranque = Timer(const Duration(milliseconds: 1600), () {
@@ -355,7 +402,7 @@ class AmigoVoz {
       _arranqueRelogio = Timer(const Duration(milliseconds: 900), () {
         if (identical(_fala, fala) && !fala.comecada) fala.comecou(_agora);
       });
-    } else {
+    } else if (!fala.comecada) {
       fala.comecou(_agora);
     }
     _armarSeguranca(silencio: !_comVoz);
@@ -389,7 +436,7 @@ class AmigoVoz {
   void _acabouNatural() {
     final f = _fala;
     final ini = _inicioReal;
-    if (f != null && _comVoz && ini != null && f.desvios.isEmpty) {
+    if (f != null && _comVoz && ini != null && f.desvios.isEmpty && !_duracaoConhecida) {
       final real = _agora - ini;
       final est = f.duracaoEstimada;
       if (real > 400 && est > 400) {
@@ -460,7 +507,7 @@ class AmigoVoz {
     vozPronta.dispose();
     _seguranca?.cancel();
     _arranqueRelogio?.cancel();
-    unawaited(_motor.parar());
+    unawaited(_motor.parar().whenComplete(_motor.libertar));
     legenda.dispose();
     palavraAtual.dispose();
     estado.dispose();

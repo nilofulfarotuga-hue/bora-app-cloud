@@ -22,6 +22,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../utils/hora_lisboa_ext.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../widgets/admin/meio_pagamento_acerto.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 
 class AdminCleanerSettlementsScreen extends StatefulWidget {
@@ -171,13 +172,16 @@ class _AdminCleanerSettlementsScreenState
       return;
     }
 
-    // 1º dialog — confirmar com totais.
+    // 1º dialog — confirmar com totais e dizer COMO foi pago (09/11: vai na
+    // referência e é o que o comprovativo diz; antes ia sempre 'mbway').
+    var escolha = const EscolhaMeioPagamento(MeioPagamentoAcerto.naoInformar);
     final firstOk = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(Radii.md)),
         title: const Text('Marcar repasses como pagos?'),
+        scrollable: true,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -209,6 +213,8 @@ class _AdminCleanerSettlementsScreenState
                 ),
               ]),
             ),
+            const SizedBox(height: Spacing.md),
+            SeletorMeioPagamento(onChanged: (e) => escolha = e),
           ],
         ),
         actions: [
@@ -238,8 +244,8 @@ class _AdminCleanerSettlementsScreenState
         params: {
           'p_cleaner_id': cid,
           'p_payout_external_id': externalId,
-          'p_payment_method': 'mbway',
-          'p_payment_reference': externalId,
+          'p_payment_method': escolha.codigo ?? 'manual',
+          'p_payment_reference': escolha.referencia() ?? externalId,
         },
       );
       final data =

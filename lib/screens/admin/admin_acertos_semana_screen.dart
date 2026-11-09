@@ -5,7 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
-import '../../widgets/admin/confirmar_dinheiro.dart';
+import '../../widgets/admin/meio_pagamento_acerto.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import 'admin_acerto_unificado_screen.dart';
 import 'admin_appointments_payouts_screen.dart';
@@ -202,10 +202,13 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
 
   /// Confirma com o NOME e o VALOR antes de marcar (ronda 04/10: todo o botão
   /// de dinheiro pede confirmação). O engano ainda se desfaz com "Reabrir".
+  /// 09/11: pergunta também COMO foi pago — vai em p_payment_reference e é o
+  /// que o comprovativo da pessoa diz (antes dizia sempre "MB Way").
   Future<void> _marcar(Map<String, dynamic> r) async {
     if (_busy) return;
     final owes = r['direction'] == 'owes_bora';
-    final ok = await confirmarDinheiro(
+    final mbway = (r['mbway'] as String?) ?? '';
+    final escolha = await confirmarDinheiroComMeio(
       context,
       titulo: owes ? 'Marcar como recebido' : 'Marcar como pago',
       nome: '${r['name'] ?? '—'}',
@@ -213,8 +216,10 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
       detalhe: owes
           ? 'Confirma que esta pessoa já pagou este valor à Bora?'
           : 'Confirma que a Bora já pagou este valor?',
+      // O número só se sugere quando é a Bora a pagar para o MB Way da pessoa.
+      numeroMbway: owes || mbway.isEmpty ? null : mbway,
     );
-    if (!ok || !mounted) return;
+    if (escolha == null || !mounted) return;
     setState(() => _busy = true);
     try {
       await _client.rpc('admin_set_settlement_state', params: {
@@ -222,6 +227,7 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
         'p_subject_id': r['subject_id'],
         'p_week_start': _week,
         'p_status': owes ? 'received' : 'paid',
+        'p_payment_reference': escolha.referencia(),
       });
       _aviso(owes
           ? '${r['name']}: recebido. O comprovativo vai a caminho.'

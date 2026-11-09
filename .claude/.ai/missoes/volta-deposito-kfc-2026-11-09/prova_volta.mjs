@@ -43,7 +43,7 @@ create table orders (id text primary key, user_id uuid, status text, payment_met
 create table order_receipts_v2 (id uuid primary key default gen_random_uuid(), order_id text, receipt_parsed jsonb);
 create table catalog_price_updates (id uuid primary key default gen_random_uuid(), product_id text, restaurant_id text,
   order_id text, receipt_id uuid, old_base numeric, new_base numeric, confianca numeric, linha_talao text, status text,
-  decided_at timestamptz, decided_by text);
+  decided_at timestamptz, decided_by text, option_item_id text);
 create table admin_notifications (id bigserial primary key, event_type text, severity text, entity_type text,
   entity_id text, summary text, payload jsonb);
 create table order_purchase_items_v2 (order_id text, status text, original_name text);

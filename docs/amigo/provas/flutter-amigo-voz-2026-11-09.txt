@@ -1,0 +1,5 @@
+# flutter test -r json (Flutter 3.41.2), ficheiros: amigo_voz_servidor_test admin_amigo_voz_test amigo_screen_test amigo_rosto_test admin_amigo_rosto_test amigo_bora_test l10n_cobertura_test golden/amigo_ecra_fotos_test — 2026-11-09T22:05:54Z
+exit=0
+{"amigo_voz_servidor_test.dart":{"ok":12,"falha":0},"admin_amigo_voz_test.dart":{"ok":4,"falha":0},"amigo_screen_test.dart":{"ok":21,"falha":0},"amigo_rosto_test.dart":{"ok":16,"falha":0},"admin_amigo_rosto_test.dart":{"ok":2,"falha":0},"amigo_bora_test.dart":{"ok":11,"falha":0},"l10n_cobertura_test.dart":{"ok":13,"falha":0},"amigo_ecra_fotos_test.dart":{"ok":4,"falha":0}}
+total 83 falhas 0
+# 2026-11-09T22:08:30Z depois de trocar a voz padrão para pt-PT-Standard-E: admin_amigo_voz_test 4/4 e amigo_voz_servidor_test 12/12 outra vez verdes; analyze sem avisos

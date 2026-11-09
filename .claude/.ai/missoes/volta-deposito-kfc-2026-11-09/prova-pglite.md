@@ -1,11 +1,11 @@
 # Prova local (PGlite 0.2.17) — PARTE 1 e PARTE 2
 
-Corrida final: 2026-11-09 21:19 no PC, com as definições reais de produção (lidas a 09/11/2026 ~21:00 por SELECT) e os 38 talões lidos pelo robô.
+Corrida final: 2026-11-09 22:30 no PC, com as definições reais de produção lidas de novo às ~22:30 (já com a migração 20261109214000_robo_talao_extras_pendentes da missão pendencias-2026-11-09 aplicada) e os 38 talões lidos pelo robô.
 Comando: `bun prova_volta.mjs <pasta com as funções> supabase/migrations/20261109220000_volta_catalogo_e_talao.sql PARTE2-dinheiro-proposta.md`
 
 ```
 KFC casar ANTES  : kfc-ca992720:55 kfc-7139cdb9:672 kfc-57c110ea:738
-Robô ANTES: {"ok":true,"aplicadas":1,"ja_batiam":0,"pendentes":2,"sem_match":0,"segunda_volta":0,"extras_mais_caros":[]} [{"product_id":"kfc-57c110ea-e07d-453b-b9d9-ffd0db49da4e","old_base":"8.39","new_base":"7.38","status":"pending"},{"product_id":"kfc-7139cdb9-b8ba-4c44-a1c0-dccce410dd6f","old_base":"6.07","new_base":"6.72","status":"applied"},{"product_id":"kfc-ca992720-ca03-4741-b7db-9d5090b65759","old_base":"6.20","new_base":"0.55","status":"pending"}]
+Robô ANTES: {"ok":true,"aplicadas":1,"ja_batiam":0,"pendentes":2,"sem_match":0,"segunda_volta":0,"extras_pendentes":0,"extras_mais_caros":[]} [{"product_id":"kfc-57c110ea-e07d-453b-b9d9-ffd0db49da4e","old_base":"8.39","new_base":"7.38","status":"pending"},{"product_id":"kfc-7139cdb9-b8ba-4c44-a1c0-dccce410dd6f","old_base":"6.07","new_base":"6.72","status":"applied"},{"product_id":"kfc-ca992720-ca03-4741-b7db-9d5090b65759","old_base":"6.20","new_base":"0.55","status":"pending"}]
 KFC casar DEPOIS : kfc-ca992720:620 kfc-7139cdb9:845 kfc-57c110ea:915
 Outros talões: 25/26 iguais; mudaram: [
  {
@@ -21,7 +21,7 @@ Outros talões: 25/26 iguais; mudaram: [
   "linhas": "M Whopper=0 | Whopper=478 | Com Ketchup=0 | Com Maionese=0 | Com Cebola=0 | Com Pepino=0 | Extra Alface=0 | Com Tomate=0 | Batatas Media=237 | Compal Pêssego Premi=30 | 3C Western XXL=1295 | Saco de Papel=5 | Extra Ketchup=0"
  }
 ]
-Robô DEPOIS (preços antigos): {"ok":true,"absurdas":0,"aplicadas":2,"ja_batiam":1,"pendentes":0,"sem_match":0,"segunda_volta":0,"extras_mais_caros":[]} [{"product_id":"kfc-57c110ea-e07d-453b-b9d9-ffd0db49da4e","old_base":"8.39","new_base":"9.15","status":"applied"},{"product_id":"kfc-7139cdb9-b8ba-4c44-a1c0-dccce410dd6f","old_base":"6.07","new_base":"8.45","status":"applied"}]
+Robô DEPOIS (preços antigos): {"ok":true,"absurdas":0,"aplicadas":2,"ja_batiam":1,"pendentes":0,"sem_match":0,"segunda_volta":0,"extras_pendentes":0,"extras_mais_caros":[]} [{"product_id":"kfc-57c110ea-e07d-453b-b9d9-ffd0db49da4e","old_base":"8.39","new_base":"9.15","status":"applied"},{"product_id":"kfc-7139cdb9-b8ba-4c44-a1c0-dccce410dd6f","old_base":"6.07","new_base":"8.45","status":"applied"}]
 
 === OK (52) ===
 PARTE 1 aplica sem erros (âncoras de catalog_price_update_from_receipt e _recibo_pedido = 1)
@@ -32,7 +32,7 @@ DEPOSITO e SACO fora dos produtos
 robô: nenhuma proposta absurda (nada abaixo de 40% nem acima de 250%)
 robô: Menu Wrap Coronel 6,07 → 8,45
 robô: Menu Kentucky BBQ 8,39 → 9,15
-robô com o catálogo já certo: 3 batem, 0 propostas → {"ok":true,"absurdas":0,"aplicadas":0,"ja_batiam":3,"pendentes":0,"sem_match":0,"segunda_volta":0,"extras_mais_caros":[]}
+robô com o catálogo já certo: 3 batem, 0 propostas → {"ok":true,"absurdas":0,"aplicadas":0,"ja_batiam":3,"pendentes":0,"sem_match":0,"segunda_volta":0,"extras_pendentes":0,"extras_mais_caros":[]}
 classificar "Água sem Gás Alcalina pH 9,5 Monchique (emb. 6 x 1,5 lt)" @continente-guarda = marcar/6 → {"units":6,"estado":"marcar","motivo":"agua_garrafa"}
 classificar "Refrigerante Coca-Cola Original Lata (emb. 33 cl)" @continente-guarda = marcar/1 → {"units":1,"estado":"marcar","motivo":"lata"}
 classificar "Cerveja Super Bock Mini (emb. 6 x 25 cl)" @continente-guarda = duvidoso/0 → {"units":0,"estado":"duvidoso","motivo":"garrafa_pequena_pode_ser_vidro","units_se_marcar":6}

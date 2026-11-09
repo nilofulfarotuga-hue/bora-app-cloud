@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-09T00:18:44.986792+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-09T20:57:33.572769+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -594,3 +594,20 @@ Reserva, não caminho principal: Kaggle 2 GPUs com LTX-2.3/MiniMax H3 (fluxos Co
 ## Radar aprendeu
 Termos novos: "Google Flow personagem fixo desenho animado longo" (animacao_ia) e "Jev TypeSafe AI casos de uso" (ferramentas_ia). Limite de 70 ativos atingido (70).
 
+
+## 09/11/2026 — radar diário (agente na nuvem)
+40 vídeos revistos (35 com nota >= 6): 4 novos, 15 PENDENTES, 4 já temos, 17 rejeitados (5 por nota baixa). Nenhum do tema animacao_ia. Propostas prop-b5f0afe6 (dia) e prop-f8084d2f (tarefa nova radar-tarefa-voz-gratis).
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): vender automação/agência a PMEs 7 — PENDENTE desde 13/10 (tarefa radar-tarefa-pacote-pmes à espera de aprovação); atendente WhatsApp 6 — Mister Navalha marcado feito mas não reprovado; CRM WhatsApp aberto 4 — PENDENTE desde 18/10; prospeção 6 — caça-clientes feito; edição de vídeo com Claude Code/HyperFrames 6 (+3 hoje) — PENDENTE desde 11/10, só o corte de pausas provado 09/11; Claude Code novidades/skills 6+5 — já temos; DeepSeek Harness 5+5+4 — FEITO (Dipsy); micro-SaaS 4 (+2) — PENDENTE desde 21/10; animação Vox/minimalista 4+3 — PENDENTE desde 11/10; voz grátis (VoiceStudio/Fish Audio) 3 — PENDENTE desde 01/11; anúncios Meta 3 — PARADO desde 26/10.
+- EM DIA/REELS (novo, prop-b5f0afe6): gancho "inimigo comum" (desafiar crença do nicho) e copiar estruturas de outros nichos; nunca abrir com "olá, eu sou". https://www.youtube.com/watch?v=zSLHmhFX9gg
+- SISTEMA (novo, prop-b5f0afe6): teto de gasto diário nas chamadas de API dos robôs (confirmar no porteiro/ia_gastos). https://www.youtube.com/watch?v=JlaK2SA63TY
+- EM DIA (novo, decisão do Danilo): testar subir ~1 € a assinatura e medir cancelamentos. https://www.youtube.com/watch?v=RSlhgyAXsBI
+- FILME/REELS (novo, prop-f8084d2f): Fish Audio S2.1 Pro com API grátis segundo o vídeo; lente grátis = fishaudio/fish-speech (confirmar licença dos pesos e pt-PT). https://www.youtube.com/watch?v=mLuJ58sEjJk
+- FILME/REELS (PENDENTE desde 01/11): VoiceStudio no Kaggle. https://www.youtube.com/watch?v=_o7s7p5hxEI , https://www.youtube.com/watch?v=jI4cRRNcMF0
+- EM DIA/BORA (PENDENTE desde 11/10): fábrica de edição pelo Claude Code (ffmpeg/HyperFrames, skill de estilo por vídeos de referência). https://www.youtube.com/watch?v=3Ca3BaHtqZ4 , https://www.youtube.com/watch?v=Js7M-RsHr8Y , https://www.youtube.com/watch?v=J-S1JqGaY1s
+- DINHEIRO (PENDENTE desde 13/10): auditoria digital grátis de PMEs (pixel/Tag Manager) como porta de venda; repos abertos a confirmar (Scrapling, auditoria SEO). https://www.youtube.com/watch?v=hNYKdsTg3do , https://www.youtube.com/watch?v=SDI6NfsH1Zg
+- EM DIA (PENDENTE desde 21/10): micro-SaaS/mini apps de recibos verdes com landing de pré-venda. https://www.youtube.com/watch?v=WLsrwHJjbYw , https://www.youtube.com/watch?v=DLJHleKwDrc
+- JÁ TEMOS: Claude Code/desktop com subagentes, modo plano/auto, artifacts e controlo remoto.
+- RECUSADO: n8n básico, OpenBot, postadores em massa no Facebook (Posta Fácil, FB Auto Post), Seedance/Higgsfield (créditos), Kai (pago), carreira UGC, conteúdo genérico.
+
+- Radar aprende 09/11: sem termos aprendidos (os assuntos fortes de hoje já têm termo); +1 da conversa (encomendas de bolos e doces para festas, categoria nova do Bora); -1 sem rendimento (Stripe Connect repasse, 0 vídeos bons em 14 dias); 70 ativos.
+- Tarefas do radar (regra M10): 12 abertas — 3 propostas à espera de aprovação (pacote-pmes, crm-whatsapp-pmes, bora-ideias), 8 correram 09/11 mas com revisão pendente (sem veredito do juiz), 1 nova hoje (voz-gratis). Assuntos mais antigos: explicativos/edição Em Dia (11/10), pacote PMEs (13/10), CRM WhatsApp (18/10).

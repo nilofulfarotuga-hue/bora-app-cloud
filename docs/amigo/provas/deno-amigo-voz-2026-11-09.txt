@@ -1,0 +1,34 @@
+# deno check --no-lock + deno test --no-lock (cópia fora do repo: _shared + amigo-voz) — Deno 2.9.7 — 2026-11-09T22:07:50Z
+Check functions/amigo-voz/index.ts
+Check functions/amigo-voz/logica.ts
+Check functions/amigo-voz/logica_test.ts
+check_exit=0
+Check functions/amigo-voz/logica_test.ts
+running 17 tests from ./functions/amigo-voz/logica_test.ts
+com tudo ligado: gera na Google em pt-PT, devolve MP3 e guarda na cache ... ok (5ms)
+cache: a mesma frase outra vez não vai à Google nem gasta caracteres ... ok (362µs)
+interruptor desligado: usa a voz do aparelho, nem cache nem Google ... ok (114µs)
+sem chave da Google: usa o aparelho e conta como recusado ... ok (254µs)
+sem chave mas a frase já está na cache: sai da cache (não gasta nada) ... ok (370µs)
+teto do dia: passou, usa o aparelho e a Google não é chamada ... ok (647µs)
+limite por cliente ... ok (249µs)
+erro da Google: usa o aparelho e devolve os caracteres reservados ... ok (1ms)
+sem sessão: 401 e nada mais ... ok (106µs)
+base em baixo ou reserva a rebentar: nunca gasta na Google ... ok (225µs)
+texto vazio ou comprido demais ... ok (104µs)
+voz: nunca do Brasil, sempre pt-PT ... ok (133µs)
+definições lidas da base (true, "true", ausente) ... ok (110µs)
+velocidade, caracteres e caminho da cache ... ok (409µs)
+base64 de ida e volta (áudio grande) ... ok (71ms)
+chamarGoogle: chave no cabeçalho, pt-PT no corpo, MP3 de volta ... ok (19ms)
+chamarGoogle: 403 ou resposta sem áudio → erro (a Edge passa à voz do aparelho) ... ok (1ms)
+
+ok | 17 passed | 0 failed (111ms)
+
+test_exit=0
+# mutação: sem as guardas do interruptor e da reserva os testes têm de falhar
+interruptor desligado: usa a voz do aparelho, nem cache nem Google ... FAILED (8ms)
+teto do dia: passou, usa o aparelho e a Google não é chamada ... FAILED (944µs)
+limite por cliente ... FAILED (571µs)
+FAILED | 14 passed | 3 failed (120ms)
+error: Test failed

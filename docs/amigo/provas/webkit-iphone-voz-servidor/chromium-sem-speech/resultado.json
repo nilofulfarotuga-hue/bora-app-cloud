@@ -1,0 +1,305 @@
+{
+  "motor": "chromium-sem-speech",
+  "navegador": "chromium-sem-speech 151.0.7922.34",
+  "aparelho": "iPhone 13 (emulado)",
+  "speechSynthesis_no_navegador": false,
+  "antes_do_toque": {
+    "audio_criado": true,
+    "desbloqueado": false
+  },
+  "depois_do_toque": {
+    "desbloqueado": true,
+    "play_dentro_do_toque": 3
+  },
+  "amostras_a_tocar": 25,
+  "maior_currentTime_s": 6.04,
+  "duracao_s": 6.04,
+  "erros_do_audio": [],
+  "amostras": [
+    {
+      "t": 8782,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 9035,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": 0.1,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 9292,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 9527,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0.02,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 9769,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0.24,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 10005,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0.48,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 10230,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0.69,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 10496,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0.97,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 10722,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 1.2,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 10989,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 1.46,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 11204,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 1.67,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 11419,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 1.9,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 11638,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 2.11,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 12498,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 2.96,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 12729,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 3.21,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 12962,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 3.44,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 13182,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 3.65,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 13437,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 3.9,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 13655,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 4.13,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 13886,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 4.36,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 14110,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 4.58,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 14317,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 4.8,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 14529,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 5,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 14744,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 5.21,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 14971,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 5.45,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 15189,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 5.66,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 15393,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 5.86,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 15652,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 6.04,
+      "duration": 6.04,
+      "ended": false,
+      "erro": null
+    },
+    {
+      "t": 15869,
+      "src": "data:audio/wav;base64,",
+      "paused": true,
+      "currentTime": 6.04,
+      "duration": 6.04,
+      "ended": true,
+      "erro": null
+    },
+    {
+      "t": 16086,
+      "src": "data:audio/wav;base64,",
+      "paused": true,
+      "currentTime": 6.04,
+      "duration": 6.04,
+      "ended": true,
+      "erro": null
+    }
+  ],
+  "consola": [
+    "[AmigoVoz] sem voz pt-PT no aparelho: usa a voz do servidor",
+    "[AmigoVoz] voz pt-PT: Voz pt-PT da Bora (servidor)",
+    "[AmigoDemo] voz=Voz pt-PT da Bora (servidor) plataforma=web",
+    "[AmigoDemo] evento abrir",
+    "[AmigoDemo] servidor falso: pedido 1 (93 caracteres, 6045 ms)",
+    "[AmigoVoz] a tocar a voz do servidor (demo, 48404 bytes)",
+    "[AmigoVoz] áudio do servidor a tocar: 6045 ms",
+    "[AmigoDemo] servidor falso: pedido 2 (20 caracteres, 1300 ms)",
+    "[AmigoVoz] a tocar a voz do servidor (demo, 10444 bytes)",
+    "[AmigoVoz] áudio do servidor a tocar: 1300 ms",
+    "[AmigoDemo] frase {\"frase\":\"Olá, eu sou o Amigo.\",\"duracao_ms\":1913,\"eventos_de_palavra\":0,\"atraso_evento_boca\":{\"n\":0},\"desvio_estimativa\":{\"n\":0}}",
+    "[AmigoDemo] servidor falso: pedido 3 (48 caracteres, 3120 ms)",
+    "[AmigoVoz] a tocar a voz do servidor (demo, 25004 bytes)"
+  ]
+}

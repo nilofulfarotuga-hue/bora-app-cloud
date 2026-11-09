@@ -51,6 +51,9 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
   // Q5 — cache de partners para dropdown no dialog block (lazy-loaded).
   List<Map<String, dynamic>>? _partnersCache;
 
+  /// user_id → métodos de entrada (ver [_loadMetodosLogin]).
+  Map<String, MetodosLoginCliente> _metodosLogin = const {};
+
   @override
   void initState() {
     super.initState();
@@ -95,6 +98,7 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
       }
       // Q5 — carregar blocks em paralelo (não bloqueante).
       _loadBlocksByClient();
+      _loadMetodosLogin();
     } catch (e, st) {
       debugPrint('[admin_clients] _load error: $e\n$st');
       if (mounted) setState(() {
@@ -121,6 +125,27 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
       if (mounted) setState(() => _blocksByClient = counts);
     } catch (e) {
       debugPrint('[admin_clients] _loadBlocksByClient error: $e');
+    }
+  }
+
+  /// 09/11/2026 (entrar com Google) — por que método cada cliente entra
+  /// (email / google / apple), lido de auth.identities pela RPC só de admin
+  /// `admin_clientes_metodo_login`. Não bloqueia a lista: sem a RPC (migração
+  /// por aplicar) ou sem rede, simplesmente não aparece a etiqueta.
+  Future<void> _loadMetodosLogin() async {
+    final ids = _clients
+        .map((c) => c['user_id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toList();
+    if (ids.isEmpty) return;
+    try {
+      final res = await Supabase.instance.client.rpc(
+        'admin_clientes_metodo_login',
+        params: {'p_user_ids': ids},
+      );
+      if (mounted) setState(() => _metodosLogin = metodosLoginPorCliente(res));
+    } catch (e) {
+      debugPrint('[admin_clients] _loadMetodosLogin error: $e');
     }
   }
 
@@ -797,6 +822,11 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                                       ),
                                     ),
                                   ],
+                                  if (_metodosLogin[userId] != null) ...[
+                                    const SizedBox(width: 4),
+                                    EtiquetaMetodoLogin(
+                                        metodos: _metodosLogin[userId]!),
+                                  ],
                                 ],
                               ),
                               subtitle: Text(
@@ -931,6 +961,84 @@ class _ClientAvatar extends StatelessWidget {
         child: hasPhoto
             ? null
             : Text(initials, style: const TextStyle(color: Colors.white)),
+      ),
+    );
+  }
+}
+
+/// Métodos de entrada de um cliente (09/11/2026), da RPC
+/// `admin_clientes_metodo_login`.
+class MetodosLoginCliente {
+  const MetodosLoginCliente({required this.metodos, this.ultimo});
+
+  /// 'email', 'google', 'apple'… (um por método ligado à conta).
+  final List<String> metodos;
+
+  /// O método da última entrada.
+  final String? ultimo;
+}
+
+/// Converte a resposta da RPC em `user_id → métodos`. Linhas estranhas são
+/// ignoradas (nunca rebenta o ecrã).
+Map<String, MetodosLoginCliente> metodosLoginPorCliente(Object? res) {
+  final out = <String, MetodosLoginCliente>{};
+  if (res is! List) return out;
+  for (final raw in res) {
+    if (raw is! Map) continue;
+    final id = raw['user_id']?.toString() ?? '';
+    final lista = raw['metodos'];
+    if (id.isEmpty || lista is! List || lista.isEmpty) continue;
+    out[id] = MetodosLoginCliente(
+      metodos: lista.map((m) => m.toString()).toList(),
+      ultimo: raw['ultimo_metodo']?.toString(),
+    );
+  }
+  return out;
+}
+
+/// Nome do método no painel (PT-BR).
+String nomeDoMetodoLogin(String metodo) {
+  switch (metodo) {
+    case 'email':
+      return 'Email';
+    case 'google':
+      return 'Google';
+    case 'apple':
+      return 'Apple';
+    case 'phone':
+      return 'Telefone';
+    default:
+      return metodo;
+  }
+}
+
+/// Etiqueta "Email", "Google", "Email + Google"… ao lado do nome do cliente.
+class EtiquetaMetodoLogin extends StatelessWidget {
+  const EtiquetaMetodoLogin({super.key, required this.metodos});
+  final MetodosLoginCliente metodos;
+
+  @override
+  Widget build(BuildContext context) {
+    final texto = metodos.metodos.map(nomeDoMetodoLogin).join(' + ');
+    final ultimo = metodos.ultimo;
+    return Tooltip(
+      message: ultimo == null
+          ? 'Entra por: $texto'
+          : 'Entra por: $texto · último acesso por ${nomeDoMetodoLogin(ultimo)}',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade400),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          texto,
+          style: const TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textSecondary,
+          ),
+        ),
       ),
     );
   }

@@ -7,6 +7,7 @@ import '../../config/app_colors.dart';
 /// o valor, para o Danilo nunca marcar a linha errada (ronda 04/10, item 1).
 ///
 /// Devolve `true` só se o Danilo carregar em [botao].
+/// [extra] aparece por baixo do detalhe (ex.: o seletor do meio de pagamento).
 Future<bool> confirmarDinheiro(
   BuildContext context, {
   required String titulo,
@@ -14,11 +15,13 @@ Future<bool> confirmarDinheiro(
   required String valor,
   String? detalhe,
   String botao = 'Confirmar',
+  Widget? extra,
 }) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text(titulo),
+      scrollable: extra != null,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -35,6 +38,10 @@ Future<bool> confirmarDinheiro(
           if (detalhe != null && detalhe.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(detalhe),
+          ],
+          if (extra != null) ...[
+            const SizedBox(height: 12),
+            extra,
           ],
         ],
       ),

@@ -10,4 +10,28 @@
             <action android:name="android.intent.action.TTS_SERVICE"/>
         </intent>
     </queries>
+    <!-- Entrar com Google/Apple (09/11/2026, pendencias bloco E). A ligacao
+         de volta pt.boraapp.bora://auth/callback (ja aceite nas Redirect URLs
+         do Supabase Auth) abre a app; o supabase_flutter (app_links) troca-a
+         pela sessao. Fica nos manifestos por tipo de build (debug, profile,
+         release), que o Android junta ao de src/main, porque o de src/main tem
+         a chave do Maps e a trava de segredos nao deixa grava-lo.
+         flutter_deeplinking_enabled=false: sem isto o Flutter (3.27+) tambem
+         empurrava a ligacao como rota ("/callback#access_token=...") e abria
+         a pagina "Este atalho ja nao existe" por cima da app. As ligacoes da
+         app sao so este esquema (nao ha App Links https), quem as trata e o
+         app_links do supabase_flutter. -->
+    <application>
+        <activity android:name=".MainActivity" android:exported="true">
+            <meta-data
+                android:name="flutter_deeplinking_enabled"
+                android:value="false"/>
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="pt.boraapp.bora" android:host="auth"/>
+            </intent-filter>
+        </activity>
+    </application>
 </manifest>

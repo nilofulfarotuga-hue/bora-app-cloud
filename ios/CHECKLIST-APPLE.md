@@ -99,6 +99,13 @@ run_id `ios-lancamento-2026-09`, ids **1446–1479**. Antes desta sessão o
       existe no `.dart_defines` nem no workflow (`grep -c` → 0 e 0), logo
       `bool.fromEnvironment` é `false` e os botões nunca são construídos.
       Fecha o `[~]` do §4.
+      **SUPERADO a 09/11/2026 (pendencias, bloco E):** a flag saiu. O cliente
+      tem "Continuar com Google" (OAuth do Supabase) por interruptor do painel
+      (`login_google_ativo`). Regra 4.8: no iPhone o Google só aparece com
+      "Continuar com a Apple" ao lado, e a Apple só com `login_apple_ativo =
+      true` — ligar só depois de pôr o segredo OAuth da Apple no Supabase Auth
+      (a 09/11 `/authorize?provider=apple` dava 400 "missing OAuth secret").
+      Ver `lib/services/entrada_social_cliente.dart`.
 - [x] **Localização do estafeta no iOS já estava correcta** — corrige uma
       conclusão errada minha (id 1462, corrigida pelo id 1477). Em
       `driver_home_screen.dart:600` o ramo iOS usa `AppleSettings` com

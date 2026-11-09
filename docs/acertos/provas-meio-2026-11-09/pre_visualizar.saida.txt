@@ -1,0 +1,21 @@
+resposta da Edge: HTTP 200 {"na_fila":7,"enviados":7,"falhados":0}
+{"caso":"1-transferencia","estado":"sent","email_para":"parceiro@exemplo.pt","caixa":"Enviado por transferência bancária.","meio":"Transferência bancária","push":"A Bora pagou-lhe €13,60 por transferência bancária, referente à semana de 02/11.","diz_mbway":false}
+{"caso":"2-mbway-com-numero","estado":"sent","email_para":"estafeta@exemplo.pt","caixa":"Enviado por MB Way para 912345678.","meio":"MB Way 912345678","push":"A Bora pagou-lhe €32,13 por MB Way para 912345678, referente à semana de 02/11.","diz_mbway":true}
+{"caso":"3-sem-meio","estado":"sent","email_para":"limpeza@exemplo.pt","caixa":"Pagamento efetuado.","meio":"(sem linha Meio)","push":"A Bora pagou-lhe €20,00, referente à semana de 02/11.","diz_mbway":false}
+{"caso":"4-ambiguo","estado":"sent","email_para":"ambiguo@exemplo.pt","caixa":"Pagamento efetuado.","meio":"(sem linha Meio)","push":"A Bora pagou-lhe €5,00, referente à semana de 02/11.","diz_mbway":false}
+{"caso":"5-stripe","estado":"sent","email_para":"barbearia@exemplo.pt","caixa":"Enviado por Stripe.","meio":"Stripe","push":"A Bora pagou-lhe €9,00 por Stripe, referente à semana de 02/11.","diz_mbway":false}
+{"caso":"6-recebido-mbway-sem-numero","estado":"sent","email_para":"lavador@exemplo.pt","caixa":"Pago por MB Way. A sua conta desta semana fica certa. Obrigado.","meio":"MB Way","push":"Recebemos o seu acerto de €5,00 por MB Way. Conta certa, obrigado.","diz_mbway":true}
+{"caso":"7-recebido-sem-meio","estado":"sent","email_para":"deve@exemplo.pt","caixa":"A sua conta desta semana fica certa. Obrigado.","meio":"(sem linha Meio)","push":"Recebemos o seu acerto de €3,97. Conta certa, obrigado.","diz_mbway":false}
+emails apanhados pelo fetch falso (nenhum saiu): 7
+OK    1 transferência diz "Enviado por transferência bancária" e não diz MB Way
+OK    2 MB Way com número
+OK    3 sem meio diz "Pagamento efetuado" e não diz MB Way
+OK    4 ambíguo (MB Way/transferência) não inventa
+OK    5 Stripe
+OK    6 recebido MB Way sem número (a data não vira número)
+OK    7 recebido sem meio não diz MB Way
+OK    push 1 diz transferência
+OK    push 2 diz MB Way para o número
+OK    push 3 sem meio não inventa
+OK    7 emails apanhados, todos marcados sent
+VEREDICTO: TUDO CERTO

@@ -31,7 +31,7 @@ const _categorias = <(String, String)>[
   ('Favores', 'assets/categories/cat_favores.png'),
   ('Limpeza', 'assets/categories/cat_limpeza.png'),
   // Casa & Manutenção (lançamento 09/11/2026): ícone 3D próprio e selo "Novo".
-  ('Casa', 'assets/categories/cat_casa.png'),
+  ('Casa e\nManutenção', 'assets/categories/cat_casa.png'),
   ('Reservar Mesa', 'assets/categories/cat_reservar_mesa.png'),
   ('Beleza', 'assets/categories/cat_beleza.png'),
   ('Bora Motorista', 'assets/categories/cat_motorista.png'),
@@ -69,7 +69,7 @@ class _GrelhaCategorias extends StatelessWidget {
                   imageAsset: asset,
                   onTap: () {},
                   compacto: compacto,
-                  selo: nome == 'Casa' ? 'Novo' : null,
+                  selo: nome == 'Casa e\nManutenção' ? 'Novo' : null,
                 ),
             ],
           ),
@@ -128,9 +128,12 @@ void main() {
       // Nomes de duas palavras passam a quebrar na segunda linha, por isso
       // o Text leva uma quebra no meio. O que importa e o nome estar la
       // INTEIRO — sem corte e sem reticencias.
-      final esperado = nome.split(' ').length == 2
-          ? nome.replaceFirst(' ', '\n')
-          : nome;
+      // Quem já traz a quebra escrita ("Casa e\nManutenção") fica como está.
+      final esperado = nome.contains('\n')
+          ? nome
+          : nome.split(' ').length == 2
+              ? nome.replaceFirst(' ', '\n')
+              : nome;
       expect(find.text(esperado), findsOneWidget,
           reason: 'faltou o rótulo "$nome"');
     }

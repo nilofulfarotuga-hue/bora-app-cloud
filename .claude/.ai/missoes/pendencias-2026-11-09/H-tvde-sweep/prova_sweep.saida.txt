@@ -1,0 +1,19 @@
+-- Saída de: node prova_sweep.mjs <pglite 0.2.17> supabase/migrations/20261109211000_tvde_sweep_sem_motorista.sql (2026-11-09T21:14Z, PGlite, nada em produção)
+md5 das 14 funções no PGlite = produção: SIM
+migração: tvde_dispatch_sweep 737fc041, tvde_offer_to_next 2c6fb898 -> tvde_dispatch_sweep 02bca2c3, tvde_offer_to_next 6919689e; 2.a vez igual; CRLF ok; guarda md5: abortou: [H] tvde_offer_to_next(uuid) mudou desde 09/11 (md5
+S1 procura esgotada (6 min), reforço LIGADO, há motorista que consentiu
+     corrida=solicitada oferta=REF | eventos sem_motorista antes=1 depois=0 | resto igual=SIM | registo de ofertas=REF:forcado | pushes=notify-tvde-driver>REF
+S2 procura esgotada (6 min), reforço LIGADO, ninguém consentiu
+     corrida=sem_motorista | eventos sem_motorista antes=1 depois=1 | resto igual=SIM | registo de ofertas=- | pushes=notify-tvde-client/sem_motorista
+S3 procura esgotada (6 min), reforço DESLIGADO (como hoje)
+     corrida=sem_motorista | eventos sem_motorista antes=1 depois=1 | resto igual=SIM | registo de ofertas=- | pushes=notify-tvde-client/sem_motorista
+S4 sem candidatos há 150 s (tvde_offer_to_next), reforço LIGADO, há quem consentiu
+     corrida=solicitada oferta=REF | eventos sem_motorista antes=1 depois=0 | resto igual=SIM | registo de ofertas=REF:forcado | pushes=notify-tvde-driver>REF
+S5 sem candidatos há 150 s, reforço LIGADO mas as 2 tentativas já foram gastas
+     corrida=sem_motorista | eventos sem_motorista antes=1 depois=1 | resto igual=SIM | registo de ofertas=- | pushes=notify-tvde-client/sem_motorista
+S6 sem candidatos há 150 s, reforço DESLIGADO (como hoje)
+     corrida=sem_motorista | eventos sem_motorista antes=1 depois=1 | resto igual=SIM | registo de ofertas=- | pushes=notify-tvde-client/sem_motorista
+S7 oferta a X expirou e há um motorista online (rotação normal), reforço LIGADO
+     corrida=solicitada oferta=ON | eventos sem_motorista antes=0 depois=0 | resto igual=SIM | registo de ofertas=ON:online | pushes=notify-tvde-driver>ON
+PROVA_OK
+exit=0

@@ -702,6 +702,32 @@ export async function tratarWebhookStripe(req: Request, conta: ContaStripe): Pro
         break;
       }
 
+      // ⭐ m11 (09/11/2026) — CASA & MANUTENÇÃO (kind='casa'). O webhook GARANTE o 'held'
+      // (MB Way aprovado com a app fechada); o mark_held do cliente (casa-checkout) é o acelerador.
+      // RPC idempotente: confere o valor contra total_cents; pedido já caído → marcado para devolver.
+      // Autorizado pelo Danilo a 09/11/2026 ("Autorizo cartão e MB Way").
+      if (intent.metadata?.kind === 'casa') {
+        const pedidoId = intent.metadata?.pedido_id;
+        if (pedidoId) {
+          const { data, error } = await supabase.rpc('casa_pagamento_confirmado', {
+            p_pedido_id: pedidoId,
+            p_payment_intent_id: intent.id,
+            p_amount_cents: Number(intent.amount_received ?? intent.amount ?? 0),
+            p_stripe_account: intent.metadata?.bora_conta ?? null,
+            p_origem: 'stripe-webhook',
+          });
+          if (error) {
+            console.error('[stripe-webhook] casa held failed:', error.message, intent.id);
+            falha(`casa_pagamento_confirmado: ${error.message}`);
+          } else {
+            console.log('[stripe-webhook] casa held:', JSON.stringify(data), intent.id);
+          }
+        } else {
+          console.error('[stripe-webhook] casa PI missing pedido_id:', intent.id);
+        }
+        break;
+      }
+
       // ⭐ F3c (2026-08-16) — PLANO TVDE (kind='tvde_plan'). O webhook GARANTE a
       // ativação da subscrição; o poll 'activate' do cliente (tvde-plan-payment)
       // fica como acelerador. RPC idempotente por payment_intent_id e valida
@@ -982,6 +1008,15 @@ export async function tratarWebhookStripe(req: Request, conta: ContaStripe): Pro
         console.warn('[stripe-webhook] cleaning PI', event.type,
           '— booking fica unpaid (retry possível):',
           intent.metadata?.booking_id ?? '?', intent.id);
+        break;
+      }
+
+      // m11 (09/11/2026) — CASA: pagamento falhou/cancelado. O pedido fica 'aguarda_pagamento' DE
+      // PROPÓSITO (o cliente pode tentar outra vez; cai sozinho aos 30 min pelo casa_tick). Só log.
+      if (intent.metadata?.kind === 'casa') {
+        console.warn('[stripe-webhook] casa PI', event.type,
+          '— pedido fica a aguardar pagamento (retry possível):',
+          intent.metadata?.pedido_id ?? '?', intent.id);
         break;
       }
 

@@ -10,6 +10,7 @@ import '../config/app_spacing.dart';
 import '../l10n/tr.dart';
 import '../models/restaurant_model.dart';
 import '../models/service_provider_model.dart';
+import '../services/pesquisa_aprendizagem.dart';
 import '../services/registo_pesquisa.dart';
 import '../services/home_feed_service.dart';
 import '../services/pricing_service.dart';
@@ -22,6 +23,7 @@ import '../utils/home_destino.dart';
 import '../utils/pesquisa_atalhos.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora/coming_soon.dart';
+import '../widgets/pesquisa_sem_resultado.dart';
 import 'client/services/provider_detail_screen.dart';
 import 'restaurants_screen.dart' show RestaurantTile;
 import '../utils/euros.dart';
@@ -78,6 +80,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
   void dispose() {
     _debounce?.cancel();
     _registo.dispose();
+    PesquisaAprendizagem.instance.sairDoEcra();
     _ctrl.dispose();
     super.dispose();
   }
@@ -187,6 +190,12 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
         _aProcurar = false;
       });
       _guardarRecente(q);
+      // m11 (09/11): nada achado na lupa → fica registado para o painel.
+      if (lojas.isEmpty && _produtos.isEmpty) {
+        PesquisaAprendizagem.instance.semResultado(q, origem: 'lupa');
+      } else {
+        PesquisaAprendizagem.instance.comResultado();
+      }
     } catch (e) {
       debugPrint('[pesquisa] $e');
       if (!mounted || n != _pedido) return;
@@ -370,10 +379,10 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
       );
     }
     if (_lojas.isEmpty && _produtos.isEmpty && !temExtra) {
-      return _Vazio(
-        texto: 'Não encontrámos "{0}" — tenta pizza, sushi, açaí…'
-            .trArgs([_q.trim()]),
-        acao: Wrap(
+      // m11 (09/11): nunca beco sem saída — "Pede ao Amigo" e as sugestões.
+      return PesquisaSemResultado(
+        termo: _q,
+        extra: Wrap(
           spacing: Spacing.sm,
           children: [
             for (final s in const ['Pizza', 'Sushi', 'Açaí', 'Leite'])

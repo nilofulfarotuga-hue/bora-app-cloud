@@ -22,6 +22,17 @@ const Map<String, String> kStringsEn = <String, String>{
   'Sem voz': 'No voice',
   'Toca para ouvir': 'Tap to hear',
   'Este aparelho não tem voz de Portugal: o Amigo fala por legenda.': "This device has no Portugal Portuguese voice: Amigo speaks with captions.",
+  // 09/11/2026 (missão m11, adendo 2): pesquisa sem resultado → "Pede ao Amigo".
+  // Acrescentado a mão.
+  'Não encontrei "{0}" aqui.': 'I couldn\'t find "{0}" here.',
+  'Não encontrei "{0}".': 'I couldn\'t find "{0}".',
+  'O Amigo procura noutras lojas ou trata disso num Favor.':
+      'Amigo can look in other shops or sort it out with a Favour.',
+  'Pede ao Amigo': 'Ask Amigo',
+  'Não encontrei "{0}" em {1}. Procura noutras lojas ou propõe-me um Favor.':
+      'I couldn\'t find "{0}" at {1}. Look in other shops or suggest a Favour.',
+  'Não encontrei "{0}" na Bora. Procura noutras lojas ou propõe-me um Favor.':
+      'I couldn\'t find "{0}" on Bora. Look in other shops or suggest a Favour.',
   // 09/11/2026 (missão m11-amigo-rosto): o rosto do Amigo — ecrã, home e mosaico.
   'A ouvir… toca para enviar': 'Listening… tap to send',
   'Amigo': 'Amigo',

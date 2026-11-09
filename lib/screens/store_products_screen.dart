@@ -8,12 +8,15 @@ import '../config/app_colors.dart';
 import '../models/cart_item.dart';
 import '../models/partner_product.dart';
 import '../models/product_variant.dart';
+import '../services/pesquisa_aprendizagem.dart';
 import '../services/pricing_service.dart';
 import '../services/registo_pesquisa.dart';
 import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/cart_feedback.dart';
+import '../utils/pesquisa_resultados.dart';
+import '../widgets/pesquisa_sem_resultado.dart';
 import '../widgets/bora/bora_product_card.dart';
 import '../widgets/bora/maior_18.dart';
 import '../widgets/bora/peso_variavel_nota.dart';
@@ -56,6 +59,10 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   Timer? _rpcDebounce;
   List<Map<String, dynamic>> _rpcRows = const [];
   bool _rpcLoading = false;
+  // m11 (09/11): o texto da última pesquisa que o servidor respondeu — só
+  // com ela respondida é que se mostra "Não encontrei X aqui".
+  String? _rpcQuery;
+  CartStore? _cart;
 
   // ── Normalise: remove accents + lowercase ──────────────────────────────────
   String _normalize(String text) {
@@ -80,11 +87,24 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
       context
           .read<RestaurantStore>()
           .loadFullStoreProducts(widget.restaurantId);
+      // m11 (09/11): o que o cliente põe no carrinho depois de uma pesquisa
+      // sem resultado ensina a pesquisa (PesquisaAprendizagem).
+      _cart = context.read<CartStore>()..addListener(_aoMudarCarrinho);
+      _aoMudarCarrinho();
     });
+  }
+
+  void _aoMudarCarrinho() {
+    final c = _cart;
+    if (c == null) return;
+    PesquisaAprendizagem.instance
+        .carrinhoMudou(c.items.map((i) => i.productId), c.vendorRestaurantId);
   }
 
   @override
   void dispose() {
+    _cart?.removeListener(_aoMudarCarrinho);
+    PesquisaAprendizagem.instance.sairDoEcra();
     _rpcDebounce?.cancel();
     _registo.dispose();
     _searchController.dispose();
@@ -121,19 +141,28 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
         },
       );
       if (!mounted) return;
+      final linhas = rows is List
+          ? List<Map<String, dynamic>>.from(
+              rows.whereType<Map<String, dynamic>>(),
+            )
+          : const <Map<String, dynamic>>[];
       setState(() {
-        _rpcRows = rows is List
-            ? List<Map<String, dynamic>>.from(
-                rows.whereType<Map<String, dynamic>>(),
-              )
-            : const [];
+        _rpcRows = linhas;
         _rpcLoading = false;
+        _rpcQuery = query;
       });
+      if (separarResultadosPesquisa(linhas).produtos.isEmpty) {
+        PesquisaAprendizagem.instance
+            .semResultado(query, restaurantId: widget.restaurantId);
+      } else {
+        PesquisaAprendizagem.instance.comResultado();
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _rpcRows = const [];
         _rpcLoading = false;
+        _rpcQuery = null;
       });
     }
   }
@@ -291,6 +320,10 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
               child: _SuggestionsPanel(
                 rpcRows: _rpcRows,
                 rpcLoading: _rpcLoading,
+                respondida: _rpcQuery != null &&
+                    _rpcQuery == _searchQuery.trim(),
+                termo: _searchQuery,
+                loja: widget.storeName,
                 localFallback: suggestions,
                 loadedProducts: products,
                 isPartnerStore: widget.isPartnerStore,
@@ -1572,6 +1605,9 @@ class _SuggestionsPanel extends StatelessWidget {
   const _SuggestionsPanel({
     required this.rpcRows,
     required this.rpcLoading,
+    required this.respondida,
+    required this.termo,
+    required this.loja,
     required this.localFallback,
     required this.loadedProducts,
     required this.onPickSection,
@@ -1581,6 +1617,9 @@ class _SuggestionsPanel extends StatelessWidget {
 
   final List<Map<String, dynamic>> rpcRows;
   final bool rpcLoading;
+  final bool respondida;
+  final String termo;
+  final String loja;
   final List<PartnerProduct> localFallback;
   final List<PartnerProduct> loadedProducts;
   final ValueChanged<String> onPickSection;
@@ -1611,12 +1650,9 @@ class _SuggestionsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sections = rpcRows
-        .where((r) => (r['result_type'] ?? '') == 'section')
-        .toList();
-    final products = rpcRows
-        .where((r) => (r['result_type'] ?? '') == 'product')
-        .toList();
+    final resultados = separarResultadosPesquisa(rpcRows);
+    final sections = resultados.seccoes;
+    final products = resultados.produtos;
 
     final hasRpc = sections.isNotEmpty || products.isNotEmpty;
 
@@ -1635,6 +1671,13 @@ class _SuggestionsPanel extends StatelessWidget {
     }
 
     if (!hasRpc && localFallback.isEmpty) {
+      // m11 (09/11): nunca beco sem saída — "Não encontrei X aqui" + "Pede ao Amigo".
+      if (!rpcLoading && respondida) {
+        return Container(
+          color: Colors.white,
+          child: PesquisaSemResultado(termo: termo, loja: loja),
+        );
+      }
       return const SizedBox.shrink();
     }
 

@@ -1,0 +1,476 @@
+Nested Loop  (cost=32123210.43..32123210.81 rows=16 width=260) (actual time=246.321..246.426 rows=50 loops=1)
+  Buffers: shared hit=5639
+  CTE cfg
+    ->  Result  (cost=0.00..0.01 rows=1 width=32) (actual time=0.014..0.015 rows=1 loops=1)
+  CTE sinonimos_semente
+    ->  Values Scan on "*VALUES*"  (cost=0.00..129.06 rows=247 width=193) (actual time=0.901..79.978 rows=247 loops=1)
+          Buffers: shared hit=22
+  ->  CTE Scan on cfg  (cost=0.00..0.02 rows=1 width=0) (actual time=0.016..0.018 rows=1 loops=1)
+  ->  Limit  (cost=32123081.36..32123081.40 rows=16 width=268) (actual time=246.297..246.388 rows=50 loops=1)
+        Buffers: shared hit=5639
+        CTE q
+          ->  Result  (cost=0.00..0.01 rows=1 width=36) (actual time=0.001..0.001 rows=1 loops=1)
+        CTE pal
+          ->  WindowAgg  (cost=62.66..270.23 rows=776 width=80) (actual time=0.511..0.544 rows=2 loops=1)
+                Buffers: shared hit=15
+                ->  Sort  (cost=62.65..64.59 rows=776 width=40) (actual time=0.082..0.085 rows=2 loops=1)
+                      Sort Key: x.o
+                      Sort Method: quicksort  Memory: 25kB
+                      ->  Nested Loop  (cost=0.11..25.40 rows=776 width=40) (actual time=0.065..0.068 rows=2 loops=1)
+                            ->  CTE Scan on q  (cost=0.00..0.03 rows=1 width=32) (actual time=0.003..0.003 rows=1 loops=1)
+                                  Filter: (length(qn) >= 2)
+                            ->  Function Scan on regexp_split_to_table x  (cost=0.11..17.61 rows=776 width=40) (actual time=0.059..0.060 rows=2 loops=1)
+                                  Filter: ((w <> ''::text) AND (w <> ALL ('{de,da,do,das,dos,em,e,a,o,os,as,para,p,ao,aos,na,no,nas,nos,c,um,uma,ou,pra,kg,g,gr,grs,ml,cl,lt,un,und,unid,unidade,unidades,emb,embalagem,pack,litro,litros,quilo,quilos,kilo}'::text[])))
+        CTE nq
+          ->  Aggregate  (cost=58.59..58.60 rows=1 width=36) (actual time=0.561..0.563 rows=1 loops=1)
+                Buffers: shared hit=15
+                ->  Sort  (cost=52.77..54.71 rows=776 width=40) (actual time=0.554..0.555 rows=2 loops=1)
+                      Sort Key: pal.i
+                      Sort Method: quicksort  Memory: 25kB
+                      Buffers: shared hit=15
+                      ->  CTE Scan on pal  (cost=0.00..15.52 rows=776 width=40) (actual time=0.514..0.546 rows=2 loops=1)
+                            Buffers: shared hit=15
+        CTE sin
+          ->  Append  (cost=0.00..52.60 rows=37 width=73) (actual time=81.819..81.823 rows=0 loops=1)
+                Buffers: shared hit=22
+                ->  Nested Loop  (cost=0.00..45.59 rows=36 width=73) (actual time=81.751..81.752 rows=0 loops=1)
+                      Join Filter: ((s_1.chave = pl.t) OR (s_1.chave = pl.w) OR ((length(pl.t) >= 5) AND (length(s_1.chave) >= 5) AND (similarity(s_1.chave, pl.t) >= '0.6'::double precision)))
+                      Rows Removed by Join Filter: 402
+                      Buffers: shared hit=22
+                      ->  CTE Scan on sinonimos_semente s_1  (cost=0.00..6.79 rows=1 width=96) (actual time=0.905..80.385 rows=201 loops=1)
+                            Filter: (ativo AND ((restaurant_id IS NULL) OR (restaurant_id = 'continente-guarda'::text)) AND (strpos(chave, ' '::text) = 0))
+                            Rows Removed by Filter: 46
+                            Buffers: shared hit=22
+                      ->  CTE Scan on pal pl  (cost=0.00..15.52 rows=776 width=72) (actual time=0.000..0.001 rows=2 loops=201)
+                ->  Nested Loop  (cost=0.00..6.83 rows=1 width=73) (actual time=0.066..0.068 rows=0 loops=1)
+                      Join Filter: (nq.qs = s_2.chave)
+                      Rows Removed by Join Filter: 46
+                      ->  CTE Scan on nq  (cost=0.00..0.02 rows=1 width=32) (actual time=0.001..0.001 rows=1 loops=1)
+                      ->  CTE Scan on sinonimos_semente s_2  (cost=0.00..6.79 rows=1 width=96) (actual time=0.015..0.058 rows=46 loops=1)
+                            Filter: (ativo AND ((restaurant_id IS NULL) OR (restaurant_id = 'continente-guarda'::text)) AND (strpos(chave, ' '::text) > 0))
+                            Rows Removed by Filter: 201
+        CTE alt
+          ->  HashAggregate  (cost=74.69..92.98 rows=1829 width=44) (actual time=81.839..81.849 rows=2 loops=1)
+                Group Key: pal_1.i, pal_1.t, (0)
+                Batches: 1  Memory Usage: 73kB
+                Buffers: shared hit=22
+                ->  Append  (cost=0.00..60.97 rows=1829 width=44) (actual time=0.002..81.830 rows=4 loops=1)
+                      Buffers: shared hit=22
+                      ->  CTE Scan on pal pal_1  (cost=0.00..15.52 rows=776 width=44) (actual time=0.001..0.002 rows=2 loops=1)
+                      ->  CTE Scan on pal pal_2  (cost=0.00..15.52 rows=776 width=44) (actual time=0.001..0.001 rows=2 loops=1)
+                      ->  CTE Scan on pal pal_3  (cost=0.00..20.05 rows=259 width=44) (actual time=0.002..0.002 rows=0 loops=1)
+                            Filter: (strpos(t, 'ct'::text) > 0)
+                            Rows Removed by Filter: 2
+                      ->  CTE Scan on sin  (cost=0.00..0.74 rows=18 width=44) (actual time=81.820..81.821 rows=0 loops=1)
+                            Filter: ((NOT frase) AND (alvo_chave IS NOT NULL))
+                            Buffers: shared hit=22
+        CTE falt
+          ->  HashAggregate  (cost=0.79..0.97 rows=18 width=32) (actual time=0.002..0.003 rows=0 loops=1)
+                Group Key: sin_1.alvo_chave
+                Batches: 1  Memory Usage: 24kB
+                ->  CTE Scan on sin sin_1  (cost=0.00..0.74 rows=18 width=32) (actual time=0.000..0.001 rows=0 loops=1)
+                      Filter: (frase AND (alvo_chave IS NOT NULL))
+        CTE fixo
+          ->  HashAggregate  (cost=0.93..1.30 rows=37 width=40) (actual time=0.003..0.004 rows=0 loops=1)
+                Group Key: sin_2.i, sin_2.product_id
+                Batches: 1  Memory Usage: 24kB
+                ->  CTE Scan on sin sin_2  (cost=0.00..0.74 rows=37 width=40) (actual time=0.001..0.001 rows=0 loops=1)
+                      Filter: (product_id IS NOT NULL)
+        CTE rx
+          ->  Aggregate  (cost=189.24..189.25 rows=1 width=32) (actual time=81.919..81.924 rows=1 loops=1)
+                Buffers: shared hit=22
+                ->  Unique  (cost=182.53..187.00 rows=895 width=32) (actual time=81.910..81.916 rows=3 loops=1)
+                      Buffers: shared hit=22
+                      ->  Sort  (cost=182.53..184.77 rows=895 width=32) (actual time=81.909..81.913 rows=3 loops=1)
+                            Sort Key: alt.a
+                            Sort Method: quicksort  Memory: 25kB
+                            Buffers: shared hit=22
+                            ->  Append  (cost=0.00..138.65 rows=895 width=32) (actual time=81.843..81.882 rows=3 loops=1)
+                                  Buffers: shared hit=22
+                                  ->  CTE Scan on alt  (cost=0.00..45.73 rows=610 width=32) (actual time=81.842..81.852 rows=2 loops=1)
+                                        Filter: (length(a) >= 2)
+                                        Buffers: shared hit=22
+                                  ->  CTE Scan on falt  (cost=0.00..0.45 rows=6 width=32) (actual time=0.003..0.003 rows=0 loops=1)
+                                        Filter: (length(a) >= 2)
+                                  ->  CTE Scan on pal pal_4  (cost=0.00..17.54 rows=31 width=32) (actual time=0.005..0.005 rows=0 loops=1)
+                                        Filter: (t ~ 'ao$'::text)
+                                        Rows Removed by Filter: 2
+                                  ->  CTE Scan on pal pal_5  (cost=0.00..17.54 rows=31 width=32) (actual time=0.003..0.003 rows=0 loops=1)
+                                        Filter: (t ~ 'ao$'::text)
+                                        Rows Removed by Filter: 2
+                                  ->  CTE Scan on pal pal_6  (cost=0.00..17.54 rows=31 width=32) (actual time=0.003..0.003 rows=0 loops=1)
+                                        Filter: (t ~ 'al$'::text)
+                                        Rows Removed by Filter: 2
+                                  ->  CTE Scan on pal pal_7  (cost=0.00..17.54 rows=31 width=32) (actual time=0.006..0.007 rows=1 loops=1)
+                                        Filter: (t ~ 'el$'::text)
+                                        Rows Removed by Filter: 1
+                                  ->  CTE Scan on pal pal_8  (cost=0.00..17.85 rows=155 width=32) (actual time=0.003..0.003 rows=0 loops=1)
+                                        Filter: (t ~ 'm$'::text)
+                                        Rows Removed by Filter: 2
+        CTE cand_ids
+          ->  HashAggregate  (cost=322.49..325.78 rows=329 width=32) (actual time=91.201..91.329 rows=779 loops=1)
+                Group Key: p0.id
+                Batches: 1  Memory Usage: 105kB
+                Buffers: shared hit=604
+                ->  Append  (cost=8.37..321.67 rows=329 width=32) (actual time=84.005..90.906 rows=779 loops=1)
+                      Buffers: shared hit=604
+                      ->  Bitmap Heap Scan on products p0  (cost=8.37..319.28 rows=292 width=18) (actual time=84.004..90.813 rows=779 loops=1)
+                            Recheck Cond: (search_normalized ~ (InitPlan 11).col1)
+                            Heap Blocks: exact=522
+                            Buffers: shared hit=604
+                            InitPlan 11
+                              ->  CTE Scan on rx  (cost=0.00..0.02 rows=1 width=32) (actual time=81.921..81.921 rows=1 loops=1)
+                                    Buffers: shared hit=22
+                            ->  Bitmap Index Scan on products_search_trgm_idx  (cost=0.00..8.28 rows=292 width=0) (actual time=83.891..83.891 rows=832 loops=1)
+                                  Index Cond: (search_normalized ~ (InitPlan 11).col1)
+                                  Buffers: shared hit=82
+                      ->  CTE Scan on fixo  (cost=0.00..0.74 rows=37 width=32) (actual time=0.005..0.005 rows=0 loops=1)
+        CTE cand
+          ->  Nested Loop  (cost=7.82..504.71 rows=101 width=244) (actual time=91.808..97.583 rows=580 loops=1)
+                Buffers: shared hit=3722
+                ->  HashAggregate  (cost=7.40..9.40 rows=200 width=32) (actual time=91.751..91.909 rows=779 loops=1)
+                      Group Key: cand_ids.id
+                      Batches: 1  Memory Usage: 121kB
+                      Buffers: shared hit=604
+                      ->  CTE Scan on cand_ids  (cost=0.00..6.58 rows=329 width=32) (actual time=91.203..91.517 rows=779 loops=1)
+                            Buffers: shared hit=604
+                ->  Index Scan using products_pkey on products p  (cost=0.41..2.49 rows=1 width=244) (actual time=0.007..0.007 rows=1 loops=779)
+                      Index Cond: (id = cand_ids.id)
+                      Filter: (is_available AND (restaurant_id = 'continente-guarda'::text))
+                      Rows Removed by Filter: 0
+                      Buffers: shared hit=3118
+        CTE cn
+          ->  Nested Loop Left Join  (cost=2.27..170.44 rows=101 width=321) (actual time=100.405..139.478 rows=580 loops=1)
+                Join Filter: (NOT (k.category IS DISTINCT FROM c.category))
+                Rows Removed by Join Filter: 53360
+                Buffers: shared hit=3722
+                ->  CTE Scan on cand c  (cost=0.00..2.02 rows=101 width=225) (actual time=91.811..92.551 rows=580 loops=1)
+                      Buffers: shared hit=608
+                ->  Materialize  (cost=2.27..9.59 rows=101 width=64) (actual time=0.012..0.026 rows=93 loops=580)
+                      Buffers: shared hit=3114
+                      ->  Subquery Scan on k  (cost=2.27..9.09 rows=101 width=64) (actual time=7.090..11.616 rows=93 loops=1)
+                            Buffers: shared hit=3114
+                            ->  HashAggregate  (cost=2.27..3.28 rows=101 width=32) (actual time=6.596..6.618 rows=93 loops=1)
+                                  Group Key: cand.category
+                                  Batches: 1  Memory Usage: 32kB
+                                  Buffers: shared hit=3114
+                                  ->  CTE Scan on cand  (cost=0.00..2.02 rows=101 width=32) (actual time=0.001..6.357 rows=580 loops=1)
+                                        Buffers: shared hit=3114
+        CTE forca
+          ->  GroupAggregate  (cost=472.26..161901.30 rows=20200 width=137) (actual time=42.917..46.368 rows=1160 loops=1)
+                Group Key: pl_1.i, c_1.id
+                ->  Incremental Sort  (cost=472.26..65913.28 rows=716749 width=140) (actual time=42.880..43.874 rows=1160 loops=1)
+                      Sort Key: pl_1.i, c_1.id
+                      Presorted Key: pl_1.i
+                      Full-sort Groups: 2  Sort Method: quicksort  Average Memory: 34kB  Peak Memory: 34kB
+                      Pre-sorted Groups: 2  Sort Method: quicksort  Average Memory: 105kB  Peak Memory: 105kB
+                      ->  Nested Loop  (cost=188.45..14635.74 rows=716749 width=140) (actual time=0.026..42.181 rows=1160 loops=1)
+                            ->  Merge Join  (cost=188.45..298.79 rows=7097 width=44) (actual time=0.023..0.034 rows=2 loops=1)
+                                  Merge Cond: (pl_1.i = a.i)
+                                  ->  Sort  (cost=52.77..54.71 rows=776 width=8) (actual time=0.011..0.012 rows=2 loops=1)
+                                        Sort Key: pl_1.i
+                                        Sort Method: quicksort  Memory: 25kB
+                                        ->  CTE Scan on pal pl_1  (cost=0.00..15.52 rows=776 width=8) (actual time=0.002..0.002 rows=2 loops=1)
+                                  ->  Sort  (cost=135.68..140.26 rows=1829 width=44) (actual time=0.008..0.011 rows=2 loops=1)
+                                        Sort Key: a.i
+                                        Sort Method: quicksort  Memory: 25kB
+                                        ->  CTE Scan on alt a  (cost=0.00..36.58 rows=1829 width=44) (actual time=0.002..0.002 rows=2 loops=1)
+                            ->  CTE Scan on cn c_1  (cost=0.00..2.02 rows=101 width=96) (actual time=0.000..20.918 rows=580 loops=2)
+                SubPlan 16
+                  ->  CTE Scan on fixo f  (cost=0.00..0.74 rows=37 width=40) (actual time=0.000..0.001 rows=0 loops=1)
+        CTE princ
+          ->  Hash Left Join  (cost=1444.64..1468.55 rows=100 width=289) (actual time=151.137..153.420 rows=580 loops=1)
+                Hash Cond: (c_6.id = g.id)
+                Filter: (CASE WHEN (nq_1.n = 0) THEN NULL::text WHEN (c_6.ns = ((' '::text || nq_1.qs) || ' '::text)) THEN 'exato'::text WHEN ((g.ok_o = nq_1.n) AND (c_6.ns ~~ ((' '::text || nq_1.qs) || '%'::text))) THEN 'comeca'::text WHEN ((g.ok_o = nq_1.n) AND (c_6.ns ~~ ((' '::text || (InitPlan 24).col1) || '%'::text))) THEN 'comeca'::text WHEN (g.ok_o = nq_1.n) THEN 'texto'::text WHEN ((nq_1.n >= 3) AND (g.ok_o >= (nq_1.n - 1)) AND g.ok1) THEN 'texto'::text WHEN ((g.ok_n = nq_1.n) OR (ANY (c_6.id = (hashed SubPlan 25).col1))) THEN 'sinonimo'::text WHEN (g.ok_c = nq_1.n) THEN 'categoria'::text WHEN (COALESCE(g.ok_c, '0'::bigint) >= 1) THEN 'parcial'::text ELSE NULL::text END IS NOT NULL)
+                Buffers: shared hit=3737
+                InitPlan 18
+                  ->  CTE Scan on pal pal_9  (cost=0.00..17.46 rows=4 width=32) (never executed)
+                        Filter: (i = 1)
+                InitPlan 20
+                  ->  CTE Scan on pal pal_10  (cost=0.00..17.46 rows=4 width=32) (never executed)
+                        Filter: (i = 1)
+                InitPlan 22
+                  ->  CTE Scan on pal pal_11  (cost=0.00..17.46 rows=4 width=32) (never executed)
+                        Filter: (i = 1)
+                InitPlan 24
+                  ->  CTE Scan on pal pal_12  (cost=0.00..17.46 rows=4 width=32) (never executed)
+                        Filter: (i = 1)
+                ->  Nested Loop  (cost=0.00..3.08 rows=101 width=357) (actual time=100.976..101.310 rows=580 loops=1)
+                      Buffers: shared hit=3737
+                      ->  Nested Loop  (cost=0.00..0.05 rows=1 width=68) (actual time=0.565..0.569 rows=1 loops=1)
+                            Buffers: shared hit=15
+                            ->  CTE Scan on q q_1  (cost=0.00..0.02 rows=1 width=32) (actual time=0.000..0.001 rows=1 loops=1)
+                            ->  CTE Scan on nq nq_1  (cost=0.00..0.02 rows=1 width=36) (actual time=0.562..0.564 rows=1 loops=1)
+                                  Buffers: shared hit=15
+                      ->  CTE Scan on cn c_6  (cost=0.00..2.02 rows=101 width=289) (actual time=100.408..100.579 rows=580 loops=1)
+                            Buffers: shared hit=3722
+                ->  Hash  (cost=1166.00..1166.00 rows=200 width=90) (actual time=50.019..50.021 rows=580 loops=1)
+                      Buckets: 1024  Batches: 1  Memory Usage: 55kB
+                      ->  Subquery Scan on g  (cost=1161.50..1166.00 rows=200 width=90) (actual time=49.388..49.803 rows=580 loops=1)
+                            ->  HashAggregate  (cost=1161.50..1164.00 rows=200 width=90) (actual time=49.387..49.727 rows=580 loops=1)
+                                  Group Key: f_1.id
+                                  Batches: 1  Memory Usage: 441kB
+                                  ->  CTE Scan on forca f_1  (cost=0.00..404.00 rows=20200 width=137) (actual time=42.919..47.429 rows=1160 loops=1)
+                SubPlan 19
+                  ->  Unique  (cost=51.51..51.55 rows=9 width=32) (actual time=0.027..0.028 rows=0 loops=1)
+                        ->  Sort  (cost=51.51..51.53 rows=9 width=32) (actual time=0.026..0.027 rows=0 loops=1)
+                              Sort Key: c_2.id
+                              Sort Method: quicksort  Memory: 25kB
+                              ->  Nested Loop  (cost=0.00..51.37 rows=9 width=32) (actual time=0.001..0.002 rows=0 loops=1)
+                                    Join Filter: (c_2.ns ~~ (('% '::text || falt_1.a) || '%'::text))
+                                    ->  CTE Scan on falt falt_1  (cost=0.00..0.36 rows=18 width=32) (actual time=0.001..0.001 rows=0 loops=1)
+                                    ->  CTE Scan on cn c_2  (cost=0.00..2.02 rows=101 width=64) (never executed)
+                SubPlan 21
+                  ->  Unique  (cost=51.51..51.55 rows=9 width=32) (actual time=0.010..0.012 rows=0 loops=1)
+                        ->  Sort  (cost=51.51..51.53 rows=9 width=32) (actual time=0.010..0.011 rows=0 loops=1)
+                              Sort Key: c_3.id
+                              Sort Method: quicksort  Memory: 25kB
+                              ->  Nested Loop  (cost=0.00..51.37 rows=9 width=32) (actual time=0.001..0.002 rows=0 loops=1)
+                                    Join Filter: (c_3.ns ~~ (('% '::text || falt_2.a) || '%'::text))
+                                    ->  CTE Scan on falt falt_2  (cost=0.00..0.36 rows=18 width=32) (actual time=0.001..0.001 rows=0 loops=1)
+                                    ->  CTE Scan on cn c_3  (cost=0.00..2.02 rows=101 width=64) (never executed)
+                SubPlan 23
+                  ->  Unique  (cost=51.51..51.55 rows=9 width=32) (actual time=0.011..0.013 rows=0 loops=1)
+                        ->  Sort  (cost=51.51..51.53 rows=9 width=32) (actual time=0.011..0.012 rows=0 loops=1)
+                              Sort Key: c_4.id
+                              Sort Method: quicksort  Memory: 25kB
+                              ->  Nested Loop  (cost=0.00..51.37 rows=9 width=32) (actual time=0.001..0.002 rows=0 loops=1)
+                                    Join Filter: (c_4.ns ~~ (('% '::text || falt_3.a) || '%'::text))
+                                    ->  CTE Scan on falt falt_3  (cost=0.00..0.36 rows=18 width=32) (actual time=0.000..0.000 rows=0 loops=1)
+                                    ->  CTE Scan on cn c_4  (cost=0.00..2.02 rows=101 width=64) (never executed)
+                SubPlan 25
+                  ->  Unique  (cost=51.51..51.55 rows=9 width=32) (actual time=0.022..0.023 rows=0 loops=1)
+                        ->  Sort  (cost=51.51..51.53 rows=9 width=32) (actual time=0.021..0.022 rows=0 loops=1)
+                              Sort Key: c_5.id
+                              Sort Method: quicksort  Memory: 25kB
+                              ->  Nested Loop  (cost=0.00..51.37 rows=9 width=32) (actual time=0.002..0.002 rows=0 loops=1)
+                                    Join Filter: (c_5.ns ~~ (('% '::text || falt_4.a) || '%'::text))
+                                    ->  CTE Scan on falt falt_4  (cost=0.00..0.36 rows=18 width=32) (actual time=0.001..0.001 rows=0 loops=1)
+                                    ->  CTE Scan on cn c_5  (cost=0.00..2.02 rows=101 width=64) (never executed)
+        CTE falha
+          ->  WindowAgg  (cost=635.67..637.37 rows=86 width=56) (actual time=0.581..0.588 rows=1 loops=1)
+                InitPlan 28
+                  ->  Aggregate  (cost=0.28..0.30 rows=1 width=1) (actual time=0.113..0.114 rows=1 loops=1)
+                        InitPlan 27
+                          ->  CTE Scan on nq nq_2  (cost=0.00..0.02 rows=1 width=4) (actual time=0.001..0.001 rows=1 loops=1)
+                        ->  Limit  (cost=0.00..0.20 rows=5 width=4) (actual time=0.107..0.108 rows=0 loops=1)
+                              ->  CTE Scan on princ princ_1  (cost=0.00..2.00 rows=50 width=4) (actual time=0.106..0.106 rows=0 loops=1)
+                                    Filter: cheio
+                                    Rows Removed by Filter: 580
+                ->  Sort  (cost=635.36..635.57 rows=86 width=48) (actual time=0.573..0.576 rows=1 loops=1)
+                      Sort Key: (COALESCE(m_1.n, '0'::bigint)), pal_13.i
+                      Sort Method: quicksort  Memory: 25kB
+                      ->  Result  (cost=612.50..632.59 rows=86 width=48) (actual time=0.561..0.565 rows=1 loops=1)
+                            One-Time Filter: (InitPlan 28).col1
+                            ->  Hash Left Join  (cost=612.50..632.59 rows=86 width=48) (actual time=0.446..0.449 rows=1 loops=1)
+                                  Hash Cond: (pal_13.i = m_1.i)
+                                  Filter: (COALESCE(m_1.n, '0'::bigint) < 3)
+                                  Rows Removed by Filter: 1
+                                  ->  CTE Scan on pal pal_13  (cost=0.00..19.40 rows=259 width=40) (actual time=0.003..0.004 rows=2 loops=1)
+                                        Filter: (length(t) >= 4)
+                                  ->  Hash  (cost=610.00..610.00 rows=200 width=16) (actual time=0.424..0.426 rows=2 loops=1)
+                                        Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                        ->  Subquery Scan on m_1  (cost=0.00..610.00 rows=200 width=16) (actual time=0.213..0.417 rows=2 loops=1)
+                                              ->  GroupAggregate  (cost=0.00..608.00 rows=200 width=16) (actual time=0.212..0.415 rows=2 loops=1)
+                                                    Group Key: f_2.i
+                                                    ->  CTE Scan on forca f_2  (cost=0.00..404.00 rows=20200 width=72) (actual time=0.001..0.115 rows=1160 loops=1)
+        CTE fz_ids
+          ->  HashAggregate  (cost=1561.67..1576.27 rows=1460 width=32) (actual time=14.567..14.651 rows=326 loops=1)
+                Group Key: p0_1.id
+                Batches: 1  Memory Usage: 97kB
+                Buffers: shared hit=591
+                ->  Append  (cost=11.82..1558.02 rows=1460 width=32) (actual time=3.388..14.412 rows=327 loops=1)
+                      Buffers: shared hit=591
+                      ->  Bitmap Heap Scan on products p0_1  (cost=11.82..614.76 rows=584 width=18) (actual time=3.387..13.540 rows=326 loops=1)
+                            Filter: ((InitPlan 30).col1 <% search_normalized)
+                            Rows Removed by Filter: 246
+                            Heap Blocks: exact=466
+                            Buffers: shared hit=531
+                            InitPlan 30
+                              ->  CTE Scan on falha  (cost=0.00..1.93 rows=1 width=32) (actual time=0.583..0.585 rows=1 loops=1)
+                                    Filter: (k = 1)
+                            ->  Bitmap Index Scan on products_search_trgm_idx  (cost=0.00..9.74 rows=584 width=0) (actual time=3.208..3.208 rows=682 loops=1)
+                                  Index Cond: (search_normalized %> (InitPlan 30).col1)
+                                  Buffers: shared hit=65
+                      ->  Bitmap Heap Scan on products p0_2  (cost=11.82..614.76 rows=584 width=18) (actual time=0.019..0.020 rows=0 loops=1)
+                            Filter: ((InitPlan 31).col1 <% search_normalized)
+                            InitPlan 31
+                              ->  CTE Scan on falha falha_1  (cost=0.00..1.93 rows=1 width=32) (actual time=0.003..0.003 rows=0 loops=1)
+                                    Filter: (k = 2)
+                                    Rows Removed by Filter: 1
+                            ->  Bitmap Index Scan on products_search_trgm_idx  (cost=0.00..9.74 rows=584 width=0) (actual time=0.007..0.007 rows=0 loops=1)
+                                  Index Cond: (search_normalized %> (InitPlan 31).col1)
+                      ->  Bitmap Heap Scan on products p0_3  (cost=10.29..321.20 rows=292 width=18) (actual time=0.802..0.808 rows=1 loops=1)
+                            Recheck Cond: (search_normalized ~ (InitPlan 32).col1)
+                            Rows Removed by Index Recheck: 1
+                            Heap Blocks: exact=2
+                            Buffers: shared hit=60
+                            InitPlan 32
+                              ->  CTE Scan on falha falha_2  (cost=0.00..1.94 rows=1 width=32) (actual time=0.064..0.064 rows=1 loops=1)
+                                    Filter: (k = 1)
+                            ->  Bitmap Index Scan on products_search_trgm_idx  (cost=0.00..8.28 rows=292 width=0) (actual time=0.763..0.763 rows=2 loops=1)
+                                  Index Cond: (search_normalized ~ (InitPlan 32).col1)
+                                  Buffers: shared hit=58
+        CTE fzc
+          ->  Nested Loop  (cost=33.27..544.64 rows=448 width=276) (actual time=15.044..23.504 rows=121 loops=1)
+                Buffers: shared hit=1899
+                ->  HashAggregate  (cost=32.85..34.85 rows=200 width=32) (actual time=14.839..14.917 rows=326 loops=1)
+                      Group Key: fz_ids.id
+                      Batches: 1  Memory Usage: 77kB
+                      Buffers: shared hit=591
+                      ->  CTE Scan on fz_ids  (cost=0.00..29.20 rows=1460 width=32) (actual time=14.569..14.731 rows=326 loops=1)
+                            Buffers: shared hit=591
+                ->  Index Scan using products_pkey on products p_1  (cost=0.41..2.49 rows=1 width=244) (actual time=0.007..0.007 rows=0 loops=326)
+                      Index Cond: (id = fz_ids.id)
+                      Filter: (is_available AND (restaurant_id = 'continente-guarda'::text))
+                      Rows Removed by Filter: 1
+                      Buffers: shared hit=1308
+        CTE fzr
+          ->  Nested Loop  (cost=61251.69..31927568.40 rows=52 width=265) (actual time=26.751..89.849 rows=50 loops=1)
+                Join Filter: (((count(*) FILTER (WHERE (GREATEST((CASE WHEN (c_8.ns ~~ (('% '::text || pl_2.t) || '%'::text)) THEN 0.75 WHEN ((length(pl_2.t) >= 4) AND (strpos(c_8.ns, pl_2.t) > 0)) THEN 0.6 ELSE '0'::numeric END)::double precision, (CASE WHEN ((length(pl_2.t) >= 4) AND (strpos(regexp_replace(replace(replace(replace(replace(c_8.ns, 'ch'::text, 'x'::text), 'sh'::text, 'x'::text), 'ph'::text, 'f'::text), 'y'::text, 'i'::text), '(.)\1+'::text, '\1'::text, 'g'::text), regexp_replace(replace(replace(replace(replace(pl_2.t, 'ch'::text, 'x'::text), 'sh'::text, 'x'::text), 'ph'::text, 'f'::text), 'y'::text, 'i'::text), '(.)\1+'::text, '\1'::text, 'g'::text)) > 0)) THEN 0.7 ELSE '0'::numeric END)::double precision, CASE WHEN ((length(pl_2.t) >= 4) AND (word_similarity(pl_2.t, c_8.ns) >= '0.45'::double precision)) THEN ('0.3'::double precision + ('0.5'::double precision * word_similarity(pl_2.t, c_8.ns))) ELSE '0'::double precision END, (COALESCE((SubPlan 35), '0'::numeric))::double precision) > '0'::double precision))) = nq_3.n) OR ((length(replace(nq_3.qs, ' '::text, ''::text)) >= 5) AND (strpos(replace(c_7.ns, ' '::text, ''::text), replace(nq_3.qs, ' '::text, ''::text)) > 0)))
+                Rows Removed by Join Filter: 71
+                Buffers: shared hit=1899
+                ->  CTE Scan on nq nq_3  (cost=0.00..0.02 rows=1 width=36) (actual time=0.001..0.002 rows=1 loops=1)
+                ->  Hash Join  (cost=61251.69..31927552.73 rows=448 width=273) (actual time=24.685..89.535 rows=121 loops=1)
+                      Hash Cond: (c_8.id = c_7.id)
+                      Buffers: shared hit=1899
+                      ->  GroupAggregate  (cost=61237.13..31927527.53 rows=448 width=48) (actual time=0.863..65.369 rows=121 loops=1)
+                            Group Key: c_8.id
+                            ->  Sort  (cost=61237.13..62106.25 rows=347648 width=104) (actual time=0.317..0.373 rows=242 loops=1)
+                                  Sort Key: c_8.id
+                                  Sort Method: quicksort  Memory: 49kB
+                                  ->  Nested Loop  (cost=0.00..6969.68 rows=347648 width=104) (actual time=0.006..0.128 rows=242 loops=1)
+                                        ->  CTE Scan on fzc c_8  (cost=0.00..8.96 rows=448 width=64) (actual time=0.001..0.021 rows=121 loops=1)
+                                        ->  CTE Scan on pal pl_2  (cost=0.00..15.52 rows=776 width=40) (actual time=0.000..0.000 rows=2 loops=121)
+                            SubPlan 35
+                              ->  Aggregate  (cost=45.73..45.74 rows=1 width=32) (actual time=0.001..0.001 rows=1 loops=242)
+                                    ->  CTE Scan on alt a_1  (cost=0.00..45.73 rows=1 width=32) (actual time=0.001..0.001 rows=0 loops=242)
+                                          Filter: ((i = pl_2.i) AND (tipo = 1))
+                                          Rows Removed by Filter: 2
+                            SubPlan 36
+                              ->  Aggregate  (cost=45.73..45.74 rows=1 width=32) (actual time=0.001..0.001 rows=1 loops=242)
+                                    ->  CTE Scan on alt a_2  (cost=0.00..45.73 rows=1 width=32) (actual time=0.000..0.000 rows=0 loops=242)
+                                          Filter: ((i = pl_2.i) AND (tipo = 1))
+                                          Rows Removed by Filter: 2
+                      ->  Hash  (cost=8.96..8.96 rows=448 width=257) (actual time=23.763..23.764 rows=121 loops=1)
+                            Buckets: 1024  Batches: 1  Memory Usage: 51kB
+                            Buffers: shared hit=1899
+                            ->  CTE Scan on fzc c_7  (cost=0.00..8.96 rows=448 width=257) (actual time=15.047..23.685 rows=121 loops=1)
+                                  Buffers: shared hit=1899
+        CTE vq
+          ->  Result  (cost=139.41..139.42 rows=1 width=32) (actual time=0.122..0.126 rows=0 loops=1)
+                One-Time Filter: (InitPlan 41).col1
+                InitPlan 39
+                  ->  Aggregate  (cost=139.22..139.23 rows=1 width=32) (never executed)
+                        ->  Limit  (cost=8.78..139.14 rows=30 width=1544) (never executed)
+                              InitPlan 38
+                                ->  CTE Scan on rx rx_1  (cost=0.00..0.02 rows=1 width=32) (never executed)
+                              ->  Nested Loop  (cost=8.76..869.15 rows=198 width=1544) (never executed)
+                                    ->  Bitmap Heap Scan on products p2  (cost=8.35..320.71 rows=238 width=18) (never executed)
+                                          Recheck Cond: (search_normalized ~ (('(^| )('::text || (InitPlan 38).col1) || ')'::text))
+                                          Filter: is_available
+                                          ->  Bitmap Index Scan on products_search_trgm_idx  (cost=0.00..8.29 rows=292 width=0) (never executed)
+                                                Index Cond: (search_normalized ~ (('(^| )('::text || (InitPlan 38).col1) || ')'::text))
+                                    ->  Index Scan using product_embeddings_gte_pkey on product_embeddings_gte g_1  (cost=0.41..2.30 rows=1 width=1562) (never executed)
+                                          Index Cond: (product_id = p2.id)
+                InitPlan 41
+                  ->  Aggregate  (cost=0.16..0.18 rows=1 width=1) (actual time=0.120..0.122 rows=1 loops=1)
+                        InitPlan 40
+                          ->  CTE Scan on nq nq_4  (cost=0.00..0.02 rows=1 width=4) (never executed)
+                        ->  Limit  (cost=0.00..0.10 rows=3 width=4) (actual time=0.116..0.118 rows=3 loops=1)
+                              ->  Append  (cost=0.00..3.55 rows=102 width=4) (actual time=0.115..0.116 rows=3 loops=1)
+                                    ->  CTE Scan on princ princ_2  (cost=0.00..2.00 rows=50 width=4) (actual time=0.113..0.113 rows=0 loops=1)
+                                          Filter: cheio
+                                          Rows Removed by Filter: 580
+                                    ->  CTE Scan on fzr fzr_1  (cost=0.00..1.04 rows=52 width=4) (actual time=0.001..0.002 rows=3 loops=1)
+        CTE pequena
+          ->  Result  (cost=2945.56..2945.58 rows=1 width=1) (never executed)
+                InitPlan 43
+                  ->  Aggregate  (cost=2945.55..2945.56 rows=1 width=8) (never executed)
+                        ->  Index Only Scan using idx_products_restaurant_id on products p3  (cost=0.29..2900.83 rows=17891 width=0) (never executed)
+                              Index Cond: (restaurant_id = 'continente-guarda'::text)
+                              Heap Fetches: 0
+        CTE sem
+          ->  Hash Join  (cost=6765.14..24342.83 rows=4748 width=251) (actual time=0.158..0.166 rows=0 loops=1)
+                Hash Cond: ("*SELECT* 1_6".product_id = p_2.id)
+                ->  Append  (cost=177.42..17714.45 rows=15486 width=26) (actual time=0.157..0.164 rows=0 loops=1)
+                      ->  Subquery Scan on "*SELECT* 1_6"  (cost=177.42..334.94 rows=300 width=26) (actual time=0.127..0.129 rows=0 loops=1)
+                            ->  Limit  (cost=177.42..331.94 rows=300 width=34) (actual time=0.126..0.128 rows=0 loops=1)
+                                  InitPlan 45
+                                    ->  CTE Scan on vq  (cost=0.00..0.02 rows=1 width=32) (never executed)
+                                  InitPlan 46
+                                    ->  CTE Scan on vq vq_1  (cost=0.00..0.02 rows=1 width=32) (never executed)
+                                  InitPlan 47
+                                    ->  CTE Scan on vq vq_2  (cost=0.00..0.03 rows=1 width=1) (actual time=0.123..0.123 rows=0 loops=1)
+                                  InitPlan 48
+                                    ->  CTE Scan on pequena  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                                  ->  Result  (cost=177.33..25184.97 rows=48551 width=34) (actual time=0.125..0.125 rows=0 loops=1)
+                                        One-Time Filter: ((InitPlan 47).col1 AND (NOT (InitPlan 48).col1))
+                                        ->  Index Scan using idx_product_embeddings_gte_hnsw on product_embeddings_gte g_2  (cost=177.33..24820.84 rows=48551 width=1562) (never executed)
+                                              Order By: (embedding <=> (InitPlan 46).col1)
+                      ->  Subquery Scan on "*SELECT* 2_4"  (cost=6587.79..17169.05 rows=14886 width=26) (actual time=0.003..0.006 rows=0 loops=1)
+                            ->  Result  (cost=6587.79..17020.19 rows=14886 width=26) (actual time=0.002..0.004 rows=0 loops=1)
+                                  One-Time Filter: ((InitPlan 50).col1 AND (InitPlan 51).col1)
+                                  InitPlan 49
+                                    ->  CTE Scan on vq vq_3  (cost=0.00..0.02 rows=1 width=32) (never executed)
+                                  InitPlan 50
+                                    ->  CTE Scan on vq vq_4  (cost=0.00..0.03 rows=1 width=1) (actual time=0.001..0.001 rows=0 loops=1)
+                                  InitPlan 51
+                                    ->  CTE Scan on pequena pequena_1  (cost=0.00..0.02 rows=1 width=1) (never executed)
+                                  ->  Hash Join  (cost=6587.72..16945.69 rows=14886 width=1562) (never executed)
+                                        Hash Cond: (g_3.product_id = p4.id)
+                                        ->  Seq Scan on product_embeddings_gte g_3  (cost=0.00..10230.51 rows=48551 width=1562) (never executed)
+                                        ->  Hash  (cost=6364.09..6364.09 rows=17891 width=18) (never executed)
+                                              ->  Index Scan using idx_products_restaurant_id on products p4  (cost=0.29..6364.09 rows=17891 width=18) (never executed)
+                                                    Index Cond: (restaurant_id = 'continente-guarda'::text)
+                      ->  Subquery Scan on "*SELECT* 3_3"  (cost=129.29..133.04 rows=300 width=36) (actual time=0.026..0.028 rows=0 loops=1)
+                            ->  Limit  (cost=129.29..130.04 rows=300 width=44) (actual time=0.025..0.026 rows=0 loops=1)
+                                  InitPlan 52
+                                    ->  CTE Scan on vq vq_5  (cost=0.00..0.02 rows=1 width=32) (never executed)
+                                  InitPlan 53
+                                    ->  CTE Scan on vq vq_6  (cost=0.00..0.02 rows=1 width=32) (never executed)
+                                  InitPlan 54
+                                    ->  CTE Scan on vq vq_7  (cost=0.00..0.03 rows=1 width=1) (actual time=0.000..0.001 rows=0 loops=1)
+                                  ->  Sort  (cost=129.22..133.39 rows=1669 width=44) (actual time=0.024..0.025 rows=0 loops=1)
+                                        Sort Key: ((g_4.embedding <=> (InitPlan 53).col1))
+                                        Sort Method: quicksort  Memory: 25kB
+                                        ->  Result  (cost=0.00..52.21 rows=1669 width=44) (actual time=0.002..0.002 rows=0 loops=1)
+                                              One-Time Filter: (InitPlan 54).col1
+                                              ->  Seq Scan on product_embeddings g_4  (cost=0.00..39.69 rows=1669 width=46) (never executed)
+                ->  Hash  (cost=6364.09..6364.09 rows=17891 width=243) (never executed)
+                      ->  Index Scan using idx_products_restaurant_id on products p_2  (cost=0.29..6364.09 rows=17891 width=243) (never executed)
+                            Index Cond: (restaurant_id = 'continente-guarda'::text)
+        InitPlan 56
+          ->  CTE Scan on q q_2  (cost=0.00..0.02 rows=1 width=4) (actual time=0.002..0.003 rows=1 loops=1)
+        ->  Sort  (cost=290.13..290.53 rows=160 width=268) (actual time=246.296..246.302 rows=50 loops=1)
+              Sort Key: m.score DESC, m.name
+              Sort Method: top-N heapsort  Memory: 66kB
+              Buffers: shared hit=5639
+              ->  Subquery Scan on m  (cost=283.08..284.28 rows=160 width=268) (actual time=245.662..245.982 rows=580 loops=1)
+                    Buffers: shared hit=5636
+                    ->  Unique  (cost=283.08..283.88 rows=160 width=264) (actual time=245.660..245.859 rows=580 loops=1)
+                          Buffers: shared hit=5636
+                          ->  Sort  (cost=283.08..283.48 rows=160 width=264) (actual time=245.659..245.705 rows=630 loops=1)
+                                Sort Key: princ.id, ((princ.score)::double precision) DESC
+                                Sort Method: quicksort  Memory: 235kB
+                                Buffers: shared hit=5636
+                                ->  Append  (cost=0.00..277.22 rows=160 width=264) (actual time=151.157..244.565 rows=630 loops=1)
+                                      Buffers: shared hit=5636
+                                      ->  CTE Scan on princ  (cost=0.00..2.25 rows=100 width=264) (actual time=151.156..154.337 rows=580 loops=1)
+                                            Buffers: shared hit=3737
+                                      ->  CTE Scan on fzr  (cost=0.00..1.04 rows=52 width=264) (actual time=26.754..89.965 rows=50 loops=1)
+                                            Buffers: shared hit=1899
+                                      ->  Subquery Scan on semr  (cost=273.03..273.13 rows=8 width=264) (actual time=0.176..0.177 rows=0 loops=1)
+                                            ->  Limit  (cost=273.03..273.05 rows=8 width=273) (actual time=0.175..0.176 rows=0 loops=1)
+                                                  InitPlan 57
+                                                    ->  Aggregate  (cost=106.83..106.84 rows=1 width=8) (never executed)
+                                                          ->  CTE Scan on sem s2  (cost=0.00..94.96 rows=4748 width=8) (never executed)
+                                                  ->  Sort  (cost=166.19..170.15 rows=1583 width=273) (actual time=0.174..0.174 rows=0 loops=1)
+                                                        Sort Key: s.sim DESC
+                                                        Sort Method: quicksort  Memory: 25kB
+                                                        ->  CTE Scan on sem s  (cost=0.00..134.53 rows=1583 width=273) (actual time=0.159..0.159 rows=0 loops=1)
+                                                              Filter: ((sim >= '0.93'::double precision) AND (sim >= ((InitPlan 57).col1 - '0.015'::double precision)))
+Planning:
+  Buffers: shared hit=593
+Planning Time: 18.553 ms
+Execution Time: 250.803 ms

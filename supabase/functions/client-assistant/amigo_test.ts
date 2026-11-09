@@ -1,8 +1,13 @@
 // deno test supabase/functions/client-assistant/amigo_test.ts
 import { assert, assertEquals, assertStringIncludes } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 import {
+  blocoAmigo,
   candidatasDeixa,
   compararLinhas,
+  emocaoPorDefeito,
+  extrairEmocao,
+  IDENTIDADE_AMIGO,
+  lembreteHabitual,
   escolherDeixa,
   habitoDeAgora,
   momentoLisboa,
@@ -140,4 +145,47 @@ Deno.test('comparação: sem preço da outra app nessa linha, não se inventa di
   assertEquals(l[0].outra_cents, null);
   assertEquals(l[0].diferenca_cents, null);
   assertStringIncludes(textoLinhas('Uber Eats', l, null, 1150), 'manda-me o print do total da Uber Eats');
+});
+
+// ─── m11 (09/11/2026): o rosto — a cara de cada resposta e o "amigo para tudo" ───
+
+Deno.test('cara: a etiqueta [cara:...] sai do texto e vira o campo emocao', () => {
+  assertEquals(extrairEmocao('[cara:alegre] Encontrei o teu hambúrguer!'), { texto: 'Encontrei o teu hambúrguer!', emocao: 'alegre' });
+  assertEquals(extrairEmocao('[ cara : Triste ]Hoje está fechado.').emocao, 'triste');
+  assertEquals(extrairEmocao('Olá! [cara:a_falar]').texto, 'Olá!');
+  // etiqueta inválida também sai do texto, mas não vira cara
+  assertEquals(extrairEmocao('[cara:zangado] Ups.'), { texto: 'Ups.', emocao: null });
+  // várias: fica a primeira válida, nenhuma aparece ao cliente
+  const r = extrairEmocao('[cara:pensativo] Deixa ver… [cara:alegre]');
+  assertEquals(r.emocao, 'pensativo');
+  assert(!r.texto.includes('['));
+  // sem etiqueta: texto igual
+  assertEquals(extrairEmocao('Sem cara nenhuma.'), { texto: 'Sem cara nenhuma.', emocao: null });
+});
+
+Deno.test('cara por defeito: carrinho alegre, nada triste, erro confuso, resto a falar', () => {
+  assertEquals(emocaoPorDefeito({ erro: false, handoff: false, temCarrinho: true, texto: 'Aqui tens.' }), 'alegre');
+  assertEquals(emocaoPorDefeito({ erro: false, handoff: false, temCarrinho: false, texto: 'Não encontrei esse produto.' }), 'triste');
+  assertEquals(emocaoPorDefeito({ erro: false, handoff: false, temCarrinho: false, texto: 'A loja está fechada agora.' }), 'triste');
+  assertEquals(emocaoPorDefeito({ erro: true, handoff: false, temCarrinho: false, texto: '' }), 'confuso');
+  assertEquals(emocaoPorDefeito({ erro: false, handoff: true, temCarrinho: false, texto: 'Passo ao suporte.' }), 'confuso');
+  assertEquals(emocaoPorDefeito({ erro: false, handoff: false, temCarrinho: false, texto: 'Está um dia bonito na Guarda.' }), 'a_falar');
+});
+
+Deno.test('adendo 1-B: o Amigo é amigo para tudo, nunca "de compras"', () => {
+  assertStringIncludes(IDENTIDADE_AMIGO, 'Amigo Bora');
+  assertStringIncludes(IDENTIDADE_AMIGO, 'para o que ele quiser');
+  // a frase só aparece na regra que PROÍBE dizê-la
+  assertEquals(IDENTIDADE_AMIGO.split('de compras').length - 1, 2);
+  assertStringIncludes(IDENTIDADE_AMIGO, 'NUNCA te apresentas');
+  assert(!blocoAmigo().toLowerCase().includes('assistente de compras'));
+  assertStringIncludes(blocoAmigo(), '[cara:alegre]');
+});
+
+Deno.test('saudação lembra o habitual pelo nome da loja (e não inventa sem perfil)', () => {
+  assertEquals(lembreteHabitual({}), '');
+  assertEquals(lembreteHabitual({ lojas_favoritas: [{ nome: 'Boom' }] }), ' Se te apetecer, preparo-te o do costume do Boom.');
+  const s = saudacaoSimples({ dia: 1, diaNome: 'segunda', periodo: 'noite', hora: 21 }, perfilJyosmi, '');
+  assertStringIncludes(s, 'Boa noite, Ana!');
+  assertStringIncludes(s, 'do costume do Jyosmi Sushi');
 });

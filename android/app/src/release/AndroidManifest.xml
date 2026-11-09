@@ -1,0 +1,12 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- O Amigo (09/11/2026, missao m11-amigo-rosto): no Android 11+ a app so
+         "ve" o motor de voz do telemovel (TextToSpeech) com esta query. Fica
+         neste manifesto da versao de loja (junta-se ao de src/main) porque o
+         de src/main tem a chave do Maps e a trava de segredos nao deixa
+         voltar a gravá-lo. O mesmo bloco esta em src/debug e src/profile. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE"/>
+        </intent>
+    </queries>
+</manifest>

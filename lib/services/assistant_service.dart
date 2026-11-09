@@ -517,7 +517,13 @@ class AssistantReply {
     this.comparacao,
     this.deixa,
     this.saudacao,
+    this.emocao,
   });
+
+  /// O rosto do Amigo (09/11/2026): a cara que o servidor escolheu para esta
+  /// resposta ('alegre', 'triste', 'surpreso', 'pensativo', 'confuso',
+  /// 'a_falar'). Opcional: sem ele a app decide pelo estado.
+  final String? emocao;
 
   /// Amigo Bora: a linha útil do fim da conversa livre (ou null).
   final AssistantDeixa? deixa;
@@ -563,6 +569,7 @@ class AssistantReply {
           ? AssistantDeixa.fromJson(Map<String, dynamic>.from(dx))
           : null,
       saudacao: j['saudacao']?.toString(),
+      emocao: j['emocao']?.toString(),
       conversationId: j['conversation_id']?.toString(),
       texto: _str(j['texto']),
       propostas: _lista(j['propostas']).map(AssistantProposal.fromJson).toList(),
@@ -872,6 +879,24 @@ class AssistantService {
     }
   }
 
+  /// O rosto do Amigo (09/11/2026): conta o uso para o painel — 'abrir'
+  /// (abriu o ecrã do Amigo), 'voz' / 'escrita' (como falou) e 'fim' (saiu,
+  /// com a duração). Fire-and-forget: sem a tabela, não faz nada.
+  static Future<void> eventoAmigo(String tipo, {int? duracaoS}) async {
+    final uid = _c.auth.currentUser?.id;
+    if (uid == null) return;
+    try {
+      await _c.from('assistant_amigo_eventos').insert({
+        'user_id': uid,
+        'tipo': tipo,
+        if (duracaoS != null) 'duracao_s': duracaoS.clamp(0, 86400),
+        'plataforma': plataforma,
+      });
+    } catch (e) {
+      debugPrint('[AssistantService] eventoAmigo: $e');
+    }
+  }
+
   /// Conta o toque na deixa (painel: "deixas clicadas"). Fire-and-forget.
   static Future<void> deixaClicada(String id) async {
     if (id.isEmpty) return;
@@ -997,6 +1022,26 @@ class AssistantFlags {
   /// `assistant_amigo_welcome_text` (editável no painel); vazio = texto da app.
   static final ValueNotifier<String> boasVindasAmigo = ValueNotifier<String>('');
 
+  // ── O rosto do Amigo (09/11/2026, missão m11-amigo-rosto) ──────────────
+  // Sem a linha no servidor valem os valores por defeito da migração
+  // (rosto ligado, com camisa, voz ligada, velocidade 1, mosaico ligado).
+
+  /// `amigo_rosto_ativo`: false = volta o botão "Ajuda-me a escolher" de 08/11.
+  static final ValueNotifier<bool> rostoAtivo = ValueNotifier<bool>(true);
+
+  /// `amigo_rosto_variante`: 'rosto' (só a cara) ou 'rosto_camisa'.
+  static final ValueNotifier<String> rostoVariante =
+      ValueNotifier<String>('rosto_camisa');
+
+  /// `amigo_voz_ligada_por_defeito`: o som começa ligado (o cliente muda e fica lembrado).
+  static final ValueNotifier<bool> vozPorDefeito = ValueNotifier<bool>(true);
+
+  /// `amigo_voz_velocidade` (0,5–2; 1 = normal).
+  static final ValueNotifier<double> vozVelocidade = ValueNotifier<double>(1);
+
+  /// `amigo_mosaico_categorias`: o mosaico "Amigo" no início das categorias.
+  static final ValueNotifier<bool> mosaico = ValueNotifier<bool>(true);
+
   static bool _carregado = false;
   static Future<void>? _emCurso;
 
@@ -1014,6 +1059,11 @@ class AssistantFlags {
         'assistant_enabled',
         'assistant_personality_enabled',
         'assistant_amigo_welcome_text',
+        'amigo_rosto_ativo',
+        'amigo_rosto_variante',
+        'amigo_voz_ligada_por_defeito',
+        'amigo_voz_velocidade',
+        'amigo_mosaico_categorias',
       ]);
       aplicar({
         for (final l in (linhas as List).whereType<Map>())
@@ -1034,6 +1084,20 @@ class AssistantFlags {
     personalidade.value = valores['assistant_personality_enabled'] == true;
     final w = valores['assistant_amigo_welcome_text'];
     boasVindasAmigo.value = w is String ? w.trim() : '';
+    bool sim(String k, bool porDefeito) {
+      if (!valores.containsKey(k)) return porDefeito;
+      final x = valores[k];
+      return x is bool ? x : x?.toString() != 'false';
+    }
+
+    rostoAtivo.value = sim('amigo_rosto_ativo', true);
+    final varRosto = valores['amigo_rosto_variante']?.toString().replaceAll('"', '').trim();
+    rostoVariante.value =
+        varRosto == 'rosto' ? 'rosto' : 'rosto_camisa';
+    vozPorDefeito.value = sim('amigo_voz_ligada_por_defeito', true);
+    final vel = num.tryParse('${valores['amigo_voz_velocidade'] ?? ''}')?.toDouble();
+    vozVelocidade.value = vel == null ? 1 : vel.clamp(0.5, 2.0).toDouble();
+    mosaico.value = sim('amigo_mosaico_categorias', true);
     _carregado = true;
   }
 
@@ -1044,5 +1108,10 @@ class AssistantFlags {
     enabled.value = true;
     personalidade.value = false;
     boasVindasAmigo.value = '';
+    rostoAtivo.value = true;
+    rostoVariante.value = 'rosto_camisa';
+    vozPorDefeito.value = true;
+    vozVelocidade.value = 1;
+    mosaico.value = true;
   }
 }

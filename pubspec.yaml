@@ -110,6 +110,7 @@ dependencies:
   # pacote (win32 5.15.0, o mesmo do flutter_secure_storage). iOS: deployment 12.0
   # (o Runner é 15.0); Android: minSdk 21, JVM 17 (iguais ao app).
   file_picker: 11.0.3
+  flutter_tts: ^4.2.5
 
 
 

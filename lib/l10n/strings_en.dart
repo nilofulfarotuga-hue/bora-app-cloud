@@ -16,6 +16,23 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 09/11/2026 (missão m11-amigo-rosto): o rosto do Amigo — ecrã, home e mosaico.
+  'A ouvir… toca para enviar': 'Listening… tap to send',
+  'Amigo': 'Amigo',
+  'Amigo para o que quiseres: comida, mercado, Favores, limpeza e dúvidas.': 'Your friend for anything: food, groceries, Favours, cleaning and questions.',
+  'Conversa, comida, mercado, Favores… o que quiseres.': 'Chat, food, groceries, Favours… whatever you need.',
+  'Desligar o som': 'Turn sound off',
+  'Escreve ao Amigo…': 'Write to Amigo…',
+  'Escrever': 'Write',
+  'Estou a ouvir…': "I'm listening…",
+  'Fala comigo': 'Talk to me',
+  'Hum… deixa-me ver.': 'Hmm… let me see.',
+  'Ligar o som': 'Turn sound on',
+  'Olá! Sou o Amigo. Fala comigo: estou aqui para o que precisares.': "Hi! I'm Amigo. Talk to me: I'm here for whatever you need.",
+  'Parar de ouvir e enviar': 'Stop listening and send',
+  'Sou o Amigo. Fala comigo': "I'm Amigo. Talk to me",
+  'Tu: {0}': 'You: {0}',
+  'Ver conversa': 'See chat',
   // 08/11/2026 (m1-dinheiro-favores): aprovacao do preco do Favor pelo
   // cliente (cartao do pedido) e aviso no formulario do Favor
   // (tool/l10n/traducoes/pt-en-38-favor-aprovacao-cliente.json). Acrescentado a mao.

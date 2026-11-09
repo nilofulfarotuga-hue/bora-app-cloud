@@ -70,6 +70,9 @@ import {
   pedeAcao,
   saudacaoHabitual,
   saudacaoSimples,
+  emocaoPorDefeito,
+  extrairEmocao,
+  IDENTIDADE_AMIGO,
   textoLinhas,
   vencedor,
 } from './amigo.ts';
@@ -481,7 +484,10 @@ const TOOL_NAMES = new Set(buildFunctionDeclarations().map((t) => t.name));
 function buildSystemFixo(personalidade = false): string {
   const lines = [
     SYSTEM_DELIM_OPEN,
-    'És o Bora Assistente, o assistente de compras da Bora App (entregas de restaurantes, supermercados, lojas e farmácias; Favores; Limpeza; Reservas de mesa; Serviços) na Guarda, Portugal.',
+    // m11 / adendo 1-B (09/11/2026): com a personalidade ligada o Amigo é amigo para tudo, nunca "de compras".
+    personalidade
+      ? IDENTIDADE_AMIGO
+      : 'És o Bora Assistente, o assistente de compras da Bora App (entregas de restaurantes, supermercados, lojas e farmácias; Favores; Limpeza; Reservas de mesa; Serviços) na Guarda, Portugal.',
     'Língua: português de Portugal, tom simpático e direto. Respostas CURTAS (1-3 frases): os cartões com lojas, artigos e totais aparecem sozinhos por baixo do teu texto — não repitas listas inteiras nem tabelas. O cliente pode escrever em português do Brasil, com erros ou por voz: percebe a intenção.',
     '',
     '═══ REGRA DO CARRINHO (a mais importante) ═══',
@@ -686,7 +692,7 @@ Deno.serve(async (req: Request) => {
     const m = momentoLisboa(new Date());
     const vazio = { propostas: [], divisao: null, favores: [], favor_preco: null, lista_extraida: null, handoff: false, comparacao: null };
     if (!s.personality) {
-      return jsonResponse({ ok: true, abrir: true, conversation_id: null, texto: s.welcome, acoes: [], amigo: false, ...vazio });
+      return jsonResponse({ ok: true, abrir: true, conversation_id: null, texto: s.welcome, acoes: [], amigo: false, emocao: 'alegre', ...vazio });
     }
     let ctx: Json = {};
     try {
@@ -720,7 +726,7 @@ Deno.serve(async (req: Request) => {
               const texto = saudacaoHabitual(hab, perfil);
               const acoes = [{ tipo: 'repetir_habitual', rotulo: 'Sim, repete', destino: String(prop.proposal_id ?? '') }];
               const structured = {
-                ...vazio, texto, propostas: [proposta], acoes, amigo: true, saudacao: 'habitual',
+                ...vazio, texto, propostas: [proposta], acoes, amigo: true, saudacao: 'habitual', emocao: 'alegre',
                 habito: { dia: hab.dia, periodo: hab.periodo, loja: hab.loja, loja_id: hab.loja_id }, motor: 'sem-modelo',
               };
               await adminClient.from('assistant_chat_messages').insert([
@@ -742,7 +748,7 @@ Deno.serve(async (req: Request) => {
     }
     return jsonResponse({
       ok: true, abrir: true, conversation_id: null, texto: saudacaoSimples(m, perfil, s.amigoWelcome),
-      acoes: [], amigo: true, saudacao: 'simples', ...vazio,
+      acoes: [], amigo: true, saudacao: 'simples', emocao: 'alegre', ...vazio,
     });
   }
 
@@ -1471,6 +1477,9 @@ Deno.serve(async (req: Request) => {
     finalText = textoComparacao(n, `da ${comparacao.app} (os preços que me deste)`);
   }
 
+  // m11 (09/11/2026): a cara do Amigo — a etiqueta [cara:...] que o modelo pôs sai do texto.
+  const cara = extrairEmocao(finalText);
+  finalText = cara.texto;
   let handoff = false;
   if (geminiError) {
     finalText = 'Tive um problema a responder agora. Tenta enviar outra vez — se continuar, toca em "Falar com o suporte".';
@@ -1543,6 +1552,10 @@ Deno.serve(async (req: Request) => {
     motor_vetores: vetores.registo,
     // v11 — Amigo Bora
     amigo: s.personality, conversa_livre: conversaLivre, deixa, corrigido_acao: nudgedAcao,
+    // m11 (09/11/2026) — a cara do rosto (opcional; as apps antigas ignoram)
+    emocao: geminiError ? 'confuso' : (cara.emocao ?? emocaoPorDefeito({
+      erro: false, handoff, temCarrinho: propostas.length > 0 || !!divisao || !!comparacao, texto: finalText,
+    })),
   };
   // Custo: tarifa do Claude (já calculada pelo _shared/claude.ts) + tarifa Gemini das definições para o resto.
   const cost = custoClaudeUsd + (Math.max(0, tokensIn - tokensClaudeIn) * s.cost_in + Math.max(0, tokensOut - tokensClaudeOut) * s.cost_out) / 1_000_000;

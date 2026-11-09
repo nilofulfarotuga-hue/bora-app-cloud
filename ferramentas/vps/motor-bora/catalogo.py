@@ -167,7 +167,8 @@ PERFIS["claude-volume"] = dict(PERFIS["volume"], candidatos=_com_resto("volume")
 PRECO_POR_MILHAO["claude"] = 2.0   # so para o custo estimado do motor_chamadas; o custo real esta em ia_gastos
 PERFIS["claude-so-decisao"] = dict(PERFIS["raciocinio"], modo="cadeia", candidatos=[])   # so o porteiro (OmniRoute)
 PERFIS["claude-so-volume"] = dict(PERFIS["volume"], modo="cadeia", candidatos=[])         # so o porteiro (OmniRoute)
+# 08/11/2026 (M10 2.18): max_tokens 64000 igual ao porteiro (Gemini gratis aceita 64000, provado; Groq salta pelo tpm).
 # 01/11/2026 (missao infra-claude-tudo): o Dipsy do PC (pela Tailscale) e o Opus a pedido. Claude primeiro;
 # sem credito ou com erro desce a mesma rotacao gratis viva, do melhor para o pior. "Nunca ficar sem."
-PERFIS["claude-dipsy"] = dict(PERFIS["raciocinio"], modo="cadeia", max_tokens=4000, candidatos=_com_resto("raciocinio"))
-PERFIS["claude-opus"] = dict(PERFIS["raciocinio"], modo="cadeia", max_tokens=4000, candidatos=_com_resto("raciocinio"))
+PERFIS["claude-dipsy"] = dict(PERFIS["raciocinio"], modo="cadeia", max_tokens=64000, candidatos=_com_resto("raciocinio"))
+PERFIS["claude-opus"] = dict(PERFIS["raciocinio"], modo="cadeia", max_tokens=64000, candidatos=_com_resto("raciocinio"))

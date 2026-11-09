@@ -314,3 +314,8 @@ editar qualquer `settings.json`, por isso também é passo do Danilo):
   escrever o guião que subia as peças do anúncio do Fuku para `product-images/meta-2026-11-03/` (leu a variável que
   carrega a chave do `backend/.env` como "segredo em texto claro"). Não contornado: as peças estão na Meta, no
   Telegram do Danilo e em `Vídeos/Bora/fuku-anuncio-2026-11-03/` no PC.
+
+- **09/11/2026 — M10 radar e VPS (Claude Code).** A bora-tranca recusou duas vezes um Write por "TOKEN= com valor em
+  texto claro" sem haver segredo: (1) o guião da varredura do GitHub tinha uma variável com esse nome a ler o
+  ambiente; (2) uma nota de memória citava esse padrão em prosa. Não contornado: a variável passou a chamar-se
+  LIGACAO e a nota foi reescrita sem o padrão. Nenhum segredo foi escrito em ficheiro.

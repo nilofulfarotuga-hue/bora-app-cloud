@@ -47,6 +47,13 @@ com o segmento listado no `--dry-run`.
 ## Prova de teste (22/10/2026)
 Áudio sintético 6,0 s (tom 2 s, silêncio 2 s, tom 2 s) → 4,35 s (silêncio 2,0 → 0,3 s = 2×0,15). Segunda passagem não corta mais.
 
+## Prova com fala (09/11/2026, M10 radar)
+Vídeo 720x1280 de 15,05 s: duas falas PT-PT (edge-tts pt-PT-DuarteNeural, frases com pausas naturais) com
+pausas de 1,8 s e 1,2 s pelo meio e ruído rosa de fundo (imita gravação de telemóvel). Medido com
+silencedetect -35 dB/0,12 s: ANTES fala 7,12 s + silêncio 7,93 s (4 pausas ≥0,5 s); DEPOIS 9,26 s com
+fala 7,13 s + silêncio 2,13 s (0 pausas ≥0,5 s) — a fala ficou inteira, só saiu silêncio.
+Falta ainda a prova com um bruto filmado por uma pessoa real (não havia nenhum no PC).
+
 ## Notas
 - ffmpeg ≥7 usa `-/filter_complex`; o script cai para `-filter_complex_script` em versões antigas (VPS).
 - Telemetria no fim: linha em `.claude/.ai/knowledge/wiki/skills-metrics.md`.

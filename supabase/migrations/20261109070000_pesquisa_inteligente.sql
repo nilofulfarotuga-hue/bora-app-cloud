@@ -316,6 +316,12 @@ grant all on public.pesquisa_escolhas to service_role;
 -- números (gte-small) ou 768 (Gemini). Sem ele, o "significado" usa a média
 -- dos vetores dos produtos do catálogo que têm a palavra (não chama API).
 -- O limiar do pg_trgm desce a 0.45 só dentro da função (erros de escrita).
+-- O "set pg_trgm.…" abaixo só é aceite por um papel sem superuser (o postgres do Supabase) se o módulo
+-- pg_trgm já estiver carregado nesta sessão; senão o parâmetro é só um marcador e o CREATE é recusado com
+-- "permission denied to set parameter" (aconteceu na publicação de 09/11; reproduzido e provado em PGlite
+-- com um papel sem superuser). Esta linha carrega o módulo. Quem chama a função não precisa disto.
+select extensions.similarity('a', 'a');
+
 create or replace function public.pesquisa_produtos(
   p_q text,
   p_restaurant_id text default null,

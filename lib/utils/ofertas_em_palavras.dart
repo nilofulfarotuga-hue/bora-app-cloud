@@ -144,6 +144,38 @@ String toqueEntregueEmPalavras(Object? enviados, Object? aparelhos) {
   return '$resposta ($e de $a ${a == 1 ? 'aparelho' : 'aparelhos'})';
 }
 
+/// Resposta de `admin_forcar_chamada` (botão "Forçar chamada" do painel,
+/// migração 20261109050000) em palavras PT-BR.
+String forcarChamadaEmPalavras(Map<String, dynamic> res) {
+  if (res['ok'] == true) {
+    final nome = '${res['nome'] ?? ''}'.trim();
+    return nome.isEmpty
+        ? 'Chamada forçada: o pedido está tocando no celular do entregador.'
+        : 'Chamada forçada: o pedido está tocando no celular de $nome.';
+  }
+  switch ('${res['motivo'] ?? ''}') {
+    case 'reforco_desligado':
+      return 'A chamada de reforço está desligada. Ligue em Configurações de '
+          'Despacho → Chamada de reforço.';
+    case 'pedido_nao_encontrado':
+      return 'Pedido não encontrado.';
+    case 'pedido_nao_esta_a_chamar':
+      return 'Este pedido não está procurando entregador agora.';
+    case 'oferta_a_decorrer':
+      return 'Já há uma oferta tocando neste pedido. Espere ela acabar e tente '
+          'de novo.';
+    case 'ninguem_disponivel':
+      return 'Ninguém disponível para reforço agora: precisa ter ligado "Aceito '
+          'chamadas de reforço", estar desligado, dentro do horário e abaixo do '
+          'máximo do dia (e não ter sido chamado neste pedido).';
+    case 'nao_deu_para_oferecer':
+      return 'Não deu para oferecer agora (o pedido mudou). Atualize e tente de '
+          'novo.';
+    default:
+      return 'Resposta inesperada do servidor: ${res['motivo'] ?? res}';
+  }
+}
+
 /// "40 s", "2 min", "1 min 30 s"; "—" se não houver.
 String janelaEmPalavras(Object? segundos) {
   final s = _int(segundos);

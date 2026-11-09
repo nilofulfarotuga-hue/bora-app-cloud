@@ -504,7 +504,11 @@ class _SummaryTab extends StatelessWidget {
           // [10/10] Quem foi chamado: cada oferta deste pedido — fase, se
           // estava online, toque entregue ao FCM e desfecho.
           const SizedBox(height: 24),
-          AdminOfertasDoPedidoSection(pedidoRef: order['id'] as String),
+          // [09/11 M10] + botão "Forçar chamada" enquanto procura entregador.
+          AdminOfertasDoPedidoSection(
+            pedidoRef: order['id'] as String,
+            mostrarForcarChamada: order['status'] == 'callingDriver',
+          ),
         ],
       ),
     );

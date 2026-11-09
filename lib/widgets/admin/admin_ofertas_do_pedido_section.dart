@@ -14,11 +14,18 @@ import '../../utils/ofertas_em_palavras.dart';
 ///
 /// Se a migração ainda não estiver aplicada, mostra "Ainda não ativo no
 /// servidor" em vez de um erro vermelho.
+///
+/// [mostrarForcarChamada] (09/11, M10): botão "Forçar chamada" — oferece já o
+/// pedido ao próximo entregador desligado que aceitou chamadas de reforço
+/// (`admin_forcar_chamada`, migração 20261109050000). Só funciona com o
+/// interruptor da chamada de reforço ligado; o servidor diz porquê se não der.
 class AdminOfertasDoPedidoSection extends StatefulWidget {
   const AdminOfertasDoPedidoSection({
     super.key,
     required this.pedidoRef,
     this.carregar,
+    this.mostrarForcarChamada = false,
+    this.forcar,
   });
 
   /// `orders.id` (texto) ou `tvde_rides.id` (uuid em texto).
@@ -26,6 +33,13 @@ class AdminOfertasDoPedidoSection extends StatefulWidget {
 
   /// Só para testes: substitui a chamada ao servidor.
   final Future<Object?> Function(String ref)? carregar;
+
+  /// Mostra o botão "Forçar chamada" (só faz sentido num pedido à procura de
+  /// entregador).
+  final bool mostrarForcarChamada;
+
+  /// Só para testes: substitui `admin_forcar_chamada`.
+  final Future<Object?> Function(String ref)? forcar;
 
   @override
   State<AdminOfertasDoPedidoSection> createState() =>
@@ -36,6 +50,7 @@ class _AdminOfertasDoPedidoSectionState
     extends State<AdminOfertasDoPedidoSection> {
   bool _loading = true;
   bool _semServidor = false;
+  bool _forcando = false;
   String? _erro;
   List<Map<String, dynamic>> _itens = const [];
 
@@ -47,6 +62,50 @@ class _AdminOfertasDoPedidoSectionState
 
   Future<Object?> _chamar(String ref) => Supabase.instance.client
       .rpc('admin_ofertas_do_pedido', params: {'p_ref': ref});
+
+  Future<Object?> _forcarNoServidor(String ref) => Supabase.instance.client
+      .rpc('admin_forcar_chamada', params: {'p_order_id': ref});
+
+  Future<void> _forcarChamada() async {
+    final confirmou = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Forçar chamada agora?'),
+        content: const Text(
+          'O pedido vai tocar no celular do próximo entregador DESLIGADO que '
+          'aceitou chamadas de reforço (pela ordem das Configurações de '
+          'Despacho). Só funciona com a chamada de reforço ligada. Recusar '
+          'nunca penaliza o entregador.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(c, true),
+              child: const Text('Chamar agora')),
+        ],
+      ),
+    );
+    if (confirmou != true || !mounted) return;
+    setState(() => _forcando = true);
+    String msg;
+    try {
+      final res = await (widget.forcar ?? _forcarNoServidor)(widget.pedidoRef);
+      msg = forcarChamadaEmPalavras(
+          res is Map ? res.cast<String, dynamic>() : const {});
+    } catch (e) {
+      msg = servidorAindaSemIsto(e)
+          ? '$kAindaNaoAtivo: o botão funciona depois de aplicar a migração '
+              'da chamada de reforço.'
+          : 'Não deu para forçar a chamada: $e';
+    }
+    if (!mounted) return;
+    setState(() => _forcando = false);
+    ScaffoldMessenger.maybeOf(context)
+        ?.showSnackBar(SnackBar(content: Text(msg)));
+    await _load();
+  }
 
   Future<void> _load() async {
     setState(() {
@@ -115,6 +174,19 @@ class _AdminOfertasDoPedidoSectionState
               'telemóvel; "entregue" quer dizer que o Google aceitou mandar.',
               style: TextStyle(fontSize: 11, color: AppColors.textSubtle),
             ),
+            if (widget.mostrarForcarChamada) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                icon: _forcando
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.campaign_outlined, size: 18),
+                label: const Text('Forçar chamada'),
+                onPressed: _forcando ? null : _forcarChamada,
+              ),
+            ],
             const SizedBox(height: 8),
             if (_loading)
               const Padding(

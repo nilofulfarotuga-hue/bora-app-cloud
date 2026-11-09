@@ -1,0 +1,22 @@
+Prova em rollback da migração 20261109050000_m10_chamada_de_reforco.sql
+Corrida a 09/11/2026 ~00:40 (Lisboa) no projeto ojykpzwqrtusfeakzrna, pelo MCP execute_sql,
+com o conteúdo de prova_chamada_reforco.sql (gerado por gerar_prova_chamada_reforco.mjs;
+md5 da migração embutida = 2cd74a12f7c7c26482e0bc28c654712f, igual ao que o gerador imprime).
+
+1.ª corrida: parou em "PROVA_FALHOU 10a sem_motorista/- <NULL>" — o Valdemir desligou o papel
+TVDE na app (aceita_papel(e355fde0…, 'driver') = false), por isso a função nova, como deve,
+não o chama para corridas. Corrigida a EXPECTATIVA da prova (passo 10), não a migração.
+
+2.ª corrida — saída literal:
+
+ERROR:  P0001: PROVA_OK md5_migracao_executada=2cd74a12f7c7c26482e0bc28c654712f | 0a defeito_10_10 COALESCE(cancellation_initiator,'')=ERRO_22P02 | 0b registo_hoje_recusa_entrega=check_violation | 0c md5_candidatos_no_ar=ebf3e6fc8165e1decce39ad7ce6c6ab6 linhas=28 | 1 migracao_2_vezes=ok | 2 copia_online_md5=igual_ao_ar backup=admin_ofertas_log,dispatch_candidatos_entrega | 3 dispatch_forcado_ligado=false tvde_forcado_ligado=false | 4 desligado: diferencas_na_lista=0 fase=online1/chamada_de_reforco_desligada varredura={"ok": true, "desligado": true} | 5 decisoes=12/12 | 6 horario=ok | 7 enum_como_texto=ok registo_aceita_entrega=ok | 8 pedido_lido=7abb748d online_agora=1 lista_reforco=e355fde0-b634-48ba-bce1-e2a4466c4cc2#1 | 9 fase=forcado(Valdemir) motor_recebe=so_Valdemir cancelar_a_meio=adiado registo=forcado/online=false/entrega/aparelho=true fechou=recusou depois=online2 | 9 esgotado: motor=online_de_sempre cancelar_no_fim=passa | 10a tvde_so_Valdemir(TVDE desligado na app dele)=sem_motorista | 10b tvde_outro_consentiu=solicitada+oferta_de_reforco registo=forcado | 10c tvde_reserva=sem_motorista(como_hoje) | 11 sem_admin=admin_required lista_Valdemir_consentiu=true#ordem=1 rotacao_do_pedido=4_linhas reforco=forcado:recusou log_resumo_tem_reforco=true botao_pedido_entregue=pedido_nao_esta_a_chamar botao_desligado=reforco_desligado | 12 anon=0_funcoes authenticated=admin_forcar_chamada,admin_ofertas_do_pedido,admin_ofertas_log,admin_reforco_lista tabelas_escritas_sem_pg_net=ok gatilhos_nos_clones=5 cron_na_prova=0
+CONTEXT:  PL/pgSQL function inline_code_block line 1449 at RAISE
+
+Nota: "fechou=recusou" porque a prova tira a oferta antes do prazo (não dá para esperar 60 s
+dentro da transação); no ar, a manutenção só a tira depois do prazo e o desfecho é "expirou".
+
+Conferência depois (nada ficou no ar):
+funcoes_novas_no_ar=0 | md5_candidatos_no_ar=ebf3e6fc8165e1decce39ad7ce6c6ab6 | md5_log_no_ar=b8d6c187e0a420b04c44c1bbaa174995 |
+tabela_consent=null | tabela_bkp=null | definicoes=0 |
+regra_categoria=CHECK ((categoria = ANY (ARRAY['limpeza'::text, 'lavagem'::text, 'casa'::text]))) |
+eventos_reforco=0 | cron=0   (e "column pedido_ref does not exist")

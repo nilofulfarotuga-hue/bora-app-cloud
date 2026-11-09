@@ -253,13 +253,14 @@ class _Cartao extends StatelessWidget {
 }
 
 /// Abre o Amigo: o ecrã do rosto (ou, com o rosto desligado no painel, a
-/// conversa escrita de 08/11).
-void abrirAmigo(BuildContext context) {
+/// conversa escrita de 08/11). Com [mensagem], o Amigo recebe-a logo depois
+/// de cumprimentar (ex.: "Pede ao Amigo" numa pesquisa sem resultado).
+void abrirAmigo(BuildContext context, {String? mensagem}) {
   Navigator.of(context).push(
     MaterialPageRoute<void>(
       builder: (_) => AssistantFlags.rostoAtivo.value
-          ? const AmigoScreen()
-          : const AssistantChatScreen(),
+          ? AmigoScreen(mensagemInicial: mensagem)
+          : AssistantChatScreen(mensagemInicial: mensagem),
     ),
   );
 }

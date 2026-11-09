@@ -173,9 +173,14 @@ class AmigoScreen extends StatefulWidget {
     this.voz,
     this.ouvido,
     this.aoVerConversa,
+    this.mensagemInicial,
   });
 
   final AmigoCerebro cerebro;
+
+  /// Enviada logo depois da saudação (ex.: "Pede ao Amigo" de uma pesquisa
+  /// sem resultado numa loja — adendo 2, 09/11/2026).
+  final String? mensagemInicial;
 
   /// Voz do Amigo (por defeito, a do sistema com as definições do painel).
   final AmigoVoz? voz;
@@ -280,6 +285,8 @@ class _AmigoScreenState extends State<AmigoScreen>
     }
     _respostas.add(r);
     await _dizer(r, emocao: AmigoEmocao.alegre);
+    final m = widget.mensagemInicial?.trim() ?? '';
+    if (mounted && m.isNotEmpty) await _enviar(m);
   }
 
   /// Diz a resposta (e a deixa no fim, com a cara alegre).

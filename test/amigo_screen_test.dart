@@ -218,6 +218,7 @@ void main() {
   });
 
   group('ecrã do Amigo', () {
+    _mensagemInicial();
     Future<(_CerebroFalso, _VozFalsa, List<int>)> abrir(WidgetTester tester,
         {Size tamanho = const Size(390, 844)}) async {
       tester.view.physicalSize = tamanho;
@@ -475,5 +476,25 @@ void _aprendeVelocidade() {
     expect(voz.ajusteVelocidade, lessThan(0.75), reason: 'a voz real é mais lenta: a boca abranda');
     expect(voz.ajusteVelocidade, greaterThan(0.45));
     voz.dispose();
+  });
+}
+
+void _mensagemInicial() {
+  testWidgets('"Pede ao Amigo": abre com a pesquisa já escrita e envia-a depois da saudação',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final cerebro = _CerebroFalso();
+    await tester.pumpWidget(MaterialApp(
+      home: AmigoScreen(
+        cerebro: cerebro,
+        voz: AmigoVoz(motor: _VozFalsa()),
+        ouvido: _OuvidoFalso('x'),
+        mensagemInicial: 'Não encontrei "gelado" no McDonald\'s. Procura noutras lojas.',
+      ),
+    ));
+    await _correr(tester, const Duration(seconds: 4));
+    expect(cerebro.enviadas, ['Não encontrei "gelado" no McDonald\'s. Procura noutras lojas.']);
+    await tester.pumpWidget(const SizedBox());
+    await _correr(tester, const Duration(seconds: 5));
   });
 }

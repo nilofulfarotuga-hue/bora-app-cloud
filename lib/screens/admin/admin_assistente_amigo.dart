@@ -10,12 +10,17 @@
 // 09/11/2026 (missão m11-amigo-rosto): secção "Rosto do Amigo" — pré-visualização ao vivo, um botão
 // por expressão, teste de voz e boca, variante, interruptores amigo_* e números de uso
 // (admin_amigo_rosto_overview). Ver admin_amigo_rosto_secao.dart.
+//
+// 09/11/2026 (pendências, bloco I): secção "Voz do servidor" — consumo do dia e do mês, % do grátis
+// da Google, interruptor, teto, limite por cliente, voz e teste (admin_amigo_voz_overview /
+// admin_amigo_voz_definir). Ver admin_amigo_voz_secao.dart.
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import 'admin_amigo_rosto_secao.dart';
+import 'admin_amigo_voz_secao.dart';
 
 class AdminAssistenteAmigoTab extends StatefulWidget {
   const AdminAssistenteAmigoTab({super.key});
@@ -238,6 +243,8 @@ class _AdminAssistenteAmigoTabState extends State<AdminAssistenteAmigoTab>
           ),
           const SizedBox(height: 16),
           AdminAmigoRostoSecao(dias: _dias),
+          const Divider(height: 28),
+          AdminAmigoVozSecao(dias: _dias),
           const Divider(height: 28),
           const Text('Interruptores', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
           SwitchListTile(

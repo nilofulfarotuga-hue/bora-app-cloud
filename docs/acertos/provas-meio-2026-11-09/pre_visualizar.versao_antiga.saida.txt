@@ -1,0 +1,21 @@
+resposta da Edge: HTTP 200 {"na_fila":7,"enviados":7,"falhados":0}
+{"caso":"1-transferencia","estado":"sent","email_para":"parceiro@exemplo.pt","caixa":"Enviado por MB Way.","meio":"(sem linha Meio)","push":"(versão sem corpoPushComprovativo)","diz_mbway":true}
+{"caso":"2-mbway-com-numero","estado":"sent","email_para":"estafeta@exemplo.pt","caixa":"Enviado por MB Way.","meio":"(sem linha Meio)","push":"(versão sem corpoPushComprovativo)","diz_mbway":true}
+{"caso":"3-sem-meio","estado":"sent","email_para":"limpeza@exemplo.pt","caixa":"Enviado por MB Way.","meio":"(sem linha Meio)","push":"(versão sem corpoPushComprovativo)","diz_mbway":true}
+{"caso":"4-ambiguo","estado":"sent","email_para":"ambiguo@exemplo.pt","caixa":"Enviado por MB Way.","meio":"(sem linha Meio)","push":"(versão sem corpoPushComprovativo)","diz_mbway":true}
+{"caso":"5-stripe","estado":"sent","email_para":"barbearia@exemplo.pt","caixa":"Enviado por MB Way.","meio":"(sem linha Meio)","push":"(versão sem corpoPushComprovativo)","diz_mbway":true}
+{"caso":"6-recebido-mbway-sem-numero","estado":"sent","email_para":"lavador@exemplo.pt","caixa":"A sua conta desta semana fica certa. Obrigado.","meio":"(sem linha Meio)","push":"(versão sem corpoPushComprovativo)","diz_mbway":true}
+{"caso":"7-recebido-sem-meio","estado":"sent","email_para":"deve@exemplo.pt","caixa":"A sua conta desta semana fica certa. Obrigado.","meio":"(sem linha Meio)","push":"(versão sem corpoPushComprovativo)","diz_mbway":true}
+emails apanhados pelo fetch falso (nenhum saiu): 7
+FALHA 1 transferência diz "Enviado por transferência bancária" e não diz MB Way
+FALHA 2 MB Way com número
+FALHA 3 sem meio diz "Pagamento efetuado" e não diz MB Way
+FALHA 4 ambíguo (MB Way/transferência) não inventa
+FALHA 5 Stripe
+FALHA 6 recebido MB Way sem número (a data não vira número)
+FALHA 7 recebido sem meio não diz MB Way
+FALHA push 1 diz transferência
+FALHA push 2 diz MB Way para o número
+FALHA push 3 sem meio não inventa
+OK    7 emails apanhados, todos marcados sent
+VEREDICTO: HÁ FALHAS

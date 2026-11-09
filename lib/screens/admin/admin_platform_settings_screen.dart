@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../auth/auth_store.dart' show AuthStore;
+import '../../services/entrada_social_cliente.dart'
+    show kChaveLoginApple, kChaveLoginGoogle;
 import '../../services/remote_fees_service.dart';
 import '../../services/small_order_fee.dart';
 import '../../config/app_colors.dart';
@@ -114,6 +116,13 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     'sessao_convidado_ativa': AuthStore.edgeSessaoConvidadoPublicada
         ? 'Sessão de convidado (conta partilhada só de leitura). Ligar só depois de aplicada a proteção de pedidos (create_order) na publicação.'
         : kNotaSessaoConvidadoDesligada,
+    // 09/11/2026 — entrar com Google / Apple (só no app do cliente).
+    kChaveLoginGoogle:
+        'Botão "Continuar com Google" no login e no cadastro do cliente (Android e web). '
+            'No iPhone só aparece junto com o da Apple (regra 4.8 da Apple).',
+    kChaveLoginApple:
+        'Botão "Continuar com a Apple" no iPhone (e libera o do Google no iPhone). '
+            'Ligar só depois de colocar o segredo OAuth da Apple no Supabase Auth — sem ele o login da Apple dá erro.',
   };
 
   /// [G3 · 01/11/2026] Chaves trancadas porque a função do servidor de que

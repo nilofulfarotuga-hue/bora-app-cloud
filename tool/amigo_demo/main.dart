@@ -17,6 +17,7 @@ import 'dart:math' as math;
 import 'package:bora_app/config/app_theme.dart';
 import 'package:bora_app/screens/client/assistant/amigo_screen.dart';
 import 'package:bora_app/services/amigo_voz.dart';
+import 'package:bora_app/services/amigo_voz_servidor.dart';
 import 'package:bora_app/services/assistant_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -174,10 +175,60 @@ Future<void> _provaCincoFrases(AmigoVoz voz) async {
   })}');
 }
 
+/// Pendências 09/11 (bloco I): a Edge amigo-voz FALSA para a prova no WebKit
+/// (`?voz_servidor=falso`). Devolve um tom em WAV com a duração da frase; na
+/// app é a Edge a sério (MP3 da Google, pt-PT).
+class _ServidorDemo implements AmigoVozServidorCliente {
+  int pedidos = 0;
+
+  @override
+  Future<AmigoAudioResposta> pedir(String texto, {double velocidade = 1}) async {
+    pedidos++;
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    final ms = (texto.length * 65).clamp(800, 8000);
+    final n = 8000 * ms ~/ 1000; // 8 kHz, 8 bits, mono
+    final b = ByteData(44 + n);
+    void txt(int o, String s) {
+      for (var i = 0; i < 4; i++) {
+        b.setUint8(o + i, s.codeUnitAt(i));
+      }
+    }
+
+    txt(0, 'RIFF');
+    b.setUint32(4, 36 + n, Endian.little);
+    txt(8, 'WAVE');
+    txt(12, 'fmt ');
+    b.setUint32(16, 16, Endian.little);
+    b.setUint16(20, 1, Endian.little);
+    b.setUint16(22, 1, Endian.little);
+    b.setUint32(24, 8000, Endian.little);
+    b.setUint32(28, 8000, Endian.little);
+    b.setUint16(32, 1, Endian.little);
+    b.setUint16(34, 8, Endian.little);
+    txt(36, 'data');
+    b.setUint32(40, n, Endian.little);
+    for (var i = 0; i < n; i++) {
+      b.setUint8(44 + i, (128 + 20 * math.sin(2 * math.pi * 220 * i / 8000)).round());
+    }
+    final bytes = b.buffer.asUint8List();
+    debugPrint('[AmigoDemo] servidor falso: pedido $pedidos (${texto.length} caracteres, $ms ms)');
+    return AmigoAudioResposta.audio(
+        AmigoAudio(bytes: bytes, base64: base64Encode(bytes), origem: 'demo', mime: 'audio/wav'));
+  }
+}
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SchedulerBinding.instance.addTimingsCallback(_medir);
-  final voz = AmigoVoz();
+  final servidorFalso = Uri.base.queryParameters['voz_servidor'] == 'falso';
+  final voz = servidorFalso
+      ? AmigoVoz(
+          motor: AmigoMotorVozComServidor(
+            servidor: _ServidorDemo(),
+            servidorLigado: () async => true,
+          ),
+        )
+      : AmigoVoz();
   unawaited(voz.preparar().then((_) => debugPrint('[AmigoDemo] voz=${voz.nomeVoz ?? 'nenhuma (só legenda)'} '
       'plataforma=${kIsWeb ? 'web' : defaultTargetPlatform.name}')));
   runApp(MaterialApp(

@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('a Casa é uma categoria que as faixas e a pesquisa podem abrir', () {
-    expect(categoriasDestino['casa'], 'Casa');
+    expect(categoriasDestino['casa'], 'Casa e Manutenção');
     expect(ecraDaCategoriaParaTeste('casa'), isA<CasaCategoriaScreen>());
     expect(ecraDaCategoriaParaTeste('Casa'), isA<CasaCategoriaScreen>(),
         reason: 'a chave normaliza maiúsculas');

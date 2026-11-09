@@ -1,5 +1,15 @@
 # Signup — Apple/Google Sign-In + SMS OTP Setup
 
+> **ATUALIZADO 09/11/2026 (pendencias, bloco E) — o que vale hoje para o
+> Google/Apple:** não há `SOCIAL_AUTH_ENABLED` nem `google_sign_in`. O cliente
+> entra pelo OAuth do Supabase no navegador (`signInWithOAuth`), com volta por
+> `pt.boraapp.bora://auth/callback` (telemóvel) ou pela origem do site (web).
+> Interruptores no painel: `login_google_ativo` (true) e `login_apple_ativo`
+> (false até haver o segredo OAuth da Apple no Supabase Auth — Services ID +
+> chave .p8, segredo JWT renovado a cada 6 meses). Código:
+> `lib/services/entrada_social_cliente.dart`. O resto deste ficheiro é o plano
+> antigo (secção SMS OTP continua válida).
+
 Checklist de configuração externa para activar:
 - **Apple Sign-In** (mandatório se houver outro social no iOS — App Store guideline 4.8)
 - **Google Sign-In**

@@ -1,0 +1,48 @@
+# node provar_amigo_voz.mjs supabase/migrations/20261109223000_amigo_voz.sql — PGlite 0.2.17 — 2026-11-09T22:07:48Z
+OK  migração volta 1
+OK  migração volta 2
+OK  interruptor desligado por defeito — {"amigo_voz_nome":"pt-PT-Standard-E","amigo_voz_servidor_ativo":false,"amigo_voz_teto_dia":20000,"amigo_voz_teto_utilizador_dia":3000,"amigo_voz_velocidade":1}
+OK  teto 20000/dia
+OK  limite por cliente 3000/dia
+OK  voz pt-PT-Standard-E
+OK  definição que já existia ficou igual
+OK  bucket amigo-voz privado, só MP3 — [{"id":"amigo-voz","public":false,"file_size_limit":1048576,"allowed_mime_types":["audio/mpeg"]}]
+OK  cópia antes de mexer — 1 linha(s)
+OK  anon não reserva — permission denied for function amigo_voz_reservar
+OK  cliente não reserva (só a Edge) — permission denied for function amigo_voz_reservar
+OK  cliente não conta — permission denied for function amigo_voz_contar
+OK  anon não vê o painel — permission denied for function admin_amigo_voz_overview
+OK  cliente não vê o painel — admin_required
+OK  cliente não muda o teto — admin_required
+OK  anon não lê o consumo — permission denied for table amigo_voz_consumo
+OK  interruptor desligado → recusa "desligado" — {"ok":false,"teto":20000,"motivo":"desligado","gerados":0}
+OK  ligado: reserva 1500 — {"ok":true,"teto":20000,"gerados":1500}
+OK  limite por cliente (1500+1600 > 3000) — {"ok":false,"teto":20000,"motivo":"limite_utilizador","gerados":1500}
+OK  outro cliente: 3000 cabem — {"ok":true,"teto":20000,"gerados":4500}
+OK  teto do dia (4500+600 > 5000) → "teto" — {"ok":false,"teto":5000,"motivo":"teto","gerados":4500}
+OK  500 ainda cabem no teto — {"ok":true,"teto":5000,"gerados":5000}
+OK  tipo inválido recusado — tipo_invalido: outro
+OK  caracteres 0 → inválido (sem rebentar) — division by zero
+OK  uma linha por dia — 1
+OK  gerados = 1500 + 3000 + 500 − 500 (erro devolvido) = 4500 — 4500
+OK  cache: 1 pedido, 200 caracteres
+OK  recusados: desligado + limite + teto + sem chave = 4 — 4 / 2380
+OK  erros: 1
+OK  pedidos: 8 — 8
+OK  cliente 3: o erro devolveu-lhe os caracteres — {"caracteres_gerados":0}
+OK  painel: hoje 4500 gerados — {"erros":1,"pedidos":8,"pedidos_cache":1,"pedidos_gerados":2,"caracteres_cache":200,"pedidos_recusados":4,"caracteres_gerados":4500,"caracteres_pedidos":7580,"caracteres_recusados":2380}
+OK  painel: mês = hoje
+OK  painel: grátis Standard 4 milhões
+OK  painel: % do grátis 0,11 — 0.11
+OK  painel: % do teto de hoje 90 — 90
+OK  painel: 3 clientes hoje
+OK  painel: definições — {"amigo_voz_nome":"pt-PT-Standard-E","amigo_voz_teto_dia":5000,"amigo_voz_servidor_ativo":true,"amigo_voz_teto_utilizador_dia":3000}
+OK  admin lê a tabela de consumo
+OK  voz do Brasil recusada — voz_invalida: só vozes pt-PT (ex.: pt-PT-Standard-E)
+OK  teto acima do grátis recusado — teto_dia_invalido: entre 0 e 133000 (4 milhões ÷ 30)
+OK  admin muda interruptor, teto e voz — {"amigo_voz_nome":"pt-PT-Wavenet-E","amigo_voz_teto_dia":30000,"amigo_voz_servidor_ativo":false,"amigo_voz_teto_utilizador_dia":3000}
+OK  o limite por cliente não mexeu
+OK  voz WaveNet → grátis 1 milhão
+OK  cliente não vê o consumo (RLS) — 0
+OK  auditoria: 1 linha amigo_voz_definir com antes/depois — [{"action":"amigo_voz_definir","entity_id_text":"amigo_voz","details":{"antes":{"amigo_voz_nome":"pt-PT-Standard-E","amigo_voz_teto_dia":"5000","amigo_voz_servidor_ativo":true,"amigo_voz_teto_utilizador_dia":3000},"depois":{"amigo_voz_nome":"pt-PT-Wavenet-E","amigo_voz_teto_dia":30000,"amigo_voz_servidor_ativo":false,"amigo_voz_teto_utilizador_dia":3000}}}]
+OK  a descrição da definição ficou

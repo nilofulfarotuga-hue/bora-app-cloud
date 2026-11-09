@@ -11,6 +11,7 @@ import '../stores/session_store.dart';
 import '../utils/contact_validators.dart';
 import '../widgets/bora/bora_mascot.dart';
 import '../widgets/bora/bora_primary_button.dart';
+import '../widgets/entrada_social_botoes.dart';
 import '../widgets/terms_link_text.dart';
 import 'client_login_screen.dart';
 import 'welcome_address_screen.dart';
@@ -21,7 +22,9 @@ import '../l10n/tr.dart';
 /// - Foto opcional REMOVIDA (causa de Activity recreation crash em Samsung A36).
 ///   Foto pode ser adicionada depois em ProfileScreen.
 /// - Draft persistence (SharedPreferences) — sobrevive a kill do processo.
-/// - Apple/Google Sign-In skeleton atrás de feature flag SOCIAL_AUTH_ENABLED.
+/// - "Continuar com Google" (e Apple no iPhone) — 09/11/2026, ver
+///   `services/entrada_social_cliente.dart`. Interruptores no painel
+///   (`login_google_ativo` / `login_apple_ativo`), já não por dart-define.
 /// - Após signup OK → navega para WelcomeAddressScreen (morada opcional).
 class RegisterClientScreen extends StatefulWidget {
   const RegisterClientScreen({super.key, this.voltarAoChamador = false});
@@ -49,12 +52,6 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
   bool _acceptedTerms = false;
 
   static const _kDraftKey = 'bora_app.signup_draft.client';
-
-  /// Feature flag — quando true, mostra botões "Continuar com Google/Apple".
-  /// Activação requer config externa (Apple Developer + Google Cloud +
-  /// Supabase Auth providers). Ver docs/SIGNUP_SOCIAL_SETUP.md.
-  static const bool _socialAuthEnabled =
-      bool.fromEnvironment('SOCIAL_AUTH_ENABLED');
 
   @override
   void initState() {
@@ -148,39 +145,11 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                if (_socialAuthEnabled) ...[
-                  _SocialAuthButton(
-                    icon: Icons.apple,
-                    label: 'Continuar com Apple'.tr,
-                    onPressed: _isSubmitting ? null : _signInWithApple,
-                  ),
-                  const SizedBox(height: 12),
-                  _SocialAuthButton(
-                    icon: Icons.g_mobiledata_rounded,
-                    label: 'Continuar com Google'.tr,
-                    onPressed: _isSubmitting ? null : _signInWithGoogle,
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Divider(color: Colors.grey.shade300),
-                      ),
-                      Padding(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: Spacing.md),
-                        child: Text(
-                          'ou regista-te por email'.tr,
-                          style: TextStyle(color: Colors.grey.shade500),
-                        ),
-                      ),
-                      Expanded(
-                        child: Divider(color: Colors.grey.shade300),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                EntradaSocialBotoes(
+                  separador: 'ou regista-te por email'.tr,
+                  desligado: _isSubmitting,
+                  aoEntrar: _depoisDaEntradaSocial,
+                ),
 
                 TextFormField(
                   controller: _nameController,
@@ -291,8 +260,11 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
                   onPressed: _acceptedTerms ? _submit : null,
                 ),
                 const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                // Wrap (09/11/2026): com letra grande o "Iniciar sessão" passa
+                // para a linha de baixo em vez de transbordar (o Row rebentava).
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text('Já tenho conta?'.tr,
                         style: TextStyle(color: Colors.grey.shade600)),
@@ -322,29 +294,24 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
     );
   }
 
-  Future<void> _signInWithApple() async {
-    // TODO(activate): Apple Sign-In requer:
-    //  1. Apple Developer: Sign In with Apple capability enabled
-    //  2. Service ID + Key + Domain registado
-    //  3. Supabase Auth → Apple provider configurado com client_id + secret JWT
-    //  4. iOS: adicionar Sign In with Apple ao Runner.entitlements
-    //  5. Android: deeplink redirect URI configurado
-    //  Ver docs/SIGNUP_SOCIAL_SETUP.md
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Apple Sign-In — em configuração.'.tr)),
-    );
-  }
-
-  Future<void> _signInWithGoogle() async {
-    // TODO(activate): Google Sign-In requer:
-    //  1. Google Cloud: OAuth 2.0 Client IDs (Android + iOS + Web)
-    //  2. SHA-1 fingerprint do keystore release (já existe — ver project_keystore_release_2026_05_20)
-    //  3. Supabase Auth → Google provider configurado com client_id + secret
-    //  4. Adicionar package google_sign_in: ^6.x ao pubspec.yaml
-    //  5. iOS: GIDClientID em Info.plist
-    //  Ver docs/SIGNUP_SOCIAL_SETUP.md
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Google Sign-In — em configuração.'.tr)),
+  /// Conta aberta com Google/Apple (o AuthStore já a pôs como cliente): o
+  /// mesmo fim do registo por email — código de convite, papel, rascunho
+  /// apagado e a morada de boas-vindas (ou volta ao carrinho).
+  Future<void> _depoisDaEntradaSocial() async {
+    if (_isSubmitting) return; // o caminho do email trata da navegação
+    final sessionStore = context.read<SessionStore>();
+    setState(() => _isSubmitting = true);
+    await _aplicarCodigoDeConvite();
+    await sessionStore.setRole(UserRole.client);
+    _clearDraft();
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+    if (widget.voltarAoChamador) {
+      Navigator.of(context).pop(true);
+      return;
+    }
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const WelcomeAddressScreen()),
     );
   }
 
@@ -403,8 +370,29 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
       }
     }
 
-    // Código (opcional). Falha nunca bloqueia o signup.
-    //
+    await _aplicarCodigoDeConvite();
+
+    await sessionStore.setRole(UserRole.client);
+    _clearDraft();
+
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+
+    // Navega para WelcomeAddressScreen — morada opcional + onboarding tooltip.
+    // Após WelcomeAddressScreen, _RootNavigator detecta currentClient != null
+    // e renderiza ClientMainScreen.
+    if (widget.voltarAoChamador) {
+      Navigator.of(context).pop(true);
+      return;
+    }
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const WelcomeAddressScreen()),
+    );
+  }
+
+  /// Código (opcional) escrito no registo. Falha nunca bloqueia o signup.
+  /// Serve o registo por email e a entrada com Google/Apple.
+  Future<void> _aplicarCodigoDeConvite() async {
     // O campo aceita DOIS tipos de código e o utilizador não tem de saber a
     // diferença: código de amigo (referral) e código promocional (ex.: o
     // BEMVINDO da publicidade). Tenta-se primeiro o referral; se o código não
@@ -430,23 +418,6 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
         }
       }
     }
-
-    await sessionStore.setRole(UserRole.client);
-    _clearDraft();
-
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
-
-    // Navega para WelcomeAddressScreen — morada opcional + onboarding tooltip.
-    // Após WelcomeAddressScreen, _RootNavigator detecta currentClient != null
-    // e renderiza ClientMainScreen.
-    if (widget.voltarAoChamador) {
-      Navigator.of(context).pop(true);
-      return;
-    }
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const WelcomeAddressScreen()),
-    );
   }
 
   /// Segunda tentativa para o código escrito no registo: código promocional.
@@ -503,40 +474,3 @@ class _RegisterClientScreenState extends State<RegisterClientScreen> {
   }
 }
 
-class _SocialAuthButton extends StatelessWidget {
-  const _SocialAuthButton({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 50,
-      child: OutlinedButton.icon(
-        icon: Icon(icon, color: Colors.black87),
-        label: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
-          side: BorderSide(color: Colors.grey.shade300),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
-        onPressed: onPressed,
-      ),
-    );
-  }
-}

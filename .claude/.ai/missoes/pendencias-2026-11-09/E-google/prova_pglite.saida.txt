@@ -1,0 +1,19 @@
+OK   migração corre duas vezes seguidas sem erro
+OK   sem sessão → recusa (admin_required)
+OK   cliente comum → recusa (admin_required)
+OK   admin vê as 4 contas (4)
+OK   só email → ["email"] último=email
+OK   email + google ligado, entrou agora pelo Google → ["email","google"] último=google
+OK   apple sem data de entrada → ["apple"] último=apple
+OK   filtro p_user_ids devolve só as 2 pedidas (2)
+OK   mais de 1000 contas → recusa (max 1000 contas por pedido)
+OK   fechada a PUBLIC e anon: {postgres=X/postgres,authenticated=X/postgres,service_role=X/postgres}
+OK   aberta a authenticated e service_role
+OK   SECURITY DEFINER
+     definições: [{"key":"login_apple_ativo","v":"false","category":"cliente","is_secret":false},{"key":"login_google_ativo","v":"false","category":"cliente","is_secret":false}]
+OK   login_apple_ativo nasce false
+OK   login_google_ativo que já existia não é pisado (on conflict do nothing)
+OK   base sem a linha → login_google_ativo nasce true
+OK   públicas (is_secret=false) na categoria cliente, como visitantes_sem_conta
+
+TUDO VERDE

@@ -16,6 +16,11 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 09/11/2026 (pendencias, bloco E): entrar com Google / Apple. À mão.
+  'ou': 'or',
+  'Continuar com a Apple': 'Continue with Apple',
+  'Não foi possível abrir a página para entrar. Tenta outra vez.':
+      'Could not open the sign-in page. Please try again.',
   // 09/11/2026 (m11): cartão e MB Way na Casa. Acrescentado à mão.
   'Este valor é baixo demais para cartão ou MB Way. Paga em dinheiro.':
       'This amount is too low for card or MB Way. Pay in cash.',
@@ -1084,6 +1089,10 @@ const Map<String, String> kStringsEn = <String, String>{
       '🔧 Quote request!',
   'Casa e manutenção':
       'Home & maintenance',
+  'Casa e Manutenção':
+      'Home & Maintenance',
+  'Casa e\nManutenção':
+      'Home &\nMaintenance',
   'A minha Casa':
       'My Home jobs',
   'Vê e aceita trabalhos perto de ti':

@@ -1,0 +1,306 @@
+{
+  "motor": "webkit",
+  "navegador": "webkit 26.5",
+  "aparelho": "iPhone 13 (emulado)",
+  "speechSynthesis_no_navegador": false,
+  "antes_do_toque": {
+    "audio_criado": true,
+    "desbloqueado": false
+  },
+  "depois_do_toque": {
+    "desbloqueado": false,
+    "play_dentro_do_toque": 2
+  },
+  "amostras_a_tocar": 0,
+  "maior_currentTime_s": 0,
+  "duracao_s": null,
+  "erros_do_audio": [
+    4
+  ],
+  "amostras": [
+    {
+      "t": 8163,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 8773,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 9010,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 9231,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 9463,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 9693,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 9955,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 10171,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 10396,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 10613,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 10835,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 11055,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 11279,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 11675,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 11898,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 12122,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 12345,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 12562,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 12772,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 12996,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 13217,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 13442,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 13666,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 13894,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 14105,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 14314,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 14535,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 14750,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 14969,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    },
+    {
+      "t": 15176,
+      "src": "data:audio/wav;base64,",
+      "paused": false,
+      "currentTime": 0,
+      "duration": null,
+      "ended": false,
+      "erro": 4
+    }
+  ],
+  "consola": [
+    "[AmigoVoz] sem voz pt-PT no aparelho: usa a voz do servidor",
+    "[AmigoVoz] voz pt-PT: Voz pt-PT da Bora (servidor)",
+    "[AmigoDemo] voz=Voz pt-PT da Bora (servidor) plataforma=web",
+    "[AmigoDemo] evento abrir",
+    "[AmigoDemo] servidor falso: pedido 1 (93 caracteres, 6045 ms)",
+    "[AmigoVoz] a tocar a voz do servidor (demo, 48404 bytes)",
+    "[AmigoVoz] tocador: erro-audio: NotSupportedError",
+    "[AmigoVoz] o motor recusou: amigo-sem-voz-frase",
+    "[AmigoDemo] servidor falso: pedido 2 (20 caracteres, 1300 ms)",
+    "[AmigoVoz] a tocar a voz do servidor (demo, 10444 bytes)",
+    "[AmigoVoz] tocador: erro-audio: NotSupportedError",
+    "[AmigoVoz] o motor recusou: amigo-sem-voz-servidor"
+  ]
+}

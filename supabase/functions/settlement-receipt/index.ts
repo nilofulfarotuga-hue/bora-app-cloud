@@ -21,6 +21,11 @@
 // pessoa pagar; assim que paga, o comprovativo sai e ela sai desta lista.
 // Quem deve menos do que o piso settlement_reminder_min_cents nunca entra aqui.
 //
+// v3 (2026-11-09): o comprovativo e o push dizem o meio REAL do pagamento
+// (settlement_receipts.payment_reference, copiado do acerto pelo gatilho). Antes diziam
+// sempre "MB Way" — a Boom recebeu por transferencia e o email dizia MB Way. Sem meio
+// claro: "Pagamento efetuado", sem inventar.
+//
 // Esta funcao NAO calcula dinheiro: le valores ja fechados e comunica-os.
 //
 // Chave do Resend: env primeiro, vault depois (mesmo padrao da v5 do
@@ -164,9 +169,8 @@ async function despacharFila(supabase, resendKey, resendKeyOrigem, boraMbway, fc
     if (status === 'sent' || status === 'skipped') {
       try {
         const titulo = r.kind === 'paid' ? 'Pagamento efetuado' : 'Pagamento recebido'
-        const corpo = r.kind === 'paid'
-          ? 'A Bora transferiu-lhe ' + eur(r.amount_cents) + ' referente a semana de ' + ddmm(r.week_start_at) + '.'
-          : 'Recebemos o seu acerto de ' + eur(r.amount_cents) + '. Conta certa, obrigado.'
+        // 09/11: antes "A Bora transferiu-lhe ..." — dizia o meio sem o saber.
+        const corpo = corpoPushComprovativo(r)
         await empurrarParaPessoa(supabase, fcm, r.subject_type, r.subject_id, {
           type: 'settlement_receipt', title: titulo, body: corpo,
           kind: String(r.kind), week_start: String(r.week_start_at).slice(0, 10),
@@ -188,20 +192,78 @@ async function despacharFila(supabase, resendKey, resendKeyOrigem, boraMbway, fc
   }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 }
 
+// ---------------------------------------------------------------- meio de pagamento
+// 09/11/2026 (missao pendencias-2026-11-09, Bloco B): o comprovativo dizia SEMPRE "MB Way".
+// O meio vem agora do texto que o painel grava em payment_reference no acerto; o gatilho
+// _settlement_receipt_enqueue copia-o para settlement_receipts.payment_reference.
+// So se diz o meio quando o texto o diz sem duvida: nenhum meio, ou dois meios no mesmo texto
+// ("MB Way/transferencia"), da null e o comprovativo diz so "Pagamento efetuado". O texto da
+// referencia em si NUNCA vai para o email (pode ter notas internas); so o meio e o numero MB Way.
+function meioDoPagamento(ref) {
+  const bruto = String(ref ?? '')
+  const t = bruto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  if (!t.trim()) return null
+  const achados = []
+  if (/\btransfer|\biban\b|\bsepa\b/.test(t)) achados.push('transferencia')
+  if (/\bmb\s*-?\s*way\b|\bmbway\b/.test(t)) achados.push('mbway')
+  if (/\bstripe\b/.test(t)) achados.push('stripe')
+  if (/\bdinheiro\b|\bnumerario\b|\bcash\b|\bem mao\b/.test(t)) achados.push('dinheiro')
+  if (achados.length !== 1) return null
+  const tipo = achados[0]
+  let numero = null
+  if (tipo === 'mbway') {
+    // telemovel PT (91/92/93/96 + 7 algarismos), com ou sem +351 e espacos
+    const m = bruto.match(/(?:\+?351[\s.]?)?(9[1236]\d(?:[\s.]?\d{3}){2})(?!\d)/)
+    if (m) numero = m[1].replace(/[\s.]/g, '')
+  }
+  return { tipo, numero }
+}
+
+// Frase curta do meio, para o email (com HTML) e para o push (texto simples).
+function textoDoMeio(meio, html) {
+  if (!meio) return null
+  const b = (s) => (html ? '<b>' + escapeHtml(s) + '</b>' : s)
+  if (meio.tipo === 'transferencia') return 'por ' + b('transferência bancária')
+  if (meio.tipo === 'stripe') return 'por ' + b('Stripe')
+  if (meio.tipo === 'dinheiro') return 'em ' + b('dinheiro')
+  return 'por ' + b('MB Way') + (meio.numero ? ' para ' + b(meio.numero) : '')
+}
+
+// Rotulo da linha "Meio" na tabela do comprovativo.
+function rotuloDoMeio(meio) {
+  if (meio.tipo === 'transferencia') return 'Transferência bancária'
+  if (meio.tipo === 'stripe') return 'Stripe'
+  if (meio.tipo === 'dinheiro') return 'Dinheiro'
+  return 'MB Way' + (meio.numero ? ' ' + meio.numero : '')
+}
+
+// Corpo do push do comprovativo (texto simples, PT-PT).
+function corpoPushComprovativo(r) {
+  const meio = textoDoMeio(meioDoPagamento(r.payment_reference), false)
+  return r.kind === 'paid'
+    ? 'A Bora pagou-lhe ' + eur(r.amount_cents) + (meio ? ' ' + meio : '') +
+      ', referente à semana de ' + ddmm(r.week_start_at) + '.'
+    : 'Recebemos o seu acerto de ' + eur(r.amount_cents) + (meio ? ' ' + meio : '') + '. Conta certa, obrigado.'
+}
+
 function comprovativoHtml(r, boraMbway) {
   const pago = r.kind === 'paid'
   const valor = eur(r.amount_cents)
   const quando = dataHoraPt(r.sent_at ?? new Date().toISOString())
   const referencia = 'fecho ' + ddmm(r.week_start_at)
+  const meio = meioDoPagamento(r.payment_reference)
+  const meioHtml = textoDoMeio(meio, true)
 
   const caixa = pago
     ? '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:14px;margin-top:16px">' +
       '<div style="font-weight:700;color:#166534;font-size:18px">Recebeu ' + valor + '</div>' +
-      '<div style="margin-top:6px;color:#14532D">Enviado por <b>MB Way</b>' +
-      (r.subject_phone ? ' para <b>' + escapeHtml(r.subject_phone) + '</b>' : '') + '.</div></div>'
+      '<div style="margin-top:6px;color:#14532D">' +
+      (meioHtml ? (meio.tipo === 'dinheiro' ? 'Entregue ' : 'Enviado ') + meioHtml + '.' : 'Pagamento efetuado.') +
+      '</div></div>'
     : '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:14px;margin-top:16px">' +
       '<div style="font-weight:700;color:#166534;font-size:18px">Recebemos ' + valor + '</div>' +
-      '<div style="margin-top:6px;color:#14532D">A sua conta desta semana fica <b>certa</b>. Obrigado.</div></div>'
+      '<div style="margin-top:6px;color:#14532D">' + (meioHtml ? 'Pago ' + meioHtml + '. ' : '') +
+      'A sua conta desta semana fica <b>certa</b>. Obrigado.</div></div>'
 
   const titulo = pago ? 'Comprovativo de pagamento' : 'Pagamento recebido'
   const intro = pago
@@ -219,9 +281,11 @@ function comprovativoHtml(r, boraMbway) {
     '<tr><td style="padding:6px 0;color:#666">Valor</td><td style="padding:6px 0;text-align:right;font-weight:700">' + valor + '</td></tr>' +
     '<tr><td style="padding:6px 0;color:#666">Data</td><td style="padding:6px 0;text-align:right">' + quando + '</td></tr>' +
     '<tr><td style="padding:6px 0;color:#666">Referência</td><td style="padding:6px 0;text-align:right">' + escapeHtml(referencia) + '</td></tr>' +
-    (pago ? '' : (boraMbway
-      ? '<tr><td style="padding:6px 0;color:#666">Pago para</td><td style="padding:6px 0;text-align:right">MB Way ' + escapeHtml(boraMbway) + '</td></tr>'
-      : '')) +
+    // Antes: "Pago para MB Way <numero da Bora>" em TODOS os recebidos, mesmo sem se saber o meio.
+    (meio
+      ? '<tr><td style="padding:6px 0;color:#666">Meio</td><td style="padding:6px 0;text-align:right">' +
+        escapeHtml(rotuloDoMeio(meio)) + '</td></tr>'
+      : '') +
     '</table>' +
     '<p style="font-size:12px;color:#777;margin-top:18px">Guarde este email como comprovativo. Se algum valor não bater certo, responda a esta mensagem.</p>' +
     '<p style="font-size:11px;color:#999;margin-top:14px">Bora App · fecho semanal automático</p></div></div>'
@@ -504,3 +568,7 @@ function b64url(str) {
 function b64urlBytes(bytes) {
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 }
+
+// Para a pre-visualizacao local (docs/acertos/provas-meio-2026-11-09): ler o texto do push e o
+// meio sem mandar nada a ninguem. Nao mudam o que a funcao faz no ar.
+export { comprovativoHtml, corpoPushComprovativo, meioDoPagamento }

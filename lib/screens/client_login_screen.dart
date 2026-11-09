@@ -15,6 +15,7 @@ import '../stores/session_store.dart';
 import '../widgets/biometric_enrollment_dialog.dart';
 import '../widgets/bora/bora_mascot.dart';
 import '../widgets/bora/bora_primary_button.dart';
+import '../widgets/entrada_social_botoes.dart';
 import 'forgot_password_screen.dart';
 import 'register_client_screen.dart';
 import 'role_choice_screen.dart';
@@ -327,6 +328,14 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                     ),
                   ),
                 ],
+                // ── Google (e Apple no iPhone) — 09/11/2026 ───────────
+                const SizedBox(height: Spacing.lg),
+                EntradaSocialBotoes(
+                  separador: 'ou'.tr,
+                  separadorEmCima: true,
+                  desligado: _isProcessing,
+                  aoEntrar: _depoisDaEntradaSocial,
+                ),
                 const SizedBox(height: Spacing.xs),
 
                 // ── Forgot password ───────────────────────────────────
@@ -453,6 +462,14 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     await maybeOfferBiometricEnrollment(context, 'client');
     if (!mounted) return;
 
+    await _finishClientLogin();
+  }
+
+  /// Conta aberta com Google/Apple (o AuthStore já a pôs como cliente). No
+  /// ecrã da raiz o `_RootNavigator` troca sozinho para a app; aberto por
+  /// cima do carrinho, volta ao carrinho — o mesmo fim da palavra-passe.
+  Future<void> _depoisDaEntradaSocial() async {
+    if (_isProcessing) return; // a entrada por email trata de si
     await _finishClientLogin();
   }
 

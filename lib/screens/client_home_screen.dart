@@ -633,12 +633,13 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       // nasce desligada) — no molde da Lavagem: mostrar o ladrilho com o
       // serviço fechado só daria erro ao toque. Sem guarda de morada: a
       // morada pede-se dentro do próprio fluxo.
-      // 09/11/2026 (lançamento): ícone 3D cartoon próprio (caixa de
-      // ferramentas, gerado no Gemini) e o selo "Novo" enquanto durar a
+      // 09/11/2026 (lançamento): ícone 3D cartoon próprio (casinha com caixa
+      // de ferramentas, chave inglesa e berbequim, gerado no Gemini; nome em
+      // duas linhas "Casa e Manutenção", adendo 1 de 09/11) e o selo "Novo" enquanto durar a
       // definição `casa_novo_ate` (painel > Casa > Definições > Novidade).
       if (context.watch<CasaStore>().enabled)
         _TileData(
-          label: 'Casa',
+          label: 'Casa e\nManutenção',
           gradient: AppColors.tileCasa,
           imageAsset: 'assets/categories/cat_casa.png',
           selo: context.watch<CasaStore>().seloNovo() ? 'Novo'.tr : null,
@@ -770,7 +771,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
           'Supermercados': 'tile_supermercados',
           'Favores': 'tile_favores',
           'Limpeza': 'tile_limpeza',
-          'Casa': 'tile_casa',
+          'Casa e\nManutenção': 'tile_casa',
         };
         final Widget card;
         if (t.imageAsset != null) {

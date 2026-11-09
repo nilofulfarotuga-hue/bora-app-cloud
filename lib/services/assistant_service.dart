@@ -1042,6 +1042,10 @@ class AssistantFlags {
   /// `amigo_mosaico_categorias`: o mosaico "Amigo" no início das categorias.
   static final ValueNotifier<bool> mosaico = ValueNotifier<bool>(true);
 
+  /// `amigo_voz_servidor_ativo` (pendências 09/11/2026): sem voz pt-PT no
+  /// aparelho, o Amigo pede a voz à Edge amigo-voz. Sem a linha: desligado.
+  static final ValueNotifier<bool> vozServidor = ValueNotifier<bool>(false);
+
   static bool _carregado = false;
   static Future<void>? _emCurso;
 
@@ -1064,6 +1068,7 @@ class AssistantFlags {
         'amigo_voz_ligada_por_defeito',
         'amigo_voz_velocidade',
         'amigo_mosaico_categorias',
+        'amigo_voz_servidor_ativo',
       ]);
       aplicar({
         for (final l in (linhas as List).whereType<Map>())
@@ -1098,6 +1103,7 @@ class AssistantFlags {
     final vel = num.tryParse('${valores['amigo_voz_velocidade'] ?? ''}')?.toDouble();
     vozVelocidade.value = vel == null ? 1 : vel.clamp(0.5, 2.0).toDouble();
     mosaico.value = sim('amigo_mosaico_categorias', true);
+    vozServidor.value = sim('amigo_voz_servidor_ativo', false);
     _carregado = true;
   }
 
@@ -1113,5 +1119,6 @@ class AssistantFlags {
     vozPorDefeito.value = true;
     vozVelocidade.value = 1;
     mosaico.value = true;
+    vozServidor.value = false;
   }
 }

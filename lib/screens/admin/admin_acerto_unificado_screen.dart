@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/admin_export_service.dart';
+import '../../widgets/admin/meio_pagamento_acerto.dart';
 import '../../widgets/bora/bora.dart';
 
 /// PAINEL ADMIN — Acerto semanal unificado (PT-BR, só o Danilo).
@@ -77,18 +78,30 @@ class _AdminAcertoUnificadoScreenState
     final total = (item['total_cents'] as num?)?.toInt() ?? 0;
     final deve = total < 0;
 
+    // 09/11: também COMO foi pago — vai em p_metodo e na referência, e é o
+    // que o comprovativo da pessoa diz (antes dizia sempre "MB Way").
+    var escolha = const EscolhaMeioPagamento(MeioPagamentoAcerto.naoInformar);
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Marcar como pago'),
-        content: Text(
-          deve
-              ? 'Confirma que $nome já quitou os ${_eur(total)} que devia '
-                  'nesta semana?\n\nIsso marca todos os acertos dela na '
-                  'semana como pagos. Não altera nenhum valor.'
-              : 'Confirma que já pagou ${_eur(total)} a $nome?\n\nIsso marca '
-                  'todos os acertos dela na semana como pagos. Não altera '
-                  'nenhum valor.',
+        scrollable: true,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              deve
+                  ? 'Confirma que $nome já quitou os ${_eur(total)} que devia '
+                      'nesta semana?\n\nIsso marca todos os acertos dela na '
+                      'semana como pagos. Não altera nenhum valor.'
+                  : 'Confirma que já pagou ${_eur(total)} a $nome?\n\nIsso marca '
+                      'todos os acertos dela na semana como pagos. Não altera '
+                      'nenhum valor.',
+            ),
+            const SizedBox(height: 12),
+            SeletorMeioPagamento(onChanged: (e) => escolha = e),
+          ],
         ),
         actions: [
           TextButton(
@@ -109,6 +122,8 @@ class _AdminAcertoUnificadoScreenState
       final res = await _sb.rpc('admin_marcar_acerto_pago', params: {
         'p_user_id': item['user_id'],
         'p_semana': _semana,
+        'p_metodo': escolha.codigo,
+        'p_referencia': escolha.referencia(),
       });
       final m = (res as Map).cast<String, dynamic>();
       if (!mounted) return;

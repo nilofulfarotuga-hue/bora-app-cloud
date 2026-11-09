@@ -10,6 +10,7 @@ import '../l10n/tr.dart';
 import '../models/driver_model.dart';
 import '../models/restaurant_model.dart';
 import '../services/biometric_auth_service.dart';
+import '../services/entrada_social_cliente.dart';
 import '../services/floating_bubble_service.dart';
 import '../services/foreground_service.dart';
 import '../services/heartbeat_service.dart';
@@ -454,6 +455,16 @@ class AuthStore extends ChangeNotifier {
     if (state.event == AuthChangeEvent.tokenRefreshed ||
         state.event == AuthChangeEvent.signedIn) {
       BiometricAuthService.instance.syncRefreshedToken(session).ignore();
+    }
+
+    // Entrar com Google/Apple (cliente, 09/11/2026): a sessão chega pela
+    // ligação de volta (telemóvel) ou com a página recarregada (web). Vem
+    // antes do "já há conta em memória" porque quem era estafeta neste
+    // aparelho e escolheu o Google no ecrã do cliente entra como cliente.
+    if ((state.event == AuthChangeEvent.signedIn ||
+            state.event == AuthChangeEvent.initialSession) &&
+        EntradaSocialCliente.contaSocial(session.user)) {
+      unawaited(_talvezConcluirEntradaSocial(session));
     }
 
     if (_currentClient != null ||
@@ -988,6 +999,84 @@ class AuthStore extends ChangeNotifier {
     } catch (e) {
       debugPrint('AuthStore: loginClientAsync error => $e');
       return false;
+    }
+  }
+
+  // ─── Cliente: entrar com Google / Apple (09/11/2026) ─────────────────────
+
+  bool _aConcluirEntradaSocial = false;
+
+  /// Sessão nova de uma conta Google/Apple: conclui como cliente quando a
+  /// entrada começou num ecrã de cliente (marca pendente) ou quando a conta é
+  /// nova e ainda não tem modo (`bora_role` vazio — só os ecrãs do cliente
+  /// oferecem o Google, por isso é cliente).
+  Future<void> _talvezConcluirEntradaSocial(Session session) async {
+    if (_aConcluirEntradaSocial) return;
+    _aConcluirEntradaSocial = true;
+    try {
+      final user = session.user;
+      final pendente = await EntradaSocialCliente.consumirPendente();
+      final papel =
+          ((user.userMetadata ?? const {})[_kRole] as String? ?? '').trim();
+      if (!pendente && papel.isNotEmpty) return; // entrada normal de sempre
+      if (pendente) unawaited(EntradaSocialCliente.fecharPaginaDeEntrada());
+      await concluirEntradaSocialCliente(user);
+    } catch (e) {
+      debugPrint('AuthStore: entrada com Google/Apple => $e');
+    } finally {
+      _aConcluirEntradaSocial = false;
+    }
+  }
+
+  /// O mesmo fim do [loginClientAsync] e do [registerClientAsync], para quem
+  /// entrou com Google/Apple: papel de cliente no servidor, conta em memória
+  /// e o `_RootNavigator` abre a app (TermsGate → ClientMainScreen, que pede
+  /// o telemóvel em falta com o CompleteProfileScreen).
+  ///
+  /// A linha em `public.users` (nome do Google, papel 'client') já a criou o
+  /// gatilho `handle_new_auth_user` quando a conta nasceu.
+  @visibleForTesting
+  Future<void> concluirEntradaSocialCliente(User user) async {
+    final meta = user.userMetadata ?? const <String, dynamic>{};
+    String campo(String chave) => (meta[chave] as String? ?? '').trim();
+    final email = (user.email ?? '').trim().toLowerCase();
+    final nome = [campo(_kName), campo('full_name'), campo('name')]
+        .firstWhere((n) => n.isNotEmpty, orElse: () => '');
+
+    final account = ClientAccount(
+      name: nome,
+      email: email,
+      phone: campo(_kPhone),
+      password: '', // não há palavra-passe: a sessão é do Google/Apple
+      photoUrl: campo(_kPhotoUrl),
+    );
+    if (email.isNotEmpty) _clientsByEmail[email] = account;
+    _currentClient = account;
+    _currentDriver = null;
+    _currentPartner = null;
+    notifyListeners();
+    _persistClient(account);
+
+    // Igual ao login por email: garante o papel de cliente (acumula).
+    try {
+      await _supabase.rpc('add_client_role_to_me');
+    } catch (e) {
+      debugPrint('AuthStore: entrada social → add_client_role_to_me: $e');
+    }
+
+    // Conta nova: grava o modo e o nome como o registo por email grava, para
+    // o arranque seguinte e o painel (admin_list_clients lê bora_name).
+    // Quem já tinha modo (ex.: estafeta que também é cliente) fica como está,
+    // igual ao login por email.
+    final dados = <String, dynamic>{
+      if (campo(_kRole).isEmpty) _kRole: 'client',
+      if (campo(_kName).isEmpty && nome.isNotEmpty) _kName: nome,
+    };
+    if (dados.isEmpty) return;
+    try {
+      await _supabase.auth.updateUser(UserAttributes(data: dados));
+    } catch (e) {
+      debugPrint('AuthStore: entrada social → updateUser: $e');
     }
   }
 

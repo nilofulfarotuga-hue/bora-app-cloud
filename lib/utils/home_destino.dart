@@ -113,7 +113,7 @@ const Map<String, String> categoriasDestino = {
   'sobremesas': 'Sobremesas',
   'servicos': 'Beleza',
   'limpeza': 'Limpeza',
-  'casa': 'Casa',
+  'casa': 'Casa e Manutenção',
   'motorista': 'Bora Motorista',
 };
 

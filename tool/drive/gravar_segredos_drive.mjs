@@ -22,7 +22,7 @@ let valores;
 try { valores = JSON.parse(r.stdout); } catch { console.error('Não encontrei os valores no cofre do Windows (corre primeiro autorizar_drive_taloes.mjs).'); process.exit(1); }
 for (const n of NOMES) if (!valores[n]) { console.error(`Falta ${n} no cofre.`); process.exit(1); }
 
-const s = spawnSync('npx', ['--no-install', 'supabase', 'secrets', 'set', '--project-ref', 'ojykpzwqrtusfeakzrna',
+const s = spawnSync('npx', ['--no-install', 'supabase', 'secrets', 'set', '--yes', '--project-ref', 'ojykpzwqrtusfeakzrna',
   ...NOMES.map((n) => `${n}=${valores[n]}`)], { encoding: 'utf8', shell: process.platform === 'win32' });
 console.log(s.status === 0 ? `OK: gravados ${NOMES.join(', ')}` : `FALHOU (código ${s.status}): ${(s.stderr || '').split('\n')[0]}`);
 process.exit(s.status ?? 1);

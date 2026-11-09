@@ -75,6 +75,9 @@ import '../services/minha_conta_service.dart';
 import '../widgets/barra_falta_conta.dart';
 import '../widgets/atalho_trabalho_em_curso.dart';
 import '../utils/pedido_agendado.dart';
+// M10 2.14 iii (09/11/2026): preços no formato de Portugal ("2,50 €"),
+// só a forma de mostrar — os valores são os mesmos.
+import '../utils/euros.dart';
 
 class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
@@ -1204,10 +1207,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                           contentPadding: EdgeInsets.zero,
                           title: Text(order.serviceType.label),
                           subtitle: Text(
-                            "€${order.total.toStringAsFixed(2)} • ${order.distanceKm.toStringAsFixed(1)} km",
+                            "${eur(order.total)} • ${order.distanceKm.toStringAsFixed(1)} km",
                           ),
                           trailing: Text(
-                            "+€${order.driverEarnings.toStringAsFixed(2)}",
+                            "+${eur(order.driverEarnings)}",
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -1717,7 +1720,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   if (count > 0) ...[
                     const SizedBox(height: 8),
                     Text(
-                      '$count sacola${count > 1 ? 's' : ''} × €0.10 = €${bagFee.toStringAsFixed(2)}',
+                      '$count sacola${count > 1 ? 's' : ''} × ${eur(0.10)} = ${eur(bagFee)}',
                       style:
                           TextStyle(color: Colors.grey.shade600, fontSize: 13),
                     ),
@@ -1941,13 +1944,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                       label: "Pedido",
                       // 28/10/2026 (C3): o total do pedido (talão quando há),
                       // o mesmo "Total" da conta curta abaixo.
-                      value:
-                          "€${(order.finalTotal ?? order.total).toStringAsFixed(2)}",
+                      value: eur(order.finalTotal ?? order.total),
                     ),
                     _InfoChip(
                       icon: Icons.payments,
                       label: "Ganhos",
-                      value: "+€${order.driverEarnings.toStringAsFixed(2)}",
+                      value: "+${eur(order.driverEarnings)}",
                     ),
                     _InfoChip(
                       icon: Icons.social_distance,
@@ -1979,7 +1981,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   Padding(
                     padding: const EdgeInsets.only(left: 28),
                     child: Text(
-                      '↳ inclui €${(order.debtCollectedCents / 100).toStringAsFixed(2)} de dívida anterior',
+                      '↳ inclui ${eurCents(order.debtCollectedCents)} de dívida anterior',
                       style: const TextStyle(
                         color: AppColors.accent,
                         fontSize: 12,
@@ -2076,7 +2078,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                         Expanded(
                           child: Text(
                             order.finalTotal != null
-                                ? 'Compra realizada · Valor: €${order.finalTotal!.toStringAsFixed(2)}'
+                                ? 'Compra realizada · Valor: ${eur(order.finalTotal!)}'
                                 : 'Compra realizada',
                             style: TextStyle(
                               color: Colors.green.shade700,
@@ -3523,7 +3525,7 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                         order.items.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Text(
-                        'Pagar ao balcão: ${order.items
+                        'Pagar ao balcão: ${eur(order.items
                               .fold<double>(
                                   0,
                                   (s, i) =>
@@ -3533,8 +3535,7 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                                                   (1 +
                                                       BRBusiness
                                                           .NON_PARTNER_MARKUP_RATIO)) *
-                                          i.quantity)
-                              .toStringAsFixed(2)} €',
+                                          i.quantity))}',
                         style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w800,
                             color: Colors.orange.shade900),
@@ -3560,7 +3561,7 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerRight,
                       child: Text(
-                        "+€${order.driverEarnings.toStringAsFixed(2)}",
+                        "+${eur(order.driverEarnings)}",
                         style: theme.textTheme.headlineMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: Colors.orange.shade900,
@@ -3642,7 +3643,7 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                           ),
                         )
                       : Text(
-                          'Aceitar · +€${order.driverEarnings.toStringAsFixed(2)}'),
+                          'Aceitar · +${eur(order.driverEarnings)}'),
                 ),
               ),
             ],
@@ -3725,12 +3726,12 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
                 _InfoChip(
                   icon: Icons.euro,
                   label: "Total",
-                  value: "€${order.total.toStringAsFixed(2)}",
+                  value: eur(order.total),
                 ),
                 _InfoChip(
                   icon: Icons.payments,
                   label: "Ganhos",
-                  value: "+€${order.driverEarnings.toStringAsFixed(2)}",
+                  value: "+${eur(order.driverEarnings)}",
                 ),
                 _InfoChip(
                   icon: Icons.storefront,
@@ -3846,7 +3847,7 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : Text(
-                            'Aceitar · +€${order.driverEarnings.toStringAsFixed(2)}'),
+                            'Aceitar · +${eur(order.driverEarnings)}'),
                   ),
                 ),
               ],
@@ -4106,4 +4107,5 @@ Future<double?> _ganhoOfertaAdicional(String orderId) async {
   return null;
 }
 
-String _eurPt(double v) => '€${v.toStringAsFixed(2).replaceAll('.', ',')}';
+// M10 09/11/2026: formato de Portugal (2,50 €), o mesmo do cliente.
+String _eurPt(double v) => eur(v);

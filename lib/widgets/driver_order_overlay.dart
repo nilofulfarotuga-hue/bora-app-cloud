@@ -25,6 +25,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 import '../config/app_colors.dart';
+// M10 2.14 iii (09/11/2026): preços no formato de Portugal ("2,50 €"),
+// só a forma de mostrar — os valores são os mesmos.
+import '../utils/euros.dart';
 
 // [ronda 04/10 · #4] Era 40 com o servidor a dar 60 s
 // (`platform_settings.dispatch_offer_timeout_seconds`): a oferta fechava aqui
@@ -242,7 +245,7 @@ class _DriverOrderOverlayState extends State<_DriverOrderOverlay> {
                       children: [
                         _Chip(
                           icon: Icons.euro_rounded,
-                          label: '€${_total.toStringAsFixed(2)}',
+                          label: eur(_total),
                           color: _kBoraGreen,
                         ),
                         const SizedBox(width: 8),
@@ -255,8 +258,7 @@ class _DriverOrderOverlayState extends State<_DriverOrderOverlay> {
                           const SizedBox(width: 8),
                           _Chip(
                             icon: Icons.payments_rounded,
-                            label:
-                                'Ganhas €${_driverEarnings.toStringAsFixed(2)}',
+                            label: 'Ganhas ${eur(_driverEarnings)}',
                             color: _kBoraGreenDark,
                           ),
                         ],

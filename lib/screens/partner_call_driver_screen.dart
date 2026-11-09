@@ -7,6 +7,9 @@ import '../models/partner_product.dart';
 import '../models/restaurant_model.dart';
 import '../stores/order_store.dart';
 import '../stores/partner_product_store.dart';
+// M10 2.14 iii (09/11/2026): preços no formato de Portugal ("2,50 €"),
+// só a forma de mostrar — os valores são os mesmos.
+import '../utils/euros.dart' as euros;
 import '../widgets/address_autocomplete_field.dart';
 
 class PartnerCallDriverScreen extends StatefulWidget {
@@ -390,8 +393,8 @@ class _PartnerCallDriverScreenState extends State<PartnerCallDriverScreen> {
     if (!mounted) return;
     setState(() => _isSubmitting = false);
 
-    String eur(Object? v) =>
-        '€${((v as num?)?.toDouble() ?? 0).toStringAsFixed(2).replaceAll('.', ',')}';
+    // M10 09/11/2026: formato de Portugal (2,50 €).
+    String eur(Object? v) => euros.eur((v as num?)?.toDouble() ?? 0);
     await showDialog<void>(
       context: context,
       builder: (dCtx) => AlertDialog(
@@ -482,7 +485,7 @@ class _ProductSelectionTile extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '€${(product.partnerShelfPrice ?? product.price).toStringAsFixed(2)}',
+                  euros.eur(product.partnerShelfPrice ?? product.price),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -518,8 +521,7 @@ class _OrderSummaryCard extends StatelessWidget {
   /// Produtos ao preço de balcão.
   final double subtotal;
 
-  String _format(double value) =>
-      '€${value.toStringAsFixed(2).replaceAll('.', ',')}';
+  String _format(double value) => euros.eur(value);
 
   @override
   Widget build(BuildContext context) {

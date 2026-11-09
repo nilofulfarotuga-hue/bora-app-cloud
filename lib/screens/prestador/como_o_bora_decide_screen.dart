@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../services/tvde_visibilidade.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 
 /// "Como o Bora decide" — informação sobre os sistemas automáticos da app
@@ -19,6 +20,12 @@ class ComoOBoraDecide {
       'Como o Bora decide — informação sobre sistemas automáticos';
 
   static const String versao = 'Versão em vigor desde 1 de novembro de 2026.';
+
+  /// M10 2.11 (09/11/2026): parágrafo só dos motoristas TVDE. Com o Bora
+  /// Motorista fechado (`tvde_app_visivel` = false) não se mostra — não há
+  /// motoristas de passageiros a trabalhar. O texto legal fica igual.
+  static bool soBoraMotorista(String paragrafo) =>
+      paragrafo.contains('(motoristas TVDE)');
 
   static const String introducao =
       'Para estafetas, profissionais de limpeza, lavadores, profissionais de '
@@ -214,13 +221,15 @@ class ComoOBoraDecideScreen extends StatelessWidget {
               ),
               const SizedBox(height: Spacing.sm),
               for (final p in paragrafos)
-                Padding(
-                  padding: EdgeInsets.only(
-                    bottom: Spacing.sm,
-                    left: p.startsWith('• ') ? Spacing.sm : 0,
+                if (TvdeVisibilidade.aberto ||
+                    !ComoOBoraDecide.soBoraMotorista(p))
+                  Padding(
+                    padding: EdgeInsets.only(
+                      bottom: Spacing.sm,
+                      left: p.startsWith('• ') ? Spacing.sm : 0,
+                    ),
+                    child: Text(p, style: corpo),
                   ),
-                  child: Text(p, style: corpo),
-                ),
             ],
             const SizedBox(height: Spacing.lg),
             const Text(

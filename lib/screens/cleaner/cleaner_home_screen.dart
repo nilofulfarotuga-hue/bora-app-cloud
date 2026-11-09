@@ -7,6 +7,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../models/cleaning_models.dart';
 import '../../services/roles_service.dart';
+import '../../services/tvde_visibilidade.dart';
 import '../../stores/cleaner_store.dart';
 import '../../stores/session_store.dart';
 import '../../widgets/aviso_atividade_banner.dart';
@@ -367,14 +368,20 @@ class _PanelView extends StatelessWidget {
           const SizedBox(height: Spacing.lg),
 
           // MULTI-PAPEL: convite/troca para Entregas e Viagens (estafeta).
+          // M10 2.11 (09/11/2026): com o Bora Motorista fechado
+          // (`tvde_app_visivel` = false) só se fala de Entregas.
           MultiRoleSwitchCard(
             icon: Icons.two_wheeler,
             otherStatus: roles.driverStatus,
-            inviteTitle: 'Trabalha também em Entregas e Viagens?',
+            inviteTitle: TvdeVisibilidade.aberto
+                ? 'Trabalha também em Entregas e Viagens?'
+                : 'Trabalha também em Entregas?',
             inviteSubtitle:
                 'Usa a mesma conta e ganha nas duas frentes. Só pedimos o '
                 'veículo e os documentos.',
-            activeTitle: 'As minhas Entregas e Viagens',
+            activeTitle: TvdeVisibilidade.aberto
+                ? 'As minhas Entregas e Viagens'
+                : 'As minhas Entregas',
             pendingTitle: 'Candidatura a estafeta em análise',
             onInvite: () => Navigator.push(
               context,

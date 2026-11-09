@@ -68,9 +68,10 @@ export async function verificarNifDoTalao(
 export function resumoAvisoNif(v: VerificacaoNif): string | null {
   if (!v.aplica || v.ok) return null
   if (v.estafeta_disse === false) return null // já avisado por nif_nao_dado_na_caixa
-  return v.motivo === 'nif_em_falta'
-    ? `O talão não mostra o NIF ${v.esperado} que o estafeta tinha de dar na caixa`
-    : `O talão mostra o NIF ${v.talao}, mas o estafeta tinha de dar o ${v.esperado}`
+  // Revisão M10: NIF que o robô não conseguiu ler não é acusação; o talão fica
+  // só marcado para revisão (ocr_flagged). Aviso só quando o talão mostra OUTRO NIF.
+  if (v.motivo === 'nif_em_falta') return null
+  return `O talão mostra o NIF ${v.talao}, mas o estafeta tinha de dar o ${v.esperado}`
 }
 
 /** Manda o aviso `nif_talao_diferente` (uma linha em admin_notifications). Nunca lança. */

@@ -189,6 +189,16 @@ final RegExp _reFarmacia = RegExp(
 bool textoPareceFarmacia(String? texto) =>
     texto != null && _reFarmacia.hasMatch(texto);
 
+// M10 09/11/2026 (revisão): para EXIGIR a foto da receita o filtro é mais
+// estreito que o da ajuda — "receita de bolo" e "parafarmácia" não contam.
+final RegExp _reExigeReceita = RegExp(
+    r'(?<!para)farm[aá]cia|medicament|rem[eé]dio|receita\s+m[eé]dica|\bsns\b',
+    caseSensitive: false);
+
+/// Texto que pede de facto uma receita médica (farmácia, medicamento, SNS).
+bool textoExigeReceita(String? texto) =>
+    texto != null && _reExigeReceita.hasMatch(texto);
+
 /// B1 (20/10/2026): as coordenadas do "Local do favor" pertencem ao texto da
 /// sugestão escolhida. Um `onChanged` que traz esse mesmo texto (eco do
 /// teclado/IME depois da seleção) não as apaga; só um texto diferente — o

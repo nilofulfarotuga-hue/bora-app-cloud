@@ -108,7 +108,7 @@ DROP POLICY IF EXISTS order_nif_caixa_admin_select ON public.order_nif_caixa;
 CREATE POLICY order_nif_caixa_admin_select ON public.order_nif_caixa
   FOR SELECT TO authenticated USING (public.is_admin());
 REVOKE ALL ON public.order_nif_caixa FROM anon;
-REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.order_nif_caixa FROM authenticated;
+REVOKE ALL ON public.order_nif_caixa FROM authenticated;  -- revisão M10: inclui MAINTAIN (Postgres 17)
 GRANT SELECT ON public.order_nif_caixa TO authenticated;
 
 -- 4) A função que a app chama (mesmo contrato da M1: ok, mostrar, pediu_fatura, nif, nome,
@@ -169,6 +169,16 @@ DECLARE
   v_mot   text := left(NULLIF(btrim(COALESCE(p_motivo, '')), ''), 300);
   v_antes record;
 BEGIN
+  -- Revisão M10: ver o cartão pode quem tem a oferta; RESPONDER à caixa só quem leva o pedido.
+  IF NOT EXISTS (SELECT 1 FROM public.orders o
+                  WHERE o.id = p_order_id
+                    AND (public.is_admin()
+                         OR o.assigned_driver_id = auth.uid()::text
+                         OR o.helper_driver_id = auth.uid()
+                         OR o.assigned_driver_id IN (SELECT d.id::text FROM public.drivers d
+                                                      WHERE d.user_id = auth.uid()))) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'nao_e_o_teu_pedido');
+  END IF;
   v_info := public.driver_order_invoice_nif(p_order_id);
   IF NOT COALESCE((v_info->>'ok')::boolean, false) THEN
     RETURN jsonb_build_object('ok', false, 'error', v_info->>'error');

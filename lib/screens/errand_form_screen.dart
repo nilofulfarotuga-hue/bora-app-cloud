@@ -31,6 +31,7 @@ import '../utils/favor_passos.dart'
         kPaletePellets,
         pelletsAcimaDoLimite,
         sacosDePelletsPedidos,
+        textoExigeReceita,
         textoPareceFarmacia;
 import '../services/maior_18_service.dart';
 import '../services/auto_address.dart';
@@ -651,7 +652,11 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
     // a foto da receita (antes era só um aviso). Exceção: o estafeta vai
     // buscar a receita em papel a casa (paragem em casa, motivo "receita").
     if (favorFarmaciaSemReceita(
-      pareceFarmacia: _pareceFarmacia,
+      // Revisão M10: só Favores COM compra e com texto de farmácia a sério
+      // (levar uma receita ao pai ou "receita de bolo" não pedem foto).
+      pareceFarmacia: _hasPurchase &&
+          (textoExigeReceita(_descCtrl.text) ||
+              textoExigeReceita(_errandLocationCtrl.text)),
       temFotoReceita: (_requestPhotoUrl ?? '').isNotEmpty,
       vaiBuscarReceitaACasa: _homeActive && _homeStopReason == 'receita',
     )) {

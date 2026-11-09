@@ -73,6 +73,15 @@ class NifCaixaResposta {
 /// O que a folha do talão lê para ligar/desligar o botão de finalizar.
 class NifCaixaController extends ChangeNotifier {
   bool _aplica = false;
+  // Revisão M10: o cartão avisa depois do fotograma; se o ecrã pai já
+  // destruiu o controlador, o aviso é ignorado em vez de rebentar.
+  bool _fechado = false;
+
+  @override
+  void dispose() {
+    _fechado = true;
+    super.dispose();
+  }
   NifCaixaResposta? _resposta;
 
   /// O servidor mandou mostrar o NIF neste pedido.
@@ -87,13 +96,13 @@ class NifCaixaController extends ChangeNotifier {
   String? get motivoBloqueio => porResponder ? kAvisoNifPorResponder : null;
 
   void definirAplica(bool aplica) {
-    if (aplica == _aplica) return;
+    if (_fechado || aplica == _aplica) return;
     _aplica = aplica;
     notifyListeners();
   }
 
   void responder(NifCaixaResposta? resposta) {
-    if (resposta == _resposta) return;
+    if (_fechado || resposta == _resposta) return;
     _resposta = resposta;
     notifyListeners();
   }
@@ -209,6 +218,12 @@ class _DriverInvoiceNifCardState extends State<DriverInvoiceNifCard> {
 
   @override
   void dispose() {
+    // Revisão M10: se o cartão sai do ecrã, a caixa já não está à vista e o
+    // botão não pode ficar preso (avisa-se depois do fotograma, nunca no build).
+    final caixa = widget.caixa;
+    if (caixa != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => caixa.definirAplica(false));
+    }
     _outroCtrl.dispose();
     super.dispose();
   }

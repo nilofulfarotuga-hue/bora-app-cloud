@@ -1,9 +1,11 @@
 import 'dart:io';
 
 import 'package:bora_app/screens/prestador/como_o_bora_decide_screen.dart';
+import 'package:bora_app/services/app_update_service.dart';
 import 'package:bora_app/services/tvde_visibilidade.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// M10 b2-textos (09/11/2026) — missão m10-noite-toda-sem-travas-2026-11-08.
 ///
@@ -168,6 +170,65 @@ void main() {
       });
       expect(_ler('lib/screens/trabalhar_no_bora_screen.dart'),
           contains("if (a.papel != 'driver' || TvdeVisibilidade.aberto) a,"));
+    });
+  });
+
+  // ── 2.14 ii — aviso de atualização opcional no máximo 1×/semana ──────────
+  group('M10 2.14 ii — aviso opcional de atualização 1×/semana', () {
+    final base = DateTime(2026, 11, 9, 10);
+
+    test('regra pura: nunca mostrado → mostra; < 7 dias → não; 7 dias → sim',
+        () {
+      bool pode(DateTime? ultimo, DateTime agora) =>
+          AppUpdateService.avisoOpcionalPodeAparecer(
+              ultimo: ultimo, agora: agora);
+      expect(pode(null, base), isTrue);
+      expect(pode(base, base), isFalse);
+      expect(pode(base, base.add(const Duration(days: 6, hours: 23))), isFalse);
+      expect(pode(base, base.add(const Duration(days: 7))), isTrue);
+      // Relógio que andou para trás: um dia não destrava, mais de 7 dias sim.
+      expect(pode(base, base.subtract(const Duration(days: 1))), isFalse);
+      expect(pode(base, base.subtract(const Duration(days: 8))), isTrue);
+    });
+
+    test('guarda a data no telemóvel e só volta 7 dias depois', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      expect(await AppUpdateService.reservarAvisoOpcional(agora: base), isTrue);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getInt(AppUpdateService.chaveUltimoAvisoOpcional),
+          base.millisecondsSinceEpoch);
+      // Arranques seguintes na mesma semana: nada.
+      expect(
+          await AppUpdateService.reservarAvisoOpcional(
+              agora: base.add(const Duration(hours: 1))),
+          isFalse);
+      expect(
+          await AppUpdateService.reservarAvisoOpcional(
+              agora: base.add(const Duration(days: 6))),
+          isFalse);
+      // Uma semana depois: volta (e a data avança).
+      final semana = base.add(const Duration(days: 7));
+      expect(await AppUpdateService.reservarAvisoOpcional(agora: semana),
+          isTrue);
+      expect(prefs.getInt(AppUpdateService.chaveUltimoAvisoOpcional),
+          semana.millisecondsSinceEpoch);
+    });
+
+    test('a atualização forçada não passa pelo limite semanal', () {
+      final s = _ler('lib/services/app_update_service.dart');
+      final check =
+          _entre(s, 'static Future<void> checkAndPrompt', 'class AppUpdateGate');
+      final forcada = check.indexOf("const Text('Atualização necessária')");
+      final limite = check.indexOf('if (!await reservarAvisoOpcional()) return;');
+      expect(forcada, isNonNegative);
+      expect(limite, isNonNegative);
+      expect(forcada, lessThan(limite),
+          reason: 'o bloqueio da versão mínima vem antes e não é limitado');
+      // Continua a ler as chaves da versão mínima (Android e _ios).
+      expect(check, contains(r"'app_min_supported_version_code$sufixo'"));
+      expect(s, contains("isIos ? '_ios' : ''"));
+      // Só um sítio chama o limite: o aviso opcional.
+      expect('reservarAvisoOpcional()'.allMatches(check), hasLength(1));
     });
   });
 }

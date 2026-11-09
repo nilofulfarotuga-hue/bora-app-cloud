@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-09T09:07:03.385379+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-09T09:37:03.618737+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-09 09:00 UTC. Páginas listadas: 577.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-09 09:33 UTC. Páginas listadas: 577.
 
 ## O que é o Bora
 
@@ -53,7 +53,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 ## digest (220)
 
-- digest-2026-11-09-m11 — M11 — o Amigo com rosto (09/11/2026) (2026-11-09)
+- digest-2026-11-09-m11 — M11 — Amigo com rosto, talões no Drive, pesquisa inteligente e Casa (09/11/2026) (2026-11-09)
 - digest-2026-11-08-m10 — M10 08-09/11 — noite toda sem travas: Bloco 1 no ar, app publicada 2x nas 3, Bloco 2 e radar (2026-11-09)
 - digest-2026-11-08-m8 — Digest M8 08/11 noite: 6 missoes juntas e testadas, nada publicado (2026-11-08)
 - digest-2026-11-08-m9 — M9 08/11: Jai a fundo — anúncios parados pela verificação, radar com pitch e cobertura de fundo, Wikipédia preparada (2026-11-08)

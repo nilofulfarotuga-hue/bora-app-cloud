@@ -16,6 +16,12 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 09/11/2026 (m11 adendo 4): o botão do som do Amigo.
+  'Som': 'Sound',
+  'Sem som': 'Muted',
+  'Sem voz': 'No voice',
+  'Toca para ouvir': 'Tap to hear',
+  'Este aparelho não tem voz de Portugal: o Amigo fala por legenda.': "This device has no Portugal Portuguese voice: Amigo speaks with captions.",
   // 09/11/2026 (missão m11-amigo-rosto): o rosto do Amigo — ecrã, home e mosaico.
   'A ouvir… toca para enviar': 'Listening… tap to send',
   'Amigo': 'Amigo',

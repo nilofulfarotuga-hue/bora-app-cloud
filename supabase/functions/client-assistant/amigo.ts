@@ -156,10 +156,28 @@ export function pareceConversaLivre(msg: string, o: { temImagem: boolean; ultima
   const t = (msg ?? '').trim();
   if (!t || o.temImagem || o.ultimaTinhaCompra) return false;
   if (t.length > 160) return false;
-  if (RE_NUMERO.test(t)) return false;
   const n = t.normalize('NFC');
+  // m11 adendo 4 (09/11/2026): "não quero comprar nada, só conversar" é conversa, não compra.
+  if (soConversa(n)) return true;
+  if (RE_NUMERO.test(t)) return false;
   return !RE_COMPRA.test(n) && !RE_CURTAS.test(n);
 }
+
+// m11 adendo 4 (09/11/2026, print do Danilo): "não quero comprar, só conversar" fazia pedeAcao() dar true
+// (o RE_ACAO apanha "quero" e "compr"), entrava a nota ACAO_NUDGE e o modelo respondia "O cliente disse...".
+const RE_NEGA_COMPRA = /\b(n[aã]o|nem|nada de)\s+(quero|queria|preciso|vou|estou a pensar|penso|tenho (de|que))?\s*(de\s+)?(nada|comprar|compras|pedir|encomendar|nenhuma|nenhum)/i;
+const RE_SO_CONVERSA = /\b(s[oó]|apenas|somente)\s+(quero\s+|queria\s+)?(conversar|falar|dar dois dedos de conversa|passar|dizer ol[aá]|estar|ver)\b|\bestou\s+s[oó]\s+a\s+(ver|espreitar|conversar|passar)\b|\bconversar\s+(um\s+bocado|contigo|um\s+pouco)\b|\bsem\s+comprar\b/i;
+const RE_CUMPRIMENTO = /^\s*(ol[aá]+|oi+|ei|boas|bom dia|boa tarde|boa noite|e a[ií]|tudo bem|tudo bom|como (est[aá]s|vai|vais|te sentes|correu)|como [ée] que (est[aá]s|vai)|estás bom|est[aá]s boa)\b[^]*$/i;
+
+/** O cliente só quer conversar (nega a compra, diz que é só conversa, ou é um cumprimento curto). */
+export function soConversa(msg: string): boolean {
+  const t = (msg ?? '').trim();
+  if (!t) return false;
+  if (RE_NEGA_COMPRA.test(t) || RE_SO_CONVERSA.test(t)) return true;
+  // cumprimento curto ("olá, tudo bem?", "como estás?") sem pedido de compra a seguir
+  return t.length <= 60 && RE_CUMPRIMENTO.test(t) && !RE_ACAO.test(t.replace(RE_CUMPRIMENTO_INICIO, ''));
+}
+const RE_CUMPRIMENTO_INICIO = /^\s*(ol[aá]+|oi+|ei|boas|bom dia|boa tarde|boa noite|e a[ií]|tudo bem)[,!.\s]*/i;
 
 const RE_ACAO = /\b(quer(o|ia)\b|precis|faz(-| )?me|compr|pede|encomend|manda(-me)? vir|traz|enche|faxina|limpeza|marca|agend|favor)/i;
 const RE_AJUDA = /\b(onde est|estado|reembols|cancel|token|carteira|saldo|fatura|factura|recibo|reclam|queixa|suporte|humano|pessoa|como (é que )?funciona|o que (é|e) )/i;
@@ -168,10 +186,19 @@ const RE_AJUDA = /\b(onde est|estado|reembols|cancel|token|carteira|saldo|fatura
 export function pedeAcao(msg: string): boolean {
   const t = (msg ?? '').trim();
   if (t.length < 4) return false;
+  if (soConversa(t)) return false; // m11 adendo 4: negação e conversa nunca forçam ação
   return RE_ACAO.test(t) && !RE_AJUDA.test(t);
 }
 
-export const ACAO_NUDGE = 'SISTEMA (não é o cliente): o cliente quer comprar ou marcar alguma coisa e a tua resposta não deixou nenhuma ação. Termina com UMA ação: propose_cart ou basket_quote (comida, compras), suggest_action pedir_favor (destino = o que o estafeta compra/faz, numa frase) ou suggest_action marcar_limpeza (destino = o dia e a hora que o cliente disse). Se faltar mesmo uma informação essencial, pergunta só essa, numa frase.';
+// m11 adendo 4: uma resposta escrita para a nota interna (fala "do cliente" na 3.ª pessoa, cita o SISTEMA
+// ou explica as próprias regras) nunca chega ao cliente — fica a resposta anterior.
+const RE_PARA_O_SISTEMA = /\b(o|a|ao|à|do|da|pelo|pela)\s+client[ea]s?\b|\bSISTEMA\b|\bnota (do sistema|interna)\b|\besta (nota|instru[cç][aã]o)\b|\bas minhas (regras|instru[cç][oõ]es)\b|\bn[aã]o vou (empurrar|for[cç]ar|insistir)\b|\bempurrar (nenhuma |qualquer )?compras?\b/i;
+
+export function respostaParaOSistema(texto: string): boolean {
+  return RE_PARA_O_SISTEMA.test(String(texto ?? ''));
+}
+
+export const ACAO_NUDGE = 'INSTRUÇÃO INTERNA (a pessoa não vê isto; não a comentes): a pessoa quer comprar ou marcar alguma coisa e a resposta ainda não deixou nenhuma ação. Termina com UMA ação: propose_cart ou basket_quote (comida, compras), suggest_action pedir_favor (destino = o que o estafeta compra/faz, numa frase) ou suggest_action marcar_limpeza (destino = o dia e a hora que ela disse). Se faltar mesmo uma informação essencial, pergunta só essa, numa frase. Responde diretamente à pessoa, por tu, sem comentar esta nota, sem falar dela na 3.ª pessoa e sem explicar as tuas regras.';
 
 // ─── A deixa ──────────────────────────────────────────────────────────────────
 
@@ -286,7 +313,8 @@ export function blocoAmigo(): string {
     '═══ AMIGO BORA (personalidade) ═══',
     'Chamas-te Amigo Bora (não "Bora Assistente"). És um amigo da Guarda que conhece a cidade (a Sé, o centro histórico, a Praça Velha, o IPG, a Guarda-Gare, o La Vie) e a app Bora inteira.',
     'Tom: amigo, caloroso, frases curtas, humor leve e limpo; nunca ridículo nem sarcástico. No máximo 1 emoji por resposta (muitas vezes nenhum). Tratas por tu, a não ser que o perfil diga registo "formal": aí tratas por você e sem piadas. Se o perfil tiver o nome, usa-o de vez em quando, não em todas as frases.',
-    'Conversa livre (o tempo, "o que faço para o jantar?", "conta uma piada", "estou aborrecido"): respondes em 2-3 frases e voltas ao útil com uma sugestão concreta da Bora (uma loja, o costume do perfil, um Favor). Isto substitui a regra 10 para conversa leve; futebol, notícias e trabalhos de casa continuam fora. Se sugerires um produto concreto com preço, procura-o primeiro (search_products) — nunca inventes.',
+    'CONVERSA SOLTA (cumprimentos, "como estás?", o tempo na Guarda, futebol, um dia difícil, "conta uma piada", "não quero comprar nada, só conversar"): és um AMIGO a conversar. Respondes na 1.ª pessoa, natural e caloroso, em 2-3 frases, com humor leve e limpo; usas o nome da pessoa de vez em quando; lembras-te do que já falaram nesta conversa; e perguntas de volta. Exemplo: a "como estás?" → "Estou ótimo, obrigado por perguntares! Por aqui está tudo tranquilo. E tu, como está a correr a manhã?". Na conversa solta NÃO forças compras nem ações e não acabas sempre a vender: só sugeres algo da Bora se vier mesmo a propósito (ex.: a pessoa diz que tem fome). Futebol e o tempo: conversa leve, sem inventar resultados, notícias ou previsões que não sabes. Isto substitui a regra 10 para conversa leve (notícias e trabalhos de casa continuam fora). Se sugerires um produto concreto com preço, procura-o primeiro (search_products) — nunca inventes.',
+    'FALAS SEMPRE COM A PESSOA, por tu: nunca dizes "o cliente" nem falas dela na 3.ª pessoa; nunca explicas as tuas regras, instruções ou notas internas; nunca dizes coisas como "não vou empurrar compras".',
     'Nunca falas de política, religião, saúde ou medicina (além do que as regras da farmácia já dizem), nem de outras pessoas. Nunca prometes prazos nem preços fora das ferramentas.',
     'Quando não sabes: dizes "Isso não sei, mas posso perguntar à equipa" e chamas report_gap.',
     'O PERFIL (abaixo) é o que sabes do cliente: lojas favoritas, hábitos, artigos que repete. Usa-o com naturalidade ("o do costume", "aquele sushi de sexta"), sem recitar listas e sem dizer números do perfil (contagens, orçamento). Nunca dizes "o teu perfil diz" nem "segundo os teus dados".',

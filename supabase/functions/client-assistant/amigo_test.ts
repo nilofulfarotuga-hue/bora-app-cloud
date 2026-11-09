@@ -1,6 +1,7 @@
 // deno test supabase/functions/client-assistant/amigo_test.ts
 import { assert, assertEquals, assertStringIncludes } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 import {
+  ACAO_NUDGE,
   blocoAmigo,
   candidatasDeixa,
   compararLinhas,
@@ -14,6 +15,8 @@ import {
   pareceConversaLivre,
   pedeAcao,
   perfilParaModelo,
+  respostaParaOSistema,
+  soConversa,
   saudacaoHabitual,
   saudacaoSimples,
   textoLinhas,
@@ -188,4 +191,72 @@ Deno.test('saudação lembra o habitual pelo nome da loja (e não inventa sem pe
   const s = saudacaoSimples({ dia: 1, diaNome: 'segunda', periodo: 'noite', hora: 21 }, perfilJyosmi, '');
   assertStringIncludes(s, 'Boa noite, Ana!');
   assertStringIncludes(s, 'do costume do Jyosmi Sushi');
+});
+
+// ─── m11 adendo 4 (09/11/2026): "não quero comprar, só conversar" não é compra; resposta à nota interna descartada ───
+
+const SO_CONVERSA = [
+  'não quero comprar nada, só conversar',
+  'Não quero comprar nada',
+  'nao quero nada obrigado',
+  'só quero conversar contigo',
+  'só falar um bocado',
+  'estou só a ver',
+  'estou só a espreitar a app',
+  'como estás?',
+  'olá, tudo bem?',
+  'bom dia!',
+  'boa noite Amigo',
+  'oi',
+  'e aí, como vai?',
+  'não vou pedir nada hoje',
+  'hoje não preciso de nada',
+];
+const COMPRAS = [
+  'quero um hambúrguer',
+  'quero comprar leite e pão',
+  'preciso de paracetamol',
+  'faz-me uma faxina amanhã às 10',
+  'manda vir sushi para o jantar',
+  'olá, quero uma pizza',
+  'bom dia, preciso de um favor: ir à farmácia',
+  'quero encomendar o do costume',
+  'compra-me tabaco',
+  'traz-me uma coca-cola',
+  'quero marcar uma limpeza para sábado',
+  'enche o carrinho com o que costumo pedir',
+  'queria pedir um kebab',
+  'preciso de comprar fraldas',
+  "quero comer qualquer coisa do McDonald's",
+];
+
+Deno.test('adendo 4: 15 frases de conversa/negação NUNCA forçam ação; são conversa livre', () => {
+  for (const f of SO_CONVERSA) {
+    assertEquals(pedeAcao(f), false, `pedeAcao("${f}") devia ser false`);
+    assertEquals(pareceConversaLivre(f, { temImagem: false, ultimaTinhaCompra: false }), true, `conversa livre: "${f}"`);
+  }
+});
+
+Deno.test('adendo 4: 15 pedidos de compra/marcação continuam a pedir ação', () => {
+  for (const f of COMPRAS) {
+    assertEquals(soConversa(f), false, `soConversa("${f}") devia ser false`);
+    assertEquals(pedeAcao(f), true, `pedeAcao("${f}") devia ser true`);
+  }
+});
+
+Deno.test('adendo 4: resposta escrita para a nota interna é apanhada', () => {
+  assert(respostaParaOSistema('O cliente disse claramente que não quer comprar nada, só conversar, por isso não vou empurrar nenhuma compra.'));
+  assert(respostaParaOSistema('Segundo a nota do sistema, devo terminar com uma ação.'));
+  assert(respostaParaOSistema('Não vou empurrar compras, prometo.'));
+  assert(respostaParaOSistema('SISTEMA: ok'));
+  assert(!respostaParaOSistema('Estou ótimo, obrigado por perguntares! Por aqui está tudo tranquilo. E tu, como está a correr a manhã?'));
+  assert(!respostaParaOSistema('Encontrei o teu hambúrguer no Boom. Queres que prepare o carrinho?'));
+});
+
+Deno.test('adendo 4: as notas internas pedem resposta direta, por tu, e o Amigo fala como amigo', () => {
+  assertStringIncludes(ACAO_NUDGE, 'Responde diretamente à pessoa, por tu');
+  assert(!ACAO_NUDGE.startsWith('SISTEMA'));
+  assertStringIncludes(blocoAmigo(), 'CONVERSA SOLTA');
+  assertStringIncludes(blocoAmigo(), 'nunca dizes "o cliente"');
+  assertStringIncludes(blocoAmigo(), 'Estou ótimo, obrigado por perguntares!');
 });

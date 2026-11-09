@@ -21,6 +21,11 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/amigo/amigo_boca.dart';
+import 'amigo_voz_desbloqueio_stub.dart'
+    if (dart.library.js_interop) 'amigo_voz_desbloqueio_web.dart';
+
+export 'amigo_voz_desbloqueio_stub.dart'
+    if (dart.library.js_interop) 'amigo_voz_desbloqueio_web.dart';
 
 /// Chave de SharedPreferences: som do Amigo ligado/desligado.
 const String kAmigoSomKey = 'amigo.som_ligado';
@@ -79,7 +84,13 @@ abstract class AmigoMotorVoz {
   VoidCallback? aoComecar;
   void Function(int inicioLetra)? aoPalavra;
   VoidCallback? aoAcabar;
+
+  /// O motor recusou falar (ex.: "not-allowed" no Safari sem toque).
+  void Function(String motivo)? aoErro;
 }
+
+/// O estado do som que o botão do ecrã do Amigo mostra (m11 adendo 4).
+enum AmigoSomEstado { ligado, desligado, semVoz, precisaToque }
 
 /// A voz do telemóvel/navegador (flutter_tts).
 class AmigoMotorVozSistema extends AmigoMotorVoz {
@@ -96,7 +107,10 @@ class AmigoMotorVozSistema extends AmigoMotorVoz {
       tts.setProgressHandler((texto, inicio, fim, palavra) => aoPalavra?.call(inicio));
       tts.setCompletionHandler(() => aoAcabar?.call());
       tts.setCancelHandler(() => aoAcabar?.call());
-      tts.setErrorHandler((_) => aoAcabar?.call());
+      tts.setErrorHandler((m) {
+        aoErro?.call('$m');
+        aoAcabar?.call();
+      });
       // No navegador a lista chega depois do "voiceschanged" — no Chrome do
       // Android (emulador, 09/11) demorou mais de 1,5 s: tenta durante ~4 s.
       List<dynamic> vozes = const [];
@@ -233,12 +247,14 @@ class AmigoVoz {
     _tentativasVoz++;
     _ultimaTentativa = DateTime.now();
     nomeVoz = await _motor.preparar(_velocidade);
+    vozPronta.value = nomeVoz != null;
     debugPrint('[AmigoVoz] nova procura ($_tentativasVoz): ${nomeVoz ?? 'ainda sem voz pt-PT'}');
   }
 
   Future<void> preparar() => _aPreparar ??= _preparar();
 
   Future<void> _preparar() async {
+    amigoDesbloquearVozNoPrimeiroToque();
     try {
       final p = await SharedPreferences.getInstance();
       final s = p.getBool(kAmigoSomKey);
@@ -247,10 +263,47 @@ class AmigoVoz {
     _motor.aoComecar = _comecou;
     _motor.aoPalavra = _palavra;
     _motor.aoAcabar = _acabouNatural;
+    _motor.aoErro = _erroDoMotor;
     nomeVoz = await _motor.preparar(_velocidade);
+    vozPronta.value = nomeVoz != null;
     _ultimaTentativa = DateTime.now();
     _preparada = true;
     debugPrint('[AmigoVoz] voz pt-PT: ${nomeVoz ?? 'nenhuma (só legenda)'}');
+  }
+
+  // ── m11 adendo 4: navegador do telemóvel ─────────────────────────────
+  // O Safari do iPhone só deixa falar depois de um toque. Se a voz não
+  // arrancar (erro "not-allowed" ou nenhum aviso de início em 1,6 s), o
+  // ecrã mostra "Toca para ouvir" e o toque seguinte repete a última frase
+  // (o web/index.html desbloqueia a voz nesse mesmo toque).
+
+  /// A fala foi bloqueada pelo navegador: falta um toque.
+  final ValueNotifier<bool> precisaDeToque = ValueNotifier<bool>(false);
+
+  /// Há voz pt-PT neste aparelho.
+  final ValueNotifier<bool> vozPronta = ValueNotifier<bool>(false);
+  String _ultimoTexto = '';
+  bool _motorComecou = false;
+  Timer? _vigiaArranque;
+
+  AmigoSomEstado get somEstado {
+    if (!somLigado.value) return AmigoSomEstado.desligado;
+    if (_preparada && !vozPronta.value) return AmigoSomEstado.semVoz;
+    if (precisaDeToque.value) return AmigoSomEstado.precisaToque;
+    return AmigoSomEstado.ligado;
+  }
+
+  void _erroDoMotor(String motivo) {
+    debugPrint('[AmigoVoz] o motor recusou: $motivo');
+    if (motivo.contains('not-allowed') || motivo.contains('notallowed')) precisaDeToque.value = true;
+  }
+
+  /// Repete a última frase (o toque que pede isto desbloqueia a voz).
+  Future<void> repetirUltima() async {
+    final t = _ultimoTexto;
+    precisaDeToque.value = false;
+    if (t.isEmpty) return;
+    await falar(t);
   }
 
   Future<void> alternarSom() async {
@@ -277,6 +330,8 @@ class AmigoVoz {
     await parar();
     final fala = AmigoFala(t, velocidade: _velocidade * ajusteVelocidade);
     _inicioReal = null;
+    _ultimoTexto = t;
+    _motorComecou = false;
     _fala = fala;
     legenda.value = t;
     palavraAtual.value = -1;
@@ -290,6 +345,11 @@ class AmigoVoz {
         debugPrint('[AmigoVoz] falar: $e');
         _comVoz = false;
       }
+      // Sem aviso de início em 1,6 s: o navegador bloqueou (falta um toque).
+      _vigiaArranque?.cancel();
+      _vigiaArranque = Timer(const Duration(milliseconds: 1600), () {
+        if (identical(_fala, fala) && !_motorComecou) precisaDeToque.value = true;
+      });
       // Alguns motores não avisam o início: arranca o relógio na mesma.
       _arranqueRelogio?.cancel();
       _arranqueRelogio = Timer(const Duration(milliseconds: 900), () {
@@ -317,6 +377,8 @@ class AmigoVoz {
   }
 
   void _comecou() {
+    _motorComecou = true;
+    precisaDeToque.value = false;
     final f = _fala;
     _inicioReal = _agora;
     if (f != null && !f.comecada) f.comecou(_agora);
@@ -355,6 +417,8 @@ class AmigoVoz {
     _seguranca = null;
     _arranqueRelogio?.cancel();
     _arranqueRelogio = null;
+    _vigiaArranque?.cancel();
+    _vigiaArranque = null;
     _comVoz = false;
     _fala = null;
     palavraAtual.value = -1;
@@ -391,6 +455,9 @@ class AmigoVoz {
   set velocidade(double v) => _velocidade = v.clamp(0.5, 2.0).toDouble();
 
   void dispose() {
+    _vigiaArranque?.cancel();
+    precisaDeToque.dispose();
+    vozPronta.dispose();
     _seguranca?.cancel();
     _arranqueRelogio?.cancel();
     unawaited(_motor.parar());

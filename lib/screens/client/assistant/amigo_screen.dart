@@ -483,18 +483,17 @@ class _AmigoScreenState extends State<AmigoScreen>
                 fontWeight: FontWeight.w800,
                 color: AppColors.primaryDark)),
         actions: [
-          ValueListenableBuilder<bool>(
-            valueListenable: _voz.somLigado,
-            builder: (_, som, __) => IconButton(
-              key: const Key('amigo-som'),
-              tooltip: som ? 'Desligar o som'.tr : 'Ligar o som'.tr,
-              icon: Icon(som ? Icons.volume_up_rounded : Icons.volume_off_rounded),
-              onPressed: _voz.alternarSom,
-            ),
-          ),
+          _BotaoSom(voz: _voz, aoTocar: _tocarNoSom),
         ],
       ),
-      body: SafeArea(
+      // m11 adendo 4: se o navegador bloqueou a voz, o primeiro toque em
+      // qualquer sítio do ecrã repete a última frase (já desbloqueada).
+      body: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerUp: (_) {
+          if (_voz.precisaDeToque.value) unawaited(_voz.repetirUltima());
+        },
+        child: SafeArea(
         top: false,
         child: LayoutBuilder(builder: (context, c) {
           final variante = amigoVarianteDe(AssistantFlags.rostoVariante.value);
@@ -574,6 +573,55 @@ class _AmigoScreenState extends State<AmigoScreen>
           );
         }),
       ),
+      ),
+    );
+  }
+
+  /// O botão do som: liga/desliga; sem voz avisa; bloqueado repete a frase.
+  Future<void> _tocarNoSom() async {
+    switch (_voz.somEstado) {
+      case AmigoSomEstado.ligado:
+        await _voz.alternarSom();
+      case AmigoSomEstado.desligado:
+        await _voz.alternarSom();
+        unawaited(_voz.repetirUltima());
+      case AmigoSomEstado.precisaToque:
+        unawaited(_voz.repetirUltima());
+      case AmigoSomEstado.semVoz:
+        snack('Este aparelho não tem voz de Portugal: o Amigo fala por legenda.'.tr);
+    }
+  }
+}
+
+/// O som do Amigo, sempre claro: "Som", "Sem som", "Sem voz" ou "Toca para ouvir".
+class _BotaoSom extends StatelessWidget {
+  const _BotaoSom({required this.voz, required this.aoTocar});
+
+  final AmigoVoz voz;
+  final VoidCallback aoTocar;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([voz.somLigado, voz.precisaDeToque, voz.vozPronta]),
+      builder: (context, _) {
+        final (icone, texto, cor) = switch (voz.somEstado) {
+          AmigoSomEstado.ligado => (Icons.volume_up_rounded, 'Som'.tr, AppColors.primaryDark),
+          AmigoSomEstado.desligado => (Icons.volume_off_rounded, 'Sem som'.tr, AppColors.textSecondary),
+          AmigoSomEstado.semVoz => (Icons.voice_over_off_rounded, 'Sem voz'.tr, AppColors.textSecondary),
+          AmigoSomEstado.precisaToque => (Icons.touch_app_rounded, 'Toca para ouvir'.tr, AppColors.primary),
+        };
+        return Padding(
+          padding: const EdgeInsets.only(right: 4),
+          child: TextButton.icon(
+            key: const Key('amigo-som'),
+            onPressed: aoTocar,
+            style: TextButton.styleFrom(foregroundColor: cor),
+            icon: Icon(icone, size: 22),
+            label: Text(texto, style: const TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        );
+      },
     );
   }
 }

@@ -70,6 +70,7 @@ import {
   pedeAcao,
   saudacaoHabitual,
   saudacaoSimples,
+  respostaParaOSistema,
   emocaoPorDefeito,
   extrairEmocao,
   IDENTIDADE_AMIGO,
@@ -106,7 +107,7 @@ const MAX_IMAGEM_CHARS = 6_000_000;
 const MAX_IMAGENS_CHARS_TOTAL = 16_000_000;
 const APPS_CONHECIDAS = ['glovo', 'uber eats', 'uber', 'ifood', 'bolt food', 'bolt', 'too good to go'];
 
-const CART_NUDGE = 'SISTEMA (não é o cliente): a tua resposta manda tocar em "Encher o carrinho", mas NÃO criaste nenhum carrinho — o cliente não vê botão nenhum. Chama AGORA propose_cart com os product_ids exatos (um propose_cart por loja) ou basket_quote para vários artigos. Só depois respondes, em 1-2 frases.';
+const CART_NUDGE = 'INSTRUÇÃO INTERNA (a pessoa não vê isto; não a comentes): se a resposta mandar tocar em "Encher o carrinho", tens de criar o carrinho — chama propose_cart com os product_ids exatos (um propose_cart por loja) ou basket_quote para vários artigos, e só depois respondes, em 1-2 frases. Responde diretamente à pessoa, por tu, sem comentar esta nota, sem falar dela na 3.ª pessoa e sem explicar as tuas regras.';
 
 // deno-lint-ignore no-explicit-any
 type Json = any;
@@ -1261,6 +1262,10 @@ Deno.serve(async (req: Request) => {
   const mentionsCart = (t: string) => /encher o carrinho|carrinho/i.test(t);
   // v11: o cliente quer comprar/marcar e a resposta não deixou ação nenhuma → uma volta extra, uma vez.
   let nudgedAcao = false;
+  // m11 adendo 4: a nota de correção vai como INSTRUÇÃO DE SISTEMA (bloco de contexto) na volta seguinte,
+  // não como mensagem do cliente; e a resposta anterior fica guardada para o caso de a nova falar "do cliente".
+  let notaSistema = '';
+  let textoAntesDaNota = '';
   const precisaDeAcao = (): boolean => s.personality && !hasImage && pedeAcao(userMessage) &&
     propostas.length === 0 && favores.length === 0 && !comparacao &&
     !acoes.some((a) => ACOES_DE_COMPRA.has(a.tipo)) && ![...ferramentasUsadas].some((n) => FERRAMENTAS_AJUDA.has(n));
@@ -1344,7 +1349,8 @@ Deno.serve(async (req: Request) => {
     const roboClaude = conversaLivre ? ROBO_AMIGO : ROBO_CLAUDE;
     while (toolIters <= s.max_tool_iterations + 1) {
       const r = await claudePrimeiro({
-        robo: roboClaude, prioridade: 1, system: [systemFixo], contexto: systemContexto,
+        robo: roboClaude, prioridade: 1, system: [systemFixo],
+        contexto: notaSistema ? `${systemContexto}\n\n${notaSistema}` : systemContexto,
         messages: claudeMsgs, tools: claudeTools, maxTokens: conversaLivre ? 800 : 2048, modelo: modeloClaude,
       });
       if (!r) break; // sem crédito / 429 / erro / timeout → Gemini abaixo, como sempre
@@ -1357,8 +1363,8 @@ Deno.serve(async (req: Request) => {
         if (propostas.length === 0 && mentionsCart(text) && !nudged) {
           nudged = true;
           console.warn('[ASSISTENTE] (claude) carrinho prometido sem propose_cart — a corrigir');
-          claudeMsgs.push({ role: 'assistant', content: r.conteudo });
-          claudeMsgs.push({ role: 'user', content: CART_NUDGE });
+          textoAntesDaNota = text;
+          notaSistema = CART_NUDGE; // a mesma conversa, com a nota no sistema (a resposta anterior não entra)
           toolIters++;
           continue;
         }
@@ -1366,10 +1372,16 @@ Deno.serve(async (req: Request) => {
           nudgedAcao = true;
           console.warn('[AMIGO] (claude) compra sem ação — a corrigir');
           prefacio = '';
-          claudeMsgs.push({ role: 'assistant', content: r.conteudo });
-          claudeMsgs.push({ role: 'user', content: ACAO_NUDGE });
+          textoAntesDaNota = text;
+          notaSistema = ACAO_NUDGE;
           toolIters++;
           continue;
+        }
+        if (notaSistema && textoAntesDaNota && respostaParaOSistema(text)) {
+          console.warn('[AMIGO] (claude) resposta escrita para a nota interna — descartada, fica a anterior');
+          finalText = juntarPrefacio(textoAntesDaNota);
+          claudeTerminou = true;
+          break;
         }
         finalText = juntarPrefacio(text);
         claudeTerminou = true;
@@ -1446,6 +1458,7 @@ Deno.serve(async (req: Request) => {
     if (propostas.length === 0 && mentionsCart(text) && !nudged) {
       nudged = true;
       console.warn('[ASSISTENTE] carrinho prometido sem propose_cart — a corrigir');
+      textoAntesDaNota = text;
       contents.push({ role: 'model', parts: [{ text }] });
       contents.push({ role: 'user', parts: [{ text: CART_NUDGE }] });
       toolIters++;
@@ -1454,10 +1467,17 @@ Deno.serve(async (req: Request) => {
     if (!nudgedAcao && precisaDeAcao()) {
       nudgedAcao = true;
       console.warn('[AMIGO] (gemini) compra sem ação — a corrigir');
+      textoAntesDaNota = text;
       contents.push({ role: 'model', parts: [{ text }] });
       contents.push({ role: 'user', parts: [{ text: ACAO_NUDGE }] });
       toolIters++;
       continue;
+    }
+    // m11 adendo 4: a resposta à nota interna nunca chega ao cliente.
+    if ((nudged || nudgedAcao) && textoAntesDaNota && respostaParaOSistema(text)) {
+      console.warn('[AMIGO] (gemini) resposta escrita para a nota interna — descartada, fica a anterior');
+      finalText = juntarPrefacio(textoAntesDaNota);
+      break;
     }
     finalText = juntarPrefacio(text);
     break;

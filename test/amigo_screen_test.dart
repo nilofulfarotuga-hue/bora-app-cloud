@@ -218,6 +218,7 @@ void main() {
   });
 
   group('ecrã do Amigo', () {
+    _vozBloqueadaNoTelemovel();
     _mensagemInicial();
     Future<(_CerebroFalso, _VozFalsa, List<int>)> abrir(WidgetTester tester,
         {Size tamanho = const Size(390, 844)}) async {
@@ -496,5 +497,60 @@ void _mensagemInicial() {
     expect(cerebro.enviadas, ['Não encontrei "gelado" no McDonald\'s. Procura noutras lojas.']);
     await tester.pumpWidget(const SizedBox());
     await _correr(tester, const Duration(seconds: 5));
+  });
+}
+
+/// Motor como o Safari sem toque: nunca avisa que começou; a 2.ª vez fala.
+class _VozBloqueada extends AmigoMotorVoz {
+  final ditas = <String>[];
+  @override
+  Future<String?> preparar(double velocidade) async => 'Joana (pt-PT)';
+  @override
+  Future<void> falar(String texto) async {
+    ditas.add(texto);
+    if (ditas.length == 1) {
+      aoErro?.call('not-allowed');
+      return;
+    }
+    scheduleMicrotask(() => aoComecar?.call());
+    Timer(const Duration(milliseconds: 400), () => aoAcabar?.call());
+  }
+
+  @override
+  Future<void> parar() async {}
+}
+
+void _vozBloqueadaNoTelemovel() {
+  testWidgets('Safari sem toque: mostra "Toca para ouvir" e o toque repete a saudação',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final motor = _VozBloqueada();
+    final voz = AmigoVoz(motor: motor);
+    await tester.pumpWidget(MaterialApp(
+      home: AmigoScreen(cerebro: _CerebroFalso(), voz: voz, ouvido: _OuvidoFalso('x')),
+    ));
+    await _correr(tester, const Duration(seconds: 2));
+    expect(voz.precisaDeToque.value, isTrue);
+    expect(find.text('Toca para ouvir'), findsOneWidget);
+    await tester.tapAt(const Offset(200, 300));
+    await _correr(tester, const Duration(seconds: 1));
+    expect(motor.ditas.length, 2, reason: 'a saudação foi repetida depois do toque');
+    expect(motor.ditas.last, startsWith('Boa noite, Ana!'));
+    expect(voz.precisaDeToque.value, isFalse);
+    expect(find.text('Som'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    await _correr(tester, const Duration(seconds: 6));
+  });
+
+  testWidgets('sem voz pt-PT: o botão diz "Sem voz"', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(MaterialApp(
+      home: AmigoScreen(
+          cerebro: _CerebroFalso(), voz: AmigoVoz(motor: _VozFalsa(nome: null)), ouvido: _OuvidoFalso('x')),
+    ));
+    await _correr(tester, const Duration(seconds: 1));
+    expect(find.text('Sem voz'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    await _correr(tester, const Duration(seconds: 8));
   });
 }

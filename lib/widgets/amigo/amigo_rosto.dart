@@ -41,10 +41,9 @@ class AmigoLogoBora {
   static Future<ui.Image?> _ler() async {
     try {
       final data = await rootBundle.load('assets/branding/bora_logo.png');
-      final codec = await ui.instantiateImageCodec(
-        data.buffer.asUint8List(),
-        targetWidth: 160,
-      );
+      // Sem targetWidth: reduzir a imagem usa OffscreenCanvas, que o Safari
+      // antigo não tem (provado no WebKit a 09/11). O logo é pequeno (645x360).
+      final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
       final quadro = await codec.getNextFrame();
       return imagem = quadro.image;
     } catch (e) {

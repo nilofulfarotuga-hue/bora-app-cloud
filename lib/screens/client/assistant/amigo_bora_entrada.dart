@@ -23,6 +23,7 @@ import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../l10n/tr.dart';
 import '../../../services/assistant_service.dart';
+import '../../../services/amigo_voz.dart';
 import '../../../widgets/amigo/amigo_rosto.dart';
 import 'amigo_screen.dart';
 import 'assistant_chat_screen.dart';
@@ -74,6 +75,8 @@ class _AmigoBoraEntradaState extends State<AmigoBoraEntrada> {
   @override
   void initState() {
     super.initState();
+    // m11 adendo 4: na web, o toque que abre o Amigo já desbloqueia a voz.
+    amigoDesbloquearVozNoPrimeiroToque();
     AssistantFlags.carregar();
     _lerPreferencia();
   }

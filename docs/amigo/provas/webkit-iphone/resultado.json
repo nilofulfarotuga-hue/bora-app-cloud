@@ -1,0 +1,16 @@
+{
+  "url": "http://127.0.0.1:18792/",
+  "navegador": "webkit 26.5",
+  "aparelho": "iPhone 13 (emulado)",
+  "vozes_pt": "sem speechSynthesis",
+  "voz_desbloqueada_no_toque": false,
+  "consola": [
+    "[AmigoVoz] voz pt-PT: nenhuma (só legenda)",
+    "[AmigoDemo] voz=nenhuma (só legenda) plataforma=web",
+    "[AmigoDemo] evento abrir",
+    "[AmigoRosto] logo: Error: undefined is not a constructor (evaluating 'new s.OffscreenCanvas(r,q)')",
+    "[AmigoVoz] nova procura (2): ainda sem voz pt-PT",
+    "[AmigoVoz] nova procura (2): ainda sem voz pt-PT",
+    "[AmigoDemo] frase {\"frase\":\"Olá, eu sou o Amigo.\",\"duracao_ms\":6363,\"eventos_de_palavra\":0,\"atraso_evento_boca\":{\"n\":0},\"desvio_estimativa\":{\"n\":0}}"
+  ]
+}

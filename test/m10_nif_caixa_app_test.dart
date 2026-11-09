@@ -192,6 +192,43 @@ void main() {
     });
   });
 
+  testWidgets('outro pedido no mesmo cartão: a resposta volta a zero, sem erro no build',
+      (t) async {
+    final caixa = NifCaixaController();
+    var pedido = 'p1';
+    late StateSetter mudar;
+    var redesenhos = 0;
+    await t.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: StatefulBuilder(builder: (ctx, setState) {
+          mudar = setState;
+          // Como a folha do talão: o pai redesenha quando o controlador muda.
+          caixa.addListener(() {
+            if (ctx.mounted) setState(() => redesenhos++);
+          });
+          return SingleChildScrollView(
+            child: DriverInvoiceNifCard(
+              orderId: pedido,
+              caixa: caixa,
+              rpc: (f, p) async => _bora(),
+            ),
+          );
+        }),
+      ),
+    ));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('nif_caixa_dei')));
+    await t.pumpAndSettle();
+    expect(caixa.resposta, const NifCaixaResposta.dado());
+
+    mudar(() => pedido = 'p2');
+    await t.pumpAndSettle();
+    expect(t.takeException(), isNull);
+    expect(caixa.resposta, isNull, reason: 'pedido novo, caixa por responder');
+    expect(caixa.porResponder, isTrue);
+    expect(redesenhos, greaterThan(0));
+  });
+
   group('Envio em segundo plano (estafeta_confirmar_nif_caixa)', () {
     test('falha duas vezes e grava à terceira, com os parâmetros certos',
         () async {

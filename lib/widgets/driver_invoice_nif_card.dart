@@ -191,9 +191,18 @@ class _DriverInvoiceNifCardState extends State<DriverInvoiceNifCard> {
       _naoConsegui = false;
       _motivo = null;
       _outroCtrl.clear();
-      widget.caixa
-        ?..definirAplica(false)
-        ..responder(null);
+      // Avisar o controlador só depois do fotograma: aqui ainda se está a
+      // construir o ecrã, e um setState no pai a meio do build congela.
+      final caixa = widget.caixa;
+      if (caixa != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || caixa != widget.caixa) return;
+          caixa
+            ..definirAplica(_dados != null)
+            ..responder(null);
+          _atualizarResposta();
+        });
+      }
       _carregar();
     }
   }

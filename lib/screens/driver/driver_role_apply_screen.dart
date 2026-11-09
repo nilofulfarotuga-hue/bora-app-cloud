@@ -184,17 +184,26 @@ class _DriverRoleApplyScreenState extends State<DriverRoleApplyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const BoraScreenAppBar(title: 'Ser estafeta / motorista'),
+      // M10 2.11 (09/11/2026): com o Bora Motorista fechado
+      // (`tvde_app_visivel` = false) não se fala de motorista nem de viagens.
+      appBar: BoraScreenAppBar(
+          title: TvdeVisibilidade.aberto
+              ? 'Ser estafeta / motorista'
+              : 'Ser estafeta'),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: EdgeInsets.fromLTRB(Spacing.lg, Spacing.lg, Spacing.lg,
               BoraBottomActionBar.folgaInferior(context)),
           children: [
-            const Text(
-              'Faz entregas e viagens quando quiseres — com a mesma conta. '
-              'Só precisamos dos dados do teu veículo e documentos.',
-              style: TextStyle(color: AppColors.textSecondary, height: 1.4),
+            Text(
+              TvdeVisibilidade.aberto
+                  ? 'Faz entregas e viagens quando quiseres — com a mesma conta. '
+                      'Só precisamos dos dados do teu veículo e documentos.'
+                  : 'Faz entregas quando quiseres — com a mesma conta. '
+                      'Só precisamos dos dados do teu veículo e documentos.',
+              style: const TextStyle(
+                  color: AppColors.textSecondary, height: 1.4),
             ),
             if (widget.prefill != null) ...[
               const SizedBox(height: Spacing.md),

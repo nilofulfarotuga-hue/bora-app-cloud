@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
+import '../services/tvde_visibilidade.dart';
 
 class ExtratoPrestadorSection extends StatefulWidget {
   const ExtratoPrestadorSection({super.key, this.userId, this.admin = false});
@@ -267,9 +268,14 @@ class _ExtratoPrestadorSectionState extends State<ExtratoPrestadorSection> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Os acertos fecham à segunda-feira. Desde 20/09 as corridas TVDE entram '
-              'no acerto; as de semanas anteriores ficam aqui, à parte, até serem pagas.',
-              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+              // M10 2.11 (09/11/2026): com o Bora Motorista fechado o
+              // estafeta não lê de corridas TVDE; o painel vê o texto inteiro.
+              widget.admin || TvdeVisibilidade.aberto
+                  ? 'Os acertos fecham à segunda-feira. Desde 20/09 as corridas TVDE entram '
+                      'no acerto; as de semanas anteriores ficam aqui, à parte, até serem pagas.'
+                  : 'Os acertos fecham à segunda-feira.',
+              style: const TextStyle(
+                  fontSize: 11, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 8),
             Row(

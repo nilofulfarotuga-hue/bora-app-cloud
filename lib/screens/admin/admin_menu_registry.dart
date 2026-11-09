@@ -95,6 +95,7 @@ import 'admin_home_banners_screen.dart';
 import 'admin_ratings_screen.dart';
 import 'admin_receipts_screen.dart';
 import 'admin_taloes_screen.dart';
+import 'admin_nif_compras_screen.dart';
 import 'admin_referrals_screen.dart';
 import 'admin_reservations_config_screen.dart';
 import 'admin_reservations_metrics_screen.dart';
@@ -523,6 +524,20 @@ List<AdminMenuSection> adminMenuSections() => [
       keywords: const [
         'talão', 'talao', 'talões', 'taloes', 'recibo', 'recibos', 'zip', 'contabilista',
         'fatura', 'factura', 'nif', 'foto', 'fotos', 'drive', 'papel fiscal', 'sem talao', 'sem talão',
+      ],
+    ),
+    // M10 09/11/2026 (b2-nif): o NIF que o entregador dá no caixa nas compras
+    // de loja não parceira e Favores — do cliente ou da Bora — e se deu.
+    AdminMenuItem(
+      id: 'dinheiro_nif_nas_compras',
+      title: 'NIF nas compras',
+      subtitle: 'O NIF que o entregador dá no caixa (do cliente ou da Bora) nas lojas não parceiras e Favores, se deu ou não e porquê; 7/30 dias, CSV e o NIF da Bora',
+      icon: Icons.badge_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminNifComprasScreen(),
+      keywords: const [
+        'nif', 'nif na caixa', 'nif no caixa', 'contribuinte', 'fatura', 'factura',
+        'compras', 'nao parceiro', 'não parceiro', 'favor', 'favores', 'consumidor final', 'talao', 'talão',
       ],
     ),
     AdminMenuItem(

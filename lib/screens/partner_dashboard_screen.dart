@@ -1054,7 +1054,10 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                 ),
                 Flexible(
                   child: Text(
-                    ' · ${widget.restaurant.cuisineType}',
+                    // Sem tipo de cozinha (loja demo no emulador) não fica um "·" solto.
+                    widget.restaurant.cuisineType.trim().isEmpty
+                        ? ''
+                        : ' · ${widget.restaurant.cuisineType}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: subtitleColor,
                     ),

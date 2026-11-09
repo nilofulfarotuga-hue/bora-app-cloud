@@ -260,6 +260,12 @@ Deno.serve(async (req: Request) => {
       if (!['cancelled_client', 'cancelled_cleaner'].includes(booking.status)) {
         return json({ error: 'booking_not_cancelled' }, 400);
       }
+      // M10 (09/11/2026): "parar a série" já devolveu esta limpeza à Carteira Bora no servidor
+      // (cancel_cleaning_series → wallet_credit_refund_split, migração 20261109003440). Estornar
+      // também ao cartão/MB Way seria devolver duas vezes: recusa-se antes de falar com a Stripe.
+      if (booking.cancel_reason === 'serie_terminada') {
+        return json({ ok: true, note: 'devolvido_a_carteira' });
+      }
       if (!booking.stripe_payment_intent_id) return json({ ok: true, note: 'nothing_to_reverse' });
 
       let pi;

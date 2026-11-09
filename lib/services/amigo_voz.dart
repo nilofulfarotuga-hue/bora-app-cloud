@@ -158,10 +158,19 @@ enum AmigoVozEstado { calado, aFalar }
 
 /// A voz do Amigo: fala, legenda e boca. Um por ecrã.
 class AmigoVoz {
-  AmigoVoz({AmigoMotorVoz? motor, double velocidade = 1, bool somPorDefeito = true})
-      : _motor = motor ?? AmigoMotorVozSistema(),
+  AmigoVoz({
+    AmigoMotorVoz? motor,
+    double velocidade = 1,
+    bool somPorDefeito = true,
+    double Function()? relogio,
+  })  : _motor = motor ?? AmigoMotorVozSistema(),
         _velocidade = velocidade,
+        _relogioExterno = relogio,
         somLigado = ValueNotifier<bool>(somPorDefeito);
+
+  /// Relógio (ms) trocável: o vídeo das provas grava imagem a imagem com
+  /// tempo exato; na app é o relógio real.
+  final double Function()? _relogioExterno;
 
   final AmigoMotorVoz _motor;
   double _velocidade;
@@ -191,7 +200,7 @@ class AmigoVoz {
   /// frase — vão para o registo de provas.
   List<double> get desviosUltimaFrase => _fala?.desvios ?? const [];
 
-  double get _agora => _relogio.elapsedMicroseconds / 1000;
+  double get _agora => _relogioExterno?.call() ?? _relogio.elapsedMicroseconds / 1000;
 
   bool get temVozPtPt => nomeVoz != null;
 

@@ -131,7 +131,7 @@ void main() {
       ),
     ));
     final rgba = await _rgba(tester, chave);
-    final w = 280;
+    const w = 280;
     // Na variante "rosto" a caixa começa em x=10, y=-6 e a escala é 1.
     ({int r, int g, int b}) px(double x, double y) {
       final i = (((y + 6).round()) * w + (x - 10).round()) * 4;

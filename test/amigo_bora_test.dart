@@ -131,7 +131,17 @@ void main() {
     });
   });
 
-  group('entrada única na home', () {
+  // 09/11/2026 (m11-amigo-rosto): o botão "Ajuda-me a escolher" de 08/11 é o
+  // que aparece com o rosto DESLIGADO no painel (amigo_rosto_ativo=false). O
+  // rosto ligado (padrão) está provado em test/amigo_screen_test.dart.
+  group('entrada única na home (rosto desligado = como a 08/11)', () {
+    setUp(() => AssistantFlags.aplicar({
+          'assistant_enabled': true,
+          'assistant_personality_enabled': true,
+          'assistant_amigo_welcome_text': '',
+          'amigo_rosto_ativo': false,
+        }));
+
     testWidgets('botão "Ajuda-me a escolher" + cartão; "Agora não" esconde só o cartão',
         (tester) async {
       SharedPreferences.setMockInitialValues({});
@@ -167,7 +177,11 @@ void main() {
     testWidgets('sem personalidade: só o botão; assistente desligado: nada',
         (tester) async {
       SharedPreferences.setMockInitialValues({});
-      AssistantFlags.aplicar({'assistant_enabled': true, 'assistant_personality_enabled': false});
+      AssistantFlags.aplicar({
+        'assistant_enabled': true,
+        'assistant_personality_enabled': false,
+        'amigo_rosto_ativo': false,
+      });
       await tester.pumpWidget(const MaterialApp(home: Scaffold(body: AmigoBoraEntrada())));
       await tester.pumpAndSettle();
       expect(find.text('Ajuda-me a escolher'), findsOneWidget);

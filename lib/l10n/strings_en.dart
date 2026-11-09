@@ -5307,4 +5307,15 @@ const Map<String, String> kStringsEn = <String, String>{
       'Let Amigo remember me',
   'Desligado, o Amigo não usa nem guarda o que sabe de ti.':
       "When off, Amigo doesn't use or keep what it knows about you.",
+  // Casa & Manutenção — lançamento (09/11/2026): material e selo "Novo".
+  'Novo': 'New',
+  'Material': 'Materials',
+  'Para pedir, confirma que já tens todo o material: o profissional leva só as ferramentas.':
+      'To book, confirm you already have all the materials: the pro only brings the tools.',
+  'O profissional leva só as ferramentas. O material (peças, parafusos, suportes, silicone) é teu: tem tudo em casa antes da hora marcada.':
+      'The pro only brings the tools. The materials (parts, screws, brackets, silicone) are yours: have everything at home before the booked time.',
+  '{0} — o profissional leva só as ferramentas':
+      '{0} — the pro only brings the tools',
+  'Material do cliente — levas só as ferramentas':
+      "Client's materials — bring only your tools",
 };

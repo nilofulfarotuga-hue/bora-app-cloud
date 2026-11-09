@@ -528,6 +528,10 @@ class _CasaPedidoWizardScreenState extends State<CasaPedidoWizardScreen> {
             ],
           ),
         ),
+        if (casaServicoPedeMaterial(s)) ...[
+          const SizedBox(height: Spacing.md),
+          const CasaAvisoMaterial(key: Key('casa_aviso_material')),
+        ],
         const SizedBox(height: Spacing.lg),
         for (final p in s.perguntas) ...[
           KeyedSubtree(
@@ -886,8 +890,16 @@ class _CasaPedidoWizardScreenState extends State<CasaPedidoWizardScreen> {
                     .join(', '),
               ),
               for (final p in s.perguntas)
-                if ((respostas[p.id] ?? '').toString().isNotEmpty)
+                if (p.id != kCasaPerguntaMaterial &&
+                    (respostas[p.id] ?? '').toString().isNotEmpty)
                   CasaLinhaResumo(p.texto, respostas[p.id].toString()),
+              if (casaServicoPedeMaterial(s))
+                CasaLinhaResumo(
+                  'Material'.tr,
+                  '{0} — o profissional leva só as ferramentas'.trArgs(
+                      [(respostas[kCasaPerguntaMaterial] ?? '').toString()]),
+                  key: const Key('casa_resumo_material'),
+                ),
               if (_fotos.isNotEmpty)
                 CasaLinhaResumo('Fotos'.tr, '${_fotos.length}'),
               if (!_orcamento) ...[

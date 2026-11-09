@@ -454,6 +454,33 @@ class CasaResumoProfissional extends StatelessWidget {
 }
 
 /// Linha "rótulo ........ valor" dos resumos.
+/// O aviso do material (ordem do Danilo, 09/11/2026): o profissional leva só
+/// as ferramentas e o material é do cliente. Aparece no ecrã do serviço e no
+/// resumo sempre que o serviço pergunta pelo material.
+class CasaAvisoMaterial extends StatelessWidget {
+  const CasaAvisoMaterial({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return CasaCartao(
+      destacado: true,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.construction_rounded, color: AppColors.primary),
+          const SizedBox(width: Spacing.md),
+          Expanded(
+            child: Text(
+              'O profissional leva só as ferramentas. O material (peças, parafusos, suportes, silicone) é teu: tem tudo em casa antes da hora marcada.'.tr,
+              style: const TextStyle(color: AppColors.textPrimary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class CasaLinhaResumo extends StatelessWidget {
   const CasaLinhaResumo(this.rotulo, this.valor,
       {super.key, this.forte = false});

@@ -31,10 +31,12 @@ class CasaStore extends ChangeNotifier {
     CasaConfig config = CasaConfig.vazia,
     List<CasaPedido> pedidos = const [],
     Map<String, List<CasaMensagem>> mensagens = const {},
+    String? novoAte,
   })  : _semRede = true,
         _rpcDeTeste = null,
         _uidDeTeste = null {
     _config = config;
+    _novoAte = novoAte;
     _configCarregada = true;
     _pedidos = pedidos;
     _pedidosCarregados = true;
@@ -117,8 +119,32 @@ class CasaStore extends ChangeNotifier {
       debugPrint('CasaStore.refreshSettings => $e');
       _configFalhou = true;
     }
+    // O selo "Novo" do ladrilho (lançamento de 09/11/2026): a data vive na
+    // definição `casa_novo_ate` (painel > Casa > Definições > Novidade), nunca
+    // no código. Leitura à parte: se falhar, só o selo não aparece.
+    try {
+      final v = await _rpc('get_setting', {'p_key': kCasaChaveNovoAte})
+          .timeout(kAcaoTimeout);
+      _novoAte = v?.toString();
+    } catch (e) {
+      debugPrint('CasaStore.refreshSettings(novo_ate) => $e');
+    }
     notifyListeners();
   }
+
+  /// Chave de `platform_settings` com o último dia (Lisboa, AAAA-MM-DD) em que
+  /// o ladrilho mostra o selo "Novo". Vazia = selo desligado.
+  static const kCasaChaveNovoAte = 'casa_novo_ate';
+
+  String? _novoAte;
+
+  /// O valor cru de `casa_novo_ate` (null = ainda não lido ou sem chave).
+  String? get novoAte => _novoAte;
+
+  /// O ladrilho da Casa mostra o selo "Novo" agora? (até ao fim do dia
+  /// `casa_novo_ate`, hora de Lisboa).
+  bool seloNovo([DateTime? agora]) =>
+      casaSeloNovoVisivel(_novoAte, agora ?? DateTime.now());
 
   /// Serviço do catálogo pelo id (para mostrar as perguntas num pedido).
   CasaServico? servicoPorId(String? id) {

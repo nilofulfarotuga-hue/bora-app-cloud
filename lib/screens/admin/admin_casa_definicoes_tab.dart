@@ -2,6 +2,8 @@
 ///  · interruptor geral (NASCE DESLIGADO; ligar pede confirmação forte);
 ///  · registrar a autorização do Danilo (texto com "autorizo" + data) — só
 ///    depois de ele dizer "autorizo";
+///  · novidade do lançamento: selo "Novo" no atalho (`casa_novo_ate`, ligar,
+///    desligar e a data) e o caminho para a faixa da home (09/11/2026);
 ///  · testadores (lista de uuid em `casa_testadores`);
 ///  · comissão e promoção (PROPOSTA até ao autorizo);
 ///  · tempos de oferta, orçamento, cancelamento, garantia e o resto.
@@ -15,10 +17,23 @@ import 'package:flutter/material.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../models/casa_models.dart' show casaSeloNovoVisivel;
 import 'admin_casa_comum.dart';
+import 'admin_home_banners_screen.dart';
+
+/// Chave do selo "Novo" do atalho da Casa (data AAAA-MM-DD; vazia = sem selo).
+const String kCasaChaveNovoAte = 'casa_novo_ate';
+
+/// Quantos dias dura o selo "Novo" quando se liga sem data (lançamento).
+const int kCasaDiasSeloNovo = 14;
+
+/// A data que o selo leva ao ligar: hoje (Lisboa) + [kCasaDiasSeloNovo] dias.
+String casaNovoAteAoLigar(DateTime hojeLisboa) =>
+    casaIsoData(hojeLisboa.add(const Duration(days: kCasaDiasSeloNovo)));
 
 /// Grupo em que cada chave aparece.
 String casaGrupoDefinicao(String key) {
+  if (key == kCasaChaveNovoAte) return 'novidade';
   if (key == 'casa_enabled') return 'interruptor';
   if (key == 'casa_valores_autorizados') return 'autorizacao';
   if (key == 'casa_testadores') return 'testadores';
@@ -184,6 +199,38 @@ class _AdminCasaDefinicoesTabState extends State<AdminCasaDefinicoesTab> {
         {'p_key': 'casa_testadores', 'p_value': lista}, 'Testadores salvos.');
   }
 
+  // ── Novidade: selo "Novo" no atalho ─────────────────────────────────────
+
+  Future<void> _seloNovo(bool ligar) async {
+    final valor = ligar ? casaNovoAteAoLigar(casaHojeLisboa()) : '';
+    await _correr(
+        'admin_casa_guardar_definicao',
+        {'p_key': kCasaChaveNovoAte, 'p_value': valor},
+        ligar
+            ? 'Selo "Novo" ligado até ${casaData(valor)}.'
+            : 'Selo "Novo" desligado.');
+  }
+
+  Future<void> _dataSeloNovo(String atual) async {
+    final hoje = casaHojeLisboa();
+    final lida = casaLerValidade(atual);
+    final inicial = lida.iso == null
+        ? hoje.add(const Duration(days: kCasaDiasSeloNovo))
+        : DateTime.parse(lida.iso!);
+    final escolhida = await showDatePicker(
+      context: context,
+      initialDate: inicial.isBefore(hoje) ? hoje : inicial,
+      firstDate: hoje,
+      lastDate: hoje.add(const Duration(days: 120)),
+      helpText: 'Selo "Novo" até (inclusive)',
+    );
+    if (escolhida == null) return;
+    final iso = casaIsoData(escolhida);
+    await _correr('admin_casa_guardar_definicao',
+        {'p_key': kCasaChaveNovoAte, 'p_value': iso},
+        'Selo "Novo" até ${casaData(iso)}.');
+  }
+
   // ── Definição genérica ──────────────────────────────────────────────────
 
   Future<void> _editar(Map<String, dynamic> d) async {
@@ -240,6 +287,13 @@ class _AdminCasaDefinicoesTabState extends State<AdminCasaDefinicoesTab> {
             defs.where((d) => casaGrupoDefinicao('${d['key']}') == 'proposta');
         final tempos =
             defs.where((d) => casaGrupoDefinicao('${d['key']}') == 'tempos');
+        // null = a chave ainda não existe no servidor (entra na publicação).
+        String? novoAte;
+        for (final d in defs) {
+          if (d['key'] == kCasaChaveNovoAte) {
+            novoAte = casaValorParaTexto(d['value']);
+          }
+        }
         return RefreshIndicator(
           onRefresh: _refresh,
           child: ListView(
@@ -282,6 +336,14 @@ class _AdminCasaDefinicoesTabState extends State<AdminCasaDefinicoesTab> {
                   'ou promoção volta a pôr os valores como PROPOSTA.',
                   style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                 ),
+              ),
+
+              const CasaSeccao('Novidade (lançamento)'),
+              _CartaoNovidade(
+                novoAte: novoAte,
+                busy: _busy,
+                onLigar: _seloNovo,
+                onData: _dataSeloNovo,
               ),
 
               const CasaSeccao('Testadores'),
@@ -450,6 +512,85 @@ class _EditorTestadoresState extends State<_EditorTestadores> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Novidade do lançamento (09/11/2026): o selo "Novo" no atalho da Casa (ligar,
+/// desligar e a data, guardada em `casa_novo_ate`) e o caminho para a faixa
+/// da home, que se gere no ecrã "Faixas da home" (ver/ligar/desligar/datas).
+class _CartaoNovidade extends StatelessWidget {
+  const _CartaoNovidade({
+    required this.novoAte,
+    required this.busy,
+    required this.onLigar,
+    required this.onData,
+  });
+
+  /// Valor de `casa_novo_ate`; null = a chave ainda não existe no servidor.
+  final String? novoAte;
+  final bool busy;
+  final Future<void> Function(bool ligar) onLigar;
+  final Future<void> Function(String atual) onData;
+
+  @override
+  Widget build(BuildContext context) {
+    final existe = novoAte != null;
+    final ativo = casaSeloNovoVisivel(novoAte, DateTime.now());
+    final temData = (novoAte ?? '').trim().isNotEmpty;
+    final String estado;
+    if (!existe) {
+      estado = 'A configuração $kCasaChaveNovoAte ainda não existe no servidor '
+          '(entra na publicação da Casa).';
+    } else if (ativo) {
+      estado = 'Aparece no atalho "Casa" da tela inicial até '
+          '${casaData(novoAte)} (inclusive, hora de Lisboa).';
+    } else if (temData) {
+      estado = 'Desligado — terminou em ${casaData(novoAte)}.';
+    } else {
+      estado = 'Desligado.';
+    }
+    return Card(
+      child: Column(
+        children: [
+          SwitchListTile(
+            key: const ValueKey('casa-selo-novo'),
+            value: ativo,
+            onChanged: !existe || busy ? null : onLigar,
+            title: const Text('Selo "Novo" no atalho da Casa',
+                style: TextStyle(fontWeight: FontWeight.w800)),
+            subtitle: Text(estado, key: const ValueKey('casa-selo-novo-estado')),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.only(right: Spacing.sm),
+              child: TextButton.icon(
+                key: const ValueKey('casa-selo-novo-data'),
+                onPressed: !existe || busy ? null : () => onData(novoAte!),
+                icon: const Icon(Icons.event_outlined),
+                label: Text(ativo ? 'Mudar a data' : 'Escolher a data'),
+              ),
+            ),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            key: const ValueKey('casa-faixa-home'),
+            leading: const Icon(Icons.view_carousel_outlined),
+            title: const Text('Faixa da tela inicial'),
+            subtitle: const Text(
+                'Para ver, ligar, desligar ou mudar as datas da faixa '
+                '"Novidade: Casa & Manutenção", abra Faixas da home '
+                '(destino Categoria → Casa).'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                  builder: (_) => const AdminHomeBannersScreen()),
+            ),
+          ),
+        ],
       ),
     );
   }

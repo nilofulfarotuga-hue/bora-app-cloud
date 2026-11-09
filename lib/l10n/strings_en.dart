@@ -1025,6 +1025,10 @@ const Map<String, String> kStringsEn = <String, String>{
       'My Home jobs',
   'Vê e aceita trabalhos perto de ti':
       'See and accept jobs near you',
+  // M10 b2-textos (09/11/2026): badge de cobrança do estafeta no formato de
+  // Portugal ("7,50 €" — o símbolo vem no valor). Acrescentado a mao.
+  'COBRAR EM DINHEIRO: {0}{1}':
+      'CHARGE IN CASH: {0}{1}',
   // 30/10/2026 (gorjetas-taxa): gorjeta do carrinho junto da compra e o que o
   // estafeta recebe (tool/l10n/traducoes/pt-en-30-gorjetas-taxa.json).
   'A gorjeta vai toda para o estafeta.':

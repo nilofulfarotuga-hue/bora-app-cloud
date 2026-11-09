@@ -7,6 +7,9 @@ import '../../../config/app_spacing.dart';
 import '../../../stores/partner_appointments_store.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 import '../../../utils/hora_lisboa.dart';
+// M10 2.14 iii (09/11/2026): preços no formato de Portugal ("2,50 €"),
+// só a forma de mostrar — os valores são os mesmos.
+import '../../../utils/euros.dart';
 
 /// Financeiro do prestador (vertical Serviços). Resumo da semana actual
 /// (preview RPC) + BarChart das últimas 4 semanas (receita das liquidações)
@@ -38,7 +41,7 @@ class _PartnerAppointmentsFinanceScreenState
 
   void _refresh() => setState(() => _future = _load());
 
-  String _eur(num cents) => '€${(cents / 100).toStringAsFixed(2)}';
+  String _eur(num cents) => eurCents(cents);
 
   @override
   Widget build(BuildContext context) {

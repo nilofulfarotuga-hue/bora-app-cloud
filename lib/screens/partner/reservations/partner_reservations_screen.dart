@@ -7,6 +7,9 @@ import '../../../models/reservation_model.dart';
 import '../../../models/restaurant_table.dart';
 import '../../../stores/partner_reservas_store.dart';
 import '../../../utils/hora_lisboa.dart';
+// M10 2.14 iii (09/11/2026): preços no formato de Portugal ("2,50 €"),
+// só a forma de mostrar — os valores são os mesmos.
+import '../../../utils/euros.dart';
 
 /// Reservas PRO F4 — lista partner com 3 tabs.
 ///
@@ -193,12 +196,12 @@ class _PartnerReservationsScreenState extends State<PartnerReservationsScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '€${(creditCents / 100).toStringAsFixed(2)} creditados ao cliente.',
+                '${eurCents(creditCents)} creditados ao cliente.',
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
               Text(
-                'A Bora deve-te €${(payoutCents / 100).toStringAsFixed(2)} '
+                'A Bora deve-te ${eurCents(payoutCents)} '
                 '(settlement semanal).',
                 style: const TextStyle(color: AppColors.textSecondary),
               ),

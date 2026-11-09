@@ -10,7 +10,9 @@ void main() {
     await _pump(tester,
         const CollectBadge(state: CollectState.collectCash, amountCents: 750));
     expect(find.textContaining('COBRAR EM DINHEIRO'), findsOneWidget);
-    expect(find.textContaining('7.50'), findsOneWidget);
+    // M10 2.14 iii (09/11/2026): formato de Portugal — "7,50 €", nunca "€7.50".
+    expect(find.textContaining('7,50 €'), findsOneWidget);
+    expect(find.textContaining('7.50'), findsNothing);
   });
 
   testWidgets('paidOnline mostra "não cobrar" (sem valor)', (tester) async {

@@ -274,4 +274,41 @@ void main() {
       expect(selo - guarda, lessThan(600));
     });
   });
+
+  // ── 2.14 iii — preços do estafeta e do parceiro em "2,50 €" ──────────────
+  group('M10 2.14 iii — preços no formato de Portugal (estafeta e parceiro)',
+      () {
+    const ficheiros = [
+      'lib/screens/driver_home_screen.dart',
+      'lib/screens/ganhos_screen.dart',
+      'lib/screens/partner_call_driver_screen.dart',
+      'lib/screens/partner_earnings_screen.dart',
+      'lib/screens/partner/reservations/partner_reservations_screen.dart',
+      'lib/screens/partner/services/partner_agenda_screen.dart',
+      'lib/screens/partner/services/partner_appointments_finance_screen.dart',
+      'lib/widgets/driver_order_overlay.dart',
+      'lib/widgets/payments/collect_badge.dart',
+    ];
+    // "€9.65" e "9.65 €": o número com ponto, sem o replaceAll da vírgula.
+    final euroAntes = RegExp(r'€\$\{[^}]*toStringAsFixed\(2\)\}');
+    final euroDepois = RegExp(r'toStringAsFixed\(2\)\}\s*€');
+
+    for (final f in ficheiros) {
+      test('$f: nenhum preço com ponto e usa o eur()', () {
+        final s = _ler(f);
+        expect(euroAntes.allMatches(s).map((m) => m.group(0)).toList(), isEmpty);
+        expect(euroDepois.allMatches(s).map((m) => m.group(0)).toList(),
+            isEmpty);
+        expect(s, contains('utils/euros.dart'));
+      });
+    }
+
+    test('driver_home: dívida, sacos e balcão com o mesmo helper', () {
+      final s = _ler('lib/screens/driver_home_screen.dart');
+      expect(s, contains("'↳ inclui \${eurCents(order.debtCollectedCents)} de dívida anterior'"));
+      expect(s, contains(r"× ${eur(0.10)} = ${eur(bagFee)}"));
+      expect(s, isNot(contains('€0.10')));
+      expect(s, contains(r"'Pagar ao balcão: ${eur(order.items"));
+    });
+  });
 }

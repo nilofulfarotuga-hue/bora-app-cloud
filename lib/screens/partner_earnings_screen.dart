@@ -12,6 +12,9 @@ import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/partner_monthly_statement_card.dart';
 import '../utils/hora_lisboa.dart';
+// M10 2.14 iii (09/11/2026): preços no formato de Portugal ("2,50 €"),
+// só a forma de mostrar — os valores são os mesmos.
+import '../utils/euros.dart' as euros;
 
 enum _Period { today, week, month }
 
@@ -759,7 +762,7 @@ class _ReservationsSection extends StatelessWidget {
   final int pendingCents;
   final String periodLabel;
 
-  String _euros(int cents) => '€${(cents / 100.0).toStringAsFixed(2)}';
+  String _euros(int cents) => euros.eurCents(cents);
 
   String _label(int n, String singular, String plural) =>
       n == 1 ? '1 $singular' : '$n $plural';
@@ -1116,7 +1119,7 @@ class _WeeklyCloseoutSection extends StatelessWidget {
     return '${pad(d.day)}/${pad(d.month)}/${d.year}';
   }
 
-  String _eur(num? v) => '€${(v ?? 0).toDouble().abs().toStringAsFixed(2)}';
+  String _eur(num? v) => euros.eur((v ?? 0).toDouble().abs());
 
   String _statusLabel(String? s) => switch (s) {
         'pending' => 'Aberto',

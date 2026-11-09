@@ -10,11 +10,11 @@ estado: atual
 
 # Continuação de filme-animacao a partir da 3.ª reprovação (31/08) — estado da produção v3 do Ep1 "A Semente da Luz", prompts entregues e o que trava; ler junto com filme-animacao (parte 1 de 2 — continua em livro-areas-filme-animacao-v3-parte2…)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-filme-animacao-v3`, origem `claude-ai`, atualizada em 2026-11-09T22:15:21.059258+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-filme-animacao-v3`, origem `claude-ai`, atualizada em 2026-11-09T23:13:56.308738+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas filme animacao v3 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/filme-animacao-v3.md, parte 1 de 2), copiada a 09/11/2026 22:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/filme-animacao-v3.md, parte 1 de 2), copiada a 09/11/2026 23:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: filme-animacao-v3

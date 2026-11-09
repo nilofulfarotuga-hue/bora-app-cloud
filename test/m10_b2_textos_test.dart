@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:bora_app/models/restaurant_model.dart';
 import 'package:bora_app/screens/prestador/como_o_bora_decide_screen.dart';
 import 'package:bora_app/services/app_update_service.dart';
 import 'package:bora_app/services/tvde_visibilidade.dart';
@@ -229,6 +230,48 @@ void main() {
       expect(s, contains("isIos ? '_ios' : ''"));
       // Só um sítio chama o limite: o aviso opcional.
       expect('reservarAvisoOpcional()'.allMatches(check), hasLength(1));
+    });
+  });
+
+  // ── 2.13 — selo "Frescura garantida" fora da Mercadona de beleza ──────────
+  group('M10 2.13 — selo "Frescura garantida"', () {
+    RestaurantModel loja(String id, String nome) => RestaurantModel(
+          id: id,
+          name: nome,
+          phone: '',
+          address: '',
+          email: '',
+          photoUrl: '',
+          cuisineType: '',
+          isPartner: false,
+          category: BusinessCategory.supermarket,
+        );
+
+    test('linha real (SQL 09/11/2026): Mercadona · Beleza e Higiene não mostra',
+        () {
+      expect(
+          loja('mercadona-guarda', 'Mercadona · Beleza e Higiene')
+              .podeAnunciarFrescura,
+          isFalse);
+    });
+
+    test('critério pelo nome, não pelo id: a Mercadona reaberta com frescos '
+        'volta a mostrar', () {
+      // Página mercadona-reabrir-loja: se a loja voltar a ser supermercado
+      // completo, muda o nome e o selo volta sozinho. Uma lista de ids
+      // escondia-o para sempre.
+      expect(loja('mercadona-guarda', 'Mercadona').podeAnunciarFrescura,
+          isTrue);
+    });
+
+    test('o ecrã da loja só desenha o selo debaixo da regra do modelo', () {
+      final s = _ler('lib/widgets/market/market_store_tab.dart');
+      expect("'Frescura garantida'".allMatches(s), hasLength(1));
+      final guarda = s.indexOf('if (restaurant.podeAnunciarFrescura)');
+      final selo = s.indexOf("'Frescura garantida'");
+      expect(guarda, isNonNegative);
+      expect(selo, greaterThan(guarda));
+      expect(selo - guarda, lessThan(600));
     });
   });
 }

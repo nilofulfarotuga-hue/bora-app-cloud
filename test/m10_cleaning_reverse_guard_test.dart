@@ -9,7 +9,9 @@ void main() {
     final src = File('supabase/functions/cleaning-checkout/index.ts').readAsStringSync();
     final reverse = src.indexOf("if (action === 'reverse')");
     final trava = src.indexOf("booking.cancel_reason === 'serie_terminada'");
-    final stripe = src.indexOf('stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id)');
+    // O mesmo retrieve existe noutra ação mais acima: procura-se o do reverse, a partir dele.
+    final stripe = src.indexOf(
+        'stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id)', reverse);
     expect(reverse, greaterThan(0));
     expect(trava, greaterThan(reverse), reason: 'a trava vive dentro do reverse');
     expect(stripe, greaterThan(trava), reason: 'a trava vem antes de qualquer chamada à Stripe');

@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'package:image_picker/image_picker.dart';
 
 import '../utils/safe_image_picker.dart';
+import '../utils/euros.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/talao_pendente_service.dart';
@@ -1835,6 +1836,19 @@ class _BottomPanelState extends State<_BottomPanel> {
                   SubstituicaoLinhaEstafeta(
                       preferencia: focusOrder.substitutionPreference),
 
+                // M10 09/11/2026: Favor com compra — o NIF para a fatura à vista
+                // enquanto vai à loja e compra, até fechar o talão (o servidor
+                // decide se aparece; a caixa de resposta está na folha do Favor).
+                if (focusOrder.serviceType == OrderServiceType.errand &&
+                    focusOrder.errandHasPurchase &&
+                    !focusOrder.isPurchaseFinalized) ...[
+                  const SizedBox(height: 8),
+                  DriverInvoiceNifCard(
+                    key: ValueKey('nif_favor_${focusOrder.id}'),
+                    orderId: focusOrder.id,
+                  ),
+                ],
+
                 const SizedBox(height: 16),
                 const Divider(height: 1),
                 const SizedBox(height: 14),
@@ -1852,7 +1866,7 @@ class _BottomPanelState extends State<_BottomPanel> {
                       // se cobra em dinheiro vai à parte, em "Receber" (com
                       // saldo/tokens o cash_total_due é menor que o total).
                       value:
-                          '€${(focusOrder.finalTotal ?? focusOrder.total).toStringAsFixed(2)}',
+                          eur(focusOrder.finalTotal ?? focusOrder.total),
                     ),
                     // Favor: só no passo da entrega e sem o dinheiro de casa
                     // (as mesmas regras da faixa laranja, abaixo).
@@ -1864,14 +1878,14 @@ class _BottomPanelState extends State<_BottomPanel> {
                         icon: Icons.payments_outlined,
                         label: 'Receber',
                         value:
-                            '€${focusOrder.totalToCollectCash.toStringAsFixed(2)}',
+                            eur(focusOrder.totalToCollectCash),
                         valueColor: Colors.orange.shade900,
                       ),
                     _InfoItem(
                       icon: Icons.payments_outlined,
                       label: 'Ganhos',
                       value:
-                          '+€${focusOrder.driverEarnings.toStringAsFixed(2)}',
+                          '+${eur(focusOrder.driverEarnings)}',
                       valueColor: Colors.green.shade700,
                     ),
                     _InfoItem(
@@ -2693,7 +2707,7 @@ class _SummaryRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: style),
-          Text('€${value.toStringAsFixed(2)}', style: style),
+          Text(eur(value), style: style),
         ],
       ),
     );
@@ -2732,7 +2746,7 @@ class _FinalizedBanner extends StatelessWidget {
               color: Colors.green.shade700, size: 18),
           const SizedBox(width: 8),
           Text(
-            'Compra finalizada: €${finalTotal.toStringAsFixed(2)}',
+            'Compra finalizada: ${eur(finalTotal)}',
             style: TextStyle(
               color: Colors.green.shade700,
               fontWeight: FontWeight.w600,
@@ -2776,11 +2790,11 @@ class CashCollectBanner extends StatelessWidget {
       // Fluxo "parceiro chama estafeta": o estafeta JÁ pagou o mesmo valor
       // ao parceiro na recolha — agora recebe-o do cliente. Empate.
       mainText =
-          'RECEBER €${amount.toStringAsFixed(2)} DO CLIENTE EM DINHEIRO';
+          'RECEBER ${eur(amount)} DO CLIENTE EM DINHEIRO';
     } else if (isPartner) {
-      mainText = 'RECEBER €${amount.toStringAsFixed(2)} — entregar ao parceiro';
+      mainText = 'RECEBER ${eur(amount)} — entregar ao parceiro';
     } else {
-      mainText = 'RECEBER €${amount.toStringAsFixed(2)} EM DINHEIRO';
+      mainText = 'RECEBER ${eur(amount)} EM DINHEIRO';
     }
 
     return Container(
@@ -2818,7 +2832,7 @@ class CashCollectBanner extends StatelessWidget {
                 if (hasDebt) ...[
                   const SizedBox(height: 4),
                   Text(
-                    'inclui +€${debtEur.toStringAsFixed(2)} de dívida anterior',
+                    'inclui +${eur(debtEur)} de dívida anterior',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
@@ -2876,7 +2890,7 @@ class _PartnerSelfDispatchPickupBanner extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'PAGAR €${amount.toStringAsFixed(2)} AO ESTABELECIMENTO',
+                  'PAGAR ${eur(amount)} AO ESTABELECIMENTO',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -2925,7 +2939,7 @@ class _ApartmentDeliveryBanner extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Entrega em apartamento — bónus +€1 para o estafeta',
+              'Entrega em apartamento — bónus +1 € para o estafeta',
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: Colors.orange.shade800,
@@ -3533,7 +3547,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                           padding:
                                               const EdgeInsets.only(top: 2),
                                           child: Text(
-                                            '${item.quantity} × €${(_isExtraItem(item) ? item.price : (item.basePrice ?? item.price)).toStringAsFixed(2)}',
+                                            '${item.quantity} × ${eur(_isExtraItem(item) ? item.price : (item.basePrice ?? item.price))}',
                                             style: TextStyle(
                                               fontSize: 12,
                                               color: Colors.grey.shade600,
@@ -3621,7 +3635,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                       ? _ajustesPeso[item.productId]
                                       : null;
                                   final preco = Text(
-                                    '€${(ajuste != null ? ajuste.realCaixaCents / 100.0 : caixa).toStringAsFixed(2)}',
+                                    eur(ajuste != null ? ajuste.realCaixaCents / 100.0 : caixa),
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 14,
@@ -3665,7 +3679,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                           ),
                                           if (ajuste != null)
                                             Text(
-                                              '€${(ajuste.estimadoCaixaCents / 100.0).toStringAsFixed(2)}',
+                                              eur(ajuste.estimadoCaixaCents / 100.0),
                                               style: TextStyle(
                                                 fontSize: 11,
                                                 color: Colors.grey.shade600,
@@ -3808,7 +3822,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                   ),
                                 ),
                                 Text(
-                                  '€0.30 (fixo)',
+                                  '0,30 € (fixo)',
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: Colors.grey,
@@ -3818,7 +3832,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                             ),
                           ),
                           Text(
-                            '€${BRBags.RESTAURANT_BAG_FEE.toStringAsFixed(2)}',
+                            eur(BRBags.RESTAURANT_BAG_FEE),
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 14,
@@ -3842,7 +3856,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                   ),
                                 ),
                                 Text(
-                                  '(€${BRBags.MARKET_BAG_FEE.toStringAsFixed(2)} por saco)',
+                                  '(${eur(BRBags.MARKET_BAG_FEE)} por saco)',
                                   style: const TextStyle(
                                     fontSize: 11,
                                     color: Colors.grey,
@@ -3884,7 +3898,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            '€${_bagFee.toStringAsFixed(2)}',
+                            eur(_bagFee),
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 14,
@@ -3922,7 +3936,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                     ),
                   ),
                   Text(
-                    '€${adjustedTotal.toStringAsFixed(2)}',
+                    eur(adjustedTotal),
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
@@ -3980,7 +3994,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                         ),
                       ),
                       Text(
-                        '€${cashTotal.toStringAsFixed(2)}',
+                        eur(cashTotal),
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 17,
@@ -4415,12 +4429,20 @@ Future<(File, int)?> _captureReceiptForV2(
 /// de widget (28/10/2026): os avisos aparecem DENTRO dela.
 @visibleForTesting
 class ReceiptCaptureSheet extends StatefulWidget {
-  const ReceiptCaptureSheet({super.key, required this.isCash, this.orderId});
+  const ReceiptCaptureSheet({
+    super.key,
+    required this.isCash,
+    this.orderId,
+    this.nifRpc,
+  });
   final bool isCash;
 
   /// M1 08/11/2026: com o pedido, mostra o NIF da fatura (loja não-parceira).
   /// Sem ele (teste de widget) não chama o servidor.
   final String? orderId;
+
+  /// Só para testes: lê o NIF sem o Supabase.
+  final NifRpc? nifRpc;
 
   @override
   State<ReceiptCaptureSheet> createState() => _ReceiptCaptureSheetState();
@@ -4437,11 +4459,17 @@ class _ReceiptCaptureSheetState extends State<ReceiptCaptureSheet> {
   String? _erroValor;
   String? _aviso;
 
+  /// M10 09/11/2026: a caixa "Dei este NIF na caixa" (ou "Não consegui" com
+  /// motivo) tem de ter resposta antes do "Confirmar" — só quando o servidor
+  /// manda mostrar o NIF; sem rede ou loja parceira não trava nada.
+  final _nifCaixa = NifCaixaController();
+
   @override
   void initState() {
     super.initState();
     // BUG I — rebuild on total text change para enable/disable Confirmar
     _totalCtrl.addListener(_onTotalChanged);
+    _nifCaixa.addListener(_onTotalChanged);
     // F4 (2026-08-16, caso real do Valdemir): o Android pode MATAR o processo
     // enquanto a câmara está aberta ("o aplicativo falhou, reiniciou e
     // desligou") — a foto NÃO se perde: o SO devolve-a no arranque seguinte
@@ -4470,11 +4498,16 @@ class _ReceiptCaptureSheetState extends State<ReceiptCaptureSheet> {
   void dispose() {
     _totalCtrl.removeListener(_onTotalChanged);
     _totalCtrl.dispose();
+    _nifCaixa.removeListener(_onTotalChanged);
+    _nifCaixa.dispose();
     super.dispose();
   }
 
   bool get _canSubmit =>
-      !_submitting && _photo != null && _totalCtrl.text.trim().isNotEmpty;
+      !_submitting &&
+      _photo != null &&
+      _totalCtrl.text.trim().isNotEmpty &&
+      !_nifCaixa.porResponder;
 
   Future<void> _takePhoto() async {
     try {
@@ -4512,6 +4545,16 @@ class _ReceiptCaptureSheetState extends State<ReceiptCaptureSheet> {
     if (_photo == null) {
       setState(() => _aviso = 'Tira a foto (talão, conta ou saco) primeiro.');
       return;
+    }
+    if (_nifCaixa.porResponder) {
+      setState(() => _aviso = kAvisoNifPorResponder);
+      return;
+    }
+    // M10: a resposta do NIF sobe em segundo plano (3 tentativas); o talão
+    // segue já, com ou sem rede.
+    final nif = _nifCaixa.resposta;
+    if (widget.orderId != null && _nifCaixa.aplica && nif != null) {
+      NifCaixaEnvio.emSegundoPlano(widget.orderId!, nif);
     }
     setState(() => _submitting = true);
     Navigator.of(context).pop<(File, int)>((_photo!, cents));
@@ -4572,7 +4615,11 @@ class _ReceiptCaptureSheetState extends State<ReceiptCaptureSheet> {
             ),
             if (widget.orderId != null) ...[
               const SizedBox(height: 12),
-              DriverInvoiceNifCard(orderId: widget.orderId!),
+              DriverInvoiceNifCard(
+                orderId: widget.orderId!,
+                caixa: _nifCaixa,
+                rpc: widget.nifRpc,
+              ),
             ],
             const SizedBox(height: 16),
             GestureDetector(
@@ -4663,7 +4710,9 @@ class _ReceiptCaptureSheetState extends State<ReceiptCaptureSheet> {
                 child: Text(
                   _photo == null
                       ? 'Tira a foto (talão, conta ou saco) para continuar'
-                      : 'Escreve o valor que pagaste de facto',
+                      : _totalCtrl.text.trim().isEmpty
+                          ? 'Escreve o valor que pagaste de facto'
+                          : kAvisoNifPorResponder,
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey.shade600,

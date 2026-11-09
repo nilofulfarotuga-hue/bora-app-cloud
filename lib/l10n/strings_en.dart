@@ -1500,6 +1500,13 @@ const Map<String, String> kStringsEn = <String, String>{
       'Add photo',
   'Continuar sem foto':
       'Continue without photo',
+  // M10 b2-nif (09/11/2026): Favor de farmácia exige a foto da receita.
+  'Falta a foto da receita':
+      'Prescription photo missing',
+  'Na farmácia o estafeta só consegue comprar o medicamento com a receita. Tira uma foto ao SMS ou ao guia da receita (com o Número da receita e o Código de acesso e dispensa) e junta-a ao pedido. Se o estafeta vai buscar a receita em papel a tua casa, liga a paragem em tua casa e escolhe "Receita médica".':
+      'At the pharmacy the courier can only buy the medicine with the prescription. Take a photo of the SMS or the prescription guide (with the Prescription number and the Access and dispensing code) and attach it to the order. If the courier is picking up a paper prescription at your place, turn on the stop at your place and choose "Prescription".',
+  'Juntar foto da receita':
+      'Add prescription photo',
   'A foto que enviaste':
       'The photo you sent',
   'Dois toques para voltar ao tamanho normal':

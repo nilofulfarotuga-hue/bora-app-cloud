@@ -9,6 +9,7 @@
 //   preencher_produtos    → { lote?, prazo_ms?, depois?, antes? } gte dos produtos que faltam (retoma sozinho)
 //   preencher_manual      → { lote?, prazo_ms? } gte dos trechos do manual que faltam
 //   gemini_novos          → { limite?, dias? } produtos novos também no Gemini (a reserva)
+//   gemini_atrasados      → { limite? ≤ 800 } produtos de qualquer idade ainda sem Gemini (m11, 09/11)
 //   manter                → o que o cron chama (de 2 em 2 min): gte dos produtos e do manual que faltam
 //                           (com { gemini: true } faz também o Gemini dos novos; esse tem cron horário)
 //   avaliar_vetores       → { ids[] } prova de qualidade: guarda o vetor de cada pergunta nos dois motores
@@ -165,6 +166,41 @@ async function geminiNovos(admin: Json, b: Json) {
   return { encontrados: linhas.length, gravados, erro };
 }
 
+// ─── Gemini dos produtos ANTIGOS que ficaram sem vetor (m11, 09/11/2026) ─────
+// A pesquisa das lojas usa o gte (todos os produtos à venda já o têm). O Gemini é a
+// reserva do assistente: a 09/11 só 929 de 48 271 produtos à venda o tinham. Esta ação
+// enche-os aos poucos, em lotes de 100 (batchEmbedContents), parando no primeiro erro
+// (ex.: 429 da quota grátis, ~900 textos por dia medido a 03/11). Para correr 1 vez
+// por dia com limite 800: ~60 dias para os 47 342 que faltam, custo 0 € (só a chave
+// GEMINI_API_KEY que já está nos segredos). Lista: RPC pesquisa_produtos_sem_gemini.
+async function geminiAtrasados(admin: Json, b: Json) {
+  const limite = limitar(b.limite, 1, 800, 100);
+  if (!CHAVE_GEMINI) return { gravados: 0, nota: 'sem chave Gemini' };
+  let gravados = 0;
+  let encontrados = 0;
+  let erro: string | null = null;
+  while (gravados < limite && !erro) {
+    const { data, error } = await admin.rpc('pesquisa_produtos_sem_gemini', { p_limit: Math.min(100, limite - gravados) });
+    if (error) throw new Error(`lista: ${error.message}`);
+    const parte = (data ?? []) as Json[];
+    if (parte.length === 0) break;
+    encontrados += parte.length;
+    try {
+      const vs = await vetoresGeminiLote(parte.map((r) => String(r.texto ?? r.id)), CHAVE_GEMINI, 'RETRIEVAL_DOCUMENT');
+      const { data: n, error: e2 } = await admin.rpc('assistant_set_embeddings', {
+        p_rows: parte.map((r, k) => ({ id: r.id, e: lit(vs[k]), m: 'gemini-embedding-001' })),
+      });
+      if (e2) throw new Error(e2.message);
+      const feitos = Number(n ?? 0);
+      gravados += feitos;
+      if (feitos === 0) break; // nada gravado: não insistir no mesmo lote
+    } catch (e) {
+      erro = (e as Error).message.slice(0, 200);
+    }
+  }
+  return { encontrados, gravados, erro };
+}
+
 // ─── Prova de qualidade ─────────────────────────────────────────────────────
 async function lerPerguntas(admin: Json, ids: string[]) {
   const { data, error } = await admin.from('eval_emb_perguntas_20261103').select('id, conjunto, pergunta').in('id', ids);
@@ -278,6 +314,7 @@ Deno.serve(async (req: Request) => {
       case 'preencher_produtos': out = await preencherProdutos(admin, b); break;
       case 'preencher_manual': out = await preencherManual(admin, b); break;
       case 'gemini_novos': out = await geminiNovos(admin, b); break;
+      case 'gemini_atrasados': out = await geminiAtrasados(admin, b); break;
       case 'manter': {
         // um orçamento de processador para os dois (ver preencherProdutos); o Gemini é só rede
         const produtos = await preencherProdutos(admin, { lote: 10, orcamento_ms: 1100 });

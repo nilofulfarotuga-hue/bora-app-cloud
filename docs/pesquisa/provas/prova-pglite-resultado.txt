@@ -1,0 +1,83 @@
+OK    migração aplicada (vez 1)
+OK    migração aplicada (vez 2)
+OK    semente de sinónimos carregada uma só vez (246 linhas, 2.ª corrida não duplica)
+OK    anon pode executar public.search_products(text,text,integer)
+OK    anon pode executar public.cliente_pesquisar(text,integer)
+OK    anon pode executar public.pesquisa_produtos(text,text,integer,extensions.vector)
+OK    anon pode executar public.bora_normalize(text)
+OK    anon pode executar public.f_unaccent(text)
+OK    anon pode executar public.assistant_tokens(text)
+OK    anon pode executar public.assistant_singular(text)
+OK    anon pode executar public.pesquisa_registar_sem_resultado(text,text,text)
+OK    anon pode executar public.pesquisa_aprender_escolha(text,text,text)
+OK    anon NÃO pode executar public.admin_pesquisas_sem_resultado(integer)
+OK    anon NÃO pode executar public.admin_pesquisa_criar_sinonimo(text,text,text,text)
+OK    anon NÃO pode executar public.admin_pesquisa_sinonimo_ativo(bigint,boolean)
+OK    anon NÃO pode executar public.admin_pesquisa_sinonimos(text)
+OK    anon NÃO pode executar public.pesquisa_produtos_sem_gemini(integer)
+OK    anon não lê pesquisa_sem_resultado
+OK    anon lê os sinónimos (a pesquisa precisa)
+OK    SELECT equivalente = função para "gelado" @ mcdonalds-guarda (2 linhas)
+OK    SELECT equivalente = função para "paracetamol" @ wells-guarda (2 linhas)
+OK    SELECT equivalente = função para "pao" @ continente-guarda (2 linhas)
+OK    SELECT equivalente = função para "bolaxas" @ continente-guarda (2 linhas)
+OK    SELECT equivalente = função para "cocacola" @ mcdonalds-guarda (1 linhas)
+OK    SELECT equivalente = função para "nugets" @ mcdonalds-guarda (1 linhas)
+OK    SELECT equivalente = função para "batatas fritas" @ mcdonalds-guarda (2 linhas)
+OK    SELECT equivalente = função para "papel higenico" @ continente-guarda (1 linhas)
+OK    SELECT equivalente = função para "gelado" @ lupa (4 linhas)
+OK    SELECT equivalente = função para "rimel" @ wells-guarda (1 linhas)
+OK    SELECT equivalente = função para "sobremesa" @ mcdonalds-guarda (3 linhas)
+OK    McDonald's "gelado" → McFlurry® Oreo® | Sundae Caramelo
+OK    McDonald's "gelado oreo" → McFlurry® Oreo®
+OK    McDonald's "batatas fritas" → Batata Pequena | Molho Batatas
+OK    McDonald's "cocacola" → Coca-Cola Pequena
+OK    McDonald's "refrigerante" → Coca-Cola Pequena | Fanta Laranja Zero Pequena
+OK    McDonald's "nugets" (erro) → 10 Chicken McNuggets®
+OK    McDonald's "bigmac" (colado) → Big Mac®
+OK    McDonald's "sobremesa" (categoria) → 3 produtos
+OK    Wells "paracetamol" → Paracetamol Wellsmed emb. 20 comprimidos | Ben-U-Ron 500mg emb. 20 comprimidos
+OK    Wells "benuron" → Ben-U-Ron 500mg emb. 20 comprimidos
+OK    Wells "rimel" → Máscara de Pestanas de Longa Duração
+OK    Wells "toalhetes" → Toalhitas 99% Água Baby Wells
+OK    Wells "shampo" → Champô Neutro
+OK    Wells "brufen" → Nurofen Comprimidos Ibuprofeno 400mg
+OK    Wells "protector solar" → Protetor Solar Corpo SPF50
+OK    Continente "pao" acha "Pão…" e "Pães…" → Pão de Forma Continente | Pães de Leite (6 un)
+OK    Continente "gelado" sem "Congelados" → Gelado Baunilha Continente
+OK    Continente "bolaxas" → Bolachas Maria Cuétara | Bola de Berlim
+OK    Continente "papel higenico" → Papel Higiénico Renova 12 rolos
+OK    Continente "leite meio gordo" → Leite Meio Gordo Mimosa 1L
+OK    Continente "iogurtes" → Iogurte Grego Natural
+OK    KFC "frango" → 2 Pedaços de Frango
+OK    KFC "gelado" → Sundae Chocolate
+OK    search_products devolve a secção "Sobremesas" → Sobremesas
+OK    termo sem nada → 0 produtos (a app mostra "Pede ao Amigo")
+OK    termo de 1 letra → 0 produtos
+OK    lupa "gelado" (só lojas aprovadas) → Gelado Baunilha Continente | McFlurry® Oreo® | Sundae Caramelo | Sundae Chocolate
+OK    lupa devolve os mesmos campos de antes (restaurant_name, coming_soon…)
+OK    ordem "hamburguer": exato > sinonimo
+OK    ordem "paracetamol": comeca > sinonimo
+OK    anon insere pesquisa sem resultado sem user_id
+OK    anon NÃO insere com user_id de outro (new row violates row-level security policy for table "pesqui)
+OK    anon NÃO lê as pesquisas sem resultado
+OK    RPC grava 1 vez e ignora a repetição (acentos/maiúsculas iguais)
+OK    cliente insere a SUA pesquisa
+OK    cliente NÃO insere em nome de outro
+OK    cliente (não admin) não vê nenhuma linha
+OK    cliente não abre o painel (admin_required)
+OK    "docinho" no McDonald's antes de aprender → 0
+OK    3 pessoas → sinónimo aprendido ([{"origem":"aprendido","vezes":3}])
+OK    "docinho" depois de aprender → Tarte de Maçã
+OK    a mesma pessoa 3 vezes NÃO cria sinónimo
+OK    painel lê 3 pesquisas, 3 termos
+OK    admin cria sinónimo pistacio→mcflurry ({"id":496,"ok":true})
+OK    criar o mesmo outra vez não rebenta (volta a ligar)
+OK    auditoria log_admin_action gravada (2)
+OK    lista de sinónimos filtra por termo
+OK    admin desliga o sinónimo
+OK    sinónimo desligado deixa de contar
+OK    pesquisas do termo continuam registadas
+OK    SELECT dos 60 casos corre (60 linhas, com tempo por caso)
+
+TUDO CERTO

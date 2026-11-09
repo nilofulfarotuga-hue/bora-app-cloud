@@ -1,0 +1,2 @@
+Resultado em produção (09/11/2026, só leitura): total=59475, diferentes=0
+(o normalizador rápido dá exatamente o mesmo que assistant_tokens(nome) em todos os produtos)

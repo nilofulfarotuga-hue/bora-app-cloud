@@ -1,0 +1,602 @@
+[
+ {
+  "grupo": "farmacia",
+  "id": "F01",
+  "loja": "wells-guarda",
+  "ms": "61.6",
+  "n": 2,
+  "pos_certo": null,
+  "termo": "paracetamol",
+  "top5": "Paracetamol Wellsmed emb. 20 comprimidos | Supofen Supositórios Paracetamol 125mg"
+ },
+ {
+  "grupo": "farmacia",
+  "id": "F02",
+  "loja": "wells-guarda",
+  "ms": "60.0",
+  "n": 0,
+  "pos_certo": null,
+  "termo": "benuron",
+  "top5": null
+ },
+ {
+  "grupo": "farmacia",
+  "id": "F03",
+  "loja": "wells-guarda",
+  "ms": "59.7",
+  "n": 0,
+  "pos_certo": null,
+  "termo": "brufen",
+  "top5": null
+ },
+ {
+  "grupo": "farmacia",
+  "id": "F04",
+  "loja": "wells-guarda",
+  "ms": "71.5",
+  "n": 2,
+  "pos_certo": 1,
+  "termo": "ibuprofeno",
+  "top5": "Ibuprofeno Wellsmed 200mg emb. 20 comprimidos | Nurofen Comprimidos Ibuprofeno 400mg"
+ },
+ {
+  "grupo": "farmacia",
+  "id": "F05",
+  "loja": "wells-guarda",
+  "ms": "69.6",
+  "n": 30,
+  "pos_certo": 1,
+  "termo": "champo",
+  "top5": "Champô Neutro | Champô Doux Ducray emb. 400 ml | Champô Klorane de Sidra, 400ml | CHAMPÔ KLORANE QUININA BIO 200ML | Champô Leite Aveia Klorane emb. 400 ml"
+ },
+ {
+  "grupo": "farmacia",
+  "id": "F06",
+  "loja": "wells-guarda",
+  "ms": "65.0",
+  "n": 6,
+  "pos_certo": 1,
+  "termo": "shampo",
+  "top5": "Dercos Ultra Apaisant Shampooing Secs | Shampoo Regenerador CICA Klorane, 400 ml | Ducray Kelual DS Shampoo de Cuidado Anticaspa 100ml | Dercos Ultra Apaisant Shampooing Normaux Gras | Ducray Kertyol "
+ },
+ {
+  "grupo": "farmacia",
+  "id": "F07",
+  "loja": "wells-guarda",
+  "ms": "67.5",
+  "n": 18,
+  "pos_certo": 1,
+  "termo": "protetor solar",
+  "top5": "Protetor Solar Corpo e Rosto Kids SPF50 | Protetor Solar Para Criança Bariésun SPF50 | Protetor Solar Spray Criança Bariésun SPF50 | Protetor Solar Lábios Nutritivo | Protetor Solar Sun Secure Brume S"
+ },
+ {
+  "grupo": "farmacia",
+  "id": "F08",
+  "loja": "wells-guarda",
+  "ms": "63.1",
+  "n": 0,
+  "pos_certo": null,
+  "termo": "protector solar",
+  "top5": null
+ },
+ {
+  "grupo": "farmacia",
+  "id": "F09",
+  "loja": "wells-guarda",
+  "ms": "69.0",
+  "n": 16,
+  "pos_certo": 1,
+  "termo": "pasta dentes",
+  "top5": "Pasta Dentes Protect Arthrodont emb. 75 ml | Pasta Dentes Placa Bacteriana e Gengicas Elgydium emb. 75 ml | Pasta de Dentes Repair & Protect | Pasta de Dentes Tratamento Gengivas | Pasta de Dentes Gen"
+ },
+ {
+  "grupo": "farmacia",
+  "id": "F10",
+  "loja": "wells-guarda",
+  "ms": "65.2",
+  "n": 10,
+  "pos_certo": 1,
+  "termo": "escova de dentes",
+  "top5": "Escova de Dentes Rosa +6 Meses | Escova de Dentes Elgydium Mono Clinic Azul | Escova de Dentes Clinic Sensitive Elgydium 1 un | Escova Dentes Dura Vitis 1 un | Escova Dentes Médio Vitis 1 un"
+ },
+ {
+  "grupo": "farmacia",
+  "id": "F11",
+  "loja": "wells-guarda",
+  "ms": "64.4",
+  "n": 8,
+  "pos_certo": 1,
+  "termo": "fraldas",
+  "top5": "Fraldas Musselina Baleias | Fraldas Eco e Pure T2 3-6KG | Fraldas Eco e Pure T4 9-15 KG | Fraldas Eco e Pure T5 13-18 KG | Fralda Musselina 0m+"
+ },
+ {
+  "grupo": "farmacia",
+  "id": "F12",
+  "loja": "wells-guarda",
+  "ms": "69.8",
+  "n": 12,
+  "pos_certo": 1,
+  "termo": "preservativos",
+  "top5": "Preservativos W XL | Preservativos W Regular | Preservativos W Experience | Preservativos W Extra Feel | Preservativos Finissimo Easyway Control 10 un"
+ },
+ {
+  "grupo": "farmacia",
+  "id": "F13",
+  "loja": "wells-guarda",
+  "ms": "63.0",
+  "n": 10,
+  "pos_certo": 1,
+  "termo": "termometro",
+  "top5": "Termómetro Banho Bebé Well's 1 un | Termómetro Digital Standard | Termómetro de Infravermelhos | Termómetro Digital Flexível | Termómetro Ouvido/Testa Beurer 1 un"
+ },
+ {
+  "grupo": "farmacia",
+  "id": "F14",
+  "loja": "wells-guarda",
+  "ms": "63.7",
+  "n": 7,
+  "pos_certo": 1,
+  "termo": "desodorizante",
+  "top5": "Desodorizante Clinical Control | Desodorizante Roll-On 0% Alumínio | Desodorizante sem Sais de Alumínio Uriage emb. 50 ml | Desodorizante Roll On Pele Sensível Homem Vichy emb. 50 ml | Uriage Desodori"
+ },
+ {
+  "grupo": "farmacia",
+  "id": "F15",
+  "loja": "wells-guarda",
+  "ms": "61.8",
+  "n": 0,
+  "pos_certo": null,
+  "termo": "rimel",
+  "top5": null
+ },
+ {
+  "grupo": "farmacia",
+  "id": "F16",
+  "loja": "wells-guarda",
+  "ms": "61.8",
+  "n": 0,
+  "pos_certo": null,
+  "termo": "elixir bucal",
+  "top5": null
+ },
+ {
+  "grupo": "farmacia",
+  "id": "F17",
+  "loja": "wells-guarda",
+  "ms": "60.5",
+  "n": 1,
+  "pos_certo": 1,
+  "termo": "xarope para a tosse",
+  "top5": "Xarope Tosse & Garganta"
+ },
+ {
+  "grupo": "farmacia",
+  "id": "F18",
+  "loja": "wells-guarda",
+  "ms": "62.1",
+  "n": 3,
+  "pos_certo": 1,
+  "termo": "dor de garganta",
+  "top5": "Strepfen Laranja sem Açúcar Dor de Garganta | Tantum Verde Pastilhas Dor de Garganta Limão | Homeogene 9 Dores Garganta emb. 60 comprimidos"
+ },
+ {
+  "grupo": "farmacia",
+  "id": "F19",
+  "loja": "wells-guarda",
+  "ms": "61.9",
+  "n": 3,
+  "pos_certo": 1,
+  "termo": "vitamina c",
+  "top5": "Redoxon Suplemento Vitamina C+Zinco 20 comprimidos | Suplemento Vitamina C Well's emb.20 comprimidos eferv. | PASTILHAS STREPSILS LARANJA COM VITAMINA C 24UN"
+ },
+ {
+  "grupo": "farmacia",
+  "id": "F20",
+  "loja": "wells-guarda",
+  "ms": "68.2",
+  "n": 2,
+  "pos_certo": null,
+  "termo": "toalhetes",
+  "top5": "Toalhetes Limpeza Lentes Óculos Well's emb. 10un | GEL LACTACYD INTÍMO HIGIENE INTÍMA 400ML +TOALHETE"
+ },
+ {
+  "grupo": "mercado",
+  "id": "M01",
+  "loja": "continente-guarda",
+  "ms": "394.8",
+  "n": 50,
+  "pos_certo": 1,
+  "termo": "pao",
+  "top5": "Pão de Deus (1 un) | Pão Bola de Mistura | Pão Ralado (emb. 300 gr) | Pão com Chouriço | Pão de Abóbora e Nozes"
+ },
+ {
+  "grupo": "mercado",
+  "id": "M02",
+  "loja": "continente-guarda",
+  "ms": "319.4",
+  "n": 0,
+  "pos_certo": null,
+  "termo": "cocacola",
+  "top5": null
+ },
+ {
+  "grupo": "mercado",
+  "id": "M03",
+  "loja": "continente-guarda",
+  "ms": "360.9",
+  "n": 50,
+  "pos_certo": 1,
+  "termo": "champo",
+  "top5": "Champô para Cão Animology | Champô Cabelo Oleoso Agrado | Champô Seco MyLabel (emb. 200 ml) | Champô Deep Nivea Men | Champô Seco Viagem MyLabel"
+ },
+ {
+  "grupo": "mercado",
+  "id": "M04",
+  "loja": "continente-guarda",
+  "ms": "316.4",
+  "n": 1,
+  "pos_certo": 1,
+  "termo": "shampoo",
+  "top5": "Shampoo Snow Foam Detailer Redex"
+ },
+ {
+  "grupo": "mercado",
+  "id": "M05",
+  "loja": "continente-guarda",
+  "ms": "320.9",
+  "n": 0,
+  "pos_certo": null,
+  "termo": "papel higenico",
+  "top5": null
+ },
+ {
+  "grupo": "mercado",
+  "id": "M06",
+  "loja": "continente-guarda",
+  "ms": "346.2",
+  "n": 19,
+  "pos_certo": 1,
+  "termo": "rolos de cozinha",
+  "top5": "Rolo de Cozinha Clássico Continente (4 rolos) | Rolo de Cozinha Adapt Colhogar (3 rolos = 4,5 rolos) | Rolo de Cozinha Design XXL Renova (3 rolo) | Rolo de Cozinha Love the Bee Foxy (1 rolo) | ROLO DE"
+ },
+ {
+  "grupo": "mercado",
+  "id": "M07",
+  "loja": "continente-guarda",
+  "ms": "420.3",
+  "n": 50,
+  "pos_certo": 2,
+  "termo": "refrigerante",
+  "top5": "Refrigerante Com Gás Ananás (emb. 33 cl) | Refrigerante Coca-Cola Pack 6X33cl | REFRIGERANTE COM GÁS SUMOL LARANJA 50CL | REFRIGERANTE COM GÁS SPRITE ZERO 50CL | Refrigerante com Gás Ananás Sumol (emb"
+ },
+ {
+  "grupo": "mercado",
+  "id": "M08",
+  "loja": "continente-guarda",
+  "ms": "428.9",
+  "n": 50,
+  "pos_certo": 1,
+  "termo": "iogurtes",
+  "top5": "Iogurte Magro Natural Pastoret | Iogurte Grego Mythos Natural Continente | IOGURTE GREGO YAOS NATURAL 850G | Iogurte Líquido Manga (emb. 160 gr) | Iogurte Cremoso Pedaços Cereja Glint"
+ },
+ {
+  "grupo": "mercado",
+  "id": "M09",
+  "loja": "continente-guarda",
+  "ms": "583.3",
+  "n": 50,
+  "pos_certo": 1,
+  "termo": "gelado",
+  "top5": "Gelado Laranjas Continente | Gelado Rol Olá (emb. 360 ml) | Gelado Nutella (emb. 470 ml) | Gelado Bueno Kinder | Gelado Manga Vegan O Gelado"
+ },
+ {
+  "grupo": "mercado",
+  "id": "M10",
+  "loja": "continente-guarda",
+  "ms": "354.0",
+  "n": 50,
+  "pos_certo": 1,
+  "termo": "leite meio gordo",
+  "top5": "Leite Meio Gordo Fresco Vigor (1 lt) | Leite Meio Gordo Bio Prado Verde (emb. 1 lt) | Leite Meio Gordo Fresco Vigor | Leite Meio Gordo Pastagem Açores Milhafre | Leite Meio Gordo Bio Prado Verde"
+ },
+ {
+  "grupo": "mercado",
+  "id": "M11",
+  "loja": "continente-guarda",
+  "ms": "344.6",
+  "n": 50,
+  "pos_certo": 1,
+  "termo": "batatas fritas",
+  "top5": "Batatas Fritas Palha Pála-Pála (emb. 365 gr) | Batatas Fritas com Cebola Caramelizada Continente (emb. 150 gr) | Batata Frita Originais Lays | Batata Frita Rodelas Pála-Pála (emb. 300 gr) | Batata Fri"
+ },
+ {
+  "grupo": "mercado",
+  "id": "M12",
+  "loja": "continente-guarda",
+  "ms": "326.9",
+  "n": 50,
+  "pos_certo": 1,
+  "termo": "fiambre",
+  "top5": "Fiambre da Perna Fatiado Nobre (emb. 100 gr) | Fiambre da Pá Fatias Finas Izidoro (emb. 150 gr) | Fiambre da Pá Fatias Clássicas Nobre (emb. 120 gr) | Fiambre da Perna Extra Fatiado Nobre (emb. 120 gr"
+ },
+ {
+  "grupo": "mercado",
+  "id": "M13",
+  "loja": "pingodoce-guarda",
+  "ms": "121.5",
+  "n": 44,
+  "pos_certo": 1,
+  "termo": "pao",
+  "top5": "Pão Padas 75G | Pão 8 Cereais 90g | Pão de Forma 360G | Pão Multigrãos 450G | Pão Hot Dog Bimbo 6Un"
+ },
+ {
+  "grupo": "mercado",
+  "id": "M14",
+  "loja": "pingodoce-guarda",
+  "ms": "108.3",
+  "n": 0,
+  "pos_certo": null,
+  "termo": "bolaxas",
+  "top5": null
+ },
+ {
+  "grupo": "mercado",
+  "id": "M15",
+  "loja": "pingodoce-guarda",
+  "ms": "114.5",
+  "n": 27,
+  "pos_certo": 1,
+  "termo": "detergente loica",
+  "top5": "Detergente Loiça Fairy Ultra Limão 820 | Detergente Loiça Maçã Super Pop 700ml | Detergente Loiça Manual Poder Limão Cif 1L | Detergente Loiça Fairy Ultra Regular 820 | Detergente Loiça Manual Clássic"
+ },
+ {
+  "grupo": "mercado",
+  "id": "M16",
+  "loja": "pingodoce-guarda",
+  "ms": "176.2",
+  "n": 49,
+  "pos_certo": 1,
+  "termo": "ovos",
+  "top5": "Ovos Moles 150G | Ovos de Codorniz Pingo Doce 12UN | Ovos de Solo Classe M Pingo Doce 6UN | Ovos de Ar Livre Classe M/L Matinados 12UN | Ovos de Solo Classe L Pingo Doce 6UN"
+ },
+ {
+  "grupo": "mercado",
+  "id": "M17",
+  "loja": "lidl-guarda",
+  "ms": "61.6",
+  "n": 12,
+  "pos_certo": 1,
+  "termo": "iogurtes",
+  "top5": "Iogurte Natural Pack 8 | Iogurte Natural Açucarado | Iogurte Líquido Morango Pack 8 | Iogurte Líquido Magro Morango Pack 4 | Iogurte Líquido Frutos Vermelhos Pack 8"
+ },
+ {
+  "grupo": "mercado",
+  "id": "M18",
+  "loja": "auchan-guarda",
+  "ms": "151.5",
+  "n": 30,
+  "pos_certo": 1,
+  "termo": "fraldas",
+  "top5": "FRALDAS AUCHAN BABY:T2 3-6KG 60UN | FRALDAS AUCHAN BABY:T1 2-5KG 22UN # | FRALDAS AUCHAN BABY:T3 4-9KG 50UN # | FRALDAS AUCHAN BABY:T4 7-18KG 45UN | FRALDAS AUCHAN BABY:T5 11-25KG 38UN"
+ },
+ {
+  "grupo": "mercado",
+  "id": "M19",
+  "loja": "intermarche-guarda",
+  "ms": "123.8",
+  "n": 12,
+  "pos_certo": 1,
+  "termo": "chourico",
+  "top5": "PorSi - Chouriço Carne Alentejo, 200 g | Veg In - Chouriço picante vegan, 200g | Pata Negra - Chouriço Porco Preto, 180 g | PorSi - Chouriço corrente, embalagem de 1kg | PorSi - Chouriço Extra Vinho R"
+ },
+ {
+  "grupo": "mercado",
+  "id": "M20",
+  "loja": "intermarche-guarda",
+  "ms": "168.5",
+  "n": 49,
+  "pos_certo": 1,
+  "termo": "azeite",
+  "top5": "PorSi  - Azeite, 3 l | Galeão - Atum Posta em Azeite, 110 g | PorSi  - Filetes de cavala em azeite | Vieira - Bolachas Maria Azeite, 150g | Bom Petisco  - Atum posta em azeite, 200g"
+ },
+ {
+  "grupo": "restaurante",
+  "id": "R01",
+  "loja": "mcdonalds-guarda",
+  "ms": "43.0",
+  "n": 0,
+  "pos_certo": null,
+  "termo": "gelado",
+  "top5": null
+ },
+ {
+  "grupo": "restaurante",
+  "id": "R02",
+  "loja": "mcdonalds-guarda",
+  "ms": "49.7",
+  "n": 2,
+  "pos_certo": 1,
+  "termo": "batatas",
+  "top5": "Batata Pequena | Molho Batatas"
+ },
+ {
+  "grupo": "restaurante",
+  "id": "R03",
+  "loja": "mcdonalds-guarda",
+  "ms": "43.7",
+  "n": 0,
+  "pos_certo": null,
+  "termo": "batatas fritas",
+  "top5": null
+ },
+ {
+  "grupo": "restaurante",
+  "id": "R04",
+  "loja": "mcdonalds-guarda",
+  "ms": "42.1",
+  "n": 0,
+  "pos_certo": null,
+  "termo": "cocacola",
+  "top5": null
+ },
+ {
+  "grupo": "restaurante",
+  "id": "R05",
+  "loja": "mcdonalds-guarda",
+  "ms": "41.9",
+  "n": 0,
+  "pos_certo": null,
+  "termo": "refrigerante",
+  "top5": null
+ },
+ {
+  "grupo": "restaurante",
+  "id": "R06",
+  "loja": "mcdonalds-guarda",
+  "ms": "42.5",
+  "n": 1,
+  "pos_certo": 1,
+  "termo": "hamburguer",
+  "top5": "Hamburguer"
+ },
+ {
+  "grupo": "restaurante",
+  "id": "R07",
+  "loja": "mcdonalds-guarda",
+  "ms": "42.0",
+  "n": 0,
+  "pos_certo": null,
+  "termo": "nugets",
+  "top5": null
+ },
+ {
+  "grupo": "restaurante",
+  "id": "R08",
+  "loja": "mcdonalds-guarda",
+  "ms": "44.5",
+  "n": 14,
+  "pos_certo": 1,
+  "termo": "sobremesa",
+  "top5": "Abacaxi | Fatias Maçã | Polpa Fruta | Sundae Natura | McFlurry® M&M's®"
+ },
+ {
+  "grupo": "restaurante",
+  "id": "R09",
+  "loja": "mcdonalds-guarda",
+  "ms": "41.5",
+  "n": 0,
+  "pos_certo": null,
+  "termo": "bigmac",
+  "top5": null
+ },
+ {
+  "grupo": "restaurante",
+  "id": "R10",
+  "loja": "mcdonalds-guarda",
+  "ms": "42.7",
+  "n": 0,
+  "pos_certo": null,
+  "termo": "gelado oreo",
+  "top5": null
+ },
+ {
+  "grupo": "restaurante",
+  "id": "R11",
+  "loja": "kfc-guarda",
+  "ms": "45.0",
+  "n": 4,
+  "pos_certo": 1,
+  "termo": "frango",
+  "top5": "2 Pedaços de Frango | Arroz | Bowl Arroz Ranchero | Menu Bowl Arroz Ranchero"
+ },
+ {
+  "grupo": "restaurante",
+  "id": "R12",
+  "loja": "kfc-guarda",
+  "ms": "44.4",
+  "n": 2,
+  "pos_certo": 1,
+  "termo": "batatas",
+  "top5": "Batata Grande Palitos | Super Batata"
+ },
+ {
+  "grupo": "restaurante",
+  "id": "R13",
+  "loja": "kfc-guarda",
+  "ms": "44.0",
+  "n": 0,
+  "pos_certo": null,
+  "termo": "gelado",
+  "top5": null
+ },
+ {
+  "grupo": "restaurante",
+  "id": "R14",
+  "loja": "kfc-guarda",
+  "ms": "51.6",
+  "n": 0,
+  "pos_certo": null,
+  "termo": "refrigerante",
+  "top5": null
+ },
+ {
+  "grupo": "restaurante",
+  "id": "R15",
+  "loja": "burgerking-guarda",
+  "ms": "49.2",
+  "n": 20,
+  "pos_certo": 1,
+  "termo": "hamburguer",
+  "top5": "Hambúrguer sem glúten | CBK | CBK | Whopper® | Whopper®"
+ },
+ {
+  "grupo": "restaurante",
+  "id": "R16",
+  "loja": "burgerking-guarda",
+  "ms": "44.5",
+  "n": 1,
+  "pos_certo": 1,
+  "termo": "batata frita",
+  "top5": "Bucket Batatas Fritas Clássicas"
+ },
+ {
+  "grupo": "restaurante",
+  "id": "R17",
+  "loja": "burgerking-guarda",
+  "ms": "44.0",
+  "n": 0,
+  "pos_certo": null,
+  "termo": "gelado",
+  "top5": null
+ },
+ {
+  "grupo": "restaurante",
+  "id": "R18",
+  "loja": "boom-burger-guarda",
+  "ms": "46.0",
+  "n": 15,
+  "pos_certo": 1,
+  "termo": "hamburguer",
+  "top5": "Boom! Camone | Boom! Burguesinha | Boom! Brie Fan | Boom! Clássico | Boom! Kamikaze"
+ },
+ {
+  "grupo": "restaurante",
+  "id": "R19",
+  "loja": "pordosol-guarda",
+  "ms": "44.9",
+  "n": 18,
+  "pos_certo": 1,
+  "termo": "kebab",
+  "top5": "Menu Prato Kebab | Menu Doner Kebab | Prato Kebab | Doner Kebab | Pizza Kebab (média 28 cm)"
+ },
+ {
+  "grupo": "restaurante",
+  "id": "R20",
+  "loja": "jyosmi-sushi-guarda",
+  "ms": "42.3",
+  "n": 2,
+  "pos_certo": 1,
+  "termo": "salmao",
+  "top5": "Poke de Salmão | Ceviche de Salmão"
+ }
+]

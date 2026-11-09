@@ -494,3 +494,9 @@ envio git passou nas sessões novas (a orquestradora, aberta antes, continuou co
   também não dá: o guardrail de git do PC só deixa enviar para `autonomous-night-2026-04-29`. O código ficou só no
   PC (worktree `bridge-cse_01HPEpVAGPaiWDPnrbGwZxmL`, ramo `zerar-2026-11-02`); publicar =
   `git push origin zerar-2026-11-02:autonomous-night-2026-04-29` corrido pelo Danilo ou numa sessão com licença.
+- **09/11/2026 ~21:00, missão `volta-deposito-kfc-2026-11-09` (depósito Volta)** — a bora-tranca recusou o `Write` de
+  `supabase/migrations/20261109220000_volta_deposito.sql` ("migration que toca tokens/wallet/pagamentos/ledger") e trata
+  SQL/DDL, deploy de Edge e push de produção como publicar (Claude.ai). Não contornado: a parte sem dinheiro ficou em
+  `supabase/migrations/20261109220000_volta_catalogo_e_talao.sql`, a de dinheiro como proposta em
+  `.claude/.ai/missoes/volta-deposito-kfc-2026-11-09/PARTE2-dinheiro-proposta.md`, tudo provado no PGlite (52/52);
+  enviado só o ramo `ai/2026-11-09-volta-deposito-kfc`, pedido de revisão bora-app-cloud#8 para o Claude.ai aplicar e publicar.

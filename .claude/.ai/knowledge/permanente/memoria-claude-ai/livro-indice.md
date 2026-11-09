@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-09T07:07:03.906885+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-09T08:37:03.1125+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-09 06:37 UTC. Páginas listadas: 576.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-09 08:16 UTC. Páginas listadas: 576.
 
 ## O que é o Bora
 
@@ -296,7 +296,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-bora-todo-dia — Check-in diário e "Bora Todo Dia" do Bora App — tokens por dia, marcos com prémios de parceiros (10/15/30 dias) e a regra de 29/10 de um pr… (2026-11-07)
 - livro-areas-buzz-conselho-modelos — Conselho de modelos (local e remoto), motores do plano Go, app Buzz e robôs Gemini do app — estado atual e regras (2026-10-23)
 - livro-areas-carteiro-e-juiz — Como o loop funciona hoje (carteiro, juiz, cadeia de motores, rotina de despertar) e as armadilhas provadas — ler ANTES de mandar mexer no… (2026-10-23)
-- livro-areas-casa-manutencao — Ideia do Danilo (29/10/2026) de uma categoria "Casa & Manutenção" / marido de aluguel no Bora App (eletricista, pladur, reparações) — o que… (2026-11-02)
+- livro-areas-casa-manutencao — Ideia do Danilo (29/10/2026) de uma categoria "Casa & Manutenção" / marido de aluguel no Bora App (eletricista, pladur, reparações) — o que… (2026-11-09)
 - livro-areas-catalogo-restaurantes-glovo — Regra do Danilo para o catálogo das cadeias não-parceiras (Burger King, McDonald's, KFC…) no Bora — espelhar o Glovo; ler antes de mexer em… (2026-10-23)
 - livro-areas-chamada-estafeta-rotacao — Regra do Danilo (10/10/2026) para a chamada de pedidos ao estafeta no Bora — toque que grita sempre e ordem de rotação/chamada forçada; ler… (2026-10-23)
 - livro-areas-conectores-claude-ai — Conectores MCP da Claude.ai do Danilo — estado, senhas, e a REGRA de verificar o conselho antes de responder (2026-10-23)

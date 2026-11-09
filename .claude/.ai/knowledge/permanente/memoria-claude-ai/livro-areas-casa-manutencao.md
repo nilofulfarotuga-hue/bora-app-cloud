@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-casa-manutencao
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-02
+ultima_confirmacao: 2026-11-09
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Ideia do Danilo (29/10/2026) de uma categoria "Casa & Manutenção" / marido de aluguel no Bora App (eletricista, pladur, reparações) — o que ele pediu antes de decidir; ler antes de propor ou montar essa categoria
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-casa-manutencao`, origem `claude-ai`, atualizada em 2026-11-02T15:54:06.614845+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-casa-manutencao`, origem `claude-ai`, atualizada em 2026-11-09T08:16:47.157568+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas casa manutencao · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/casa-manutencao.md), copiada a 02/11/2026 15:53 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/casa-manutencao.md), copiada a 09/11/2026 08:17 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: casa-manutencao
@@ -27,4 +27,4 @@ aliases: [marido de aluguel, manutenção de casas, categoria de serviços de ca
 - Ligação: o [[luan-pladur]] (pladur/obras) já tinha levado à ideia de uma área de obras no Bora a 04/10
 - [stated] 30/10 21:38: aprovou as 5 propostas ("1 2 3 4 5 eu aceito as suas sugestões") e quer montar já: fase 1 só ofícios sem título (montar móveis, pendurar, reparações pequenas, torneira, jardim, carrinha); comissão 15% só em serviço feito e 2 meses sem comissão aos 5 primeiros, cliente sem taxa; dinheiro até ao limite geral; telefone do cliente só depois de aceite e pago; ladrilho "Casa". Modelo: TaskRabbit (preço fixo) + Airtasker (orçamento com fotos, até 3 respostas), nunca pagar por contacto. PROMPT REGISTADO: página claude_ai_memoria `prompt-casa-manutencao-2026-10-30`, sessão nova "Categoria Casa & Manutenção no Bora" (session_01HPEpV9pGSbJhE24V5mLDaj, Remote Control bora-app-cloud, Opus 5.5, Automático), fluxo e2e_log casa-manutencao-2026-10-30. Estado: a correr; categoria nasce desligada, publica na semana seguinte
 - [stated] 02/11/2026: viu a Casa na web ainda mal acabada e mandou desligá-la por enquanto ("temos que deixar tudo certinho"). Antes de ligar quer: preço por hora OU preço total, à escolha do cliente, como na Limpeza; o que não tiver preço vai por pedido de orçamento; ícone em 3D estilo cartoon como as outras categorias. Quer ser ele o profissional aprovado da Casa por agora
-
+- [stated] 09/11/2026: autorizou os preços — 20 €/hora (fica assim), montagem de roupeiro 80 € ("muito barato" a 70); regra do material: o profissional leva só as ferramentas, o material é comprado pelo cliente e o cliente tem de certificar que tem tudo antes de pedir. Quer a Casa publicada já como novidade, com ícone 3D cartoon igual às outras categorias

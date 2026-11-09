@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-09T10:07:04.010078+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-09T11:07:03.400896+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-09 09:39 UTC. Páginas listadas: 577.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-09 11:00 UTC. Páginas listadas: 577.
 
 ## O que é o Bora
 
@@ -651,7 +651,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 41 páginas com título [PESSOAL] (vida do Danilo). Não se listam aqui nem vão para o espelho público nem para o LIVRO.md; só se leem quando a tarefa é dele, e nunca vão para motores grátis que treinam com o conteúdo.
 
-## Skills partilhadas (152 no repo + 10 só na VPS)
+## Skills partilhadas (152 no repo + 11 só na VPS)
 
 Fonte única: `.claude/skills/` do repo (o Hermes lê o espelho em `/opt/data/cortex-brain/.claude/skills`). Diferenças VPS ↔ repo: `/opt/data/livro/skills/DIFERENCA.md`.
 
@@ -811,6 +811,7 @@ Fonte única: `.claude/skills/` do repo (o Hermes lê o espelho em `/opt/data/co
 ### Criadas pelo Hermes, ainda fora do repo
 
 - hermes-buzz-platform-operation — Operar como sessão per-canal do Hermes dentro da plataforma Buzz (Nostr) — preflight do `buzz` CLI, padrões de menção/threading, disciplina de public…
+- hermes-facebook-registo-playwright — Criar conta no Facebook (r.php) com Playwright na VPS. Campos, armadilhas e o limite do reCAPTCHA. Usar quando o Danilo pedir para criar conta/pagina…
 - hermes-future-project-registration — Register approved future projects and ideas in persistent memory and cortex, handling memory-full situations by consolidating stale entries. Use when…
 - hermes-auto-configuracao — Como o Hermes Agent deve se auto-configurar e lidar com falhas de ferramentas, priorizando a autonomia e a entrega de resultados sem a necessidade de…
 - hermes-operacao-confiavel — Orientações para a auto-melhoria contínua, uso eficaz de ferramentas gratuitas e garantia de confiabilidade do Hermes.

@@ -71,6 +71,11 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
   // para ligar/desligar o "Confirmar compra".
   final _tetoCtrl = FavorTetoController();
 
+  // M10 09/11/2026 — caixa do NIF ("Dei este NIF na caixa" / "Não consegui"
+  // com motivo): sem resposta o "Confirmar compra" fica desligado. Só existe
+  // quando o servidor manda mostrar o NIF; sem rede não trava nada.
+  final _nifCaixa = NifCaixaController();
+
   @override
   void initState() {
     super.initState();
@@ -101,6 +106,7 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
   @override
   void dispose() {
     _tetoCtrl.dispose();
+    _nifCaixa.dispose();
     _cashReceivedCtrl.dispose();
     _talaoTotalCtrl.dispose();
     super.dispose();
@@ -291,6 +297,16 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
     }
   }
 
+  /// M10 09/11/2026: a resposta à caixa do NIF sobe em segundo plano (3
+  /// tentativas) e nunca trava; o fecho da compra é o de sempre.
+  Future<void> _confirmarCompraComNif() {
+    final nif = _nifCaixa.resposta;
+    if (_nifCaixa.aplica && nif != null) {
+      NifCaixaEnvio.emSegundoPlano(widget.order.id, nif);
+    }
+    return _finalizePurchase();
+  }
+
   Future<void> _markDelivered() async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -443,7 +459,7 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
         ],
         // M1 08/11/2026 — NIF da fatura (loja não-parceira; esconde-se sozinho).
         if (!o.isPartnerStore) ...[
-          DriverInvoiceNifCard(orderId: o.id),
+          DriverInvoiceNifCard(orderId: o.id, caixa: _nifCaixa),
           const SizedBox(height: 12),
         ],
         if (_receiptPhoto == null)
@@ -485,17 +501,20 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
         ),
         const SizedBox(height: 16),
         // M1 08/11: aprovação pendente de MB Way ou Favor a cancelar desligam
-        // o botão (o fecho da compra em si não muda).
+        // o botão (o fecho da compra em si não muda). M10 09/11: a caixa do
+        // NIF por responder também.
         ListenableBuilder(
-          listenable: Listenable.merge([_tetoCtrl, _talaoTotalCtrl]),
+          listenable:
+              Listenable.merge([_tetoCtrl, _talaoTotalCtrl, _nifCaixa]),
           builder: (context, _) {
-            final motivo = _tetoCtrl.motivoBloqueio(_talaoCents);
+            final motivo = _tetoCtrl.motivoBloqueio(_talaoCents) ??
+                _nifCaixa.motivoBloqueio;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 ElevatedButton(
                   onPressed:
-                      _busy || motivo != null ? null : _finalizePurchase,
+                      _busy || motivo != null ? null : _confirmarCompraComNif,
                   child: Text(_busy ? 'A enviar…' : 'Confirmar compra'),
                 ),
                 if (motivo != null) ...[

@@ -1835,6 +1835,19 @@ class _BottomPanelState extends State<_BottomPanel> {
                   SubstituicaoLinhaEstafeta(
                       preferencia: focusOrder.substitutionPreference),
 
+                // M10 09/11/2026: Favor com compra — o NIF para a fatura à vista
+                // enquanto vai à loja e compra, até fechar o talão (o servidor
+                // decide se aparece; a caixa de resposta está na folha do Favor).
+                if (focusOrder.serviceType == OrderServiceType.errand &&
+                    focusOrder.errandHasPurchase &&
+                    !focusOrder.isPurchaseFinalized) ...[
+                  const SizedBox(height: 8),
+                  DriverInvoiceNifCard(
+                    key: ValueKey('nif_favor_${focusOrder.id}'),
+                    orderId: focusOrder.id,
+                  ),
+                ],
+
                 const SizedBox(height: 16),
                 const Divider(height: 1),
                 const SizedBox(height: 14),
@@ -4415,12 +4428,20 @@ Future<(File, int)?> _captureReceiptForV2(
 /// de widget (28/10/2026): os avisos aparecem DENTRO dela.
 @visibleForTesting
 class ReceiptCaptureSheet extends StatefulWidget {
-  const ReceiptCaptureSheet({super.key, required this.isCash, this.orderId});
+  const ReceiptCaptureSheet({
+    super.key,
+    required this.isCash,
+    this.orderId,
+    this.nifRpc,
+  });
   final bool isCash;
 
   /// M1 08/11/2026: com o pedido, mostra o NIF da fatura (loja não-parceira).
   /// Sem ele (teste de widget) não chama o servidor.
   final String? orderId;
+
+  /// Só para testes: lê o NIF sem o Supabase.
+  final NifRpc? nifRpc;
 
   @override
   State<ReceiptCaptureSheet> createState() => _ReceiptCaptureSheetState();
@@ -4437,11 +4458,17 @@ class _ReceiptCaptureSheetState extends State<ReceiptCaptureSheet> {
   String? _erroValor;
   String? _aviso;
 
+  /// M10 09/11/2026: a caixa "Dei este NIF na caixa" (ou "Não consegui" com
+  /// motivo) tem de ter resposta antes do "Confirmar" — só quando o servidor
+  /// manda mostrar o NIF; sem rede ou loja parceira não trava nada.
+  final _nifCaixa = NifCaixaController();
+
   @override
   void initState() {
     super.initState();
     // BUG I — rebuild on total text change para enable/disable Confirmar
     _totalCtrl.addListener(_onTotalChanged);
+    _nifCaixa.addListener(_onTotalChanged);
     // F4 (2026-08-16, caso real do Valdemir): o Android pode MATAR o processo
     // enquanto a câmara está aberta ("o aplicativo falhou, reiniciou e
     // desligou") — a foto NÃO se perde: o SO devolve-a no arranque seguinte
@@ -4470,11 +4497,16 @@ class _ReceiptCaptureSheetState extends State<ReceiptCaptureSheet> {
   void dispose() {
     _totalCtrl.removeListener(_onTotalChanged);
     _totalCtrl.dispose();
+    _nifCaixa.removeListener(_onTotalChanged);
+    _nifCaixa.dispose();
     super.dispose();
   }
 
   bool get _canSubmit =>
-      !_submitting && _photo != null && _totalCtrl.text.trim().isNotEmpty;
+      !_submitting &&
+      _photo != null &&
+      _totalCtrl.text.trim().isNotEmpty &&
+      !_nifCaixa.porResponder;
 
   Future<void> _takePhoto() async {
     try {
@@ -4512,6 +4544,16 @@ class _ReceiptCaptureSheetState extends State<ReceiptCaptureSheet> {
     if (_photo == null) {
       setState(() => _aviso = 'Tira a foto (talão, conta ou saco) primeiro.');
       return;
+    }
+    if (_nifCaixa.porResponder) {
+      setState(() => _aviso = kAvisoNifPorResponder);
+      return;
+    }
+    // M10: a resposta do NIF sobe em segundo plano (3 tentativas); o talão
+    // segue já, com ou sem rede.
+    final nif = _nifCaixa.resposta;
+    if (widget.orderId != null && _nifCaixa.aplica && nif != null) {
+      NifCaixaEnvio.emSegundoPlano(widget.orderId!, nif);
     }
     setState(() => _submitting = true);
     Navigator.of(context).pop<(File, int)>((_photo!, cents));
@@ -4572,7 +4614,11 @@ class _ReceiptCaptureSheetState extends State<ReceiptCaptureSheet> {
             ),
             if (widget.orderId != null) ...[
               const SizedBox(height: 12),
-              DriverInvoiceNifCard(orderId: widget.orderId!),
+              DriverInvoiceNifCard(
+                orderId: widget.orderId!,
+                caixa: _nifCaixa,
+                rpc: widget.nifRpc,
+              ),
             ],
             const SizedBox(height: 16),
             GestureDetector(
@@ -4663,7 +4709,9 @@ class _ReceiptCaptureSheetState extends State<ReceiptCaptureSheet> {
                 child: Text(
                   _photo == null
                       ? 'Tira a foto (talão, conta ou saco) para continuar'
-                      : 'Escreve o valor que pagaste de facto',
+                      : _totalCtrl.text.trim().isEmpty
+                          ? 'Escreve o valor que pagaste de facto'
+                          : kAvisoNifPorResponder,
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.grey.shade600,

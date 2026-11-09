@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../config/app_colors.dart';
 
 import 'admin_order_edits_screen.dart';
+import 'admin_pesquisas_sem_resultado_screen.dart';
 import 'admin_ajustes_peso_screen.dart';
 import 'admin_favor_diferencas_screen.dart';
 import 'admin_porteiro_screen.dart';
@@ -1209,6 +1210,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.indigo,
       builder: () => const AdminSearchKpiScreen(),
       keywords: const ['guardados', 'mais', 'parceiros', 'personalizacao', 'pessoas', 'procuram'],
+    ),
+    // m11 (09/11/2026): o que os clientes procuraram e não acharam + sinônimos.
+    AdminMenuItem(
+      id: 'clientes_pesquisas_sem_resultado',
+      title: 'Pesquisas sem resultado',
+      subtitle: 'O que os clientes procuraram e não acharam, por loja; criar e desligar sinônimos da pesquisa',
+      icon: Icons.search_off,
+      color: Colors.indigo,
+      builder: () => const AdminPesquisasSemResultadoScreen(),
+      keywords: const ['pesquisa', 'busca', 'sinonimo', 'sinonimos', 'sem resultado', 'nao achou', 'procuram', 'lupa'],
     ),
     AdminMenuItem(
       id: 'clientes_filtros_de_descoberta',

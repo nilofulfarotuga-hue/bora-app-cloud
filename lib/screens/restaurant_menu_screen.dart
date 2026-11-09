@@ -16,6 +16,7 @@ import '../models/partner_product.dart';
 import '../models/restaurant_model.dart';
 import '../services/destaque_loja_service.dart';
 import '../services/order_eta_service.dart';
+import '../services/pesquisa_aprendizagem.dart';
 import '../services/pricing_service.dart';
 import '../services/promocoes_service.dart';
 import '../services/registo_pesquisa.dart';
@@ -23,7 +24,9 @@ import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/cart_feedback.dart';
+import '../utils/pesquisa_resultados.dart';
 import '../widgets/aviso_da_loja.dart';
+import '../widgets/pesquisa_sem_resultado.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/bora/maior_18.dart';
 import '../widgets/bora/banner_pausa_loja.dart';
@@ -130,6 +133,9 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
   Timer? _rpcDebounce;
   List<Map<String, dynamic>> _rpcRows = const [];
   bool _rpcLoading = false;
+  // m11 (09/11): última pesquisa respondida pelo servidor + carrinho que ensina.
+  String? _rpcQuery;
+  CartStore? _cart;
 
   // ── M-C (2026-06-10) — página Glovo: tabs sticky sincronizadas com scroll ──
   static const double _kSectionTabsHeight = 48;
@@ -150,6 +156,18 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
     DestaqueLojaService.instance.daLoja(widget.restaurantId).then((d) {
       if (mounted && d != null) setState(() => _destaque = d);
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _cart = context.read<CartStore>()..addListener(_aoMudarCarrinho);
+      _aoMudarCarrinho();
+    });
+  }
+
+  void _aoMudarCarrinho() {
+    final c = _cart;
+    if (c == null) return;
+    PesquisaAprendizagem.instance
+        .carrinhoMudou(c.items.map((i) => i.productId), c.vendorRestaurantId);
   }
 
   /// O produto em destaque, se estiver entre os disponíveis desta loja.
@@ -167,6 +185,8 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
 
   @override
   void dispose() {
+    _cart?.removeListener(_aoMudarCarrinho);
+    PesquisaAprendizagem.instance.sairDoEcra();
     _rpcDebounce?.cancel();
     _registo.dispose();
     _searchController.dispose();
@@ -205,18 +225,29 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
         },
       );
       if (!mounted) return;
+      final linhas = rows is List
+          ? List<Map<String, dynamic>>.from(
+              rows.whereType<Map<String, dynamic>>())
+          : const <Map<String, dynamic>>[];
+      // m11 (09/11): sempre pela ordem do servidor (exato > começa > … ).
+      final produtos = separarResultadosPesquisa(linhas).produtos;
       setState(() {
-        _rpcRows = rows is List
-            ? List<Map<String, dynamic>>.from(
-                rows.whereType<Map<String, dynamic>>())
-            : const [];
+        _rpcRows = produtos;
         _rpcLoading = false;
+        _rpcQuery = query;
       });
+      if (produtos.isEmpty) {
+        PesquisaAprendizagem.instance
+            .semResultado(query, restaurantId: widget.restaurantId);
+      } else {
+        PesquisaAprendizagem.instance.comResultado();
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _rpcRows = const [];
         _rpcLoading = false;
+        _rpcQuery = null;
       });
     }
   }
@@ -508,12 +539,15 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
                   : _rpcRows
                           .where((r) => (r['result_type'] ?? '') == 'product')
                           .isEmpty
-                      ? Center(
-                          child: Text(
-                            'Sem resultados para "{0}"'.trArgs([_searchQuery]),
-                            style: TextStyle(color: Colors.grey.shade500),
-                          ),
-                        )
+                      ? (_rpcQuery != null &&
+                              _rpcQuery == _searchQuery.trim() &&
+                              !_rpcLoading)
+                          // m11 (09/11): nunca beco sem saída.
+                          ? PesquisaSemResultado(
+                              termo: _searchQuery,
+                              loja: widget.restaurant.name,
+                            )
+                          : const SizedBox.shrink()
                       : ListView.builder(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           itemCount: _rpcRows

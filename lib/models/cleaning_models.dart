@@ -142,7 +142,8 @@ class SerieLimpezaACancelar {
 
 /// O que "Parar a série toda" vai fazer (02/11/2026, zerar B2): as limpezas
 /// fora das 24 h são canceladas como uma limpeza só, e as já pagas voltam
-/// (total menos a taxa, que fora das 24 h é zero) ao cartão/MB Way usado.
+/// (total menos a taxa, que fora das 24 h é zero) à CARTEIRA BORA — desde
+/// 09/11/2026 (M10 b2, ordem do Danilo de 08/11); antes era ao cartão/MB Way.
 /// Sem leitura vale [vazia] — o ecrã não promete valores que não leu.
 class SeriePrevisao {
   const SeriePrevisao({this.limpezas = const [], this.devolveCents = 0});

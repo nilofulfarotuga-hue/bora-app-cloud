@@ -574,6 +574,7 @@ class _BookingCard extends StatelessWidget {
               cancelFeeCents: data['cancel_fee_cents'],
               paymentStatus: data['payment_status'] as String?,
               totalCents: data['total_cents'],
+              cancelReason: data['cancel_reason'] as String?,
             ),
             const SizedBox(height: 8),
             Align(
@@ -674,6 +675,28 @@ class _PagamentoLinha extends StatelessWidget {
   }
 }
 
+/// Rótulo da linha do dinheiro que volta ao cliente no rastro do pagamento
+/// (painel, PT-BR). `null` = não há nada a devolver.
+///
+/// M10 b2 (09/11/2026, ordem do Danilo de 08/11): "Parar a série" devolve à
+/// Carteira Bora — o servidor credita na hora (`cancel_cleaning_series` →
+/// `wallet_credit_refund_split`, transação `refund_credit_free` com o id da
+/// limpeza, visível no painel em Wallets > transações do cliente). Não há estorno na
+/// Stripe nesse caso.
+String? rotuloDevolucaoLimpeza({
+  required String? cancelReason,
+  required String? paymentStatus,
+  required int taxaCents,
+}) {
+  if (cancelReason == 'serie_terminada' && paymentStatus == 'estornado') {
+    return 'Voltou à Carteira Bora';
+  }
+  if (paymentStatus == 'estornado' || taxaCents > 0) {
+    return 'Deve voltar ao cliente';
+  }
+  return null;
+}
+
 /// O rastro do dinheiro de uma reserva de limpeza, em PT-BR, para o Danilo.
 ///
 /// Serve para responder a UMA pergunta concreta: "este cliente diz que pagou
@@ -689,6 +712,7 @@ class _RastroPagamento extends StatelessWidget {
     required this.cancelFeeCents,
     required this.paymentStatus,
     required this.totalCents,
+    this.cancelReason,
   });
 
   final String? paymentIntentId;
@@ -696,6 +720,7 @@ class _RastroPagamento extends StatelessWidget {
   final dynamic cancelFeeCents;
   final String? paymentStatus;
   final dynamic totalCents;
+  final String? cancelReason;
 
   static String _eur(dynamic cents) {
     final c = (cents is num) ? cents.toInt() : int.tryParse('$cents') ?? 0;
@@ -758,8 +783,11 @@ class _RastroPagamento extends StatelessWidget {
           linha('Situação', paymentStatus ?? '—'),
           if (taxa > 0)
             linha('Retido no cancelamento', _eur(taxa)),
-          if (paymentStatus == 'estornado' || taxa > 0)
-            linha('Deve voltar ao cliente', _eur(devolver < 0 ? 0 : devolver)),
+          if (rotuloDevolucaoLimpeza(
+                  cancelReason: cancelReason,
+                  paymentStatus: paymentStatus,
+                  taxaCents: taxa) case final rotulo?)
+            linha(rotulo, _eur(devolver < 0 ? 0 : devolver)),
         ],
       ),
     );

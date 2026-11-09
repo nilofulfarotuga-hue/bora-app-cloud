@@ -284,6 +284,7 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
     if (groupId == null) return;
     final store = context.read<CleaningStore>();
     // 02/11/2026 (zerar B2): o servidor diz o que vai cancelar e quanto volta.
+    // 09/11/2026 (M10 b2): o que volta vai para a Carteira Bora (servidor).
     final previsao = await store.previsaoSerie(groupId);
     if (!mounted) return;
     final confirmed = await showDialog<bool>(
@@ -303,7 +304,7 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
             if (previsao.devolveCents > 0) ...[
               const SizedBox(height: Spacing.sm),
               Text(
-                'Voltam {0} ao cartão ou MB Way com que pagaste.'
+                'Devolvemos {0} à tua Carteira Bora, podes usar já.'
                     .trArgs([CleaningLabels.euro(previsao.devolveCents)]),
                 key: const Key('limpeza_parar_serie_devolve'),
                 style: const TextStyle(
@@ -327,14 +328,14 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
     );
     if (confirmed != true || !mounted) return;
     try {
-      await store.cancelSeries(groupId, previsao: previsao);
+      await store.cancelSeries(groupId);
       // Esta limpeza pode ter sido cancelada pelo servidor (mais de 24 h).
       await store.refreshTracked();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text(previsao.devolveCents > 0
-                ? 'Recorrência cancelada. A devolução de {0} foi pedida.'
+                ? 'Recorrência cancelada. Devolvemos {0} à tua Carteira Bora, podes usar já.'
                     .trArgs([CleaningLabels.euro(previsao.devolveCents)])
                 : 'Recorrência cancelada.'.tr)),
       );

@@ -15,6 +15,8 @@
 //   S4 — "Cliente habitual" quando o cliente pediu a profissional.
 // Sem rede: o store é de mentira (as leituras ao Supabase são substituídas).
 import 'package:bora_app/models/cleaning_models.dart';
+import 'package:bora_app/screens/admin/admin_cleaning_bookings_screen.dart'
+    show rotuloDevolucaoLimpeza;
 import 'package:bora_app/screens/client/cleaning/cleaning_bookings_screen.dart';
 import 'package:bora_app/screens/client/cleaning/cleaning_tracking_screen.dart';
 import 'package:bora_app/stores/cleaning_store.dart';
@@ -68,7 +70,6 @@ class _Limpezas extends CleaningStore {
 
   final List<String> canceladas = [];
   final List<String> seriesParadas = [];
-  final List<SeriePrevisao?> previsoesRecebidas = [];
   final List<String> lidas = [];
   final Map<String, SerieEstado> _estado = {};
 
@@ -107,9 +108,8 @@ class _Limpezas extends CleaningStore {
   }
 
   @override
-  Future<void> cancelSeries(String groupId, {SeriePrevisao? previsao}) async {
+  Future<void> cancelSeries(String groupId) async {
     seriesParadas.add(groupId);
-    previsoesRecebidas.add(previsao);
     _estado[groupId] = const SerieEstado(parada: true);
     notifyListeners();
   }
@@ -119,7 +119,8 @@ class _Limpezas extends CleaningStore {
 }
 
 /// Store só com a rede cortada: corre o cancelSeries VERDADEIRO e regista os
-/// pedidos de estorno (zerar B2, 02/11/2026).
+/// pedidos de estorno (zerar B2, 02/11/2026; desde M10 b2, 09/11, não pode
+/// haver nenhum: o servidor devolve à Carteira Bora).
 class _SerieSemRede extends CleaningStore {
   final List<String> paradas = [];
   final List<String> estornos = [];
@@ -391,20 +392,13 @@ void main() {
       expect(SeriePrevisao.fromJson(const {}).devolveCents, 0);
     });
 
-    test('pede o estorno como numa limpeza só: não a dinheiro nem prémio',
-        () async {
+    test(
+        'M10 b2 (09/11): não pede estorno ao cartão/MB Way — o servidor '
+        'devolve à Carteira Bora (pedir os dois devolvia duas vezes)', () async {
       final store = _SerieSemRede();
-      final previsao = SeriePrevisao.fromJson({
-        ..._previsaoDoServidor,
-        'limpezas': [
-          ...(_previsaoDoServidor['limpezas'] as List),
-          {'id': 'e', 'payment_method': 'premio', 'pago': false, 'devolve_cents': 0},
-        ],
-      });
-      await store.cancelSeries('g1', previsao: previsao);
+      await store.cancelSeries('g1');
       expect(store.paradas, ['g1']);
-      // O estorno é no-op sem pagamento (igual ao cancelamento de uma só).
-      expect(store.estornos, ['a', 'b', 'c']);
+      expect(store.estornos, isEmpty);
       expect(store.serieEmCache('g1')?.parada, isTrue);
     });
 
@@ -417,15 +411,16 @@ void main() {
       await t.pumpAndSettle();
 
       expect(
-          find.text('Voltam €64,00 ao cartão ou MB Way com que pagaste.'),
+          find.text('Devolvemos €64,00 à tua Carteira Bora, podes usar já.'),
           findsOneWidget);
+      expect(find.textContaining('cartão ou MB Way'), findsNothing);
       await t.tap(find.text('Parar série'));
       await t.pumpAndSettle();
 
       expect(store.seriesParadas, ['g1']);
-      expect(store.previsoesRecebidas.single?.devolveCents, 6400,
-          reason: 'o estorno usa as limpezas que o cliente viu');
-      expect(find.text('Recorrência cancelada. A devolução de €64,00 foi pedida.'),
+      expect(
+          find.text(
+              'Recorrência cancelada. Devolvemos €64,00 à tua Carteira Bora, podes usar já.'),
           findsOneWidget);
     });
 
@@ -437,6 +432,39 @@ void main() {
       await t.tap(find.text('Parar série'));
       await t.pumpAndSettle();
       expect(find.text('Recorrência cancelada.'), findsOneWidget);
+    });
+  });
+
+  group('M10 b2 (09/11) — painel: para onde voltou o dinheiro da limpeza', () {
+    test('série parada e estornada: "Voltou à Carteira Bora"', () {
+      expect(
+          rotuloDevolucaoLimpeza(
+              cancelReason: 'serie_terminada',
+              paymentStatus: 'estornado',
+              taxaCents: 0),
+          'Voltou à Carteira Bora');
+    });
+
+    test('cancelamento de uma só continua "Deve voltar ao cliente"', () {
+      expect(
+          rotuloDevolucaoLimpeza(
+              cancelReason: 'mudei de planos',
+              paymentStatus: 'estornado',
+              taxaCents: 0),
+          'Deve voltar ao cliente');
+      expect(
+          rotuloDevolucaoLimpeza(
+              cancelReason: null, paymentStatus: 'released', taxaCents: 1600),
+          'Deve voltar ao cliente');
+    });
+
+    test('série parada a dinheiro (nada pago): sem linha', () {
+      expect(
+          rotuloDevolucaoLimpeza(
+              cancelReason: 'serie_terminada',
+              paymentStatus: 'unpaid',
+              taxaCents: 0),
+          isNull);
     });
   });
 }

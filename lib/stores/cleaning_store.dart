@@ -328,19 +328,15 @@ class CleaningStore extends ChangeNotifier {
   /// daqui a mais de 24 h são canceladas sem taxa (`cancel_cleaning_series`).
   ///
   /// 02/11/2026 (zerar B2): cada uma é cancelada no servidor como uma limpeza
-  /// só e, como no cancelamento de uma só, a app pede o estorno das que não
-  /// são a dinheiro nem prémio ([reversePayment]; no-op sem pagamento).
-  /// [previsao] = as limpezas lidas antes de confirmar; sem ela, lê-se aqui.
-  Future<void> cancelSeries(String groupId, {SeriePrevisao? previsao}) async {
+  /// só (mesma taxa, mesmo aviso).
+  /// 09/11/2026 (M10 b2, ordem do Danilo de 08/11): as já pagas voltam à
+  /// CARTEIRA BORA, creditadas pelo próprio servidor dentro do
+  /// `cancel_cleaning_series` (migração 20261109020000). A app NÃO pede o
+  /// estorno ao cartão/MB Way ([reversePayment]): pedi-lo devolvia duas vezes.
+  Future<void> cancelSeries(String groupId) async {
     _setBusy(true);
     try {
-      final alvo = previsao ?? await previsaoSerie(groupId);
       await pararSerieNoServidor(groupId);
-      for (final l in alvo.limpezas) {
-        if (l.paymentMethod != 'cash' && l.paymentMethod != 'premio') {
-          await reversePayment(l.id);
-        }
-      }
       // O servidor gravou a paragem: o ecrã mostra "Série parada" já, mesmo
       // que a leitura de cleaning_recurrence_stops ainda não chegue.
       _series[groupId] = const SerieEstado(parada: true);

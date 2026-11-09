@@ -55,11 +55,12 @@ const Map<String, String> kStringsEn = <String, String>{
       'Could not send your answer. Try again.',
   'Fica atento ao telemóvel: se o preço na loja for diferente, o estafeta vai pedir a tua aprovação e tens 3 minutos para responder.':
       'Keep an eye on your phone: if the price at the shop is different, the courier will ask for your approval and you will have 3 minutes to answer.',
-  // 02/11/2026 (zerar B2): "Parar a série toda" diz quanto volta. Acrescentado a mao.
-  'Voltam {0} ao cartão ou MB Way com que pagaste.':
-      '{0} goes back to the card or MB Way you paid with.',
-  'Recorrência cancelada. A devolução de {0} foi pedida.':
-      'Recurrence cancelled. The refund of {0} has been requested.',
+  // M10 b2-limpeza (09/11/2026): "Parar a série toda" devolve à Carteira Bora
+  // (ordem do Danilo de 08/11; antes voltava ao cartão/MB Way). Acrescentado a mao.
+  'Devolvemos {0} à tua Carteira Bora, podes usar já.':
+      'We are returning {0} to your Bora Wallet, you can use it right away.',
+  'Recorrência cancelada. Devolvemos {0} à tua Carteira Bora, podes usar já.':
+      'Recurrence cancelled. We returned {0} to your Bora Wallet, you can use it right away.',
   // 02/11/2026 (zerar B3): diferença de peso cobrada no cartão.
   'A diferença foi cobrada no cartão com que pagaste.':
       'The difference was charged to the card you paid with.',

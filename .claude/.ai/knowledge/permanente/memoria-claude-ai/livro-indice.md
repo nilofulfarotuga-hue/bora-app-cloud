@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-09T09:37:03.618737+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-09T10:07:04.010078+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-09 09:33 UTC. Páginas listadas: 577.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-09 09:39 UTC. Páginas listadas: 577.
 
 ## O que é o Bora
 
@@ -32,7 +32,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 ## Por onde começar (por esta ordem)
 
-1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-11-08).
+1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-11-09).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-31).
 3. Estado vivo: `digest-2026-11-09-m11` (2026-11-09).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
@@ -49,7 +49,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 ## erros (1)
 
-- erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-11-08)
+- erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-11-09)
 
 ## digest (220)
 
@@ -651,7 +651,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 41 páginas com título [PESSOAL] (vida do Danilo). Não se listam aqui nem vão para o espelho público nem para o LIVRO.md; só se leem quando a tarefa é dele, e nunca vão para motores grátis que treinam com o conteúdo.
 
-## Skills partilhadas (152 no repo + 8 só na VPS)
+## Skills partilhadas (152 no repo + 10 só na VPS)
 
 Fonte única: `.claude/skills/` do repo (o Hermes lê o espelho em `/opt/data/cortex-brain/.claude/skills`). Diferenças VPS ↔ repo: `/opt/data/livro/skills/DIFERENCA.md`.
 
@@ -814,6 +814,8 @@ Fonte única: `.claude/skills/` do repo (o Hermes lê o espelho em `/opt/data/co
 - hermes-future-project-registration — Register approved future projects and ideas in persistent memory and cortex, handling memory-full situations by consolidating stale entries. Use when…
 - hermes-auto-configuracao — Como o Hermes Agent deve se auto-configurar e lidar com falhas de ferramentas, priorizando a autonomia e a entrega de resultados sem a necessidade de…
 - hermes-operacao-confiavel — Orientações para a auto-melhoria contínua, uso eficaz de ferramentas gratuitas e garantia de confiabilidade do Hermes.
+- hermes-publicar-em-dia — Usa quando o Danilo pedir (por voz) para publicar todo dia "do endia / Em Dia / tudo que tenho do endia" nas redes ou grupos. "Endia" = Em Dia (app d…
+- hermes-publicar-grupos-facebook-emdia — Quando o Danilo pedir (por voz) para publicar todo dia/de 2 em 2 horas em grupos de Facebook, ou falar de "endia/ingea/Em Dia". Marca Em Dia, NAO Bor…
 - hermes-stt-config — Configuração prática de STT (Speech-to-Text) para o Hermes Agent no ambiente de produção do Bora. Cobre o provedor local (faster-whisper), verificaçã…
 - hermes-stt-local — Set up, troubleshoot, and verify local STT (faster-whisper) for Hermes Agent on VPS/container environments. Covers free provider configuration, root-…
 - hermes-remote-command-execution — Executes commands on the user's remote PC via SSH.

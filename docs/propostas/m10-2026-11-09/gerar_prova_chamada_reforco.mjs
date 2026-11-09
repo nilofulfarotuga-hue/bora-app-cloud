@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const aqui = dirname(fileURLToPath(import.meta.url));
 const raiz = join(aqui, '..', '..', '..');
-const mig = readFileSync(join(raiz, 'supabase/migrations/20261109050000_m10_chamada_de_reforco.sql'), 'utf8')
+const mig = readFileSync(join(raiz, 'supabase/migrations/20261109010134_m10_chamada_de_reforco.sql'), 'utf8')
   .replace(/\r\n/g, '\n');
 const modelo = readFileSync(join(aqui, 'prova_chamada_reforco.modelo.sql'), 'utf8').replace(/\r\n/g, '\n');
 

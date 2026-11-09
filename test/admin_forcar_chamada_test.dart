@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// M10 (09/11/2026) item 2.5 — botão "Forçar chamada" no painel do pedido
-/// (`admin_forcar_chamada`, migração 20261109050000). Textos em PT-BR.
+/// (`admin_forcar_chamada`, migração 20261109010134). Textos em PT-BR.
 void main() {
   group('resposta do botão em palavras', () {
     test('ok com nome e sem nome', () {

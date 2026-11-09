@@ -17,7 +17,7 @@ import '../../utils/ofertas_em_palavras.dart';
 ///
 /// [mostrarForcarChamada] (09/11, M10): botão "Forçar chamada" — oferece já o
 /// pedido ao próximo entregador desligado que aceitou chamadas de reforço
-/// (`admin_forcar_chamada`, migração 20261109050000). Só funciona com o
+/// (`admin_forcar_chamada`, migração 20261109010134). Só funciona com o
 /// interruptor da chamada de reforço ligado; o servidor diz porquê se não der.
 class AdminOfertasDoPedidoSection extends StatefulWidget {
   const AdminOfertasDoPedidoSection({

@@ -1,5 +1,5 @@
 -- =============================================================================
--- PROVA EM ROLLBACK · M10 item 2.5 · chamada de reforço (migração 20261109050000)
+-- PROVA EM ROLLBACK · M10 item 2.5 · chamada de reforço (migração 20261109010134)
 -- GERADO por gerar_prova_chamada_reforco.mjs (não editar à mão: editar o modelo
 -- prova_chamada_reforco.modelo.sql e voltar a gerar).
 --

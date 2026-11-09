@@ -145,7 +145,7 @@ String toqueEntregueEmPalavras(Object? enviados, Object? aparelhos) {
 }
 
 /// Resposta de `admin_forcar_chamada` (botão "Forçar chamada" do painel,
-/// migração 20261109050000) em palavras PT-BR.
+/// migração 20261109010134) em palavras PT-BR.
 String forcarChamadaEmPalavras(Map<String, dynamic> res) {
   if (res['ok'] == true) {
     final nome = '${res['nome'] ?? ''}'.trim();

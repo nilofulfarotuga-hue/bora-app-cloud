@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-09T09:39:36.492561+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-09T12:22:25.541689+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -144,4 +144,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 08/11 (quem errou: claude-ai): listei os 186 € do Jai (24/10) como dívida; ele corrigiu "já está pago" → regra (repete 20/10 e 07/11): conta do Jai/Vansh só se lista como em aberto depois de confirmar na conversa recente que não foi paga; o livro fica desatualizado.
 08/11 (quem errou: claude-ai): na M9 pus "texto para o Danilo mandar ao Jai" e "mandar o recibo dos 36 €"; ele corrigiu: "não é pra mandar mensagem nenhuma pro Jai" → regra: a missão do Jai é trabalho por trás (Wikipédia, Google, site, radar); nenhuma mensagem, recibo ou resumo vai ao Jai a não ser que o Danilo mande explicitamente.
 - 09/11 (hermes): 09/11 (hermes): ouvi 'endia' por voz e assumi que era do Bora → 'Endia' = Em Dia (app de contas/impostos, pasta em_dia, e-mail/site emdia.boraguarda.com). Publicações do Em Dia NÃO levam a marca Bora; regras em emdia-grupos-facebook (máx 4/dia, 1 por grupo/semana, parar ao 1.º aviso).
+09/11 (quem errou: claude-ai): ele mandou o email "do Emanuel" e eu perguntei se era o da Boom ou o do Vamos Já; irritou-se ("puxa o contexto") → regra: a conta da Boom estava à espera do email do dono (login provisório desde 27/10); ler o contexto e agir sem perguntar.
+09/11 (quem errou: claude-ai): perguntou quanto o Valdemir tinha a receber e eu respondi com o fecho semanal; era o pedido de salgados da Keli que ele tinha acabado de pegar → regra: "quanto X recebe" = ver primeiro o pedido em curso de hoje.
+09/11 (quem errou: claude-ai): disse quanto a Keli recebe sem ler a conversa de fecho com ela (24/08) → regra: valor a pagar a um parceiro = ler primeiro o que foi combinado no fecho e o esquema de preço da loja.
 

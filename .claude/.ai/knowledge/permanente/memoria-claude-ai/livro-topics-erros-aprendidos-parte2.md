@@ -10,11 +10,11 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 2 de 5)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte2`, origem `claude-ai`, atualizada em 2026-11-09T21:14:09.672617+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte2`, origem `claude-ai`, atualizada em 2026-11-09T22:14:19.907402+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte2 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 2 de 5), copiada a 09/11/2026 21:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 2 de 5), copiada a 09/11/2026 22:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - [stated] 16/10: mostrei-lhe o clipe de teste `extra_boca_s17.mp4` do filme como "boca a mexer" sem olhar à zona da boca em tamanho real — era uma elipse preta colada, sem lábios, e ele reprovou ("boca toda escura, montagem de boca, muito feio") → regra: antes de mostrar qualquer imagem ou vídeo do filme ao Danilo, recortar e ver em tamanho real a zona do rosto/boca em 3-4 fotogramas; só lhe mostro o que eu próprio aprovaria, e um teste com defeito vai marcado como reprovado, nunca como progresso
 - [stated] 17/10: reclamou que o radar de vídeos nunca lhe falou do REA (engenharia reversa), que estava na moda — o radar viu mais de 10 vídeos de nota 8-9 desde 12/10, registou uma proposta a 13/10 e marcou o resto como "já temos" sem nada feito; e a missão do emulador de 13/10 nunca correu → regra: "já temos" só com prova de que está instalado e a funcionar; o que foi só registado é "pendente" e volta a ser-lhe dito; assunto com 3+ vídeos fortes na semana é moda e vai sempre na mensagem dele (prompt do radar corrigido 17/10)

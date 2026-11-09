@@ -10,11 +10,11 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 1 de 5 — continua em livro-topics-erros-aprendidos-parte2…)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-09T21:14:09.672617+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-09T22:14:19.907402+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md), copiada a 09/11/2026 21:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md), copiada a 09/11/2026 22:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: erros-aprendidos
@@ -38,6 +38,7 @@ aliases: [erros, erros corrigidos, nunca mais errar, lições aprendidas, caminh
 - [stated] 10/10: escrevi a mensagem ao Divan formal, "equipa Bora", repetindo o nome dele → regra: quando o Danilo já está a falar com o cliente, a mensagem sai no nome dele, humanizada, como se fosse ele a falar, sem repetir o nome do cliente
 - [stated] 10/10: num Favor do Divan confundi os valores (achei que 18 € era o total; era 18 da compra + 6 do Favor = 24) e mudei o pagamento para MB Way sem ver o que o cliente tinha escolhido e pago → regra: antes de mexer em valor ou meio de pagamento de um pedido, verificar primeiro o que o cliente já pagou e como escolheu pagar; se escolheu dinheiro, o Danilo recebe em mão e não se muda nada
 - [stated] 12/10: ele disse "Dê esse nome aí pra mim. Já está." e eu li como "sim, manda o email à Zulisnatis" e comecei a mexer no Gmail; ele queria o NOME DA MARCA "Já Está" → regra: mensagem de voz curta e ambígua = ler as palavras como possível nome/pedido literal antes de assumir que é um "sim" a uma ação pendente; nunca disparar email/ação externa com base num "sim" que não é claro
+- [stated] 09/11 21:21: liguei a Casa com o ladrilho só "Casa" e ícone simples na versão do iPhone; ele: "faz tudo pelo meio" → regra: categoria nova só se dá por publicada com o nome completo (ex.: "Casa e Manutenção") e o ícone 3D cartoon igual aos outros, visto nas 3 plataformas
 - [stated] 13/10: a mãe do Jai escreveu "cans to return are ready" e eu respondi que o Danilo ia buscar as latas vazias, e ainda lhe lembrei de creditar o depósito de 0,10 € → regra: as latas vazias NÃO são com o Danilo; ele só compra as novas. Devolver as vazias a um ponto de devolução é com a cliente; se ela pedir que ele as leve, é corrida cobrada e não compensa — nunca prometer recolher nem devolver latas
 - [stated] 13/10: na mensagem à mãe do Jai pus "se quiserem que eu leve, cobro a corrida" — era só o raciocínio dele para mim, não para a cliente → regra: ao cliente vai só o essencial que ele manda dizer (aqui: já estou no mercado a comprar as 50; as latas vazias levam-se a um ponto de devolução, tipo Volta); condições, preços e justificações que ele só comenta comigo ficam fora, a não ser que mande dizer
 - [stated] 13/10: no relatório do check-in pedi-lhe dois "vai" diferentes, "fica com o ecrã aberto" e decisões sobre telemóvel/lembretes — ele ficou confuso e disse "eu autorizo e pronto, faz o que tem que fazer" (estava só no telemóvel) → regra: não lhe devolver menus de decisões nem vários "vai"; decido eu, faço, e só digo o que ficou feito

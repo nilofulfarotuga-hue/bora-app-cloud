@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-09T21:14:09.672617+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-09T22:14:19.907402+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -151,4 +151,8 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 09/11 (quem errou: claude-ai): aceitei a troca do cliente do KFC (Durum Kebab) sem ver se existia, e não existia → regra: troca ou sugestão de produto de cadeia não-parceira só depois de confirmar no Glovo da Guarda (ou Uber Eats); no catálogo do Bora só fica o que lá existe
 
 09/11 (quem errou: claude-ai): ao Ricardo (adiantado até dia 30) pus o preço por dia (4,23 €) → regra: ao cliente vai só o total somado e arredondado (segunda a sábado, sem domingo), nunca o preço por dia
+
+09/11 (quem errou: claude-ai): liguei a Casa com o ladrilho só "Casa" e ícone simples na versão do iPhone; ele: "faz tudo pelo meio" → regra: categoria nova só se dá por publicada com o nome completo (ex.: "Casa e Manutenção") e o ícone 3D cartoon igual aos outros, visto nas 3 plataformas
+
+09/11 (quem errou: claude-ai): pedi-lhe para ligar a Casa no painel após o classificador travar → regra: com a ordem dele, refazer eu pelas funções do painel; nunca lhe devolver o passo
 

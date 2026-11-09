@@ -10,11 +10,11 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 3 de 5)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte3`, origem `claude-ai`, atualizada em 2026-11-09T21:14:09.672617+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte3`, origem `claude-ai`, atualizada em 2026-11-09T22:14:19.907402+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte3 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 3 de 5), copiada a 09/11/2026 21:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 3 de 5), copiada a 09/11/2026 22:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - [stated] 22/10: na resposta ao Hugo (contabilista, grupo da Segurança Social) pus passaporte, oferta do número da Segurança Social e um lembrete da pergunta dos códigos/IMT → regra: ele queria só "Obrigado, Hugo. Vou enviar o cartão de residência." Resposta a pedido simples = uma linha, só o que ele vai mandar; não acrescentar documentos, ofertas nem lembrar perguntas antigas
 - [stated] 22/10: nas ideias de vídeos para as redes pus a Ouro e Prata entre os parceiros a promover; ele corrigiu "Ouro e Prata está fora" (loja coming_soon desde 25/09 e proibida nas redes desde 05/10) → regra: antes de listar parceiros para propaganda, confirmar na base quem está ativo (coming_soon=false) e o que está proibido nas redes; Ouro e Prata nunca entra

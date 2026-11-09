@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-09T21:07:02.918541+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-09T21:37:03.081045+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-09 20:57 UTC. Páginas listadas: 580.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-09 21:29 UTC. Páginas listadas: 582.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-11-09).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-31).
-3. Estado vivo: `digest-2026-11-09-m11` (2026-11-09).
+3. Estado vivo: `digest-2026-11-09-volta-deposito-kfc` (2026-11-09).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -51,8 +51,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-11-09)
 
-## digest (220)
+## digest (221)
 
+- digest-2026-11-09-volta-deposito-kfc — Claude Code 09/11 — depósito Volta e robô do talão do KFC (2026-11-09)
 - digest-2026-11-09-m11 — M11 — Amigo com rosto, talões no Drive, pesquisa inteligente e Casa (09/11/2026) (2026-11-09)
 - digest-2026-11-08-m10 — M10 08-09/11 — noite toda sem travas: Bloco 1 no ar, app publicada 2x nas 3, Bloco 2 e radar (2026-11-09)
 - digest-2026-11-08-m8 — Digest M8 08/11 noite: 6 missoes juntas e testadas, nada publicado (2026-11-08)
@@ -274,7 +275,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - digest-2026-09-13-janela-4-ux-portao — Janela 4 13/09 — ordem UX OpenCode chegou ao Claude Code e parou no portão (2026-09-13)
 - digest-2026-09-13-janela-3 — Janela 3 13/09 — portas (correu em Fable, não Opus) (2026-09-13)
 
-## livro-areas (142)
+## livro-areas (143)
 
 - livro-areas-alertas-notificacoes — Alertas do Bora para o Danilo (Telegram + push admin persistente) — o que já dispara, por que caminho, e o que falta (2026-10-23)
 - livro-areas-analise-apps-emulador — Ideia do Danilo (08/10/2026) de usar emulador Android + agente de IA para testar bugs do Bora e comparar com iFood/Uber/Glovo; adiada para… (2026-10-26)
@@ -304,6 +305,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-contas-claras — Missão "contas claras" (20/09) — extratos de dinheiro compreensíveis para estafetas, motoristas, parceiros e o Danilo, estilo Uber/Glovo; e… (2026-10-23)
 - livro-areas-contas-parceiros — Como se calcula e se paga o dinheiro das lojas parceiras do Bora (ledger vs registo do pedido), erros corrigidos a 22/09 e a decisão em abe… (2026-10-23)
 - livro-areas-cortex-bora — Córtex Bora orchestration system — MCP-connected knowledge base + autonomous loop (carteiro/Claude Code/Juiz/Telegram) (2026-10-23)
+- livro-areas-deposito-volta — Depósito Volta (0,10 € por lata/garrafa de plástico) no Bora — regra do Danilo para cobrar ao cliente e a missão de 09/11/2026; ler antes d… (2026-11-09)
 - livro-areas-divulgacao-bora — Divulgação do Bora App ao público — site oficial (bora-site, agora um só, a crescer para várias páginas), vídeos de apresentação e código p… (2026-11-09)
 - livro-areas-divulgacao-bora-parte2 — Divulgação do Bora App ao público — site oficial (bora-site, agora um só, a crescer para várias páginas), vídeos de apresentação e código p… (2026-11-09)
 - livro-areas-divulgacao-bora-parte3 — Divulgação do Bora App ao público — site oficial (bora-site, agora um só, a crescer para várias páginas), vídeos de apresentação e código p… (2026-11-09)

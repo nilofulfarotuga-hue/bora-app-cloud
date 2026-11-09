@@ -10,11 +10,11 @@ estado: atual
 
 # Missão grande de domingo à noite (08/11/2026) para terminar o que falta no Bora — lista de pendências que o Danilo vai ditando; ler antes de montar essa missão (parte 1 de 2 — continua em livro-areas-missao-domingo-noite-parte2)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-missao-domingo-noite`, origem `claude-ai`, atualizada em 2026-11-09T06:19:21.617062+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-missao-domingo-noite`, origem `claude-ai`, atualizada em 2026-11-09T21:14:09.672617+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas missao domingo noite · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/missao-domingo-noite.md), copiada a 09/11/2026 06:19 (hora de Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/missao-domingo-noite.md), copiada a 09/11/2026 21:14 (hora de Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: missao-domingo-noite

@@ -1,0 +1,28 @@
+Prova 5.2 — o Amigo no Android (emulador emdia35, Android 15, 09/11/2026 ~06:30)
+
+O APK não compilou no worktree: falta android/app/google-services.json (configuração do
+Firebase, fora do git) e as regras não deixam copiar ficheiros de chaves. Por isso a prova no
+Android foi feita no Chrome do emulador com a demonstração web (tool/amigo_demo), servida do PC
+em http://10.0.2.2:8791, com a consola lida pelas DevTools (tool/amigo_demo/ouvir_consola_android.mjs).
+Registo completo em android-chrome-consola-2026-11-09.txt (linhas duplicadas = dois ouvintes).
+
+1.ª volta — ERRO encontrado: o Chrome do Android tem a voz
+  "Portuguese Portugal | pt_PT | local=true" (e "Portuguese Brazil | pt_BR")
+mas a lista só chega uns segundos depois de a página abrir; a app desistia aos 1,5 s e ficava
+"voz pt-PT: nenhuma (só legenda)".
+Correção (lib/services/amigo_voz.dart): procura durante ~4 s e volta a procurar antes de falar
+(até 3 vezes). Teste novo "voz que chega tarde".
+
+2.ª volta — depois da correção:
+  [AmigoVoz] voz pt-PT: Portuguese Portugal
+  frases das 5 provas: 2712 / 4874 / 3875 / 3930 / 4732 ms
+  eventos_de_palavra: 0  → o Chrome do Android NÃO dá eventos de palavra (onboundary)
+Por isso, nesse navegador a boca segue a estimativa do texto e acaba quando a voz acaba.
+Melhoria feita a seguir: sem eventos de palavra a voz aprende a velocidade real do aparelho no
+fim de cada frase (teste "sem eventos de palavra: aprende a velocidade real da voz").
+Na app Android nativa o pacote flutter_tts usa os eventos onRangeStart do Android (8+); isso
+fica por provar num telemóvel quando houver APK (CI depois de publicar).
+
+Desenho no emulador sem janela: 2,2 imagens/s, raster p95 194 ms — é o desenho por software do
+emulador (o Dipsy mediu 14,5/s com janela pelo mesmo motivo). No PC, a mesma demonstração dá
+59,9 imagens/s com 0 imagens lentas (web-voz-helia-5-frases-2026-11-09.txt).

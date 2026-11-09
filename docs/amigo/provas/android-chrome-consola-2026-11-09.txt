@@ -1,0 +1,23 @@
+[AmigoVoz] voz pt-PT: Portuguese Portugal
+[AmigoDemo] voz=Portuguese Portugal plataforma=web
+[vozes pt no Chrome do Android] ["Portuguese Brazil | pt_BR | local=true","Portuguese Portugal | pt_PT | local=true"]
+[AmigoDemo] evento abrir
+[AmigoDemo] evento abrir
+[AmigoDemo] desempenho {"segundos":28.999,"imagens":63,"imagens_por_segundo":"2.2","imagem_ms_mediana":"25.0","imagem_ms_p95":"230.4","build_ms_p95":"25.80","raster_ms_p95":"194.60","imagens_lentas_mais_16ms":53}
+[AmigoDemo] desempenho {"segundos":28.999,"imagens":63,"imagens_por_segundo":"2.2","imagem_ms_mediana":"25.0","imagem_ms_p95":"230.4","build_ms_p95":"25.80","raster_ms_p95":"194.60","imagens_lentas_mais_16ms":53}
+[AmigoDemo] frase {"frase":"Olá, eu sou o Amigo.","duracao_ms":2712,"eventos_de_palavra":0,"atraso_evento_boca":{"n":0},"desvio_estimativa":{"n":0}}
+[AmigoDemo] frase {"frase":"Olá, eu sou o Amigo.","duracao_ms":2712,"eventos_de_palavra":0,"atraso_evento_boca":{"n":0},"desvio_estimativa":{"n":0}}
+[AmigoDemo] frase {"frase":"O teu hambúrguer chega em vinte e cinco minutos.","duracao_ms":4874,"eventos_de_palavra":0,"atraso_evento_boca":{"n":0},"desvio_estimativa":{"n":0}}
+[AmigoDemo] frase {"frase":"O teu hambúrguer chega em vinte e cinco minutos.","duracao_ms":4874,"eventos_de_palavra":0,"atraso_evento_boca":{"n":0},"desvio_estimativa":{"n":0}}
+[AmigoDemo] desempenho {"segundos":20.097,"imagens":283,"imagens_por_segundo":"14.1","imagem_ms_mediana":"22.0","imagem_ms_p95":"74.3","build_ms_p95":"33.60","raster_ms_p95":"37.80","imagens_lentas_mais_16ms":185}
+[AmigoDemo] desempenho {"segundos":20.097,"imagens":283,"imagens_por_segundo":"14.1","imagem_ms_mediana":"22.0","imagem_ms_p95":"74.3","build_ms_p95":"33.60","raster_ms_p95":"37.80","imagens_lentas_mais_16ms":185}
+[AmigoDemo] frase {"frase":"Uau, isso é mesmo uma boa notícia!","duracao_ms":3875,"eventos_de_palavra":0,"atraso_evento_boca":{"n":0},"desvio_estimativa":{"n":0}}
+[AmigoDemo] frase {"frase":"Uau, isso é mesmo uma boa notícia!","duracao_ms":3875,"eventos_de_palavra":0,"atraso_evento_boca":{"n":0},"desvio_estimativa":{"n":0}}
+[AmigoDemo] frase {"frase":"Eu nunca mexo no teu dinheiro sem tu mandares.","duracao_ms":3930,"eventos_de_palavra":0,"atraso_evento_boca":{"n":0},"desvio_estimativa":{"n":0}}
+[AmigoDemo] frase {"frase":"Eu nunca mexo no teu dinheiro sem tu mandares.","duracao_ms":3930,"eventos_de_palavra":0,"atraso_evento_boca":{"n":0},"desvio_estimativa":{"n":0}}
+[AmigoDemo] frase {"frase":"Diz-me o código de quatro números que aparece no pedido.","duracao_ms":4732,"eventos_de_palavra":0,"atraso_evento_boca":{"n":0},"desvio_estimativa":{"n":0}}
+[AmigoDemo] frase {"frase":"Diz-me o código de quatro números que aparece no pedido.","duracao_ms":4732,"eventos_de_palavra":0,"atraso_evento_boca":{"n":0},"desvio_estimativa":{"n":0}}
+[AmigoDemo] boca-resumo {"voz":"Portuguese Portugal","eventos_de_palavra":0,"atraso_evento_boca":{"n":0},"desvio_estimativa":{"n":0}}
+[AmigoDemo] boca-resumo {"voz":"Portuguese Portugal","eventos_de_palavra":0,"atraso_evento_boca":{"n":0},"desvio_estimativa":{"n":0}}
+[AmigoDemo] desempenho {"segundos":20.037,"imagens":323,"imagens_por_segundo":"16.1","imagem_ms_mediana":"16.7","imagem_ms_p95":"57.0","build_ms_p95":"25.50","raster_ms_p95":"31.20","imagens_lentas_mais_16ms":161}
+[AmigoDemo] desempenho {"segundos":20.105,"imagens":503,"imagens_por_segundo":"25.0","imagem_ms_mediana":"8.8","imagem_ms_p95":"17.9","build_ms_p95":"7.90","raster_ms_p95":"12.30","imagens_lentas_mais_16ms":34}

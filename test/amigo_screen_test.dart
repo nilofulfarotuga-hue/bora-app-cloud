@@ -5,6 +5,7 @@ import 'package:bora_app/screens/client/assistant/amigo_bora_entrada.dart';
 import 'package:bora_app/screens/client/assistant/amigo_screen.dart';
 import 'package:bora_app/services/amigo_voz.dart';
 import 'package:bora_app/services/assistant_service.dart';
+import 'package:bora_app/widgets/amigo/amigo_boca.dart';
 import 'package:bora_app/widgets/amigo/amigo_rosto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -156,6 +157,8 @@ void main() {
   });
 
   group('voz', () {
+    _vozTardia();
+    _aprendeVelocidade();
     test('escolhe sempre pt-PT, nunca pt-BR', () {
       expect(
           escolherVozPtPt([
@@ -177,6 +180,11 @@ void main() {
       expect(escolherVozPtPt([
         {'name': 'Joana', 'locale': 'pt_PT', 'quality': 'enhanced'},
       ])?['name'], 'Joana');
+      // o que o Chrome do Android devolve (emulador, 09/11)
+      expect(escolherVozPtPt([
+        {'name': 'Portuguese Brazil', 'locale': 'pt_BR'},
+        {'name': 'Portuguese Portugal', 'locale': 'pt_PT'},
+      ])?['name'], 'Portuguese Portugal');
     });
 
     testWidgets('sem voz pt-PT fala por legenda e a boca mexe-se na mesma', (tester) async {
@@ -398,5 +406,74 @@ void main() {
       expect(abriu, 1);
       expect(find.text('Amigo'), findsOneWidget);
     });
+  });
+}
+
+/// Voz que só aparece à segunda procura (como no Chrome do Android).
+class _VozTardia extends AmigoMotorVoz {
+  int procuras = 0;
+  final ditas = <String>[];
+  @override
+  Future<String?> preparar(double velocidade) async => ++procuras >= 2 ? 'Portuguese Portugal' : null;
+  @override
+  Future<void> falar(String texto) async {
+    ditas.add(texto);
+    scheduleMicrotask(() => aoComecar?.call());
+    Timer(const Duration(milliseconds: 300), () => aoAcabar?.call());
+  }
+
+  @override
+  Future<void> parar() async {}
+}
+
+void _vozTardia() {
+  testWidgets('voz que chega tarde: procura outra vez antes de falar', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final motor = _VozTardia();
+    final voz = AmigoVoz(motor: motor);
+    await voz.preparar();
+    expect(voz.temVozPtPt, isFalse);
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 2100)));
+    unawaited(voz.falar('Olá!'));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(voz.temVozPtPt, isTrue);
+    expect(motor.ditas, ['Olá!'], reason: 'falou com a voz que apareceu');
+    voz.dispose();
+  });
+}
+
+/// Motor sem eventos de palavra que fala ao dobro do tempo estimado.
+class _VozLentaSemEventos extends AmigoMotorVoz {
+  @override
+  Future<String?> preparar(double velocidade) async => 'Portuguese Portugal';
+  @override
+  Future<void> falar(String texto) async {
+    scheduleMicrotask(() => aoComecar?.call());
+    final est = AmigoFala(texto).duracaoEstimada;
+    Timer(Duration(milliseconds: (est * 2).round()), () => aoAcabar?.call());
+  }
+
+  @override
+  Future<void> parar() async {}
+}
+
+void _aprendeVelocidade() {
+  testWidgets('sem eventos de palavra: aprende a velocidade real da voz', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    var agora = 0.0;
+    final voz = AmigoVoz(motor: _VozLentaSemEventos(), relogio: () => agora);
+    await voz.preparar();
+    for (var i = 0; i < 3; i++) {
+      var fim = false;
+      unawaited(voz.falar('O teu hambúrguer chega em vinte e cinco minutos.').then((_) => fim = true));
+      while (!fim) {
+        agora += 50;
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+    }
+    expect(voz.ajusteVelocidade, lessThan(0.75), reason: 'a voz real é mais lenta: a boca abranda');
+    expect(voz.ajusteVelocidade, greaterThan(0.45));
+    voz.dispose();
   });
 }

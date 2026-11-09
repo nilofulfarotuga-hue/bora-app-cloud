@@ -97,9 +97,10 @@ class AmigoMotorVozSistema extends AmigoMotorVoz {
       tts.setCompletionHandler(() => aoAcabar?.call());
       tts.setCancelHandler(() => aoAcabar?.call());
       tts.setErrorHandler((_) => aoAcabar?.call());
-      // No navegador a lista chega depois do "voiceschanged": tenta umas vezes.
+      // No navegador a lista chega depois do "voiceschanged" — no Chrome do
+      // Android (emulador, 09/11) demorou mais de 1,5 s: tenta durante ~4 s.
       List<dynamic> vozes = const [];
-      for (var i = 0; i < 6; i++) {
+      for (var i = 0; i < 16; i++) {
         final v = await tts.getVoices;
         if (v is List && v.isNotEmpty) {
           vozes = v;
@@ -194,15 +195,46 @@ class AmigoVoz {
   AmigoFala? get falaAtual => _fala;
   Completer<void>? _fim;
   Timer? _seguranca;
+  Timer? _arranqueRelogio;
   bool _comVoz = false;
+
+  /// Motores sem eventos de palavra (o Chrome do Android, provado a 09/11):
+  /// a boca vai pela estimativa do texto, por isso a voz aprende a velocidade
+  /// real do aparelho no fim de cada frase e acerta as seguintes.
+  double ajusteVelocidade = 1;
+  double? _inicioReal;
 
   /// Desvios (ms) entre a estimativa e os eventos reais de palavra, da última
   /// frase — vão para o registo de provas.
   List<double> get desviosUltimaFrase => _fala?.desvios ?? const [];
 
+  /// Provas (m11, 2.4): o atraso entre cada evento de palavra do motor de voz
+  /// e a primeira imagem do rosto que já usa essa palavra, e todos os desvios
+  /// da estimativa. Só números, sem texto.
+  final List<double> atrasosEventoBoca = [];
+  final List<double> desvios = [];
+  int eventosDePalavra = 0;
+  double? _eventoPendente;
+
   double get _agora => _relogioExterno?.call() ?? _relogio.elapsedMicroseconds / 1000;
 
   bool get temVozPtPt => nomeVoz != null;
+
+  // Se a voz pt-PT ainda não tinha chegado, volta a procurá-la antes de
+  // falar (até 3 vezes, de 2 em 2 s). Provado no Chrome do Android: a voz
+  // "Portuguese Portugal" existe mas aparece tarde.
+  int _tentativasVoz = 0;
+  DateTime? _ultimaTentativa;
+
+  Future<void> _procurarVozOutraVez() async {
+    if (temVozPtPt || _tentativasVoz >= 3) return;
+    final u = _ultimaTentativa;
+    if (u != null && DateTime.now().difference(u) < const Duration(seconds: 2)) return;
+    _tentativasVoz++;
+    _ultimaTentativa = DateTime.now();
+    nomeVoz = await _motor.preparar(_velocidade);
+    debugPrint('[AmigoVoz] nova procura ($_tentativasVoz): ${nomeVoz ?? 'ainda sem voz pt-PT'}');
+  }
 
   Future<void> preparar() => _aPreparar ??= _preparar();
 
@@ -214,8 +246,9 @@ class AmigoVoz {
     } catch (_) {}
     _motor.aoComecar = _comecou;
     _motor.aoPalavra = _palavra;
-    _motor.aoAcabar = _acabou;
+    _motor.aoAcabar = _acabouNatural;
     nomeVoz = await _motor.preparar(_velocidade);
+    _ultimaTentativa = DateTime.now();
     _preparada = true;
     debugPrint('[AmigoVoz] voz pt-PT: ${nomeVoz ?? 'nenhuma (só legenda)'}');
   }
@@ -240,8 +273,10 @@ class AmigoVoz {
     final t = texto.trim();
     if (t.isEmpty) return;
     if (!_preparada) await preparar();
+    await _procurarVozOutraVez();
     await parar();
-    final fala = AmigoFala(t, velocidade: _velocidade);
+    final fala = AmigoFala(t, velocidade: _velocidade * ajusteVelocidade);
+    _inicioReal = null;
     _fala = fala;
     legenda.value = t;
     palavraAtual.value = -1;
@@ -256,7 +291,8 @@ class AmigoVoz {
         _comVoz = false;
       }
       // Alguns motores não avisam o início: arranca o relógio na mesma.
-      Timer(const Duration(milliseconds: 900), () {
+      _arranqueRelogio?.cancel();
+      _arranqueRelogio = Timer(const Duration(milliseconds: 900), () {
         if (identical(_fala, fala) && !fala.comecada) fala.comecou(_agora);
       });
     } else {
@@ -282,13 +318,33 @@ class AmigoVoz {
 
   void _comecou() {
     final f = _fala;
+    _inicioReal = _agora;
     if (f != null && !f.comecada) f.comecou(_agora);
+  }
+
+  /// O motor disse que acabou (não foi interrompido): sem eventos de palavra,
+  /// aprende quanto a estimativa falhou na duração.
+  void _acabouNatural() {
+    final f = _fala;
+    final ini = _inicioReal;
+    if (f != null && _comVoz && ini != null && f.desvios.isEmpty) {
+      final real = _agora - ini;
+      final est = f.duracaoEstimada;
+      if (real > 400 && est > 400) {
+        final r = (est / real).clamp(0.6, 1.6);
+        ajusteVelocidade = (ajusteVelocidade * (1 + (r - 1) * 0.6)).clamp(0.5, 2.0);
+      }
+    }
+    _acabou();
   }
 
   void _palavra(int inicioLetra) {
     final f = _fala;
     if (f == null) return;
     f.palavraComecou(inicioLetra, _agora);
+    eventosDePalavra++;
+    _eventoPendente = _agora;
+    if (f.desvios.isNotEmpty) desvios.add(f.desvios.last);
     if (kDebugMode && f.desvios.isNotEmpty) {
       debugPrint('[AmigoVoz] palavra@$inicioLetra desvio ${f.desvios.last.toStringAsFixed(0)} ms');
     }
@@ -297,6 +353,8 @@ class AmigoVoz {
   void _acabou() {
     _seguranca?.cancel();
     _seguranca = null;
+    _arranqueRelogio?.cancel();
+    _arranqueRelogio = null;
     _comVoz = false;
     _fala = null;
     palavraAtual.value = -1;
@@ -320,6 +378,11 @@ class AmigoVoz {
     final f = _fala;
     if (f == null || !f.comecada) return null;
     final agora = _agora;
+    final ev = _eventoPendente;
+    if (ev != null) {
+      atrasosEventoBoca.add(agora - ev);
+      _eventoPendente = null;
+    }
     final i = f.palavraEm(agora);
     if (i != palavraAtual.value) palavraAtual.value = i;
     return f.formaEm(agora);
@@ -329,6 +392,7 @@ class AmigoVoz {
 
   void dispose() {
     _seguranca?.cancel();
+    _arranqueRelogio?.cancel();
     unawaited(_motor.parar());
     legenda.dispose();
     palavraAtual.dispose();

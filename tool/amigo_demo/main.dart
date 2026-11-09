@@ -123,6 +123,57 @@ void _medir(List<FrameTiming> t) {
   }
 }
 
+/// As 5 frases da prova da boca (as mesmas do B4 do Dipsy).
+const _cincoFrases = [
+  'Olá, eu sou o Amigo.',
+  'O teu hambúrguer chega em vinte e cinco minutos.',
+  'Uau, isso é mesmo uma boa notícia!',
+  'Eu nunca mexo no teu dinheiro sem tu mandares.',
+  'Diz-me o código de quatro números que aparece no pedido.',
+];
+
+Map<String, Object> _resumo(List<double> l) {
+  if (l.isEmpty) return {'n': 0};
+  final s = [...l]..sort();
+  final media = s.reduce((a, b) => a + b) / s.length;
+  return {
+    'n': s.length,
+    'media_ms': media.toStringAsFixed(1),
+    'p95_ms': s[math.min(s.length - 1, (s.length * .95).floor())].toStringAsFixed(1),
+    'max_ms': s.last.toStringAsFixed(1),
+  };
+}
+
+/// Prova da boca: diz as 5 frases seguidas e escreve os números no registo.
+Future<void> _provaCincoFrases(AmigoVoz voz) async {
+  while (voz.estado.value != AmigoVozEstado.calado) {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+  }
+  await Future<void>.delayed(const Duration(seconds: 1));
+  final antes = voz.atrasosEventoBoca.length;
+  for (final f in _cincoFrases) {
+    final e0 = voz.eventosDePalavra;
+    final d0 = voz.desvios.length;
+    final a0 = voz.atrasosEventoBoca.length;
+    final t0 = DateTime.now();
+    await voz.falar(f);
+    debugPrint('[AmigoDemo] frase ${jsonEncode({
+      'frase': f,
+      'duracao_ms': DateTime.now().difference(t0).inMilliseconds,
+      'eventos_de_palavra': voz.eventosDePalavra - e0,
+      'atraso_evento_boca': _resumo(voz.atrasosEventoBoca.sublist(a0)),
+      'desvio_estimativa': _resumo(voz.desvios.sublist(d0).map((x) => x.abs()).toList()),
+    })}');
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+  }
+  debugPrint('[AmigoDemo] boca-resumo ${jsonEncode({
+    'voz': voz.nomeVoz ?? 'nenhuma (só legenda)',
+    'eventos_de_palavra': voz.eventosDePalavra,
+    'atraso_evento_boca': _resumo(voz.atrasosEventoBoca.sublist(antes)),
+    'desvio_estimativa': _resumo(voz.desvios.map((x) => x.abs()).toList()),
+  })}');
+}
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SchedulerBinding.instance.addTimingsCallback(_medir);
@@ -132,12 +183,29 @@ void main() {
   runApp(MaterialApp(
     debugShowCheckedModeBanner: false,
     theme: AppTheme.lightTheme,
+    // Os navegadores só deixam falar depois de um toque: o botão "Começar"
+    // abre o ecrã do Amigo e, depois da saudação, corre a prova das 5 frases.
     home: Builder(
-      builder: (context) => AmigoScreen(
-        cerebro: _CerebroDemo(),
-        voz: voz,
-        aoVerConversa: () => ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Na app abre a conversa escrita.'))),
+      builder: (context) => Scaffold(
+        backgroundColor: const Color(0xFFF0FDF4),
+        body: Center(
+          child: FilledButton(
+            key: const Key('amigo-demo-comecar'),
+            style: FilledButton.styleFrom(minimumSize: const Size(260, 72)),
+            onPressed: () {
+              unawaited(Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (ctx) => AmigoScreen(
+                  cerebro: _CerebroDemo(),
+                  voz: voz,
+                  aoVerConversa: () => ScaffoldMessenger.of(ctx)
+                      .showSnackBar(const SnackBar(content: Text('Na app abre a conversa escrita.'))),
+                ),
+              )));
+              unawaited(Future<void>.delayed(const Duration(seconds: 2), () => _provaCincoFrases(voz)));
+            },
+            child: const Text('Começar a prova do Amigo', style: TextStyle(fontSize: 18)),
+          ),
+        ),
       ),
     ),
   ));

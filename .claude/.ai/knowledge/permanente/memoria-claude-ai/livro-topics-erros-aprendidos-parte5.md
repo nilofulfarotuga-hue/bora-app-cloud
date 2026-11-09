@@ -10,11 +10,11 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 5 de 5)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte5`, origem `claude-ai`, atualizada em 2026-11-09T12:22:25.541689+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte5`, origem `claude-ai`, atualizada em 2026-11-09T20:13:38.06659+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte5 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 5 de 5), copiada a 09/11/2026 12:25 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 5 de 5), copiada a 09/11/2026 20:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - [stated] 31/10 16:44: ao marcar a limpeza do Divan para as 18h copiei a tentativa que ele tinha cancelado na app (pacote T2, 4 horas, 45 €) em vez das 3 horas de sempre; o Divan cancelou e a app registou-lhe 45 € de taxa → regra: a limpeza do Divan é de 3 horas por hora (produtos dele, 2 gatos), não o pacote T2; ao marcar uma limpeza por um cliente, seguir o formato das marcações habituais dele, nunca uma tentativa cancelada
 - [stated] 30/10 17:04: na mensagem ao Ricardo (cliente Uber, a quem faltava pagar um pouco) escrevi um limite duro ("até uma semana, não deixo acumular mais de 20 €, senão fica pesado para mim"); ele achou grosso → regra: com cliente que deve pouco, a mensagem é leve — diz quanto falta e pergunta quando consegue pagar; o limite vai só como ajuda futura ("se um dia precisares outra vez, posso ajudar, só não com um valor muito alto"), sem números, prazos nem queixas
@@ -41,4 +41,5 @@ estado: atual
 - [stated] 09/11 11:53: ele mandou o email "do Emanuel" e eu perguntei se era o da Boom ou o do Vamos Já; irritou-se ("puxa o contexto") → regra: a conta da Boom estava à espera do email do dono (login provisório desde 27/10); ler o contexto e agir sem perguntar
 - [stated] 09/11 11:59: perguntou quanto o Valdemir tinha a receber e eu respondi com o fecho semanal; era o pedido de salgados da Keli que ele tinha acabado de pegar → regra: "quanto X recebe" = ver primeiro o pedido em curso de hoje
 - [stated] 09/11 12:09: disse quanto a Keli recebe sem ler a conversa de fecho com ela (24/08) → regra: valor a pagar a um parceiro = ler primeiro o que foi combinado no fecho e o esquema de preço da loja
+- [stated] 09/11 19:36: aceitei a troca do cliente do KFC (Durum Kebab) sem ver se existia, e não existia → regra: troca ou sugestão de produto de cadeia não-parceira só depois de confirmar no Glovo da Guarda (ou Uber Eats); no catálogo do Bora só fica o que lá existe
 

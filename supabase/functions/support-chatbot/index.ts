@@ -45,6 +45,7 @@ import {
   type MensagemClaude,
   type ModeloClaude,
 } from '../_shared/claude.ts';
+import { FERRAMENTAS_TVDE, semBoraMotorista } from './tvde_fechado.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -675,6 +676,21 @@ const CLAUDE_SUPORTE_FIXO = [
   '- Caso novo que nenhum guia cobre (depois de 1-2 perguntas, e nunca para disputas, questões legais, dados pessoais ou fraude): propose_skill_now, e diz que vais passar o caso à equipa.',
 ].join('\n');
 
+// M10 09/11/2026 (item 2.11, ordem do Danilo de 04/11): com o Bora Motorista fechado
+// (platform_settings.tvde_app_visivel=false) o robô não oferece corridas de carro. As ferramentas
+// das reservas de corrida saem da lista e a parte das corridas sai das instruções; o histórico fica
+// intocado (quem perguntar por uma corrida antiga é passado à equipa). Quando o Danilo reabrir, volta tudo.
+// deno-lint-ignore no-explicit-any
+async function boraMotoristaAberto(admin: any): Promise<boolean> {
+  try {
+    const { data } = await admin.from('platform_settings').select('value').eq('key', 'tvde_app_visivel').maybeSingle();
+    const v = (data as { value?: unknown } | null)?.value;
+    return v === true || v === 'true';
+  } catch (_) {
+    return false; // na dúvida, fechado (é o estado desde 04/11)
+  }
+}
+
 // Tira o nome do dono dos textos que chegam ao Claude (descrições de ferramentas, guias, RAG).
 function semNomesInternos(s: string): string {
   return s
@@ -1097,14 +1113,18 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  const systemPrompt = buildSystemPrompt(userRole, emFoco, settings, skillsMd, ragContext);
+  // M10 09/11/2026 (2.11): Bora Motorista fechado → instruções e ferramentas sem corridas.
+  const tvdeAberto = await boraMotoristaAberto(adminClient);
+  const comTvde = (s: string) => (tvdeAberto ? s : semBoraMotorista(s));
+  const systemPrompt = comTvde(buildSystemPrompt(userRole, emFoco, settings, skillsMd, ragContext));
   // 31/10/2026 (fecho-pendentes): o Gemini também recebe as descrições sem o nome do dono (o Claude já
   // as recebia limpas por ferramentasParaClaude). Ninguém de fora pode saber quem é o dono.
   // v36: ferramentas desligadas no painel (support_settings.ferramentas_desligadas) não chegam ao modelo.
   const desligadas = new Set(Array.isArray(settings.ferramentas_desligadas) ? settings.ferramentas_desligadas : []);
+  if (!tvdeAberto) for (const n of FERRAMENTAS_TVDE) desligadas.add(n);
   const tools = buildFunctionDeclarations()
     .filter((t) => !desligadas.has(t.name))
-    .map((t) => (t.description ? { ...t, description: semNomesInternos(t.description) } : t));
+    .map((t) => (t.description ? { ...t, description: comTvde(semNomesInternos(t.description)) } : t));
 
   // Historico: resultados de ferramentas de turnos anteriores vao como TEXTO do lado 'user'
   // (nao ha functionCall gravado para os emparelhar; Gemini rejeita role 'function').
@@ -1287,7 +1307,7 @@ Deno.serve(async (req: Request) => {
       }),
     );
     const claudeTools = ferramentasParaClaude(tools, semNomesInternos);
-    const sistemaClaude = [CLAUDE_SUPORTE_FIXO, claudeSuporteGuias(settings, skillsMd)];
+    const sistemaClaude = [comTvde(CLAUDE_SUPORTE_FIXO), claudeSuporteGuias(settings, skillsMd)];
     const contextoClaude = claudeSuporteContexto(userRole, emFoco, ragContext);
     let modeloClaude: ModeloClaude | undefined = ehModeloClaude(settings.gemini_model) ? settings.gemini_model : undefined;
     while (toolIters <= settings.max_tool_iterations) {

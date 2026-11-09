@@ -38,6 +38,10 @@ def main():
         return 3
     sys.stdout.write(txt.strip() + "\n")
     sys.stderr.write("motor ok: %s\n" % j.get("model"))
+    try:   # o radar-ia.sh le daqui o nome do modelo para o arquivo
+        open(os.environ.get("RADAR_MOTOR_MODELO", "/tmp/radar-motor.modelo"), "w").write(str(j.get("model") or ""))
+    except OSError:
+        pass
     return 0
 
 

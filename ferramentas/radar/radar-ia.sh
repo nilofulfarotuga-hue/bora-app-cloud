@@ -192,7 +192,7 @@ R=$(timeout 420 python3 /opt/data/scripts/radar_motor.py "$PFILE" 2>/tmp/radar-m
 RC=$?
 if [ $RC -eq 0 ] && [ "$(printf %s "$R" | wc -c)" -ge 200 ]; then
   RESP="$R"
-  USADO="motor-bora/$(tail -1 /tmp/radar-motor.err | sed s/^motor ok: //)"
+  USADO="motor-bora/$(cat /tmp/radar-motor.modelo 2>/dev/null)"
   log "MODELO OK: $USADO ($(printf %s "$R" | wc -c) bytes)"
 else
   log "MOTOR-BORA FALHOU rc=$RC — $(head -c 200 /tmp/radar-motor.err | tr n  )"

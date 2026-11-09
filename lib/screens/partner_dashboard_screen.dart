@@ -25,6 +25,7 @@ import '../widgets/partner_fatura_linha.dart';
 import '../services/sound_service.dart';
 import '../services/incoming_job_alert.dart';
 import '../stores/session_store.dart';
+import '../utils/euros.dart' as euros;
 import '../utils/hora_lisboa.dart';
 import '../widgets/address_text.dart';
 import '../widgets/origem_whatsapp_chip.dart';
@@ -550,7 +551,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Total: €${total.toStringAsFixed(2)}',
+              'Total: ${euros.eur(total)}',
               style: const TextStyle(
                   fontSize: 13, color: Colors.black54),
             ),
@@ -1001,12 +1002,66 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
               widget.restaurant.name,
               overflow: TextOverflow.ellipsis,
             ),
-            Text(
-              widget.restaurant.cuisineType,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: subtitleColor,
-              ),
-              overflow: TextOverflow.ellipsis,
+            // M7 (08/11/2026): o dono de uma loja entende "aberta/fechada",
+            // não "online/offline" (comparativo-concorrencia-2026-11, melhoria 5).
+            // M10 (09/11/2026): o botão "Aberta/Fechada" saiu dos ícones da
+            // barra para esta segunda linha — lá apertava o nome da loja até
+            // "Loja D…" (achado da M8 e visto de novo no emulador da M10).
+            Row(
+              children: [
+                InkWell(
+                  key: const Key('estado_loja_barra'),
+                  onTap: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    try {
+                      await restaurantStore.toggleRestaurantOnline(
+                          widget.restaurant.id, !currentRestaurant.isOnline);
+                    } catch (_) {
+                      // 2026-10-03: a falha deixou de ser muda (o store já repôs
+                      // o estado real no ecrã).
+                      messenger.showSnackBar(const SnackBar(
+                          content: Text(
+                              'Não foi possível mudar o estado da loja. Verifica a ligação e tenta de novo.')));
+                    }
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          currentRestaurant.isOnline
+                              ? Icons.circle
+                              : Icons.circle_outlined,
+                          size: 12,
+                          color: currentRestaurant.isOnline
+                              ? Colors.greenAccent
+                              : Colors.redAccent,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          currentRestaurant.isOnline ? 'Aberta' : 'Fechada',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: currentRestaurant.isOnline
+                                ? Colors.greenAccent
+                                : Colors.redAccent,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Flexible(
+                  child: Text(
+                    ' · ${widget.restaurant.cuisineType}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: subtitleColor,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1015,35 +1070,6 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
           // MULTI-PAPEL (2026-08-06) — só aparece com 2+ papéis; troca para
           // Cliente sem sair da sessão (ver `ProfileSwitcherButton`).
           const ProfileSwitcherButton(),
-          TextButton.icon(
-            onPressed: () async {
-              final messenger = ScaffoldMessenger.of(context);
-              try {
-                await restaurantStore.toggleRestaurantOnline(
-                    widget.restaurant.id, !currentRestaurant.isOnline);
-              } catch (_) {
-                // 2026-10-03: a falha deixou de ser muda (o store já repôs
-                // o estado real no ecrã).
-                messenger.showSnackBar(const SnackBar(
-                    content: Text(
-                        'Não foi possível mudar o estado da loja. Verifica a ligação e tenta de novo.')));
-              }
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: currentRestaurant.isOnline
-                  ? Colors.greenAccent
-                  : Colors.redAccent,
-            ),
-            icon: Icon(currentRestaurant.isOnline
-                ? Icons.circle
-                : Icons.circle_outlined),
-            // M7 (08/11/2026): o dono de uma loja entende "aberta/fechada",
-            // não "online/offline" (comparativo-concorrencia-2026-11, melhoria 5).
-            // M10 (09/11/2026): "Loja aberta/fechada" apertava o nome da loja
-            // na barra até "Loj…" (achado da M8 no emulador); a palavra curta
-            // basta, porque o botão está ao lado do nome da loja.
-            label: Text(currentRestaurant.isOnline ? 'Aberta' : 'Fechada'),
-          ),
           // Troca de papel — mesmo padrão do cliente/estafeta (era "Teste"
           // com ícone de bug, confuso em produção).
           IconButton(
@@ -1508,7 +1534,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                                   Text(
                                     _recebe(o) == null
                                         ? ''
-                                        : 'Recebes €${_recebe(o)!.toStringAsFixed(2)}',
+                                        : 'Recebes ${euros.eur(_recebe(o)!)}',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -1815,7 +1841,7 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                 Text(
                   widget.recebe == null
                       ? '…'
-                      : '€${widget.recebe!.toStringAsFixed(2)}',
+                      : euros.eur(widget.recebe!),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -1974,7 +2000,7 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '• ${item.quantity} × ${item.name} — €${(item.price * item.quantity).toStringAsFixed(2)}',
+                    '• ${item.quantity} × ${item.name} — ${euros.eur(item.price * item.quantity)}',
                   ),
                   // Opções escolhidas pelo cliente (acompanhamentos, extras,
                   // toppings...) — o parceiro precisa de as ver para preparar.
@@ -2586,7 +2612,7 @@ class _TakeawayPaymentIndicator extends StatelessWidget {
     if (isCash) {
       color = Colors.orange.shade800;
       icon = Icons.payments_outlined;
-      label = 'Receber €${order.total.toStringAsFixed(2)} na loja';
+      label = 'Receber ${euros.eur(order.total)} na loja';
     } else if (isPaid) {
       color = AppColors.success;
       icon = Icons.check_circle_outline;
@@ -2784,7 +2810,8 @@ class _EarningCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
-    final formattedAmount = '€${amount.toStringAsFixed(2)}';
+    // M10 09/11/2026 (2.14): formato de Portugal (2,50 €), o mesmo do cliente.
+    final formattedAmount = euros.eur(amount);
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

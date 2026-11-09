@@ -3,7 +3,7 @@ description: Plataforma híbrida de entregas BORA
 
 publish_to: 'none'
 
-version: 1.0.4+718
+version: 1.0.4+719
 
 environment:
   sdk: ">=3.0.0 <4.0.0"

@@ -169,6 +169,8 @@ class AppUpdateService {
       }
 
       if (_softPromptShown) return;
+      // Sem ecrã, não se gasta o aviso da semana (revisão M10).
+      if (!context.mounted) return;
       // M10 2.14 ii (09/11/2026): no máximo 1 aviso opcional por semana.
       if (!await reservarAvisoOpcional()) return;
       _softPromptShown = true;

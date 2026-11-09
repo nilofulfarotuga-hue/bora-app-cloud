@@ -4107,4 +4107,5 @@ Future<double?> _ganhoOfertaAdicional(String orderId) async {
   return null;
 }
 
-String _eurPt(double v) => '€${v.toStringAsFixed(2).replaceAll('.', ',')}';
+// M10 09/11/2026: formato de Portugal (2,50 €), o mesmo do cliente.
+String _eurPt(double v) => eur(v);

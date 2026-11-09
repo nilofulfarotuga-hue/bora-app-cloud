@@ -242,11 +242,10 @@ class _GanhosScreenState extends State<GanhosScreen> {
     final porPapel = List<Map<String, dynamic>>.from(
         ((g?['por_papel'] as List?) ?? [])
             .map((e) => Map<String, dynamic>.from(e)));
-    String eur(num? cents) =>
-        '€${((cents ?? 0) / 100).toStringAsFixed(2).replaceAll('.', ',')}';
+    // M10 09/11/2026: formato de Portugal (2,50 €), o mesmo do cliente.
+    String eur(num? cents) => euros.eurCents(cents ?? 0);
     // net_balance do settlement já vem em euros (não cents).
-    String eurRaw(num? v) =>
-        '€${(v ?? 0).toStringAsFixed(2).replaceAll('.', ',')}';
+    String eurRaw(num? v) => euros.eur(v ?? 0);
 
     return Card(
       child: Padding(
@@ -427,8 +426,7 @@ class _GanhosScreenState extends State<GanhosScreen> {
     final sentido = (a['sentido'] ?? 'zero').toString();
     final semana = (a['semana'] ?? '').toString();
     final detalhe = (a['detalhe'] as Map?)?.cast<String, dynamic>() ?? {};
-    String eur(num c) =>
-        '€${(c.abs() / 100).toStringAsFixed(2).replaceAll('.', ',')}';
+    String eur(num c) => euros.eurCents(c.abs());
     final deve = sentido == 'pessoa_deve';
     final recebe = sentido == 'bora_paga';
     final cor = deve ? Colors.orange.shade800 : Colors.green.shade800;

@@ -282,6 +282,24 @@ class OrderModel {
   /// plataforma: nao entra no repasse do parceiro nem no ganho do estafeta.
   double smallOrderFee;
 
+  /// Depósito Volta (09/11/2026): embalagens com depósito (lata/garrafa de
+  /// plástico até 3 L) e o valor cobrado na criação, em cêntimos. Quem calcula
+  /// e cobra é o SERVIDOR (`create_order`); fora do subtotal (sem margem,
+  /// comissão, taxa de serviço nem tokens). Aqui só se lê para mostrar.
+  int depositUnits;
+  int depositCents;
+
+  /// Acertos do depósito depois da criação (produto em falta, talão com mais
+  /// ou menos depósito). Cêntimos com sinal.
+  int depositAjusteCents;
+
+  /// Soma das linhas de depósito lidas no talão (null = talão ainda não lido).
+  int? depositFromReceiptCents;
+
+  /// Depósito final do pedido (cobrado + acertos), em euros.
+  double get depositoVoltaTotal =>
+      (depositCents + depositAjusteCents).clamp(0, 1 << 30) / 100.0;
+
   /// DEPRECATED — single source of truth is now
   /// `DriverStore.currentDriver.location`, synced through the `drivers` table
   /// Realtime subscription. These fields are kept only for binary
@@ -355,6 +373,10 @@ class OrderModel {
     this.bagCount = 0,
     this.bagFee = 0,
     this.smallOrderFee = 0,
+    this.depositUnits = 0,
+    this.depositCents = 0,
+    this.depositAjusteCents = 0,
+    this.depositFromReceiptCents,
     List<String>? driverOfferHistory,
     List<String>? triedDriverIds,
     this.pickupWarningIssued = false,
@@ -618,6 +640,10 @@ class OrderModel {
       bagCount: data['bag_count'] as int? ?? 0,
       bagFee: (data['bag_fee'] as num? ?? 0).toDouble(),
       smallOrderFee: (data['small_order_fee'] as num? ?? 0).toDouble(),
+      depositUnits: (data['deposit_units'] as num?)?.toInt() ?? 0,
+      depositCents: (data['deposit_cents'] as num?)?.toInt() ?? 0,
+      depositAjusteCents: (data['deposit_ajuste_cents'] as num?)?.toInt() ?? 0,
+      depositFromReceiptCents: (data['deposit_from_receipt_cents'] as num?)?.toInt(),
       pickupLocation: pickupLocation,
       destination: destination,
       createdAt: data['created_at'] != null

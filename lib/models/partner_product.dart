@@ -23,6 +23,7 @@ class PartnerProduct {
     this.ageRestricted = false,
     this.dietTags = const [],
     this.variableWeight = false,
+    this.depositUnits = 0,
   });
 
   final String id;
@@ -85,6 +86,13 @@ class PartnerProduct {
   /// [soldByWeight] (porções de 200 g dos parceiros). Default false.
   final bool variableWeight;
 
+  /// `products.deposit_units` (09/11/2026): quantas embalagens com depósito
+  /// Volta (latas e garrafas de plástico até 3 L, 0,10 € cada) leva UMA
+  /// unidade deste produto — 1 numa lata, 6 num pack de 6. 0 = sem depósito.
+  /// Só serve para a nota no cartão e na ficha; quem calcula e cobra é o
+  /// servidor. Default 0 — a coluna pode ainda não existir numa base antiga.
+  final int depositUnits;
+
   PartnerProduct copyWith({
     String? name,
     String? description,
@@ -105,6 +113,7 @@ class PartnerProduct {
     bool? ageRestricted,
     List<String>? dietTags,
     bool? variableWeight,
+    int? depositUnits,
   }) {
     return PartnerProduct(
       id: id,
@@ -128,6 +137,7 @@ class PartnerProduct {
       ageRestricted: ageRestricted ?? this.ageRestricted,
       dietTags: dietTags ?? this.dietTags,
       variableWeight: variableWeight ?? this.variableWeight,
+      depositUnits: depositUnits ?? this.depositUnits,
     );
   }
 }
@@ -136,3 +146,20 @@ class PartnerProduct {
 /// Sem a chave, ou com null, dá false — nunca parte um produto antigo.
 bool pesoVariavelDaLinha(Map<String, dynamic> row) =>
     row['variable_weight'] == true;
+
+/// Depósito Volta (09/11/2026): 0,10 € por embalagem. É o valor que a app
+/// mostra antes do quote; o servidor devolve-o em `deposit_unit_cents` e é
+/// ele que manda no que se cobra.
+const int kCentimosPorEmbalagemVolta = 10;
+
+/// `deposit_units` lido de uma linha do banco (produto ou opção de menu).
+/// Sem a chave, com null ou negativo, dá 0 — nunca parte uma linha antiga.
+int unidadesDepositoDaLinha(Map<String, dynamic> row) {
+  final v = (row['deposit_units'] as num?)?.toInt() ?? 0;
+  return v < 0 ? 0 : v;
+}
+
+/// O erro do servidor é "a coluna `deposit_units` não existe" (base ainda
+/// sem a migração do depósito Volta). Quem pede a coluna repete sem ela.
+bool faltaColunaDeposito(Object erro) =>
+    erro.toString().contains('deposit_units');

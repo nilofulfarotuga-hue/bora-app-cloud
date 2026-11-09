@@ -26,6 +26,7 @@ import 'admin_carwash_screen.dart';
 import 'admin_casa_screen.dart';
 import 'admin_cashbacks_screen.dart';
 import 'admin_catalog_screen.dart';
+import 'admin_volta_screen.dart';
 import 'admin_category_mapping_screen.dart';
 import 'admin_cleaning_bookings_screen.dart';
 import 'admin_cleaning_cleaners_screen.dart';
@@ -1302,6 +1303,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.brown,
       builder: () => const AdminCatalogScreen(),
       keywords: const ['cada', 'catalogo', 'desligar', 'ligar', 'parceiro', 'preco', 'produtos'],
+    ),
+    AdminMenuItem(
+      id: 'parceiros_deposito_volta',
+      title: 'Depósito Volta',
+      subtitle: 'Latas e garrafas de plástico com depósito de 0,10 €',
+      icon: Icons.recycling,
+      color: Colors.teal,
+      builder: () => const AdminVoltaScreen(),
+      keywords: const ['volta', 'deposito', 'latas', 'garrafas', 'plastico', 'embalagens', 'tara', 'reciclagem', 'retorno'],
     ),
     AdminMenuItem(
       id: 'parceiros_maiores_18',

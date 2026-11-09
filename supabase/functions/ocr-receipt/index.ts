@@ -26,11 +26,18 @@
 // loja nao-parceira / Favor com compra). Em falta ou diferente -> ocr_flagged (revisao no
 // painel) + aviso nif_talao_diferente com os dois numeros. Resultado em receipt_parsed.nif_check
 // e na resposta (nif). Sem a migracao 20261109010000 no servidor nao faz nada. Ver nif_talao.ts.
+//
+// v13 (missao volta-deposito-kfc, 09/11/2026): (1) o modelo devolve tambem o NIF da loja
+// (seller_nif) e todos os NIF impressos (nifs); o NIF do cliente escolhe-se entre eles, nunca o
+// da loja (talao do KFC 2190210d: "N. Contrib. 502604735" da loja + "NIF:123456789" do cliente
+// davam nif_em_falta). (2) o modelo devolve as linhas a 0,00 dos menus e as linhas de deposito e
+// de saco como linhas proprias — o robo do catalogo soma os menus e as caixas e o servidor trata o
+// deposito Volta (gatilho trg_talao_deposito_volta).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { exigirCallerOk, secretKey } from '../_shared/keys.ts'
 import { respostaAoPing } from '../_shared/chaves.ts'
-import { avisarNifDoTalao, limparNif, verificarNifDoTalao } from './nif_talao.ts'
+import { avisarNifDoTalao, escolherNifCliente, limparNif, verificarNifDoTalao } from './nif_talao.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -146,11 +153,18 @@ Deno.serve(async (req) => {
   const legacyFlagged = diffCents != null && Math.abs(diffCents) > DEFAULT_LEGACY_FLAG_CENTS
 
   // v12 — NIF do talao vs NIF que tinha de ser dado na caixa (nunca lanca).
-  const nifCheck = await verificarNifDoTalao(supabase, orderId, parsed?.buyer_nif ?? null, looksLikeReceipt)
+  // v13: o NIF do cliente escolhe-se entre todos os impressos (nunca o da loja) — ver escolherNifCliente.
+  const nifCheck = await verificarNifDoTalao(supabase, orderId, parsed?.buyer_nif ?? null, looksLikeReceipt,
+    { seller: parsed?.seller_nif ?? null, nifs: parsed?.nifs ?? [] })
   const nifFlagged = nifCheck.aplica === true && nifCheck.ok === false
+  const buyerNifFinal = (nifCheck as { talao?: string | null }).talao
+    ?? escolherNifCliente(parsed?.buyer_nif ?? null, parsed?.seller_nif ?? null, parsed?.nifs ?? [], null)
 
+  // O depósito Volta das linhas do talão (DEPOSITO, VALOR DE DEPOSITO, VASILHAME…) é tratado no
+  // servidor pelo gatilho trg_talao_deposito_volta quando receipt_parsed muda (PARTE 2 da missão
+  // volta-deposito-kfc-2026-11-09); aqui só se lê e grava.
   await supabase.from('order_receipts_v2').update({
-    receipt_parsed: parsed ? { ...parsed, nif_check: nifCheck } : parsed,
+    receipt_parsed: parsed ? { ...parsed, buyer_nif: buyerNifFinal, nif_check: nifCheck } : parsed,
     receipt_parsed_total_cents: parsedTotal,
     receipt_parsed_store: parsed?.store ?? null,
     receipt_match: match,
@@ -201,6 +215,8 @@ type ParsedReceipt = {
   lines: ParsedLine[]
   datetime: string | null
   buyer_nif: string | null // v12: NIF do adquirente impresso no talao (9 digitos) ou null
+  seller_nif?: string | null // v13: NIF/NIPC da loja (cabecalho)
+  nifs?: string[] // v13: todos os NIF de 9 digitos impressos no talao
 }
 
 function isEmptyParse(p: ParsedReceipt | null): boolean {
@@ -214,15 +230,25 @@ async function callGemini(key: string, model: string, b64: string):
     'Lê este talão de compra e devolve JSON ESTRITO (sem markdown, sem prosa). ' +
     'Schema: {"store": string|null, "total_cents": integer|null, ' +
     '"lines": [{"name": string, "qty": number, "unit_price_cents": integer}], ' +
-    '"datetime": "YYYY-MM-DDTHH:MM" or null, "buyer_nif": string|null}. ' +
+    '"datetime": "YYYY-MM-DDTHH:MM" or null, "buyer_nif": string|null, ' +
+    '"seller_nif": string|null, "nifs": [string]}. ' +
     'Regras: total_cents é o total final em cêntimos de euro (€12.34 → 1234). ' +
-    'lines pode ser [] se não conseguires distinguir produtos. ' +
+    'lines são TODAS as linhas de artigos pela ordem impressa, uma por linha do talão: qty é a quantidade ' +
+    'e unit_price_cents o preço de UMA unidade (se só houver o total da linha, divide pela quantidade). ' +
+    'Inclui as linhas a 0,00 (ex.: "MENU KENTUCKY BBQ 0,00" seguido das sublinhas do menu), as linhas ' +
+    'de depósito de embalagens (DEPOSITO, VALOR DE DEPOSITO, VASILHAME, SDR, VOLTA) e de sacos, cada ' +
+    'uma como linha própria; ignora linhas de traços. lines pode ser [] se não conseguires distinguir produtos. ' +
     'store é o nome da loja/farmácia/supermercado (sem morada). ' +
     'datetime usa hora local do talão se visível. ' +
-    'buyer_nif é o NIF do CLIENTE/adquirente impresso no talão (linhas como "NIF:", "Contribuinte:", ' +
-    '"NIF Cliente", "NIF Adquirente"), só os 9 dígitos; NUNCA o NIF/NIPC da loja que aparece no ' +
-    'cabeçalho junto ao nome e morada da loja; se diz "Consumidor final" ou não há NIF do cliente, null. ' +
-    'Se não conseguires ler o talão, devolve {"store":null,"total_cents":null,"lines":[],"datetime":null,"buyer_nif":null}.'
+    'seller_nif é o NIF/NIPC da LOJA (no cabeçalho, junto ao nome/morada, muitas vezes "N. Contrib.", ' +
+    '"Contribuinte", "NIPC"). nifs são TODOS os números de 9 dígitos impressos junto a "NIF", "Contrib", ' +
+    '"Contribuinte" ou "NIPC", em qualquer parte do talão. ' +
+    'buyer_nif é o NIF do CLIENTE/adquirente (linhas como "NIF:", "NIF Cliente", "NIF Adquirente", ' +
+    '"Contribuinte:"), só os 9 dígitos; NUNCA o NIF/NIPC da loja. Atenção: há talões (ex.: KFC) com os dados da ' +
+    'empresa e "N. Contrib." da loja e, logo a seguir, uma linha "NIF:" com OUTRO número — esse é o do ' +
+    'cliente. Se diz "Consumidor final" ou não há NIF do cliente, null. ' +
+    'Se não conseguires ler o talão, devolve {"store":null,"total_cents":null,"lines":[],"datetime":null,' +
+    '"buyer_nif":null,"seller_nif":null,"nifs":[]}.'
   const payload = {
     contents: [{
       parts: [
@@ -257,6 +283,10 @@ function sanitizeParsed(raw: any): ParsedReceipt {
     ? Math.round(raw.total_cents) : null
   const datetime = typeof raw?.datetime === 'string' ? raw.datetime.slice(0, 32) : null
   const buyerNif = limparNif(raw?.buyer_nif)
+  const sellerNif = limparNif(raw?.seller_nif)
+  const nifs: string[] = Array.isArray(raw?.nifs)
+    ? [...new Set(raw.nifs.map(limparNif).filter((n: string | null): n is string => !!n))].slice(0, 10) as string[]
+    : []
   const lines: ParsedLine[] = Array.isArray(raw?.lines)
     ? raw.lines
         .filter((l: any) => l && typeof l.name === 'string')
@@ -269,7 +299,7 @@ function sanitizeParsed(raw: any): ParsedReceipt {
             : 0,
         }))
     : []
-  return { store, total_cents: total, lines, datetime, buyer_nif: buyerNif }
+  return { store, total_cents: total, lines, datetime, buyer_nif: buyerNif, seller_nif: sellerNif, nifs }
 }
 
 async function loadSettings(supabase: any): Promise<{ ocrEnabled: boolean; divergenceCents: number }> {

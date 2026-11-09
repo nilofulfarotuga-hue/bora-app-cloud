@@ -484,6 +484,10 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
     final isPay = direction == 'bora_pays_partner';
     final isOwe = direction == 'partner_pays_bora';
     final cashKept = (s['cash_kept_by_partner'] as num?)?.toDouble() ?? 0;
+    // 09/11/2026 — Depósito Volta da semana (0 se o servidor ainda não manda).
+    final depositoVolta = s['deposit_volta_total'] is num
+        ? (s['deposit_volta_total'] as num).toDouble()
+        : double.tryParse('${s['deposit_volta_total'] ?? ''}') ?? 0;
     final statusColor = switch (status) {
       'paid' || 'received' => AppColors.success,
       'closed' => AppColors.info,
@@ -564,7 +568,8 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
                 'Vendas brutas: ${_fmtEur((s['gross_sales'] as num?) ?? 0)}\n'
                 'Comissão Bora: ${_fmtEur((s['commission_total'] as num?) ?? 0)}\n'
                 'Parte do parceiro: ${_fmtEur((s['partner_share'] as num?) ?? 0)}'
-                '${cashKept > 0 ? '\nDinheiro já recebido pelo parceiro (cash na loja): ${_fmtEur(cashKept)} — entra ao contrário' : ''}',
+                '${cashKept > 0 ? '\nDinheiro já recebido pelo parceiro (cash na loja): ${_fmtEur(cashKept)} — entra ao contrário' : ''}'
+                '${depositoVolta > 0 ? '\nDepósito Volta (vai 100% para o parceiro): ${_fmtEur(depositoVolta)}' : ''}',
                 style: const TextStyle(
                     fontSize: 12, color: AppColors.textSecondary, height: 1.5),
               ),

@@ -44,6 +44,7 @@ import '../utils/marcador_animado.dart';
 import '../utils/rastreio_interpolacao.dart' show AmostraPosicao;
 import '../services/notification_service.dart';
 import '../widgets/chat_bubble_button.dart';
+import '../widgets/deposito_volta_nota.dart';
 import 'chat_screen.dart';
 import 'rating_screen.dart';
 
@@ -1213,6 +1214,16 @@ class _BottomCardState extends State<_BottomCard> {
                       // soma do resumo não batia com o total (0,30 € a menos).
                       if (order.bagFee > 0)
                         _SummaryRow(label: 'Saco'.tr, value: order.bagFee),
+                      // Depósito Volta (09/11/2026): linha à parte por lei;
+                      // o valor do servidor, já com os acertos.
+                      if (order.depositoVoltaTotal > 0)
+                        _SummaryRow(
+                            key: const Key('linha_deposito_volta'),
+                            label: DepositoVoltaNota.rotulo(
+                                order.depositAjusteCents == 0
+                                    ? order.depositUnits
+                                    : 0),
+                            value: order.depositoVoltaTotal),
                       if (order.tipCents > 0)
                         _SummaryRow(
                             label: 'Gorjeta'.tr,

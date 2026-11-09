@@ -3945,6 +3945,29 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                   ),
                 ],
               ),
+              // Depósito Volta (09/11/2026): a loja cobra o depósito das latas
+              // e garrafas na caixa; o cliente paga-o numa linha à parte. Os
+              // valores são os do servidor (o acerto vem do talão).
+              if (order.depositUnits > 0) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Este pedido tem ${order.depositUnits} '
+                  '${order.depositUnits == 1 ? 'embalagem' : 'embalagens'} '
+                  'com Volta (${eurCents(order.depositCents)})',
+                  key: const Key('estafeta_deposito_volta'),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                ),
+              ],
+              if (order.depositAjusteCents != 0) ...[
+                const SizedBox(height: 2),
+                Text(
+                  'Depósito Volta do talão: '
+                  '${order.depositAjusteCents > 0 ? '+' : '−'}'
+                  '${eurCents(order.depositAjusteCents.abs())}',
+                  key: const Key('estafeta_deposito_volta_acerto'),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                ),
+              ],
               const SizedBox(height: 6),
               if (isCash) ...[
                 // BUG H (sessão exec 2026-05-12) — breakdown completo em CASH.
@@ -3955,6 +3978,11 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                 if (ajustePesoCliente != 0)
                   _SummaryRow(
                       label: 'Ajuste de peso', value: ajustePesoCliente),
+                // Depósito Volta (09/11/2026): linha à parte, valor do servidor.
+                if (order.depositoVoltaTotal > 0)
+                  _SummaryRow(
+                      label: 'Depósito Volta',
+                      value: order.depositoVoltaTotal),
                 _SummaryRow(
                     label: 'Taxa de serviço', value: order.serviceFee),
                 _SummaryRow(label: 'Entrega', value: order.deliveryFee),
@@ -3973,10 +4001,13 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                   // 29/10 (auditoria 7.2): a taxa de pedido pequeno também é
                   // do cliente — faltava aqui e a folha dizia 5,78 com a
                   // faixa (servidor) a dizer 7,17.
+                  // 09/11/2026: o depósito Volta (do servidor) entra como as
+                  // outras linhas, para a lista bater com a faixa laranja.
                   final bruto = clientAdjustedTotal +
                       order.serviceFee +
                       order.deliveryFee +
-                      order.smallOrderFee -
+                      order.smallOrderFee +
+                      order.depositoVoltaTotal -
                       order.jaPagoSemDinheiro;
                   // 29/10 (revisor): a dívida anterior soma-se por cima, como
                   // na faixa laranja (totalToCollectCash) — senão a lista

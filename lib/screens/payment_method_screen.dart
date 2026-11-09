@@ -36,6 +36,7 @@ import '../widgets/bora/maior_18.dart';
 import '../widgets/card_mandate_notice.dart';
 import '../widgets/checkout_legal_notice.dart';
 import '../widgets/customer_note_field.dart';
+import '../widgets/deposito_volta_nota.dart';
 import '../widgets/falta_para_entrega_gratis.dart';
 import '../widgets/fatura_nif_card.dart';
 import '../widgets/talheres_troco_cards.dart';
@@ -676,6 +677,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                           _SummaryRow(
                               label: 'Taxa de pedido pequeno'.tr,
                               value: smallOrderFee),
+                        // Depósito Volta (09/11/2026): linha à parte por lei;
+                        // o total do servidor já o inclui.
+                        if (!isErrand && resumo.depositoCents > 0)
+                          _SummaryRow(
+                              label: DepositoVoltaNota.rotulo(
+                                  resumo.depositoUnidades),
+                              value: resumo.depositoCents / 100),
                         if (!isErrand && resumo.descontoPremio > 0)
                           _SummaryRow(
                               label: 'Prémio Bora Todo Dia'.tr,

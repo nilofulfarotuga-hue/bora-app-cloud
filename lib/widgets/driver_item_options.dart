@@ -31,6 +31,9 @@ List<CartItem> copyOrderItemsForDriverSheet(List<CartItem> items) {
             basePrice: i.basePrice,
             selectedOptions: i.selectedOptions,
             selectedOptionsPriced: i.selectedOptionsPriced,
+            // Depósito Volta (09/11): sem isto o estado das compras gravava
+            // `deposit_units: 0` por cima do que o servidor pôs no item.
+            depositUnits: i.depositUnits,
           ))
       .toList();
 }

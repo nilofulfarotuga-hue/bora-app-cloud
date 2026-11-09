@@ -16,6 +16,12 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 09/11/2026: depósito Volta (latas e garrafas). Acrescentado à mão.
+  '+{0} depósito Volta': '+{0} Volta deposit',
+  '+{0} depósito Volta ({1} embalagens)': '+{0} Volta deposit ({1} containers)',
+  'Depósito Volta': 'Volta deposit',
+  'Depósito Volta (1 embalagem)': 'Volta deposit (1 container)',
+  'Depósito Volta ({0} embalagens)': 'Volta deposit ({0} containers)',
   // 09/11/2026 (m11): cartão e MB Way na Casa. Acrescentado à mão.
   'Este valor é baixo demais para cartão ou MB Way. Paga em dinheiro.':
       'This amount is too low for card or MB Way. Pay in cash.',

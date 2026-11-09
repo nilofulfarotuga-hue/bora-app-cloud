@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/cart_item.dart';
 import '../models/order_model.dart';
+import '../models/partner_product.dart' show kCentimosPorEmbalagemVolta;
 import '../config/business_rules.dart' show BRTokens;
 import '../services/agendar_pedido_service.dart';
 import '../services/assistant_service.dart';
@@ -846,6 +847,15 @@ class CartStore extends ChangeNotifier {
         ? local.deliveryFee - local.apartmentSurcharge - entregaLocalPoupada
         : valor('delivery_fee', local.deliveryFee) - apartamento;
     final taxaPedidoPequeno = eFavor ? 0.0 : smallOrderFee;
+    // Depósito Volta (09/11/2026): com quote, o do servidor (o
+    // `customer_total` já o inclui — não se soma outra vez); sem quote, a
+    // conta provisória pelas embalagens do carrinho, somada ao total local.
+    final depositoUnidades = q != null
+        ? (q['deposit_units'] as num?)?.toInt() ?? 0
+        : (eFavor ? 0 : depositoUnidadesLocal);
+    final depositoCents = q != null
+        ? (q['deposit_cents'] as num?)?.toInt() ?? 0
+        : depositoUnidades * kCentimosPorEmbalagemVolta;
     return ResumoDoCarrinho(
       subtotal: valor('subtotal', local.subtotal),
       taxaServico: valor('service_fee', local.serviceFee),
@@ -854,13 +864,24 @@ class CartStore extends ChangeNotifier {
       saco: valor('bag_fee', local.bagFee),
       taxaPedidoPequeno: taxaPedidoPequeno,
       total: (q?['customer_total'] as num?)?.toDouble() ??
-          (local.customerTotal + taxaPedidoPequeno - entregaLocalPoupada),
+          // Só aqui (conta local, que nunca traz o depósito) se soma.
+          (local.customerTotal +
+              taxaPedidoPequeno -
+              entregaLocalPoupada +
+              depositoCents / 100),
       doServidor: q != null,
+      depositoUnidades: depositoUnidades,
+      depositoCents: depositoCents,
       // O total do servidor já vem com o desconto tirado; a linha é só para
       // o cliente ver de onde vem a diferença.
       descontoPremio: eFavor ? 0 : checkinDesconto,
     );
   }
+
+  /// Embalagens com depósito Volta no carrinho (unidades de cada linha ×
+  /// quantidade). Só para a conta provisória antes do quote do servidor.
+  int get depositoUnidadesLocal => _items.fold<int>(
+      0, (soma, i) => soma + i.depositUnits * i.quantity);
 
   /// O `p_input` que se manda ao `quote_order_pricing`. Fica à parte para se
   /// poder verificar em teste — o que o servidor recebe é o que decide o que
@@ -1797,7 +1818,16 @@ class ResumoDoCarrinho {
     required this.total,
     required this.doServidor,
     this.descontoPremio = 0,
+    this.depositoUnidades = 0,
+    this.depositoCents = 0,
   });
+
+  /// Depósito Volta (09/11/2026): embalagens e valor em cêntimos. Linha À
+  /// PARTE (fora do [subtotal], sem markup, taxas nem tokens); já está
+  /// dentro do [total]. Com quote vem do servidor (`deposit_units`,
+  /// `deposit_cents`); sem quote é a conta provisória do carrinho.
+  final int depositoUnidades;
+  final int depositoCents;
 
   /// Prémio Bora Todo Dia (desconto do check-in) já tirado ao [total], EUR.
   final double descontoPremio;

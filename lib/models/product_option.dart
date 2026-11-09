@@ -2,6 +2,10 @@
 /// (pick N free) + "Deseja Extras?" (+€ each). Backed by DB tables
 /// product_option_groups / product_option_items. Read-only on the client; the
 /// partner manages them in the partner panel.
+library;
+
+import 'partner_product.dart' show unidadesDepositoDaLinha;
+
 class ProductOptionItem {
   final String id;
   final String groupId;
@@ -10,6 +14,12 @@ class ProductOptionItem {
   final bool isAvailable;
   final int sortOrder;
 
+  /// `product_option_items.deposit_units` (09/11/2026): embalagens com
+  /// depósito Volta que esta escolha junta (ex.: a lata do menu = 1). 0 = sem
+  /// depósito; default 0 quando a coluna ainda não existe. Só para mostrar —
+  /// o servidor é que calcula e cobra.
+  final int depositUnits;
+
   const ProductOptionItem({
     required this.id,
     required this.groupId,
@@ -17,6 +27,7 @@ class ProductOptionItem {
     this.priceAdd = 0,
     this.isAvailable = true,
     this.sortOrder = 0,
+    this.depositUnits = 0,
   });
 
   factory ProductOptionItem.fromMap(Map<String, dynamic> m, String groupId) =>
@@ -27,6 +38,7 @@ class ProductOptionItem {
         priceAdd: (m['price_add'] as num?)?.toDouble() ?? 0,
         isAvailable: m['is_available'] as bool? ?? true,
         sortOrder: m['sort_order'] as int? ?? 0,
+        depositUnits: unidadesDepositoDaLinha(m),
       );
 }
 

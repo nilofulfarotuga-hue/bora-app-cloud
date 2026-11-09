@@ -15,6 +15,7 @@ import '../bora/coming_soon.dart';
 import '../bora/maior_18.dart';
 import '../bora/peso_variavel_nota.dart';
 import '../bora/weight_price_text.dart';
+import '../deposito_volta_nota.dart';
 import '../preco_com_promocao.dart';
 
 import '../../l10n/tr.dart';
@@ -79,6 +80,7 @@ class MarketProductCard extends StatelessWidget {
           quantity: 1,
           ageRestricted: product.ageRestricted,
           variableWeight: product.variableWeight,
+          depositUnits: product.depositUnits,
         ));
     showAddedToCartSnack(context, '{0} no carrinho'.trArgs([product.name]));
   }
@@ -129,17 +131,21 @@ class MarketProductCard extends StatelessWidget {
                     // parceiro = puro). Só se risca o preço (adendo 5 · item 4)
                     // quando o servidor já aplica a promoção: PrecoComPromocao
                     // não mostra nada de novo com o interruptor desligado.
+                    // Depósito Volta (09/11/2026): nota curta por baixo.
                     Expanded(
-                      child: PrecoComPromocao(
-                        restaurantId: restaurantId,
-                        productId: product.id,
-                        isPartnerStore: isPartnerStore,
-                        estiloPreco: _estiloPreco,
-                        semPromocao: WeightPriceText(
-                          displayPrice: PricingService.applyMarkup(
-                              product.price, isPartnerStore),
-                          soldByWeight: product.soldByWeight,
-                          style: _estiloPreco,
+                      child: DepositoVoltaNota.porBaixoDoPreco(
+                        unidades: product.depositUnits,
+                        preco: PrecoComPromocao(
+                          restaurantId: restaurantId,
+                          productId: product.id,
+                          isPartnerStore: isPartnerStore,
+                          estiloPreco: _estiloPreco,
+                          semPromocao: WeightPriceText(
+                            displayPrice: PricingService.applyMarkup(
+                                product.price, isPartnerStore),
+                            soldByWeight: product.soldByWeight,
+                            style: _estiloPreco,
+                          ),
                         ),
                       ),
                     ),

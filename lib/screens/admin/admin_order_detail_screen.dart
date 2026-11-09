@@ -14,6 +14,8 @@ import '../../widgets/admin/admin_recibo_cliente_section.dart';
 import '../../widgets/admin/admin_talao_pedido_section.dart';
 import '../../widgets/admin/admin_ofertas_do_pedido_section.dart';
 import '../../utils/conta_do_dinheiro_admin.dart';
+import '../../utils/deposito_volta_admin.dart'
+    show DepositoVoltaPedido, eurosDeCentimos;
 import '../../utils/hora_lisboa.dart';
 import '_admin_cancel_order_dialog.dart';
 import 'admin_ajustes_peso_screen.dart';
@@ -138,11 +140,27 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
       } catch (e) {
         debugPrint('[AdminOrderDetail] pedido_morada_trocada: $e');
       }
+      // 09/11/2026 — Depósito Volta: consulta À PARTE e tolerante. Se as
+      // colunas ainda não existirem no servidor, só o cartão fica escondido
+      // (pô-las no select de cima partia o ecrã inteiro).
+      Map<String, dynamic>? deposito;
+      try {
+        final d = await Supabase.instance.client
+            .from('orders')
+            .select('deposit_units, deposit_cents, deposit_ajuste_cents, '
+                'deposit_from_receipt_cents')
+            .eq('id', widget.orderId)
+            .maybeSingle();
+        if (d != null) deposito = Map<String, dynamic>.from(d);
+      } catch (e) {
+        debugPrint('[AdminOrderDetail] deposito volta: $e');
+      }
       if (!mounted) return;
       setState(() {
         _order = Map<String, dynamic>.from(data);
         if (ageCheck != null) _order!['_age_check'] = ageCheck;
         if (troca != null) _order!['_morada_trocada'] = troca;
+        if (deposito != null) _order!['_deposito_volta'] = deposito;
         _loading = false;
       });
     } catch (e) {
@@ -808,6 +826,10 @@ class _PaymentTab extends StatelessWidget {
     // (driver recebeu cash do cliente; Bora paga driver_earnings).
     final cashAdjustment = cashCollected - driverEarnings;
 
+    // 09/11/2026 — Depósito Volta (null = colunas ainda não no servidor).
+    final volta = DepositoVoltaPedido.daLinha(
+        (order['_deposito_volta'] as Map?)?.cast<String, dynamic>());
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -832,6 +854,45 @@ class _PaymentTab extends StatelessWidget {
             ]),
           ),
         ),
+        if (volta != null && !volta.vazio) ...[
+          const SizedBox(height: 12),
+          Card(
+            key: const Key('admin_pedido_deposito_volta'),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Radii.lg),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Depósito Volta',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  _row('Embalagens', '${volta.unidades}'),
+                  _row('Cobrado na criação',
+                      eurosDeCentimos(volta.cobradoCents)),
+                  _row(
+                      'Lido no talão',
+                      volta.talaoCents == null
+                          ? '— (talão sem leitura)'
+                          : eurosDeCentimos(volta.talaoCents)),
+                  _row('Acertos', volta.acertoTexto),
+                  const Divider(),
+                  _row('Total final', eurosDeCentimos(volta.totalFinalCents)),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Linha à parte (fora do subtotal, sem margem, taxas nem '
+                    'tokens). Parceiro: vai 100% para a loja no acerto semanal. '
+                    'Não-parceiro: fica com a Bora (o entregador pagou no balcão).',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
         // FASE 3: Cash entregue — só aparece se cash + delivered
         if (isCash && isDelivered) ...[
           const SizedBox(height: 12),

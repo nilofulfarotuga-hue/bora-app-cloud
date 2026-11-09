@@ -24,6 +24,7 @@ import '../widgets/bora/weight_price_text.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora/coming_soon.dart';
 import '../widgets/bora_assistant_fab.dart';
+import '../widgets/deposito_volta_nota.dart';
 import '../widgets/entrega_gratis_da_loja.dart';
 import 'cart_screen.dart';
 import 'product_detail_screen.dart';
@@ -961,6 +962,7 @@ class _BoraProductCardTile extends StatelessWidget {
               basePrice: product.price,
               ageRestricted: product.ageRestricted,
               variableWeight: product.variableWeight,
+              depositUnits: product.depositUnits,
             ));
         showAddedToCartSnack(context, '{0} no carrinho'.trArgs([product.name]));
       },
@@ -1188,6 +1190,7 @@ class _ProductCardState extends State<_ProductCard>
                                 basePrice: widget.product.price,
                                 ageRestricted: widget.product.ageRestricted,
                                 variableWeight: widget.product.variableWeight,
+                                depositUnits: widget.product.depositUnits,
                               ));
                           showAddedToCartSnack(
                               context, '{0} no carrinho'.trArgs([widget.product.name]));
@@ -1196,6 +1199,11 @@ class _ProductCardState extends State<_ProductCard>
                     ],
                   ),
                 ],
+                // Depósito Volta (09/11/2026): à parte do preço, por lei.
+                DepositoVoltaNota(
+                  unidades: widget.product.depositUnits,
+                  margem: const EdgeInsets.only(top: 2),
+                ),
                 if (variants.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   ...List.generate(variants.length, (i) {
@@ -1207,6 +1215,7 @@ class _ProductCardState extends State<_ProductCard>
                         variant: variants[i],
                         productName: widget.product.name,
                         productPhotoUrl: widget.product.photoUrl,
+                        depositUnits: widget.product.depositUnits,
                         showPerKg: widget.showPerKg,
                         cartStore: cartStore,
                         primaryColor: primaryColor,
@@ -1239,10 +1248,14 @@ class _VariantMiniCard extends StatelessWidget {
     required this.showCheapestBadge,
     required this.showPremiumBadge,
     required this.isPartnerStore,
+    this.depositUnits = 0,
   });
 
   final ProductVariant variant;
   final String productName;
+
+  /// Depósito Volta do produto-pai (embalagens por unidade).
+  final int depositUnits;
   final String productPhotoUrl;
   final bool showPerKg;
   final CartStore cartStore;
@@ -1269,6 +1282,7 @@ class _VariantMiniCard extends StatelessWidget {
           name: '$productName (${variant.brandName})',
           price: PricingService.applyMarkup(variant.price, isPartnerStore),
           basePrice: variant.price,
+          depositUnits: depositUnits,
         ));
     showAddedToCartSnack(context, '{0} no carrinho'.trArgs([variant.brandName]));
   }

@@ -8,6 +8,9 @@ import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/extrato_prestador_section.dart';
 import '../widgets/gorjetas_recebidas_section.dart';
+// M10 2.14 iii (09/11/2026): preços no formato de Portugal ("2,50 €"),
+// só a forma de mostrar — os valores são os mesmos.
+import '../utils/euros.dart' as euros;
 
 /// Icone de uma linha do extracto de ganhos (`driver_earnings_summary`).
 /// [17/10/2026] A compensacao de corrida TVDE cancelada vem com tipo `entrega`
@@ -239,11 +242,10 @@ class _GanhosScreenState extends State<GanhosScreen> {
     final porPapel = List<Map<String, dynamic>>.from(
         ((g?['por_papel'] as List?) ?? [])
             .map((e) => Map<String, dynamic>.from(e)));
-    String eur(num? cents) =>
-        '€${((cents ?? 0) / 100).toStringAsFixed(2).replaceAll('.', ',')}';
+    // M10 09/11/2026: formato de Portugal (2,50 €), o mesmo do cliente.
+    String eur(num? cents) => euros.eurCents(cents ?? 0);
     // net_balance do settlement já vem em euros (não cents).
-    String eurRaw(num? v) =>
-        '€${(v ?? 0).toStringAsFixed(2).replaceAll('.', ',')}';
+    String eurRaw(num? v) => euros.eur(v ?? 0);
 
     return Card(
       child: Padding(
@@ -424,8 +426,7 @@ class _GanhosScreenState extends State<GanhosScreen> {
     final sentido = (a['sentido'] ?? 'zero').toString();
     final semana = (a['semana'] ?? '').toString();
     final detalhe = (a['detalhe'] as Map?)?.cast<String, dynamic>() ?? {};
-    String eur(num c) =>
-        '€${(c.abs() / 100).toStringAsFixed(2).replaceAll('.', ',')}';
+    String eur(num c) => euros.eurCents(c.abs());
     final deve = sentido == 'pessoa_deve';
     final recebe = sentido == 'bora_paga';
     final cor = deve ? Colors.orange.shade800 : Colors.green.shade800;
@@ -621,7 +622,7 @@ class _GanhosScreenState extends State<GanhosScreen> {
                   onChanged: (v) => setDialog(() => amount = v.round()),
                 ),
                 Text(
-                  '$amount tokens = €${eur.toStringAsFixed(2)}',
+                  '$amount tokens = ${euros.eur(eur)}',
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 16,
@@ -680,7 +681,7 @@ class _GanhosScreenState extends State<GanhosScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'Convertidos $tokensToConvert tokens → €${amountEur.toStringAsFixed(2)}'),
+              'Convertidos $tokensToConvert tokens → ${euros.eur(amountEur)}'),
         ),
       );
       _load();
@@ -887,7 +888,7 @@ class _TokenSection extends StatelessWidget {
               const Icon(Icons.monetization_on, color: Colors.amber, size: 22),
               const SizedBox(width: 8),
               Text(
-                '$tokens tokens (€${eur.toStringAsFixed(2)})',
+                '$tokens tokens (${euros.eur(eur)})',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,

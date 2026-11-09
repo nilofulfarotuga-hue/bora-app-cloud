@@ -103,8 +103,9 @@ class _AdminReforcoSectionState extends State<AdminReforcoSection> {
         'dispatch_voltas_online_depois_forcado',
         'Voltas aos online depois do reforço',
         'voltas',
-        'Depois do reforço, quantas voltas aos online antes de dizer "não há '
-            'estafeta".',
+        'Depois do reforço, quantas voltas aos online antes de o pedido poder '
+            'ser cancelado por tempo. O reforço nunca cancela antes do tempo '
+            'normal do despacho.',
         0,
         10,
         1),

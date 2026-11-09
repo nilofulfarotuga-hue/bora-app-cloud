@@ -51,6 +51,34 @@ const Map<String, String> kAcertosAjustePeso = {
   'ignorado_nao_ha': 'Ignorado (produto marcado "Não há")',
 };
 
+/// Resumo das cobranças da diferença no CARTÃO (02/11/2026, zerar B3), por
+/// pedido: "Cartão: 2 pedido(s) cobrado(s) 3,10 € · 1 a cobrar 0,90 € · Bora
+/// assumiu 1,20 € (1)". Soma só o que subiu (`delta_client_cents` > 0).
+String resumoCobrancasCartaoPeso(Iterable<Map<String, dynamic>> linhas) {
+  final porPedido = <String, Map<String, int>>{};
+  for (final r in linhas) {
+    final via = r['settled_via']?.toString() ?? '';
+    if (via != 'cartao_cobrado' && via != 'cartao_pendente' && via != 'bora_assume') {
+      continue;
+    }
+    final d = _inteiro(r['delta_client_cents']) ?? 0;
+    final pedido = porPedido.putIfAbsent(via, () => <String, int>{});
+    final id = r['order_id']?.toString() ?? '';
+    pedido[id] = (pedido[id] ?? 0) + d;
+  }
+  (int, String) parte(String via) {
+    final p = porPedido[via] ?? const <String, int>{};
+    final soma = p.values.fold<int>(0, (s, v) => s + (v > 0 ? v : 0));
+    return (p.length, eurosAjustePeso(soma));
+  }
+
+  final (nCobrado, cobrado) = parte('cartao_cobrado');
+  final (nPendente, pendente) = parte('cartao_pendente');
+  final (nAssume, assume) = parte('bora_assume');
+  return 'Cartão: $nCobrado pedido(s) cobrado(s) $cobrado · '
+      '$nPendente a cobrar $pendente · Bora assumiu $assume ($nAssume)';
+}
+
 /// `settled_via` em PT-BR; `null` = o pedido ainda não fechou a compra.
 String textoAcertoPeso(Object? settledVia) {
   final v = settledVia?.toString() ?? '';
@@ -315,11 +343,23 @@ class _AdminAjustesPesoScreenState extends State<AdminAjustesPesoScreen> {
       if (d < 0) aMenos += d;
       if ((r['settled_via']?.toString() ?? '').isEmpty) porFechar++;
     }
-    return Text(
-      '${_linhas.length} ajuste(s) · cliente pagou ${eurosAjustePeso(aMais)} a mais '
-      'e ${eurosAjustePeso(-aMenos)} a menos · $porFechar ainda não fechado(s)',
-      key: const Key('admin_ajustes_peso_resumo'),
-      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+    final cartao = resumoCobrancasCartaoPeso(_linhas);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${_linhas.length} ajuste(s) · cliente pagou ${eurosAjustePeso(aMais)} a mais '
+          'e ${eurosAjustePeso(-aMenos)} a menos · $porFechar ainda não fechado(s)',
+          key: const Key('admin_ajustes_peso_resumo'),
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
+        // 02/11/2026 (zerar B3): as cobranças da diferença no cartão.
+        Text(
+          cartao,
+          key: const Key('admin_ajustes_peso_cartao'),
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
+      ],
     );
   }
 

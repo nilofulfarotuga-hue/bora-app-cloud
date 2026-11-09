@@ -31,6 +31,7 @@ import '../utils/favor_passos.dart'
         kPaletePellets,
         pelletsAcimaDoLimite,
         sacosDePelletsPedidos,
+        textoExigeReceita,
         textoPareceFarmacia;
 import '../services/maior_18_service.dart';
 import '../services/auto_address.dart';
@@ -50,6 +51,25 @@ import 'payment_method_screen.dart';
 
 import '../l10n/tr.dart';
 import '../utils/euros.dart';
+
+/// M10 09/11/2026: o texto da janela "Falta a foto da receita" (tem inglês).
+const String kFavorFaltaReceitaTexto =
+    'Na farmácia o estafeta só consegue comprar o medicamento com a receita. '
+    'Tira uma foto ao SMS ou ao guia da receita (com o Número da receita e o '
+    'Código de acesso e dispensa) e junta-a ao pedido. Se o estafeta vai buscar '
+    'a receita em papel a tua casa, liga a paragem em tua casa e escolhe '
+    '"Receita médica".';
+
+/// M10 09/11/2026 (regra 08/10 do livro `livro-areas-favores-paragem-casa`):
+/// Favor de farmácia sem a foto da receita não segue para o pagamento — a
+/// farmácia só vende com o Número da receita e o Código de acesso e dispensa.
+/// Exceção: o estafeta vai buscar a receita em papel a casa da cliente.
+bool favorFarmaciaSemReceita({
+  required bool pareceFarmacia,
+  required bool temFotoReceita,
+  required bool vaiBuscarReceitaACasa,
+}) =>
+    pareceFarmacia && !temFotoReceita && !vaiBuscarReceitaACasa;
 
 enum _ErrandStep { what, where, when }
 
@@ -628,31 +648,35 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
               'Diz quanto dinheiro o estafeta leva de tua casa (valor acima de €0).'.tr)));
       return;
     }
-    // 08/10: farmácia sem foto da receita → aviso suave, não bloqueia.
-    if (_pareceFarmacia && (_requestPhotoUrl ?? '').isEmpty) {
-      final seguir = await showDialog<bool>(
+    // M10 09/11/2026 (regra 08/10 do livro): na farmácia o Favor só segue com
+    // a foto da receita (antes era só um aviso). Exceção: o estafeta vai
+    // buscar a receita em papel a casa (paragem em casa, motivo "receita").
+    if (favorFarmaciaSemReceita(
+      // Revisão M10: só Favores COM compra e com texto de farmácia a sério
+      // (levar uma receita ao pai ou "receita de bolo" não pedem foto).
+      pareceFarmacia: _hasPurchase &&
+          (textoExigeReceita(_descCtrl.text) ||
+              textoExigeReceita(_errandLocationCtrl.text)),
+      temFotoReceita: (_requestPhotoUrl ?? '').isNotEmpty,
+      vaiBuscarReceitaACasa: _homeActive && _homeStopReason == 'receita',
+    )) {
+      await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text('Sem foto da receita'.tr),
-          content: Text(
-              'Sem a foto da receita a farmácia pode não vender o medicamento.'.tr),
+          key: const Key('favor_falta_receita'),
+          title: Text('Falta a foto da receita'.tr),
+          content: Text(kFavorFaltaReceitaTexto.tr),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Juntar foto'.tr),
-            ),
             ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text('Continuar sem foto'.tr),
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Juntar foto da receita'.tr),
             ),
           ],
         ),
       );
       if (!mounted) return;
-      if (seguir != true) {
-        if (seguir == false) setState(() => _step = _ErrandStep.what);
-        return;
-      }
+      setState(() => _step = _ErrandStep.what);
+      return;
     }
     final cart = context.read<CartStore>();
     cart.configureErrandSession(

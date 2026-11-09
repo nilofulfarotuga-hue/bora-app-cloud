@@ -15,12 +15,17 @@ import '../../utils/nif_pt.dart';
 ///    (`admin_client_billing_set`).
 /// NIF vazio apaga. As duas funções do servidor validam o NIF e registram a
 /// ação no log de auditoria (`log_admin_action`).
+///
+/// M10 09/11/2026: no detalhe do PEDIDO aparece também a linha "NIF na caixa"
+/// (o NIF que o entregador tinha de dar no caixa da loja não parceira ou do
+/// Favor com compra, e se deu), lida de `driver_order_invoice_nif`.
 class AdminFaturaNifSection extends StatefulWidget {
   const AdminFaturaNifSection({
     super.key,
     required this.titulo,
     required this.carregar,
     required this.guardar,
+    this.carregarCaixa,
   });
 
   /// NIF e nome do PEDIDO [orderId].
@@ -29,10 +34,14 @@ class AdminFaturaNifSection extends StatefulWidget {
     required String orderId,
     Future<DadosFatura?> Function()? carregar,
     Future<void> Function(String nif, String nome)? guardar,
+    Future<Object?> Function()? carregarCaixa,
   }) {
     return AdminFaturaNifSection(
       key: key,
       titulo: 'Fatura com NIF deste pedido',
+      carregarCaixa: carregarCaixa ??
+          () => Supabase.instance.client.rpc('driver_order_invoice_nif',
+              params: {'p_order_id': orderId}),
       carregar: carregar ??
           () async => DadosFatura.deMapa(await Supabase.instance.client
               .from('order_invoice_requests')
@@ -75,6 +84,34 @@ class AdminFaturaNifSection extends StatefulWidget {
   final Future<DadosFatura?> Function() carregar;
   final Future<void> Function(String nif, String nome) guardar;
 
+  /// Só no PEDIDO: a resposta de `driver_order_invoice_nif` (null = sem linha).
+  final Future<Object?> Function()? carregarCaixa;
+
+  /// O texto da linha "NIF na caixa" (PT-BR), ou null quando não se aplica.
+  static String? textoNifNaCaixa(Object? r) {
+    if (r is! Map || r['ok'] != true) return null;
+    if (r['mostrar'] != true) {
+      return r['loja_parceira'] == true
+          ? 'NIF na caixa: não se aplica (loja parceira — quem emite a fatura é a loja).'
+          : null;
+    }
+    final nif = formatarNif(r['nif']?.toString());
+    if (nif.isEmpty) return null;
+    final doCliente = r['tipo'] == 'cliente' || r['pediu_fatura'] == true;
+    final c = r['confirmado'];
+    final String estado;
+    if (c is Map && c['dado'] == true) {
+      estado = 'dado ✓';
+    } else if (c is Map && c['dado'] == false) {
+      final m = (c['motivo'] as String? ?? '').trim();
+      estado = m.isEmpty ? 'não dado' : 'não dado: $m';
+    } else {
+      estado = 'ainda não confirmado';
+    }
+    return 'NIF na caixa (o que o entregador deu no caixa): $nif — '
+        '${doCliente ? 'do cliente' : 'da Bora'} — $estado';
+  }
+
   @override
   State<AdminFaturaNifSection> createState() => _AdminFaturaNifSectionState();
 }
@@ -83,11 +120,24 @@ class _AdminFaturaNifSectionState extends State<AdminFaturaNifSection> {
   DadosFatura? _dados;
   bool _aCarregar = true;
   bool _falhou = false;
+  String? _caixa;
 
   @override
   void initState() {
     super.initState();
     _ler();
+  }
+
+  Future<void> _lerCaixa() async {
+    final f = widget.carregarCaixa;
+    if (f == null) return;
+    try {
+      final texto = AdminFaturaNifSection.textoNifNaCaixa(await f());
+      if (mounted) setState(() => _caixa = texto);
+    } catch (e) {
+      // Sem a função no servidor (ou sem rede): a linha simplesmente não aparece.
+      debugPrint('[AdminFaturaNif] NIF na caixa: $e');
+    }
   }
 
   Future<void> _ler() async {
@@ -102,6 +152,8 @@ class _AdminFaturaNifSectionState extends State<AdminFaturaNifSection> {
         _dados = d;
         _aCarregar = false;
       });
+      // O NIF do pedido pode ter mudado: a linha "NIF na caixa" relê também.
+      await _lerCaixa();
     } catch (e) {
       debugPrint('[AdminFaturaNif] leitura falhou: $e');
       if (!mounted) return;
@@ -235,6 +287,14 @@ class _AdminFaturaNifSectionState extends State<AdminFaturaNifSection> {
                 key: const Key('admin_fatura_nif_texto'),
                 style: const TextStyle(fontSize: 13),
               ),
+            if (_caixa != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                _caixa!,
+                key: const Key('admin_nif_caixa_linha'),
+                style: const TextStyle(fontSize: 13),
+              ),
+            ],
             const SizedBox(height: 4),
             Align(
               alignment: Alignment.centerLeft,

@@ -20,10 +20,17 @@
 //
 // Armadilha gemini flash: thinkingBudget=0 obrigatorio (memoria do projecto).
 // Secrets: GEMINI_API_KEY (se em falta → no-op gracioso).
+//
+// v12 (M10 b2-nif, 09/11/2026): o modelo le tambem o NIF do ADQUIRENTE impresso no talao
+// (buyer_nif) e compara-se com o NIF que o estafeta tinha de dar na caixa (_nif_caixa_regra,
+// loja nao-parceira / Favor com compra). Em falta ou diferente -> ocr_flagged (revisao no
+// painel) + aviso nif_talao_diferente com os dois numeros. Resultado em receipt_parsed.nif_check
+// e na resposta (nif). Sem a migracao 20261109010000 no servidor nao faz nada. Ver nif_talao.ts.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { exigirCallerOk, secretKey } from '../_shared/keys.ts'
 import { respostaAoPing } from '../_shared/chaves.ts'
+import { avisarNifDoTalao, limparNif, verificarNifDoTalao } from './nif_talao.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -138,17 +145,23 @@ Deno.serve(async (req) => {
   const match = parsedTotal == null ? null : Math.abs(diffCents!) <= divergenceLimit
   const legacyFlagged = diffCents != null && Math.abs(diffCents) > DEFAULT_LEGACY_FLAG_CENTS
 
+  // v12 — NIF do talao vs NIF que tinha de ser dado na caixa (nunca lanca).
+  const nifCheck = await verificarNifDoTalao(supabase, orderId, parsed?.buyer_nif ?? null, looksLikeReceipt)
+  const nifFlagged = nifCheck.aplica === true && nifCheck.ok === false
+
   await supabase.from('order_receipts_v2').update({
-    receipt_parsed: parsed,
+    receipt_parsed: parsed ? { ...parsed, nif_check: nifCheck } : parsed,
     receipt_parsed_total_cents: parsedTotal,
     receipt_parsed_store: parsed?.store ?? null,
     receipt_match: match,
     ocr_extracted_total_cents: parsedTotal,
     ocr_diff_cents: diffCents,
-    ocr_flagged: legacyFlagged || !looksLikeReceipt,
+    ocr_flagged: legacyFlagged || !looksLikeReceipt || nifFlagged,
     ocr_raw_response: rawResponse,
     ocr_ran_at: new Date().toISOString(),
   }).eq('id', receipt.id)
+
+  const nifAvisado = nifFlagged ? await avisarNifDoTalao(supabase, orderId, nifCheck) : false
 
   // v11 — PRECO VIVO: linhas parseadas -> motor de atualizacao de catalogo
   // (so nao-parceiros; guardas ±30%; auditoria; kill switch proprio na RPC).
@@ -175,6 +188,7 @@ Deno.serve(async (req) => {
     match,
     divergence_limit: divergenceLimit,
     price_live: priceLive,
+    nif: { ...nifCheck, avisado: nifAvisado },
   })
 })
 
@@ -186,6 +200,7 @@ type ParsedReceipt = {
   total_cents: number | null
   lines: ParsedLine[]
   datetime: string | null
+  buyer_nif: string | null // v12: NIF do adquirente impresso no talao (9 digitos) ou null
 }
 
 function isEmptyParse(p: ParsedReceipt | null): boolean {
@@ -199,12 +214,15 @@ async function callGemini(key: string, model: string, b64: string):
     'Lê este talão de compra e devolve JSON ESTRITO (sem markdown, sem prosa). ' +
     'Schema: {"store": string|null, "total_cents": integer|null, ' +
     '"lines": [{"name": string, "qty": number, "unit_price_cents": integer}], ' +
-    '"datetime": "YYYY-MM-DDTHH:MM" or null}. ' +
+    '"datetime": "YYYY-MM-DDTHH:MM" or null, "buyer_nif": string|null}. ' +
     'Regras: total_cents é o total final em cêntimos de euro (€12.34 → 1234). ' +
     'lines pode ser [] se não conseguires distinguir produtos. ' +
     'store é o nome da loja/farmácia/supermercado (sem morada). ' +
     'datetime usa hora local do talão se visível. ' +
-    'Se não conseguires ler o talão, devolve {"store":null,"total_cents":null,"lines":[],"datetime":null}.'
+    'buyer_nif é o NIF do CLIENTE/adquirente impresso no talão (linhas como "NIF:", "Contribuinte:", ' +
+    '"NIF Cliente", "NIF Adquirente"), só os 9 dígitos; NUNCA o NIF/NIPC da loja que aparece no ' +
+    'cabeçalho junto ao nome e morada da loja; se diz "Consumidor final" ou não há NIF do cliente, null. ' +
+    'Se não conseguires ler o talão, devolve {"store":null,"total_cents":null,"lines":[],"datetime":null,"buyer_nif":null}.'
   const payload = {
     contents: [{
       parts: [
@@ -238,6 +256,7 @@ function sanitizeParsed(raw: any): ParsedReceipt {
   const total = typeof raw?.total_cents === 'number' && raw.total_cents > 0
     ? Math.round(raw.total_cents) : null
   const datetime = typeof raw?.datetime === 'string' ? raw.datetime.slice(0, 32) : null
+  const buyerNif = limparNif(raw?.buyer_nif)
   const lines: ParsedLine[] = Array.isArray(raw?.lines)
     ? raw.lines
         .filter((l: any) => l && typeof l.name === 'string')
@@ -250,7 +269,7 @@ function sanitizeParsed(raw: any): ParsedReceipt {
             : 0,
         }))
     : []
-  return { store, total_cents: total, lines, datetime }
+  return { store, total_cents: total, lines, datetime, buyer_nif: buyerNif }
 }
 
 async function loadSettings(supabase: any): Promise<{ ocrEnabled: boolean; divergenceCents: number }> {

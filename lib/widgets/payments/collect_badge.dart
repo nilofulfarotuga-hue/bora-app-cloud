@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../config/app_colors.dart';
 
 import '../../l10n/tr.dart';
+import '../../utils/euros.dart';
 
 /// Estado de cobrança que o EXECUTOR (estafeta / motorista / profissional de
 /// limpeza) vê. Um estado explícito para cada caso — nunca "nada" (era o bug
@@ -52,8 +53,10 @@ class CollectBadge extends StatelessWidget {
     final String text;
     if (collect) {
       icon = Icons.payments_outlined;
-      final v = ((amountCents ?? 0) / 100).toStringAsFixed(2);
-      text = 'COBRAR EM DINHEIRO: {0}€{1}'.trArgs([approx ? '~' : '', v]);
+      // M10 2.14 iii (09/11/2026): "7,50 €" (formato de Portugal) em vez de
+      // "€7.50" — só a forma de mostrar, o valor é o mesmo.
+      final v = eurCents(amountCents ?? 0);
+      text = 'COBRAR EM DINHEIRO: {0}{1}'.trArgs([approx ? '~' : '', v]);
     } else if (state == CollectState.paidOnline) {
       icon = Icons.check_circle_outline;
       text = 'JÁ PAGO NA APP — não cobrar'.tr;

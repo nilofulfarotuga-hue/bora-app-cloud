@@ -8,8 +8,9 @@
 //   app_min_supported_version_code — 0 = sem bloqueio
 //   app_update_notes_pt            — frase curta editável
 //
-// Regras: atrasado → diálogo simpático dispensável ("Agora não" = volta no
-// próximo arranque); abaixo do mínimo → ecrã de bloqueio suave (só atualizar);
+// Regras: atrasado → diálogo simpático dispensável ("Agora não" = volta daí a
+// 7 dias, M10 09/11/2026); abaixo do mínimo → ecrã de bloqueio suave (só
+// atualizar, sempre, sem limite);
 // última versão → nunca incomoda; erro de rede → silêncio absoluto.
 //
 // [Paridade 3 plataformas, 2026-09-21] O gate passou a saber em que
@@ -29,6 +30,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -54,6 +56,42 @@ class AppUpdateService {
   /// Só um aviso dispensável por sessão (volta no próximo arranque).
   static bool _softPromptShown = false;
   static bool _checking = false;
+
+  /// M10 2.14 ii (09/11/2026): o aviso OPCIONAL aparecia a cada arranque.
+  /// Regra do Danilo: no máximo uma vez por semana. Guarda-se no telemóvel a
+  /// hora do último aviso. A atualização FORÇADA (versão mínima) não passa
+  /// por aqui — continua sempre, sem limite.
+  static const String chaveUltimoAvisoOpcional =
+      'app_update_ultimo_aviso_opcional_ms';
+  static const Duration intervaloAvisoOpcional = Duration(days: 7);
+
+  /// Pode mostrar-se o aviso opcional agora? Função pura → testável.
+  /// Nunca mostrado → sim. Relógio que andou para trás mais de 7 dias (data
+  /// guardada no futuro) também conta como passado o prazo, para o aviso não
+  /// ficar preso para sempre.
+  static bool avisoOpcionalPodeAparecer({
+    required DateTime? ultimo,
+    required DateTime agora,
+  }) {
+    if (ultimo == null) return true;
+    return agora.difference(ultimo).abs() >= intervaloAvisoOpcional;
+  }
+
+  /// Lê a data do último aviso opcional; se já passou o prazo, grava agora e
+  /// devolve `true` (mostra-se). Uma falha a ler/gravar lança e o
+  /// `checkAndPrompt` cala-se (nada aparece). `agora` só para testes.
+  @visibleForTesting
+  static Future<bool> reservarAvisoOpcional({DateTime? agora}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final ms = prefs.getInt(chaveUltimoAvisoOpcional);
+    final ultimo = ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
+    agora ??= DateTime.now();
+    if (!avisoOpcionalPodeAparecer(ultimo: ultimo, agora: agora)) {
+      return false;
+    }
+    await prefs.setInt(chaveUltimoAvisoOpcional, agora.millisecondsSinceEpoch);
+    return true;
+  }
 
   static Future<int?> _settingInt(String key) async {
     final v = await Supabase.instance.client
@@ -131,7 +169,12 @@ class AppUpdateService {
       }
 
       if (_softPromptShown) return;
+      // Sem ecrã, não se gasta o aviso da semana (revisão M10).
+      if (!context.mounted) return;
+      // M10 2.14 ii (09/11/2026): no máximo 1 aviso opcional por semana.
+      if (!await reservarAvisoOpcional()) return;
       _softPromptShown = true;
+      if (!context.mounted) return;
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(

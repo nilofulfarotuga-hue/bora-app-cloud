@@ -311,12 +311,32 @@ class CleaningStore extends ChangeNotifier {
     }
   }
 
+  /// O que "Parar a série toda" vai cancelar e quanto volta
+  /// (`cleaning_series_preview`, só leitura). Erro = [SeriePrevisao.vazia].
+  Future<SeriePrevisao> previsaoSerie(String groupId) async {
+    try {
+      final res = await _sb.rpc('cleaning_series_preview',
+          params: {'p_group_id': groupId}).timeout(kAcaoTimeout);
+      return SeriePrevisao.fromJson(_asMap(res));
+    } catch (e) {
+      debugPrint('CleaningStore.previsaoSerie error => $e');
+      return SeriePrevisao.vazia;
+    }
+  }
+
   /// Pára a série inteira: não se geram mais limpezas e as já marcadas para
   /// daqui a mais de 24 h são canceladas sem taxa (`cancel_cleaning_series`).
+  ///
+  /// 02/11/2026 (zerar B2): cada uma é cancelada no servidor como uma limpeza
+  /// só (mesma taxa, mesmo aviso).
+  /// 09/11/2026 (M10 b2, ordem do Danilo de 08/11): as já pagas voltam à
+  /// CARTEIRA BORA, creditadas pelo próprio servidor dentro do
+  /// `cancel_cleaning_series` (migração 20261109020000). A app NÃO pede o
+  /// estorno ao cartão/MB Way ([reversePayment]): pedi-lo devolvia duas vezes.
   Future<void> cancelSeries(String groupId) async {
     _setBusy(true);
     try {
-      await _sb.rpc('cancel_cleaning_series', params: {'p_group_id': groupId}).timeout(kAcaoTimeout);
+      await pararSerieNoServidor(groupId);
       // O servidor gravou a paragem: o ecrã mostra "Série parada" já, mesmo
       // que a leitura de cleaning_recurrence_stops ainda não chegue.
       _series[groupId] = const SerieEstado(parada: true);
@@ -327,6 +347,12 @@ class CleaningStore extends ChangeNotifier {
     } finally {
       _setBusy(false);
     }
+  }
+
+  /// A chamada `cancel_cleaning_series` (separada para os testes sem rede).
+  @protected
+  Future<void> pararSerieNoServidor(String groupId) async {
+    await _sb.rpc('cancel_cleaning_series', params: {'p_group_id': groupId}).timeout(kAcaoTimeout);
   }
 
   // ── Série de recorrência (S1/S3, 01/11/2026) ──────────────────────────────

@@ -173,6 +173,19 @@ class AjustesPesoService {
     return deLinhas(rows);
   }
 
+  /// 02/11/2026 (zerar B3): `weight_adjust_card_charge_enabled` — com ele
+  /// ligado, o fecho do talão cobra a diferença no CARTÃO (cobrar-diferenca-peso).
+  /// Erro ou sem leitura = false: nunca se promete uma cobrança que não se leu.
+  Future<bool> cobraDiferencaNoCartao() async {
+    try {
+      final v = await _sb.rpc('get_setting',
+          params: {'p_key': 'weight_adjust_card_charge_enabled'});
+      return v == true || v == 'true';
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Converte o que vem do banco numa lista; ignora o que não for um mapa.
   static List<AjustePeso> deLinhas(Object? rows) {
     if (rows is! List) return const <AjustePeso>[];

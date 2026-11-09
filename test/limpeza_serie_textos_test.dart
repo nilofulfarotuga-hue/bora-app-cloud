@@ -15,6 +15,8 @@
 //   S4 — "Cliente habitual" quando o cliente pediu a profissional.
 // Sem rede: o store é de mentira (as leituras ao Supabase são substituídas).
 import 'package:bora_app/models/cleaning_models.dart';
+import 'package:bora_app/screens/admin/admin_cleaning_bookings_screen.dart'
+    show rotuloDevolucaoLimpeza;
 import 'package:bora_app/screens/client/cleaning/cleaning_bookings_screen.dart';
 import 'package:bora_app/screens/client/cleaning/cleaning_tracking_screen.dart';
 import 'package:bora_app/stores/cleaning_store.dart';
@@ -57,11 +59,13 @@ class _Limpezas extends CleaningStore {
   _Limpezas({
     this.parada = false,
     this.proxima,
+    this.previsao = SeriePrevisao.vazia,
     List<CleaningBooking> lista = const [],
   }) : _lista = lista;
 
   final bool parada;
   final DateTime? proxima;
+  final SeriePrevisao previsao;
   final List<CleaningBooking> _lista;
 
   final List<String> canceladas = [];
@@ -109,18 +113,51 @@ class _Limpezas extends CleaningStore {
     _estado[groupId] = const SerieEstado(parada: true);
     notifyListeners();
   }
+
+  @override
+  Future<SeriePrevisao> previsaoSerie(String groupId) async => previsao;
 }
+
+/// Store só com a rede cortada: corre o cancelSeries VERDADEIRO e regista os
+/// pedidos de estorno (zerar B2, 02/11/2026; desde M10 b2, 09/11, não pode
+/// haver nenhum: o servidor devolve à Carteira Bora).
+class _SerieSemRede extends CleaningStore {
+  final List<String> paradas = [];
+  final List<String> estornos = [];
+
+  @override
+  Future<void> pararSerieNoServidor(String groupId) async => paradas.add(groupId);
+  @override
+  Future<void> reversePayment(String bookingId) async => estornos.add(bookingId);
+  @override
+  Future<void> loadMyBookings() async {}
+}
+
+// A forma exata que o cleaning_series_preview devolveu na prova em rollback
+// (02/11/2026): cartão e MB Way pagos (3200 cada), MB Way por pagar.
+final _previsaoDoServidor = <String, dynamic>{
+  'n': 4,
+  'devolve_cents': 6400,
+  'limpezas': [
+    {'id': 'a', 'payment_method': 'card', 'pago': true, 'taxa_cents': 0, 'devolve_cents': 3200},
+    {'id': 'b', 'payment_method': 'mbway', 'pago': true, 'taxa_cents': 0, 'devolve_cents': 3200},
+    {'id': 'c', 'payment_method': 'mbway', 'pago': false, 'taxa_cents': 0, 'devolve_cents': 0},
+    {'id': 'd', 'payment_method': 'cash', 'pago': false, 'taxa_cents': 0, 'devolve_cents': 0},
+  ],
+};
 
 Future<_Limpezas> _abreAcompanhamento(
   WidgetTester t,
   CleaningBooking b, {
   bool parada = false,
   DateTime? proxima,
+  SeriePrevisao previsao = SeriePrevisao.vazia,
   List<CleaningBooking> lista = const [],
 }) async {
   await t.binding.setSurfaceSize(const Size(500, 2000));
   addTearDown(() => t.binding.setSurfaceSize(null));
-  final store = _Limpezas(parada: parada, proxima: proxima, lista: lista);
+  final store = _Limpezas(
+      parada: parada, proxima: proxima, previsao: previsao, lista: lista);
   await t.pumpWidget(ChangeNotifierProvider<CleaningStore>.value(
     value: store,
     child: MaterialApp(home: CleaningTrackingScreen(booking: b)),
@@ -343,6 +380,91 @@ void main() {
           '14/01 10:00');
       expect(CleaningLabels.diaHoraLisboa(DateTime.utc(2030, 7, 14, 9, 5)),
           '14/07 10:05');
+    });
+  });
+
+  group('B2 (02/11) — "Parar a série" devolve as limpezas pagas', () {
+    test('lê a previsão do servidor tal como vem', () {
+      final p = SeriePrevisao.fromJson(_previsaoDoServidor);
+      expect(p.devolveCents, 6400);
+      expect(p.limpezas.map((l) => l.id), ['a', 'b', 'c', 'd']);
+      expect(p.limpezas.where((l) => l.pago).length, 2);
+      expect(SeriePrevisao.fromJson(const {}).devolveCents, 0);
+    });
+
+    test(
+        'M10 b2 (09/11): não pede estorno ao cartão/MB Way — o servidor '
+        'devolve à Carteira Bora (pedir os dois devolvia duas vezes)', () async {
+      final store = _SerieSemRede();
+      await store.cancelSeries('g1');
+      expect(store.paradas, ['g1']);
+      expect(store.estornos, isEmpty);
+      expect(store.serieEmCache('g1')?.parada, isTrue);
+    });
+
+    testWidgets('o diálogo diz quanto volta e o aviso confirma o pedido',
+        (t) async {
+      final store = await _abreAcompanhamento(t, _reserva(),
+          proxima: _proximaServidor,
+          previsao: SeriePrevisao.fromJson(_previsaoDoServidor));
+      await t.tap(find.byKey(const Key('limpeza_parar_serie')));
+      await t.pumpAndSettle();
+
+      expect(
+          find.text('Devolvemos €64,00 à tua Carteira Bora, podes usar já.'),
+          findsOneWidget);
+      expect(find.textContaining('cartão ou MB Way'), findsNothing);
+      await t.tap(find.text('Parar série'));
+      await t.pumpAndSettle();
+
+      expect(store.seriesParadas, ['g1']);
+      expect(
+          find.text(
+              'Recorrência cancelada. Devolvemos €64,00 à tua Carteira Bora, podes usar já.'),
+          findsOneWidget);
+    });
+
+    testWidgets('sem nada pago, não promete devolução', (t) async {
+      await _abreAcompanhamento(t, _reserva(), proxima: _proximaServidor);
+      await t.tap(find.byKey(const Key('limpeza_parar_serie')));
+      await t.pumpAndSettle();
+      expect(find.byKey(const Key('limpeza_parar_serie_devolve')), findsNothing);
+      await t.tap(find.text('Parar série'));
+      await t.pumpAndSettle();
+      expect(find.text('Recorrência cancelada.'), findsOneWidget);
+    });
+  });
+
+  group('M10 b2 (09/11) — painel: para onde voltou o dinheiro da limpeza', () {
+    test('série parada e estornada: "Voltou à Carteira Bora"', () {
+      expect(
+          rotuloDevolucaoLimpeza(
+              cancelReason: 'serie_terminada',
+              paymentStatus: 'estornado',
+              taxaCents: 0),
+          'Voltou à Carteira Bora');
+    });
+
+    test('cancelamento de uma só continua "Deve voltar ao cliente"', () {
+      expect(
+          rotuloDevolucaoLimpeza(
+              cancelReason: 'mudei de planos',
+              paymentStatus: 'estornado',
+              taxaCents: 0),
+          'Deve voltar ao cliente');
+      expect(
+          rotuloDevolucaoLimpeza(
+              cancelReason: null, paymentStatus: 'released', taxaCents: 1600),
+          'Deve voltar ao cliente');
+    });
+
+    test('série parada a dinheiro (nada pago): sem linha', () {
+      expect(
+          rotuloDevolucaoLimpeza(
+              cancelReason: 'serie_terminada',
+              paymentStatus: 'unpaid',
+              taxaCents: 0),
+          isNull);
     });
   });
 }

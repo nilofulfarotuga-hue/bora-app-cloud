@@ -7,6 +7,9 @@ import '../../../models/appointment_model.dart';
 import '../../../stores/partner_appointments_store.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 import '../../../utils/hora_lisboa.dart';
+// M10 2.14 iii (09/11/2026): preços no formato de Portugal ("2,50 €"),
+// só a forma de mostrar — os valores são os mesmos.
+import '../../../utils/euros.dart';
 
 /// Agenda do parceiro (vertical Serviços). Vista Hoje (default) + Semana.
 ///
@@ -293,7 +296,7 @@ class _AppointmentCard extends StatelessWidget {
       return '${a.servicePriceLabel} · Paga no local'
           '${viaWhatsApp ? ' · marcado pelo WhatsApp' : ''}';
     }
-    final paid = '€${(a.depositCents / 100).toStringAsFixed(2)}';
+    final paid = eurCents(a.depositCents);
     return '${a.servicePriceLabel} · Pago pela app: $paid (valor total)';
   }
 

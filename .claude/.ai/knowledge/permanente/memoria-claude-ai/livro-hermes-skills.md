@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-hermes-skills
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-07
+ultima_confirmacao: 2026-11-08
 zona: verde
 confianca: alta
 estado: atual
@@ -10,93 +10,15 @@ estado: atual
 
 # Skills do Hermes (as que criou + lista das de fábrica), cópia noturna
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-hermes-skills`, origem `hermes`, atualizada em 2026-11-07T23:40:07.499594+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-hermes-skills`, origem `hermes`, atualizada em 2026-11-08T23:40:06.747765+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro hermes skills · memoria claude.ai · claude_ai_memoria
 
-# Skills do Hermes (cópia de 2026-11-07)
+# Skills do Hermes (cópia de 2026-11-08)
 
-Skills que o Hermes criou sozinho: 14. Vindas de fábrica ou instaladas: 81. Fonte única das skills partilhadas: .claude/skills/ do repo bora-app-cloud (espelho na VPS em /opt/data/cortex-brain/.claude/skills). Skill nova do Hermes entra lá como hermes-<nome>, revista pelo critico.
+Skills que o Hermes criou sozinho: 13. Vindas de fábrica ou instaladas: 81. Fonte única das skills partilhadas: .claude/skills/ do repo bora-app-cloud (espelho na VPS em /opt/data/cortex-brain/.claude/skills). Skill nova do Hermes entra lá como hermes-<nome>, revista pelo critico.
 
 ## Criadas pelo Hermes
-
-### multi-asset-web-project (creative/multi-asset-web-project)
-
----
-name: multi-asset-web-project
-description: Use when the user asks for multiple HTML/CSS/JS artifacts in one request such as creating 10 websites for 10 businesses. Complements claude-design for project structure, per-category design differentiation, and ZIP archive output. Treat as a project with structured directories.
-version: 1.0.0
-author: Hermes Agent
-license: MIT
-metadata:
-  hermes:
-    tags: [html, css, multi-asset, project, web, creative, design]
-    related_skills: [claude-design, sketch, popular-web-designs]
----
-
-# Multi-Asset Web Project
-
-## When to Use
-
-- User asks: "create N websites for N businesses", "generate multiple HTML pages for different clients", "make a bundle of landing pages"
-- The deliverable is N distinct HTML artifacts bundled together (ZIP, tar.gz, directory)
-
-## Core Method
-
-intake  arrow  structure  arrow  design-each  arrow  verify-each  arrow  archive
-
-## Directory Structure
-
-```
-project_root/
-item_1_business_slug/
-  index.html
-  style.css
-item_2_business_slug/
-  index.html
-  style.css
-...
-archive.zip
-```
-
-### Naming Convention
-- Project root: descriptive name based on the deliverable
-- Item subfolders: sortable prefix + business slug (e.g., negocio_1_casa_tia_ciata)
-- Item files: index.html + style.css only (flat, no nested directories)
-
-## Design Differentiation by Category
-
-When each artifact maps to a business type, each should get a genuinely different design system.
-
-Rule: Each site must differ in at least 3 of these 6 dimensions:
-1. Background: light, dark, gradient direction
-2. Palette: warm, cool, monochrome, accent color
-3. Typography: serif-ish, bold, airy, compact
-4. Layout: grid, list, card-based, two-column
-5. Section structure: sticky nav, hero+grid, info+description
-6. Button treatment: pill, boxed, outlined, inline
-
-### Business-Type Design Postures
-
-| Type | Posture | Key choices |
-|---|---|---|
-| Restaurant/Bar | Warm, inviting | Earth-tone gradient header, sticky nav, center-aligned tagline |
-| Fast food/Burger | Bold, playful | Menu grid, prominent CTA, red/orange palette, burger cards |
-| Market/Mall | Informational | Two-column layout, clean sans-serif, high readability |
-| Liquor store | Dark, premium | Dark bg, green/black gradient, gold accent for ratings |
-| Hardware/Construction | Industrial | Brown/tan gradient, bordered list items, sturdy sans-serif |
-| Bakery/Sweets | Sweet, light | Specialty grid, soft pastels, decorative header, card layout |
-| Gym/Fitness | High-energy | Black bg, red gradient, white cards with red accents, gold ratings |
-| Automotive/Mechanic | Functional | List-based services, contact card with shadow, blue/white palette |
-| Pharmacy/24h | Clean, clinical | Services grid, 24h badge, professional blue, contact emphasis |
-| Hotel/Lodging | Elegant, calming | Hero area, amenity grid, booking CTA, warm neutral palette |
-
-## Steps
-
-### 1. Intake and Planning
-List all items with their data: name, category, address, phone, hours, ratings
-Assign a sortable prefix + s
-[... cortado]
 
 ### remote-command-execution (devops/remote-command-execution)
 

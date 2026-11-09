@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-resumo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-07
+ultima_confirmacao: 2026-11-08
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Livro do Bora — resumo para o ChatGPT (regras + erros + índice, sem pessoais), gerado
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-11-07T23:40:08.298778+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-11-08T23:40:07.629281+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro resumo · memoria claude.ai · claude_ai_memoria
 
-# Livro do Bora — resumo para o ChatGPT (2026-11-07)
+# Livro do Bora — resumo para o ChatGPT (2026-11-08)
 
 Lê isto antes de responder ao Danilo. É a mesma verdade que a Claude.ai, o Hermes, o Claude Code e o OpenCode leem (tabela public.claude_ai_memoria). Gerado todas as noites pela VPS; páginas pessoais ficam de fora.
 
@@ -216,6 +216,12 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 04/11 (claude-ai): 04/11 11:24: escrevi a tradução da mensagem do Vansh e da resposta entre ferramentas e ela não lhe apareceu no ecrã; ele só viu o cartão em inglês e irritou-se → as duas traduções ("O Vansh falou" e "O que eu estou a responder") vão sempre por mensagem visível antes do cartão, ou como texto final depois da última ferramenta; nunca soltas no meio das ferramentas.
 - 05/11 (claude-ai): 05/11 20:16: disse que os pedidos do McDonald's e do Jyosmi não tinham talão registado e calculei o lucro com o preço de balcão da app; ele tinha registado o talão do McDonald's com foto — a minha consulta com várias instruções devolveu só o resultado da última e não vi a tabela order_receipts_v2 → ver sempre uma consulta de cada vez (ou conferir que vieram todos os resultados) e, antes de dizer que falta talão, ler order_receipts_v2 e o bucket receipts; lucro de pedido não-parceiro usa o valor do TALÃO (driver_typed_total_cents), nunca o preço da app.
 - 07/11 18:42 (Claude.ai): disse que o Valdemir devia €3,24 (banco: €1,77 pendente + €1,47 calculado) sem ver se já tinha pago; ele corrigiu "já pagou tudo, não deve nada" → dívida de motorista só se lista se a conversa confirmar; o banco mostra "pendente" mesmo quando o Danilo já recebeu à mão. Ao responder "quanto deve", dizer o que o banco mostra e perguntar se já pagou, ou ler as conversas antigas primeiro.
+- 08/11 18:00 (claude-ai): pedido do Burger King sem NIF do cliente; eu disse-lhe "fatura sem NIF / consumidor final" e ele corrigiu "você tinha falado que era o NIF da Bora" → regra (conversa de 03/11): cliente deu NIF → talão com o NIF do cliente; cliente SEM NIF → talão com o NIF da Bora (519686233); compra para o Vansh/Guarda FC → NIF da SAD. Antes de dizer que NIF pôr, ler as conversas antigas sobre o tema.
+- [stated] 08/11 18:59: recusei forçar a entrega do pedido do Divan sem o código de 4 dígitos (disse que passava por cima da proteção da app); ele corrigiu: "eu sou o dono, é pra forçar e pronto" → regra: quando o Danilo manda finalizar/forçar um pedido, finaliza-se pela via oficial (RPC admin), sem exigir o código; o Dipsy e o Claude Code também têm de conseguir. Tirar as limitações, não inventar mais.
+08/11 (quem errou: claude-ai): entreguei 6 missões sem cobrir tudo o que ele ditou (Stripe da empresa/parceiros/WhatsApp, vídeos do radar, briefs, pagamentos, plano de 14 dias, leis, menu, motorista→delivery) e o LEIA-ME sem dizer "não colar"; ele colou-o como missão e disse "você não ouviu tudo, ler palavra por palavra" → regra: antes de entregar, ler a mensagem dele frase a frase e marcar cada pedido num bloco (checklist 1:1); ficheiro de instruções leva no topo "NÃO colar".
+08/11 (quem errou: claude-ai): no pedido do McDonald's voltei a oferecer mandar ao Hugo a pergunta do NIF; ele irritou-se: "não é para mandar" → regra: dúvida do NIF não vai ao Hugo; respondo eu direto, com a lei, sem propor envios.
+08/11 (quem errou: claude-ai): listei os 186 € do Jai (24/10) como dívida; ele corrigiu "já está pago" → regra (repete 20/10 e 07/11): conta do Jai/Vansh só se lista como em aberto depois de confirmar na conversa recente que não foi paga; o livro fica desatualizado.
+08/11 (quem errou: claude-ai): na M9 pus "texto para o Danilo mandar ao Jai" e "mandar o recibo dos 36 €"; ele corrigiu: "não é pra mandar mensagem nenhuma pro Jai" → regra: a missão do Jai é trabalho por trás (Wikipédia, Google, site, radar); nenhuma mensagem, recibo ou resumo vai ao Jai a não ser que o Danilo mande explicitamente.
 
 
 ## Índice do livro (sem páginas pessoais)
@@ -233,6 +239,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - adendo-9-checkin-escada-premios-2026-10-29 — ADENDO 9 (Danilo 22:20) - check-in diario: calendario de 30 dias e escada de premios "levanta ou continua" (um premio po
 - adendo-harness-servidor-remote-control-2026-10-29 — ADENDO para a missao do Harness (sessao DeepSeek Harness installation): no fim, servidor de Remote Control para duas ses
 - adendo-infra-2026-11-01 — Adendo à missão infra-claude-tudo-2026-11-01 (B10-B14: site /baixar, Meta ads, cartazes A3, grupos Facebook + Em Dia, st
+- adendo-m10-radar-videos-2026-11-08 — ADENDO 1 à M10 (08/11 23:21) — radar de vídeos e varredura mundial, para a sessão m10 ler e executar
 - adendo-vozes-omnivoice-2026-10-22 — Adendo de vozes: A/B do motor OmniVoice (k2-fsa) no filme Ep1
 - analise-fiscal-bora-2026-11-03 — Análise fiscal do Bora (entregas e serviços, sem TVDE) + conselho Gemini/ChatGPT/DeepSeek — 03/11/2026
 - armadilha-ytdlp-cookies-chrome-windows — yt-dlp + cookies do Chrome no Windows: caminho morto (App-Bound Encryption)
@@ -247,6 +254,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - caminhos-animacao-filme — Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 - casa-manutencao-pesquisa-2026-10-29 — Casa & Manutencao — pesquisa das 10 apps do mundo e burocracia em Portugal (29/10/2026)
 - casa-manutencao-proposta — Casa & Manutenção — proposta para o Danilo decidir (29/10/2026)
+- comparativo-concorrencia-2026-11 — Bora contra Glovo, Uber Eats, Bolt Food e iFood (novembro 2026)
 - decisao-ganho-estafeta-nao-parceiro-2026-10-29 — Decisão do Danilo 29/10 17:36: ganho do estafeta em loja não-parceira fica como está (não mexer na fórmula)
 - decisao-precos-iva-parceiros-2026-10-28 — Decisão do Danilo 28/10 17:12: parceiros ficam com 5% escondido + 5% taxa de serviço; IVA sai da parte da Bora; não subi
 - digest-2026-09-13-janela-1 — Janela 1 FABLE 13/09 — resultado final
@@ -458,6 +466,15 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - digest-2026-11-04-fechar-bora-motorista — Claude Code 04/11 — Bora Motorista fechado nas apps, no painel e no site
 - digest-2026-11-05-modo-automatico-seguro — Claude Code 05/11 — modo automático seguro (por ligar)
 - digest-2026-11-05-robo-suporte — Digest 05/11 — robô do suporte inteligente
+- digest-2026-11-08-m1 — Digest 08/11 — M1 dinheiro dos Favores, recibo, NIF, gorjeta e talões
+- digest-2026-11-08-m2 — Missão m2 08/11 — A minha conta do estafeta, fila de espera, faixa e mira
+- digest-2026-11-08-m3 — Digest 08/11 — m3: Dipsy com internet registada e pergunta antes de dinheiro
+- digest-2026-11-08-m4 — Digest 08/11 — m4 Amigo Bora v1 + adendo suporte (não publicado)
+- digest-2026-11-08-m6 — Digest 08/11 — M6 crescimento, Hermes, porteiro, redes, Jyosmi, restaurante do dia
+- digest-2026-11-08-m7 — Digest 08/11/2026 — missão M7 (Stripe, parceiros, radar, leis)
+- digest-2026-11-08-m8 — Digest M8 08/11 noite: 6 missoes juntas e testadas, nada publicado
+- digest-2026-11-08-m9 — M9 08/11: Jai a fundo — anúncios parados pela verificação, radar com pitch e cobertura de fundo, Wikipédia preparada
+- digest-2026-11-08-missao-domingo — Digest 08/11 — super-missão de domingo
 - diretiva-plataformas-2024-2831 — Diretiva (UE) 2024/2831 trabalho em plataformas — o que obriga o Bora, estado em Portugal, o que está feito e checklist 
 - dsh-como-usar — Como usar o Dipsy (dsh)
 - dsh-como-usar-novidades-2026-10-31 — Dipsy: o que ficou novo a 31/10 (complemento da pagina dsh-como-usar)
@@ -481,6 +498,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - jai-sportsdunia-mensagem — Confirmação para o Jai — artigo da SportsDunia no site (31/10/2026)
 - legal-gestao-algoritmica-prestadores — Como o Bora decide — informação sobre sistemas automáticos (Diretiva 2024/2831, art. 9.º-11.º) — texto para a app, v2026
 - legal-politica-suspensao-revisao-humana — Política de suspensão e revisão humana (nenhuma suspensão automática; motivo+quem+data; revisão por pessoa em 7 dias) — 
+- leis-bora — Leis do Bora — o que a lei diz e o que falta (08/11/2026)
 - livro-areas-alertas-notificacoes — Alertas do Bora para o Danilo (Telegram + push admin persistente) — o que já dispara, por que caminho, e o que falta
 - livro-areas-analise-apps-emulador — Ideia do Danilo (08/10/2026) de usar emulador Android + agente de IA para testar bugs do Bora e comparar com iFood/Uber/
 - livro-areas-arandelas-quadros-jai — Trabalho de montar as arandelas de vidro e pendurar os quadros em casa do [[jai-agarwal]] — e o material que ficou a fal
@@ -625,6 +643,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-claude-md-detalhe — Detalhe dos CLAUDE.md (repo e global) antes do corte de 23/10/2026
 - livro-faxina-2026-10-25 — Faxina do livro 2026-10-25 (proposta do escriba + revisão do critico; nada apagado)
 - livro-faxina-2026-11-01 — Faxina do livro 2026-11-01 (proposta do escriba + revisão do critico; nada apagado)
+- livro-faxina-2026-11-08 — Faxina do livro 2026-11-08 (proposta do escriba + revisão do critico; nada apagado)
 - livro-hermes-aprendeu — O que o Hermes aprendeu sozinho (MEMORY.md + USER.md), cópia noturna
 - livro-hermes-skills — Skills do Hermes (as que criou + lista das de fábrica), cópia noturna
 - livro-hermes-soul-detalhe — Alma antiga do Hermes (SOUL.md de 611 linhas) antes do corte de 23/10/2026
@@ -658,6 +677,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - perfil — Quem é o Danilo
 - pesquisa-assistente-cliente-2026-10-07 — Pesquisa mundial para o assistente de compras IA do cliente (base da missão que vem depois do +18)
 - pesquisa-fatura-nif-2026-10-28 — Fatura com NIF, produto em falta e entrega grátis nos parceiros — pesquisa e decisões (28/10/2026)
+- plano-14-dias-2 — Plano de 14 dias, parte 2 (09/11 a 22/11/2026)
 - plano-14-dias-dia6-a-14 — Plano de 14 dias — do dia 6 ao dia 14 (29/10 a 06/11/2026)
 - plano-melhor-que-uber-glovo-2026-10-29 — Plano "100% melhor que a Uber e a Glovo" — volta ao mundo 29/10/2026
 - playbook-redes-emdia — Playbook das redes — Em Dia (28/09)
@@ -701,6 +721,20 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - prompt-talao-confirmar-loja-saldo-2026-10-28 — PROMPT 28/10 — Confirmar do talão, nome da loja, dinheiro a cobrar com saldo/tokens, reembolso no cancelamento (100% sal
 - prompt-talao-confirmar-loja-saldo-2026-10-28-bloco-d — Adenda 18:30 ao prompt de 28/10 (talão Auchan/Divan): Bloco D novo — reembolso no cancelamento
 - prompt-zerar-2026-11-02 — Prompt "zerar" (02/11 15:10): chaves antigas, série de limpeza devolve, peso cobra no cartão + arrumações
+- proposta-m1-2026-11-08-edge-favor-cobrar-diferenca — M1 08/11 — Edge favor-cobrar-diferenca (index.ts, verify_jwt=false)
+- proposta-m1-2026-11-08-edge-recibo-pedido-cliente — M1 08/11 — Edge nova recibo-pedido-cliente (index.ts, verify_jwt=false)
+- proposta-m1-2026-11-08-edge-taloes-copia-diaria — M1 adendo 1 — Edge nova taloes-copia-diaria (index.ts; verify_jwt=false)
+- proposta-m1-2026-11-08-edge-taloes-zip-mes — M1 adendo 1 — Edge nova taloes-zip-mes (index.ts; verify_jwt=false)
+- proposta-m1-2026-11-08-edge-upload-receipt — M1 adendo 1 — Edge upload-receipt v2 (index.ts completo; nunca substitui, confirma no servidor)
+- proposta-m1-2026-11-08-leia-primeiro — M1 08/11 — guia para aplicar e publicar (Claude.ai), com o adendo 1 dos talões
+- proposta-m1-2026-11-08-patch-charge-tip — M1 08/11 — remendo charge-tip (taxa proporcional das gorjetas junto)
+- proposta-m1-2026-11-08-patch-fecho-mensal — M1 adendo 1 — remendo fecho-mensal-contabilista (talões do mês no email)
+- proposta-m1-2026-11-08-patch-notify-client — M1 08/11 — remendo notify-client (toque persistente)
+- proposta-m1-2026-11-08-sql-01 — M1 08/11 — SQL 01 diferenças MB Way + entregue sem código
+- proposta-m1-2026-11-08-sql-02 — M1 08/11 — SQL 02 aprovação com tecto + finalize remendado
+- proposta-m1-2026-11-08-sql-03 — M1 08/11 — SQL 03 NIF ao estafeta + recibo por email
+- proposta-m1-2026-11-08-sql-04 — M1 08/11 — SQL 04 gorjeta, ganho do dia, robô do talão
+- proposta-m1-2026-11-08-sql-07 — M1 adendo 1 — SQL 07 talões guardados para sempre
 - radar-2026-10-05 — Radar de vídeos 05/10 — filme (5 caminhos) e negócio
 - radar-2026-10-06 — Radar de vídeos 06/10 — negócio e reforços para o filme
 - radar-2026-10-07 — Radar de vídeos 07/10 — skills, mods do Claude Code e regras de reels
@@ -733,6 +767,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - radar-2026-11-05 — Radar de vídeos 05/11/2026 — 25 revistos, 2 novos, 8 pendentes
 - radar-2026-11-06 — Radar de vídeos 06/11/2026 — 40 revistos, 4 novos, 20 pendentes
 - radar-2026-11-07 — Radar de vídeos 07/11/2026 — 40 revistos, 8 novos, 20 pendentes
+- radar-2026-11-08 — Radar de vídeos 08/11/2026 — 40 revistos, 1 novo, 13 pendentes
 - reembolsos-b2-00-leia-me — reembolsos-b2-00-leia-me
 - reembolsos-b2-01-shared-cobranca — reembolsos-b2-01-shared-cobranca
 - reembolsos-b2-ef-admin-cancel-order — reembolsos-b2-ef-admin-cancel-order
@@ -750,6 +785,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - regras-operacao-agentes — O que podes e o que não podes fazer no Bora em produção (ChatGPT, OpenCode, Hermes, Claude Code)
 - regras-reels-radar-2026-10-04 — Regras de reels Em Dia e Bora (radar 04/10)
 - relatorio-boom-burger-2026-10-27 — Boom! Burger — demonstração e consertos (27/10/2026, noite)
+- relatorio-m1-dinheiro-favores-2026-11-08 — Relatório M1 08/11 (fiz isto, falta isto)
 - relatorio-semanal-reels-2026-10-29 — Relatório semanal dos reels - 2026-10-29
 - relatorio-semanal-reels-2026-11-02 — Relatório semanal dos reels - 2026-11-02
 - resposta-contabilista-iva-2026-10-28 — Resposta do Hugo (DC Consultores): IVA normal trimestral, programa de faturação, modelo aceite — 28/10/2026

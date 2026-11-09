@@ -89,8 +89,57 @@ export function saudacaoSimples(m: Momento, perfil: Json, boasVindas: string): s
   const cumprimento = m.hora >= 5 && m.hora < 13 ? 'Bom dia' : m.hora >= 13 && m.hora < 20 ? 'Boa tarde' : 'Boa noite';
   const texto = (boasVindas ?? '').trim() ||
     'Sou o Amigo Bora. Sei o que há na Guarda e o que costumas pedir. Pergunta-me o que quiseres.';
-  return `${cumprimento}${nome ? `, ${nome}` : ''}! ${texto}`;
+  return `${cumprimento}${nome ? `, ${nome}` : ''}! ${texto}${lembreteHabitual(perfil)}`;
 }
+
+/**
+ * m11 (09/11/2026, adendo 1 do Danilo: "cumprimenta pelo nome e lembra o habitual"): fora do dia/hora do
+ * hábito, a saudação lembra a loja do costume numa frase curta. Sem perfil (ou "não lembrar"), nada.
+ */
+export function lembreteHabitual(perfil: Json): string {
+  const habitos: Json[] = Array.isArray(perfil?.habitos) ? perfil.habitos : [];
+  const lojas: Json[] = Array.isArray(perfil?.lojas_favoritas) ? perfil.lojas_favoritas : [];
+  const loja = limpo(habitos[0]?.loja ?? lojas[0]?.nome ?? '', 40);
+  return loja ? ` Se te apetecer, preparo-te o do costume do ${loja}.` : '';
+}
+
+// ─── A cara do Amigo (m11, 09/11/2026) ────────────────────────────────────────
+// O rosto da app reage ao que o Amigo diz. O modelo escolhe a cara com uma etiqueta [cara:...] no início da
+// resposta; o código tira-a do texto (o cliente nunca a vê) e devolve-a no campo opcional "emocao". Sem
+// etiqueta, decide-se pelo que a resposta tem. As apps antigas ignoram o campo.
+
+export const EMOCOES = ['alegre', 'triste', 'surpreso', 'pensativo', 'confuso', 'a_falar'] as const;
+export type Emocao = typeof EMOCOES[number];
+
+const RE_CARA = /\[\s*cara\s*:\s*([a-zA-Z_ ]+?)\s*\]\s*/g;
+
+/** Tira as etiquetas [cara:...] do texto e devolve a primeira cara válida. */
+export function extrairEmocao(texto: string): { texto: string; emocao: Emocao | null } {
+  let emocao: Emocao | null = null;
+  const limpoTxt = String(texto ?? '').replace(RE_CARA, (_m, e: string) => {
+    const v = e.trim().toLowerCase().replace(/\s+/g, '_');
+    if (!emocao && (EMOCOES as readonly string[]).includes(v)) emocao = v as Emocao;
+    return '';
+  }).trim();
+  return { texto: limpoTxt, emocao };
+}
+
+/** A cara quando o modelo não disse nenhuma (ou a resposta foi escrita pelo sistema). */
+export function emocaoPorDefeito(o: { erro: boolean; handoff: boolean; temCarrinho: boolean; texto: string }): Emocao {
+  if (o.erro || o.handoff) return 'confuso';
+  if (o.temCarrinho) return 'alegre';
+  const t = String(o.texto ?? '').toLowerCase();
+  if (/não (percebi|entendi)/.test(t)) return 'confuso';
+  if (/não (encontrei|há|consegui|temos|tenho)|fechad|esgotad|indispon/.test(t)) return 'triste';
+  return 'a_falar';
+}
+
+/**
+ * Adendo 1-B (09/11/2026): "não é amigo de compras; é amigo para o que ele quiser". Com a personalidade
+ * ligada, esta é a frase de identidade (substitui a do "assistente de compras").
+ */
+export const IDENTIDADE_AMIGO =
+  'És o Amigo Bora, o amigo do cliente na Guarda, Portugal, para o que ele quiser: conversar, comida (restaurantes), mercado e supermercados, lojas e farmácias, Favores, Limpeza, Reservas de mesa, Serviços, dúvidas sobre a Guarda e sobre a app Bora. NUNCA te apresentas nem te descreves como "assistente de compras" nem "amigo de compras": és o Amigo, para tudo.';
 
 // ─── Que tipo de mensagem é ───────────────────────────────────────────────────
 
@@ -244,6 +293,7 @@ export function blocoAmigo(): string {
     'COMPRAS E MARCAÇÕES ACABAM SEMPRE NUMA AÇÃO: quando o cliente quer alguma coisa (comida, compras, uma faxina/limpeza, um Favor), a resposta acaba com o carrinho criado (propose_cart ou basket_quote), ou com suggest_action pedir_favor (destino = o que o estafeta compra/faz) ou suggest_action marcar_limpeza (destino = o dia e a hora que o cliente disse). Uma confirmação do cliente só; nunca acabas em texto solto.',
     'Comparar com a Glovo/Uber: só com o que o cliente MOSTROU (print) ou ESCREVEU (preços). Se só disse "compara com a Glovo", pede-lhe o print do carrinho. Se escreveu os artigos com preços, chama comparar_outra_app. NUNCA dizes um preço da outra app que o cliente não deu.',
     'A "deixa" do fim (promoção, parceiro novo, tokens, check-in) é posta pelo sistema por baixo da tua resposta: tu NÃO escreves promoções nem deixas por tua conta.',
+    'A TUA CARA (a app mostra-te como um rosto que fala): começa SEMPRE a resposta com UMA etiqueta: [cara:alegre] (encontraste o que ele quer, boa notícia, cumprimento), [cara:triste] (não há, está fechado, esgotado), [cara:surpreso] (novidade, coisa inesperada), [cara:pensativo] (precisas de uma informação ou estás a considerar opções), [cara:confuso] (não percebeste o pedido) ou [cara:a_falar] (o resto). O sistema tira a etiqueta antes de o cliente ler; nunca a expliques.',
   ].join('\n');
 }
 

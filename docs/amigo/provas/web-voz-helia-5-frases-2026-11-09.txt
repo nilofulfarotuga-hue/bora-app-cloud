@@ -1,0 +1,29 @@
+Prova 2.1 / 2.4 — o rosto e a boca no navegador (09/11/2026, ~06:35)
+Demonstração tool/amigo_demo (flutter build web --release), servida em 127.0.0.1:8791,
+aberta no navegador embutido da app Claude (Chromium, Windows 11, PC Ryzen 7).
+Vozes pt do navegador: só "Microsoft Helia - Portuguese (Portugal) | pt-PT | local=true".
+Um toque em "Começar a prova do Amigo" (os navegadores só deixam falar depois de um toque).
+
+Registo da consola (copiado tal como saiu):
+
+[AmigoDemo] voz=Microsoft Helia - Portuguese (Portugal) plataforma=web
+[AmigoDemo] evento abrir
+[AmigoDemo] frase {"frase":"Olá, eu sou o Amigo.","duracao_ms":2596,"eventos_de_palavra":5,"atraso_evento_boca":{"n":5,"media_ms":"13.1","p95_ms":"14.0","max_ms":"14.0"},"desvio_estimativa":{"n":5,"media_ms":"124.2","p95_ms":"370.9","max_ms":"370.9"}}
+[AmigoDemo] desempenho {"segundos":20.098,"imagens":770,"imagens_por_segundo":"38.3","imagem_ms_mediana":"2.9","imagem_ms_p95":"4.7","build_ms_p95":"2.30","raster_ms_p95":"2.00","imagens_lentas_mais_16ms":6}
+[AmigoDemo] frase {"frase":"O teu hambúrguer chega em vinte e cinco minutos.","duracao_ms":3493,"eventos_de_palavra":9,"atraso_evento_boca":{"n":9,"media_ms":"12.4","p95_ms":"13.8","max_ms":"13.8"},"desvio_estimativa":{"n":9,"media_ms":"98.1","p95_ms":"365.0","max_ms":"365.0"}}
+[AmigoDemo] frase {"frase":"Uau, isso é mesmo uma boa notícia!","duracao_ms":3409,"eventos_de_palavra":7,"atraso_evento_boca":{"n":7,"media_ms":"3.7","p95_ms":"4.7","max_ms":"4.7"},"desvio_estimativa":{"n":7,"media_ms":"108.6","p95_ms":"376.9","max_ms":"376.9"}}
+[AmigoDemo] frase {"frase":"Eu nunca mexo no teu dinheiro sem tu mandares.","duracao_ms":3031,"eventos_de_palavra":9,"atraso_evento_boca":{"n":9,"media_ms":"11.3","p95_ms":"14.1","max_ms":"14.1"},"desvio_estimativa":{"n":9,"media_ms":"48.7","p95_ms":"102.6","max_ms":"102.6"}}
+[AmigoDemo] frase {"frase":"Diz-me o código de quatro números que aparece no pedido.","duracao_ms":3761,"eventos_de_palavra":10,"atraso_evento_boca":{"n":10,"media_ms":"9.8","p95_ms":"14.1","max_ms":"14.1"},"desvio_estimativa":{"n":10,"media_ms":"76.4","p95_ms":"274.2","max_ms":"274.2"}}
+[AmigoDemo] boca-resumo {"voz":"Microsoft Helia - Portuguese (Portugal)","eventos_de_palavra":57,"atraso_evento_boca":{"n":40,"media_ms":"10.1","p95_ms":"14.1","max_ms":"14.1"},"desvio_estimativa":{"n":57,"media_ms":"119.8","p95_ms":"430.8","max_ms":"777.6"}}
+[AmigoDemo] desempenho {"segundos":20.045,"imagens":1201,"imagens_por_segundo":"59.9","imagem_ms_mediana":"2.6","imagem_ms_p95":"3.5","build_ms_p95":"1.70","raster_ms_p95":"1.60","imagens_lentas_mais_16ms":0}
+
+Leitura:
+- atraso_evento_boca = do evento de palavra da voz até à primeira imagem do rosto que já usa
+  essa palavra: média 10,1 ms, máximo 14,1 ms (alvo da missão: abaixo de 100 ms). A boca ainda
+  se adianta 35 ms à palavra, como no protótipo.
+- desvio_estimativa = quanto a estimativa só pelo texto se tinha afastado da voz real antes de
+  cada acerto (média 120 ms): é por isso que a boca se acerta em cada palavra.
+- 57 eventos de palavra para 5 frases + saudação; 40 chegaram a uma imagem (os restantes
+  vieram no mesmo intervalo de imagem que o seguinte).
+- desempenho: 59,9 imagens/s, imagem p95 3,5 ms, 0 imagens lentas (a 1.ª janela de 20 s inclui
+  o ecrã do botão parado, por isso 38/s).

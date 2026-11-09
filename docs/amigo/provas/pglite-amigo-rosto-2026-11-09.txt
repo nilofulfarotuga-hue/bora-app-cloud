@@ -1,0 +1,17 @@
+OK  migração volta 1
+OK  migração volta 2
+OK  5 definições amigo_* — [{"key":"amigo_mosaico_categorias","value":true},{"key":"amigo_rosto_ativo","value":false},{"key":"amigo_rosto_variante","value":"rosto_camisa"},{"key":"amigo_voz_ligada_por_defeito","value":true},{"key":"amigo_voz_velocidade","value":1}]
+OK  definição que já existia ficou igual (on conflict do nothing)
+OK  velocidade 1.0 — 1
+OK  variante rosto_camisa — rosto_camisa
+OK  cópia antes de mexer — 3 linhas
+OK  dono insere o seu
+OK  não insere em nome de outro
+OK  tipo inválido recusado
+OK  não-admin não vê o painel
+OK  cliente só lê o seu — 2 linhas
+OK  painel: 2 aberturas, 2 clientes — {"a":2,"c":2}
+OK  painel: voz 1, escrita 1, 50 % — 50
+OK  painel: tempo médio 95 s — 95
+OK  painel: interruptores — {"amigo_rosto_ativo":false,"amigo_rosto_variante":"rosto_camisa","amigo_voz_velocidade":1,"amigo_mosaico_categorias":true,"amigo_voz_ligada_por_defeito":true}
+OK  painel: por plataforma

@@ -21,20 +21,12 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../../config/app_colors.dart';
 import '../../../l10n/tr.dart';
 import '../../../services/assistant_service.dart';
-import '../../../services/tvde_visibilidade.dart';
 import '../../../stores/cart_store.dart';
-import '../../../utils/home_destino.dart';
 import '../../../utils/safe_image_picker.dart';
 import '../../../widgets/bora_foto_ecra_inteiro.dart';
-import '../../../widgets/bora_support_sheet.dart';
-import '../../errand_form_screen.dart';
-import '../../orders_screen.dart';
-import '../../wallet_history_screen.dart';
-import '../cleaning/cleaning_wizard_screen.dart';
-import '../tvde/tvde_entrada_screen.dart';
 import 'amigo_bora_entrada.dart';
+import 'assistant_acoes.dart';
 import 'assistant_cards.dart';
-import 'assistant_encher_carrinho.dart';
 import '../../../utils/euros.dart';
 
 /// Amigo Bora: uma conversa parada há mais de 6 h recomeça com a saudação
@@ -107,7 +99,8 @@ Uint8List _reencodar(Uint8List bytes) {
   return Uint8List.fromList(img.encodeJpg(out, quality: 80));
 }
 
-class _AssistantChatScreenState extends State<AssistantChatScreen> {
+class _AssistantChatScreenState extends State<AssistantChatScreen>
+    with AssistantAcoesMixin<AssistantChatScreen> {
   final List<_Msg> _msgs = [];
   final _input = TextEditingController();
   final _scroll = ScrollController();
@@ -119,7 +112,6 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
   String? _banner;
   int? _restantesHoje;
   int _poupancaCents = 0;
-  String? _aEncherId;
 
   // Voz
   stt.SpeechToText? _stt;
@@ -222,59 +214,19 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
     _irParaOFim();
   }
 
-  /// A proposta com este id numa resposta já mostrada (para "Sim, repete").
-  AssistantProposal? _propostaNaConversa(String id) {
-    for (final m in _msgs.reversed) {
-      for (final p in m.reply?.propostas ?? const <AssistantProposal>[]) {
-        if (p.proposalId == id) return p;
-      }
-    }
-    return null;
-  }
-
-  Future<void> _tocarDeixa(AssistantDeixa d) async {
-    unawaited(AssistantService.deixaClicada(d.id));
-    final destino = d.acaoDestino?.trim() ?? '';
-    switch (d.acaoTipo) {
-      case 'abrir_loja':
-        if (destino.isNotEmpty) await abrirLojaPorId(context, destino);
-      case 'abrir_carteira':
-        await Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const WalletHistoryScreen()));
-      case 'abrir_checkin':
-        // O check-in vive no topo da página inicial.
-        Navigator.of(context).popUntil((r) => r.isFirst);
-      case 'abrir_faixa':
-        try {
-          final m = jsonDecode(destino);
-          if (m is Map) {
-            await abrirDestino(context,
-                tipo: (m['tipo_destino'] ?? '').toString(),
-                destino: (m['destino'] ?? '').toString());
-          }
-        } catch (_) {}
-    }
-  }
-
   Future<void> _abrirPropostaPorId(String id) async {
     try {
       final prop = await AssistantService.proposta(id);
       if (!mounted) return;
       if (prop == null) {
-        _snack('Esta proposta já não está disponível.'.tr);
+        snack('Esta proposta já não está disponível.'.tr);
         return;
       }
-      await _encher(prop);
+      await encher(prop);
     } catch (e) {
       debugPrint('[Assistente] proposta $id: $e');
-      if (mounted) _snack('Esta proposta já não está disponível.'.tr);
+      if (mounted) snack('Esta proposta já não está disponível.'.tr);
     }
-  }
-
-  void _snack(String msg) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(msg)));
   }
 
   void _irParaOFim() {
@@ -422,7 +374,7 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
           ? escolhidas.sublist(0, kAssistantMaxFotos)
           : escolhidas;
       if (escolhidas.length > kAssistantMaxFotos) {
-        _snack('Mando só as primeiras {0} fotos.'.trArgs([kAssistantMaxFotos]));
+        snack('Mando só as primeiras {0} fotos.'.trArgs([kAssistantMaxFotos]));
       }
       final fotos = <Uint8List>[];
       for (final x in aUsar) {
@@ -437,7 +389,7 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
       await _enviar(_input.text, imagens: fotos);
     } catch (e) {
       debugPrint('[Assistente] foto: $e');
-      if (mounted) _snack('Não consegui ler a foto.'.tr);
+      if (mounted) snack('Não consegui ler a foto.'.tr);
     }
   }
 
@@ -472,7 +424,7 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
     if (!mounted) return;
     if (!ok) {
       setState(() => _sttDisponivel = false);
-      _snack('Ditado por voz não disponível neste aparelho.'.tr);
+      snack('Ditado por voz não disponível neste aparelho.'.tr);
       return;
     }
     _textoAntesDoDitado = _input.text.trim();
@@ -512,98 +464,15 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
     if (mounted) setState(() => _aOuvir = false);
   }
 
-  // ── Cartões ───────────────────────────────────────────────────────────
+  // ── Cartões (as ações vivem em assistant_acoes.dart, partilhadas com o
+  //    ecrã do rosto do Amigo) ──────────────────────────────────────────
 
-  Future<void> _encher(AssistantProposal p) async {
-    if (_aEncherId != null) return;
-    setState(() => _aEncherId = p.proposalId);
-    try {
-      await encherCarrinhoDaProposta(context, p);
-    } finally {
-      if (mounted) setState(() => _aEncherId = null);
-    }
-  }
+  @override
+  Iterable<AssistantReply> get respostasMostradas =>
+      _msgs.map((m) => m.reply).whereType<AssistantReply>();
 
-  void _pedirFavor(List<AssistantFavor> favores) {
-    final desc = favores
-        .map((f) => f.quantity > 1 ? '${f.quantity}× ${f.query}' : f.query)
-        .join(', ');
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ErrandFormScreen(
-          prefill: ErrandPrefill(
-            description: 'Comprar: {0}'.trArgs([desc]),
-            location: '',
-            hasPurchase: true,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _acao(AssistantAcao a) async {
-    final d = a.destino?.trim() ?? '';
-    switch (a.tipo) {
-      case 'abrir_pedido':
-        await Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const OrdersScreen()));
-      case 'abrir_carteira':
-        await Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const WalletHistoryScreen()));
-      case 'abrir_favores':
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ErrandFormScreen(
-              prefill: d.isEmpty
-                  ? null
-                  : ErrandPrefill(description: d, location: '', hasPurchase: true),
-            ),
-          ),
-        );
-      case 'abrir_tvde':
-        // 04/11/2026: Bora Motorista fechado → não abre nada.
-        if (!TvdeVisibilidade.aberto) return;
-        await Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const TvdeEntradaScreen()));
-      // Amigo Bora (08/11/2026): a compra acaba numa ação, com uma confirmação.
-      case 'repetir_habitual':
-        final p = _propostaNaConversa(d);
-        if (p != null) {
-          await _encher(p);
-        } else {
-          _snack('Esta proposta já não está disponível.'.tr);
-        }
-      case 'pedir_favor':
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ErrandFormScreen(
-              prefill: ErrandPrefill(
-                  description: d, location: '', hasPurchase: true),
-            ),
-          ),
-        );
-      case 'marcar_limpeza':
-        if (d.isNotEmpty) _snack('Na marcação escolhe: {0}'.trArgs([d]));
-        await Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const CleaningWizardScreen()));
-      case 'suporte_humano':
-        await showModalBottomSheet<void>(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (_) => const BoraSupportSheet(showAgentCard: false),
-        );
-      case 'confirmar_lista':
-        if (d.isNotEmpty) await _enviar(d);
-      case 'abrir_loja':
-        if (d.isNotEmpty) await abrirLojaPorId(context, d);
-      default:
-        if (d.isNotEmpty) await _enviar(d);
-    }
-  }
+  @override
+  Future<void> enviarAoAssistente(String texto) => _enviar(texto);
 
   Future<void> _novaConversa() async {
     if (_msgs.isEmpty && _conversationId == null) return;
@@ -731,7 +600,10 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
       partes.add('Restam {0} mensagens hoje'.trArgs([_restantesHoje]));
     }
     if (partes.isEmpty) {
-      return 'Compara preços nas lojas da Guarda e enche o carrinho por ti.'.tr;
+      // Adendo 1-B (09/11/2026): o Amigo é amigo para tudo, não só de compras.
+      return AssistantFlags.personalidade.value
+          ? 'Amigo para o que quiseres: comida, mercado, Favores, limpeza e dúvidas.'.tr
+          : 'Compara preços nas lojas da Guarda e enche o carrinho por ti.'.tr;
     }
     return partes.join(' · ');
   }
@@ -753,12 +625,12 @@ class _AssistantChatScreenState extends State<AssistantChatScreen> {
         if (m.deUtilizador) return _BalaoUtilizador(msg: m);
         return _BalaoAssistente(
           reply: m.reply!,
-          aEncherId: _aEncherId,
-          onEncher: _encher,
-          onFavor: _pedirFavor,
-          onAcao: _acao,
+          aEncherId: aEncherId,
+          onEncher: encher,
+          onFavor: pedirFavor,
+          onAcao: acao,
           onConfirmarLista: _enviar,
-          onDeixa: _tocarDeixa,
+          onDeixa: tocarDeixa,
         );
       },
     );
@@ -874,7 +746,6 @@ class _BalaoAssistente extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = reply;
-    final lista = r.listaExtraida;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12, right: 8),
       child: Column(
@@ -897,32 +768,15 @@ class _BalaoAssistente extends StatelessWidget {
                   style: const TextStyle(
                       fontSize: 15, color: AppColors.textPrimary, height: 1.35)),
             ),
-          if (r.comparacao != null)
-            AssistantComparacaoCard(comparacao: r.comparacao!),
-          if (lista != null && lista.isNotEmpty)
-            AssistantListaExtraidaCard(
-                itens: lista, onConfirmar: onConfirmarLista),
-          for (final p in r.propostas)
-            AssistantProposalCard(
-              proposta: p,
-              aEncher: aEncherId == p.proposalId,
-              onEncher: () => onEncher(p),
-            ),
-          if (r.divisao != null)
-            AssistantDivisaoCard(
-              divisao: r.divisao!,
-              aEncherId: aEncherId,
-              onEncher: onEncher,
-            ),
-          if (r.favores.isNotEmpty)
-            AssistantFavoresCard(
-              favores: r.favores,
-              preco: r.favorPreco,
-              onPedir: () => onFavor(r.favores),
-            ),
-          AssistantAcoesChips(acoes: r.acoes, onTap: onAcao),
-          if (r.deixa != null)
-            AmigoDeixaLinha(deixa: r.deixa!, onTap: () => onDeixa(r.deixa!)),
+          AssistantCartoesDaResposta(
+            reply: r,
+            aEncherId: aEncherId,
+            onEncher: onEncher,
+            onFavor: onFavor,
+            onAcao: onAcao,
+            onConfirmarLista: onConfirmarLista,
+            onDeixa: onDeixa,
+          ),
         ],
       ),
     );

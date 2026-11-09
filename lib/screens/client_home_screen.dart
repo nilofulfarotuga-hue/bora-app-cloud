@@ -15,6 +15,7 @@ import '../models/order_model.dart';
 import '../models/rating_model.dart';
 import '../models/restaurant_model.dart';
 import '../models/ride_kind.dart';
+import '../services/assistant_service.dart';
 import '../services/client_address_service.dart';
 import '../services/location_service.dart';
 import '../stores/cart_store.dart';
@@ -745,14 +746,24 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
     // O espacamento encolhe com a coluna extra, senao a celula ficava estreita
     // demais para o rotulo. O racio sobe para 0.88 (celula mais alta que larga)
     // para o nome ter as suas duas linhas sem apertar a ilustracao.
-    return GridView.count(
+    // O AMIGO (09/11/2026, m11-amigo-rosto): o mosaico "Amigo" com o rostinho
+    // animado abre a grelha (amigo_mosaico_categorias no painel).
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        AssistantFlags.enabled,
+        AssistantFlags.rostoAtivo,
+        AssistantFlags.mosaico,
+      ]),
+      builder: (context, _) => GridView.count(
       crossAxisCount: 4,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: Spacing.sm,
       mainAxisSpacing: Spacing.sm,
       childAspectRatio: 0.88,
-      children: tiles.map((t) {
+      children: [
+        if (amigoMosaicoVisivel()) const AmigoMosaico(),
+        ...tiles.map((t) {
         // Semantics identifiers para testes E2E (Maestro): label → resource-id.
         const semanticsIds = {
           'Restaurantes': 'tile_restaurantes',
@@ -783,7 +794,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
         final id = semanticsIds[t.label];
         if (id == null) return card;
         return Semantics(identifier: id, child: card);
-      }).toList(),
+      }),
+      ],
+      ),
     );
   }
 

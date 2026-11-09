@@ -431,8 +431,8 @@ class _OverviewTab extends StatelessWidget {
       tabela: 'drivers',
       entidadeId: driver['id'].toString(),
       nome: driver['name'] as String?,
-      // Sem a temporária para estafetas até à correção do servidor
-      // (ver kTiposSuspensaoEstafeta).
+      // 02/11/2026: com a temporária (a manutenção levanta o bloqueio no
+      // fim da data — ver kTiposSuspensaoEstafeta).
       tipos: kTiposSuspensaoEstafeta,
     );
   }

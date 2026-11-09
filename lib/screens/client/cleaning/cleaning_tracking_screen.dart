@@ -283,6 +283,10 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
     final groupId = b.recurrenceGroupId;
     if (groupId == null) return;
     final store = context.read<CleaningStore>();
+    // 02/11/2026 (zerar B2): o servidor diz o que vai cancelar e quanto volta.
+    // 09/11/2026 (M10 b2): o que volta vai para a Carteira Bora (servidor).
+    final previsao = await store.previsaoSerie(groupId);
+    if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -290,9 +294,25 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
         // Texto igual ao que o cancel_cleaning_series faz (01/11/2026): o
         // anterior dizia "a limpeza atual mantém-se", mas a atual também é
         // cancelada quando faltam mais de 24 h.
-        content: Text(
-            'Não se marcam mais limpezas desta série. As já marcadas para daqui a mais de 24 h são canceladas; as das próximas 24 h mantêm-se.'
-                .tr),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+                'Não se marcam mais limpezas desta série. As já marcadas para daqui a mais de 24 h são canceladas; as das próximas 24 h mantêm-se.'
+                    .tr),
+            if (previsao.devolveCents > 0) ...[
+              const SizedBox(height: Spacing.sm),
+              Text(
+                'Devolvemos {0} à tua Carteira Bora, podes usar já.'
+                    .trArgs([CleaningLabels.euro(previsao.devolveCents)]),
+                key: const Key('limpeza_parar_serie_devolve'),
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -313,7 +333,11 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
       await store.refreshTracked();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Recorrência cancelada.'.tr)),
+        SnackBar(
+            content: Text(previsao.devolveCents > 0
+                ? 'Recorrência cancelada. Devolvemos {0} à tua Carteira Bora, podes usar já.'
+                    .trArgs([CleaningLabels.euro(previsao.devolveCents)])
+                : 'Recorrência cancelada.'.tr)),
       );
     } catch (_) {
       if (!mounted) return;

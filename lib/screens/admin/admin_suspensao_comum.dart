@@ -35,16 +35,12 @@ const List<(String, String)> kTiposSuspensaoPainel = [
   ('restricao', 'Restrição (só registra, não desliga a conta)'),
 ];
 
-/// Estafeta/motorista: SEM a temporária até a correção do servidor ser
-/// aplicada (supabase/migrations/PROPOSTA_20261101_suspensao_temporaria_
-/// estafeta_expira_e_guarda_pedido.sql). Hoje, quando a data de fim passa, a
-/// manutenção não levanta o `is_banned` do estafeta e ele fica bloqueado para
-/// sempre. Até lá: suspender sem data e reativar em Revisões.
-const List<(String, String)> kTiposSuspensaoEstafeta = [
-  ('suspensao', 'Suspensão sem data de fim (reativar em Revisões)'),
-  ('encerramento', 'Encerrar a conta'),
-  ('restricao', 'Restrição (só registra, não desliga a conta)'),
-];
+/// Estafeta/motorista: os mesmos tipos do painel. 02/11/2026 (zerar B4): a
+/// correção do servidor está aplicada desde 01/11 (20261101230323) — a
+/// manutenção de hora a hora (`prestador_suspensoes_manutencao`) levanta o
+/// `is_banned` do estafeta quando a data de fim passa, por isso a temporária
+/// volta a ser oferecida.
+const List<(String, String)> kTiposSuspensaoEstafeta = kTiposSuspensaoPainel;
 
 /// Só "desativar" (interruptor de loja/barbearia): suspensão sem data de fim.
 const List<(String, String)> kTipoDesativar = [

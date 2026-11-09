@@ -91,7 +91,10 @@ class _MeusHabituaisState extends State<MeusHabituais> {
           ),
           const SizedBox(height: Spacing.sm),
           SizedBox(
-            height: 132,
+            // M10 (09/11/2026): 132 deixava o cartão a transbordar 1 px no
+            // emulador (achado da M8): 12+12 de margem + nome + 2 linhas de
+            // produtos + botão de 44 já passam dos 132. Folga de 8 px.
+            height: 140,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: habituais.length,

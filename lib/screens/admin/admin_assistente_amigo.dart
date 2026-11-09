@@ -52,7 +52,7 @@ class _AdminAssistenteAmigoTabState extends State<AdminAssistenteAmigoTab>
       debugPrint('[AdminAmigo] $e');
       if (!mounted) return;
       setState(() {
-        _erro = 'Não consegui carregar o Amigo Bora (a migração 20261108210000 já foi aplicada?).';
+        _erro = 'Não consegui carregar o Amigo Bora (a migração 20261108235215 já foi aplicada?).';
         _loading = false;
       });
     }

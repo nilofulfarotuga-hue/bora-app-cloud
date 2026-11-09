@@ -8,7 +8,7 @@
 //     responder como "Equipa Bora". Ao responder, o robô fica calado nessa conversa até
 //     "Devolver ao robô". Ao cliente nunca aparece o nome de quem responde.
 // RPCs: admin_suporte_sessoes / admin_suporte_conversa / admin_suporte_responder /
-// admin_suporte_devolver (migração 20261108220000, só admin). Textos em PT-BR (painel).
+// admin_suporte_devolver (migração 20261108235328, só admin). Textos em PT-BR (painel).
 
 import 'dart:async';
 

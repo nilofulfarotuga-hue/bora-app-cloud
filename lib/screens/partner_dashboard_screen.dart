@@ -1039,8 +1039,10 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                 : Icons.circle_outlined),
             // M7 (08/11/2026): o dono de uma loja entende "aberta/fechada",
             // não "online/offline" (comparativo-concorrencia-2026-11, melhoria 5).
-            label: Text(
-                currentRestaurant.isOnline ? 'Loja aberta' : 'Loja fechada'),
+            // M10 (09/11/2026): "Loja aberta/fechada" apertava o nome da loja
+            // na barra até "Loj…" (achado da M8 no emulador); a palavra curta
+            // basta, porque o botão está ao lado do nome da loja.
+            label: Text(currentRestaurant.isOnline ? 'Aberta' : 'Fechada'),
           ),
           // Troca de papel — mesmo padrão do cliente/estafeta (era "Teste"
           // com ícone de bug, confuso em produção).

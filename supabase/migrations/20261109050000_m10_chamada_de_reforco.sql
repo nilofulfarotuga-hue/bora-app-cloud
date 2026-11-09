@@ -61,6 +61,10 @@
 -- Prova em rollback: docs/propostas/m10-2026-11-09/prova_chamada_reforco.sql
 -- =============================================================================
 
+-- Revisão M10 (P1): não ficar à espera de bloqueios com auth.users e o registo de ofertas presos;
+-- se uma transação longa estiver em orders, a migração desiste ao fim de 5 s (tudo ou nada).
+SELECT set_config('lock_timeout', '5000', true);
+
 -- 0) Guarda: só se aplica por cima do que foi revisto a 09/11.
 DO $guarda$
 DECLARE
@@ -457,14 +461,33 @@ CREATE OR REPLACE FUNCTION public.dispatch_candidatos_entrega(p_order_id text)
 AS $function$
 DECLARE
   -- m10-reforco-20261109: fases da chamada de reforço por cima do corpo de 27/10
-  v_fase jsonb := public.dispatch_fase_entrega(p_order_id);
+  v_fase jsonb;
+  v_f    record;
+  v_tem  boolean := false;
 BEGIN
-  IF v_fase->>'fase' = 'forcado' THEN
-    RETURN QUERY
+  -- Revisão M10 (P3): um erro no cálculo da fase (definição mal escrita, função em falta) NUNCA
+  -- pára o despacho: avisa e segue com a lista online de sempre.
+  BEGIN
+    v_fase := public.dispatch_fase_entrega(p_order_id);
+    IF v_fase->>'fase' = 'forcado' THEN
       SELECT f.driver_id, f.user_id, f.lat, f.lng, f.vehicle_type, f.dist_km, f.mesma_loja
+        INTO v_f
         FROM public._dispatch_forcados_entrega(p_order_id) f
        WHERE f.user_id = (v_fase->>'user_id')::uuid
        LIMIT 1;
+      v_tem := FOUND;
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'dispatch_candidatos_entrega: fase do reforço falhou (%), segue a lista online', SQLERRM;
+    v_fase := NULL;
+    v_tem := false;
+  END;
+  IF v_fase->>'fase' = 'forcado' THEN
+    IF v_tem THEN
+      driver_id := v_f.driver_id; user_id := v_f.user_id; lat := v_f.lat; lng := v_f.lng;
+      vehicle_type := v_f.vehicle_type; dist_km := v_f.dist_km; mesma_loja := v_f.mesma_loja;
+      RETURN NEXT;
+    END IF;
     RETURN;
   END IF;
   RETURN QUERY SELECT * FROM public._dispatch_candidatos_online(p_order_id);

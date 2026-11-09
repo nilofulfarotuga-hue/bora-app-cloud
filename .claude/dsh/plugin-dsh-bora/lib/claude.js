@@ -73,7 +73,10 @@ export async function passarAoClaudeCode({ pedido, modo, pasta, modelo }, sinal)
   const entrada = `${PREFIXO}${extra}\n\nTrabalho pedido (${modo === 'editar' ? 'podes editar' : 'só leitura'}):\n${pedido}`
   const t0 = Date.now()
   const saida = await new Promise((resolve, reject) => {
-    const filho = spawn(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', CLAUDE_CMD, ...args], { cwd, windowsHide: true, signal: sinal })
+    // 08/11 (m3): o Claude Code NUNCA vai pelo proxy do Dipsy (regra da casa: nada de proxy à frente do Claude Code)
+    const env = { ...process.env }
+    for (const k of Object.keys(env)) if (/^(https?|all|no)_proxy$/i.test(k)) delete env[k]
+    const filho = spawn(process.env.ComSpec ?? 'cmd.exe', ['/d', '/s', '/c', CLAUDE_CMD, ...args], { cwd, env, windowsHide: true, signal: sinal })
     let out = ''
     let err = ''
     const relogio = setTimeout(() => { try { filho.kill() } catch { /* já acabou */ } reject(new Error('o Claude Code passou de 25 minutos e foi parado')) }, TIMEOUT_MS)

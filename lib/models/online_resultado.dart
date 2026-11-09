@@ -12,6 +12,7 @@ class OnlineResultado {
     this.codigo,
     this.mensagem,
     this.motivos = const <String>[],
+    this.faltas = const <String>[],
     this.semRespostaDoServidor = false,
   });
 
@@ -21,6 +22,7 @@ class OnlineResultado {
         codigo = CodigoOnline.ok,
         mensagem = null,
         motivos = const <String>[],
+        faltas = const <String>[],
         semRespostaDoServidor = false;
 
   /// A pergunta ao servidor falhou (rede/tempo): deixa seguir. O travão
@@ -30,6 +32,7 @@ class OnlineResultado {
         codigo = null,
         mensagem = null,
         motivos = const <String>[],
+        faltas = const <String>[],
         semRespostaDoServidor = true;
 
   /// Recusado, com a frase única de [mensagemOnlineRecusado].
@@ -37,6 +40,7 @@ class OnlineResultado {
     String codigo, {
     String? mensagemServidor,
     List<String> motivos = const <String>[],
+    List<String> faltas = const <String>[],
   }) =>
       OnlineResultado(
         ok: false,
@@ -44,6 +48,7 @@ class OnlineResultado {
         mensagem:
             mensagemOnlineRecusado(codigo, mensagemServidor: mensagemServidor),
         motivos: motivos,
+        faltas: faltas,
       );
 
   /// Lê a resposta de `prestador_pode_ficar_online()`:
@@ -58,10 +63,17 @@ class OnlineResultado {
             : m.toString())
         .where((s) => s.isNotEmpty)
         .toList();
+    // Missão m2 (08/11/2026): o servidor já mandava o que falta à candidatura
+    // (`faltas`, do robô dos documentos) e a app deitava fora.
+    final faltas = (res['faltas'] is List ? res['faltas'] as List : const [])
+        .map((f) => f.toString().trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
     return OnlineResultado.recusado(
       codigo.isEmpty ? CodigoOnline.naoConfirmado : codigo,
       mensagemServidor: res['mensagem']?.toString(),
       motivos: motivos,
+      faltas: faltas,
     );
   }
 
@@ -87,6 +99,19 @@ class OnlineResultado {
 
   /// TVDE: os motivos (rótulos) que o servidor deu.
   final List<String> motivos;
+
+  /// Conta por aprovar: o que ainda falta enviar (`faltas` do servidor).
+  final List<String> faltas;
+
+  /// A frase a mostrar, já com "Falta enviar: …" quando o servidor o disse.
+  String? get mensagemComFaltas {
+    final m = mensagem;
+    if (faltas.isEmpty) return m;
+    final lista = faltas.length == 1
+        ? faltas.first
+        : '${faltas.sublist(0, faltas.length - 1).join(', ')} e ${faltas.last}';
+    return '${m ?? ''} Falta enviar: $lista.'.trim();
+  }
 
   /// [ok] só porque não houve resposta (falha aberta).
   final bool semRespostaDoServidor;

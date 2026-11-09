@@ -8,6 +8,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../models/carwash_models.dart';
 import '../../widgets/aviso_atividade_banner.dart';
+import '../../widgets/proximo_trabalho_card.dart';
 import '../../widgets/aviso_toque_banner.dart';
 import '../../widgets/botao_rota.dart';
 import '../../widgets/ganho_de_hoje_card.dart';
@@ -257,6 +258,9 @@ class _WasherHomeScreenState extends State<WasherHomeScreen> {
             AvisoAtividadeBanner(
                 margem: const EdgeInsets.only(bottom: Spacing.md),
                 emCandidatura: !store.isApproved),
+            // Missão m2 (08/11/2026): lavagem aceite para outro dia.
+            const ProximoTrabalhoCard(
+                categoria: 'lavagem', margem: EdgeInsets.only(bottom: Spacing.md)),
             // O total do dia de TUDO o que ele faz — o mesmo cartão dos ecrãs
             // do estafeta, do TVDE e da limpeza.
             GanhoDeHojeCard(recarregarQuando: store),

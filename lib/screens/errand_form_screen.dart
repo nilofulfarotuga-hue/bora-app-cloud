@@ -1303,7 +1303,46 @@ class _StepWhen extends StatelessWidget {
         ),
         const SizedBox(height: 24),
         if (q != null) _Breakdown(quote: q, hasPurchase: hasPurchase),
+        // [08/11/2026 · m1-dinheiro-favores] Favor com compra: se o preço na
+        // loja passar do combinado, o estafeta pede aprovação na app.
+        if (hasPurchase) ...[
+          const SizedBox(height: 12),
+          const _AvisoAprovacaoPreco(),
+        ],
       ],
+    );
+  }
+}
+
+/// Aviso junto ao "Continuar para pagamento" de um Favor com compra.
+class _AvisoAprovacaoPreco extends StatelessWidget {
+  const _AvisoAprovacaoPreco();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('aviso-aprovacao-preco-favor'),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primaryWash,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.phone_android, size: 18, color: AppColors.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Fica atento ao telemóvel: se o preço na loja for diferente, o estafeta vai pedir a tua aprovação e tens 3 minutos para responder.'
+                  .tr,
+              style: const TextStyle(
+                  fontSize: 13, height: 1.35, color: AppColors.textPrimary),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

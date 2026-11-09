@@ -23,13 +23,21 @@ class ReceiptUploadService {
 
   /// Faz upload da foto do talão e retorna o `path` no bucket receipts.
   /// Throws Exception com mensagem PT-PT em qualquer falha (UI mostra dialog).
+  ///
+  /// M1 08/11/2026: [fotoId] é o MESMO em todas as tentativas da MESMA foto
+  /// (o servidor grava AAAA/MM/<pedido>/<fotoId>.jpg sem substituir; repetir
+  /// devolve o mesmo caminho). [tiradaEm] decide o mês da pasta. Os dois são
+  /// opcionais: sem eles o pedido ao servidor fica igual ao de antes.
   static Future<String> uploadReceipt({
     required String orderId,
     required File photoFile,
     required int totalCents,
+    String? fotoId,
+    DateTime? tiradaEm,
   }) async {
     if (_useEdgeFn) {
-      return _uploadViaEdgeFunction(orderId, photoFile, totalCents);
+      return _uploadViaEdgeFunction(
+          orderId, photoFile, totalCents, fotoId, tiradaEm);
     }
     return _uploadDirectToStorage(orderId, photoFile);
   }
@@ -38,6 +46,8 @@ class ReceiptUploadService {
     String orderId,
     File photoFile,
     int totalCents,
+    String? fotoId,
+    DateTime? tiradaEm,
   ) async {
     final supabase = Supabase.instance.client;
     final bytes = await photoFile.readAsBytes();
@@ -49,6 +59,8 @@ class ReceiptUploadService {
         'orderId': orderId,
         'fileBase64': base64Str,
         'totalCents': totalCents,
+        if (fotoId != null) 'fotoId': fotoId,
+        if (tiradaEm != null) 'tiradaEm': tiradaEm.toUtc().toIso8601String(),
       },
     );
 
@@ -80,6 +92,13 @@ class ReceiptUploadService {
       throw Exception(
         'Upload falhou: $errorMsg${detail.isNotEmpty ? " ($detail)" : ""}',
       );
+    }
+
+    // M1 08/11/2026: o servidor novo confirma que o ficheiro existe e não
+    // está vazio. Se responde com `confirmado`, tem de ser true; o servidor
+    // antigo não manda o campo e fica tudo como antes.
+    if (data.containsKey('confirmado') && data['confirmado'] != true) {
+      throw Exception('Upload não confirmado pelo servidor');
     }
 
     return data['path'] as String;

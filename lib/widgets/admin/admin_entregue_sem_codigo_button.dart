@@ -1,8 +1,10 @@
 // Painel admin (PT-BR) — "Marcar entregue sem código" (04/11/2026, adendo 1 da
 // missão favor-diferenca-mbway-2026-11-03). Quando o entregador esquece de
 // pedir o código (PIN) ao cliente, o admin fecha a entrega aqui. Motivo
-// obrigatório; fica no log de auditoria (admin_audit_log). Só para pedidos "a
-// caminho" (onTheWay). Ganhos, tokens e fatura saem como numa entrega normal.
+// obrigatório; fica no log de auditoria (admin_audit_log). Para pedidos
+// "recolhido" (pickedUp) ou "a caminho" (onTheWay) — 08/11/2026, missão
+// m1-dinheiro-favores: o servidor passou a aceitar os dois. Ganhos, tokens e
+// fatura saem como numa entrega normal.
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -21,6 +23,10 @@ class AdminEntregueSemCodigoButton extends StatelessWidget {
   final String status;
   final VoidCallback onDone;
 
+  /// Status em que o botão aparece (o mesmo que o servidor aceita em
+  /// admin_marcar_entregue_sem_codigo): recolhido ou a caminho.
+  static const estadosPermitidos = <String>{'pickedUp', 'onTheWay'};
+
   /// Só para testes.
   final Future<Map<String, dynamic>> Function(String orderId, String motivo)? marcar;
 
@@ -36,7 +42,9 @@ class AdminEntregueSemCodigoButton extends StatelessWidget {
     }
     return switch (r['error']) {
       'motivo_obrigatorio' => 'Escreva o motivo (mínimo 5 letras).',
-      'estado_invalido' => 'Só dá para pedidos a caminho (status atual: ${r['status']}).',
+      'estado_invalido' =>
+        'Só dá para pedidos recolhidos ou a caminho (status atual: ${r['status']}).',
+      'sem_estafeta' => 'O pedido não tem entregador atribuído.',
       'pedido_nao_encontrado' => 'Pedido não encontrado.',
       _ => 'Não foi possível: ${r['error'] ?? 'erro desconhecido'}',
     };
@@ -68,7 +76,7 @@ class AdminEntregueSemCodigoButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (status != 'onTheWay') return const SizedBox.shrink();
+    if (!estadosPermitidos.contains(status)) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: SizedBox(

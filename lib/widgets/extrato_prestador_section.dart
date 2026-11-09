@@ -392,6 +392,11 @@ class _ExtratoPrestadorSectionState extends State<ExtratoPrestadorSection> {
             if (((t['tokens'] as num?) ?? 0) > 0)
               Text('+${t['tokens']} tokens',
                   style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+            // M1 08/11: a gorjeta vem só nas parcelas (informativo:true); sem
+            // esta linha ficava invisível na lista.
+            if (_gorjetaCents(t) > 0)
+              Text('+${eur(_gorjetaCents(t))} gorjeta',
+                  style: const TextStyle(fontSize: 10, color: AppColors.success)),
           ],
         ),
       ));
@@ -400,6 +405,18 @@ class _ExtratoPrestadorSectionState extends State<ExtratoPrestadorSection> {
       color: AppColors.card,
       child: Column(children: widgets),
     );
+  }
+
+  /// Gorjeta do cliente deste trabalho (parcela "Gorjeta do cliente" que o
+  /// servidor manda em `parcelas`); 0 se não houver.
+  static int _gorjetaCents(Map<String, dynamic> t) {
+    for (final p in (t['parcelas'] as List? ?? const [])) {
+      if (p is! Map) continue;
+      final nome = p['nome'] as String? ?? '';
+      final v = p['valor_cents'];
+      if (nome.contains('Gorjeta') && v is num && v > 0) return v.toInt();
+    }
+    return 0;
   }
 
   void _abrirDetalhe(Map<String, dynamic> t) {

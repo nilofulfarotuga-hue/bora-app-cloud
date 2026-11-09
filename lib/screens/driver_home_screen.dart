@@ -44,6 +44,7 @@ import '../services/notification_service.dart';
 import '../services/permission_gate_service.dart';
 import '../services/push_token_service.dart';
 import '../services/sound_service.dart';
+import '../services/talao_pendente_service.dart';
 import '../services/web_presence.dart';
 import '../widgets/driver_web_cards.dart';
 import '../widgets/driver_push_warning_card.dart';
@@ -60,7 +61,6 @@ import '../widgets/oferta_resumo_estafeta.dart';
 import '../widgets/entrega_marcada_estafeta.dart';
 import 'driver/mapa_procura_estafeta_screen.dart' show BotaoMapaProcuraEstafeta;
 import '../widgets/trocar_de_papel.dart';
-import '../widgets/aviso_atividade_banner.dart';
 import '../widgets/driver_fiscal_card.dart';
 import '../widgets/estafeta_documentos_em_falta.dart';
 import '../services/role_switch_helper.dart';
@@ -71,6 +71,10 @@ import '../widgets/verificacao_idade_sheet.dart';
 import '../l10n/tr.dart';
 import 'prestador/conta_suspensa_screen.dart';
 import 'profile_screen.dart';
+import '../services/minha_conta_service.dart';
+import '../widgets/barra_falta_conta.dart';
+import '../widgets/atalho_trabalho_em_curso.dart';
+import '../utils/pedido_agendado.dart';
 
 class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
@@ -122,6 +126,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   /// driver's real location instead of the default fallback.
   LatLng? _initialGpsCenter;
 
+  /// Missão m2 · bloco 4: o mapa ocioso, para o botão de centrar.
+  GoogleMapController? _mapaOciosoCtrl;
+
   /// [ronda 04/10 · #2] Este ecrã foi aberto POR CIMA do ecrã TVDE (que fica
   /// vivo por baixo, com o seu fluxo de GPS a alimentar a mesma DriverStore
   /// e a mesma RPC de posição). Nesse caso não se abre um segundo fluxo de
@@ -140,6 +147,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     // BUG 3: observe app lifecycle to re-run safety net on resume
     // (apanha admin approve/ban/delete enquanto app esteve em background).
     WidgetsBinding.instance.addObserver(this);
+    // M1 08/11/2026: fotos de talão que ficaram no telemóvel (sem rede ou app
+    // fechada) sobem sozinhas — já e de 60 em 60 s. Idempotente.
+    TalaoPendenteService.iniciarReenvioAutomatico();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
@@ -360,6 +370,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed && mounted) {
       _enforceEffectiveStatus();
+      // M1 08/11/2026: voltou a rede/app → tenta já os talões pendentes.
+      unawaited(TalaoPendenteService.reenviarPendentes());
       // Safety net: garante heartbeat ligado no resume (idempotente).
       final driver = context.read<DriverStore>().currentDriver;
       if (driver?.isOnline == true) {
@@ -417,12 +429,22 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     }
     // Fecho mensal (2026-09-29): passado o prazo, sem NIF + atividade aberta
     // nas Finanças o estafeta não fica online (o servidor decide o prazo).
-    if (await DriverFiscalGate.bloqueado()) {
+    // Missão m2 (08/11/2026): em vez da frase solta, a folha "Para ficares
+    // online falta…" com o botão para tratar de cada coisa em "A minha conta".
+    final conta = await MinhaContaService.carregar();
+    if (!mounted) return;
+    final bloqueantes = conta?.bloqueantes ?? const [];
+    if (bloqueantes.isNotEmpty) {
+      await mostrarFolhaParaFicarOnline(context, bloqueantes);
+      return;
+    }
+    // Sem resposta da conta (rede): a regra antiga do fiscal continua a valer.
+    if (conta == null && await DriverFiscalGate.bloqueado()) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Confirma o teu NIF e a atividade aberta nas Finanças (cartão no topo) para voltares a aceitar entregas.',
+            'Confirma o teu NIF e a atividade aberta nas Finanças (Perfil › A minha conta) para voltares a aceitar entregas.',
           ),
           duration: Duration(seconds: 5),
         ),
@@ -442,6 +464,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       final okWeb = await _ficarOnlineNoServidor();
       if (!okWeb || !mounted) return;
       _porCimaDoTvde = false;
+      avisarFaltasAoFicarOnline(context, conta);
       unawaited(_heartbeatService.start());
       unawaited(_startIdleLocationTracking());
       return;
@@ -466,6 +489,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     if (!success || !mounted) return;
     // Ficou online AQUI: o fluxo de GPS é deste ecrã (ver _porCimaDoTvde).
     _porCimaDoTvde = false;
+    // Missão m2: "quando ficar online, tem que falar o que falta".
+    avisarFaltasAoFicarOnline(context, conta);
     // [Oferta na hora · 23/09] uma vez: localização "sempre" + bateria.
     await LocalizacaoOnline.pedirUmaVez(context);
     if (!mounted) return;
@@ -502,7 +527,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     if (r.codigo == CodigoOnline.emCurso) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(r.mensagem ?? mensagemOnlineRecusado(r.codigo)),
+        content: Text(r.mensagemComFaltas ?? mensagemOnlineRecusado(r.codigo)),
         duration: const Duration(seconds: 6),
       ),
     );
@@ -1095,12 +1120,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 ),
               ),
             ] else ...[
-              // Comprovativo de atividade (20/10/2026): aviso que não bloqueia,
-              // numa linha só e com "×" (até reabrir a app) para não encurtar
-              // a lista de pedidos em ecrãs pequenos.
-              const AvisoAtividadeBanner(compacto: true, dispensavel: true),
-              // Fecho mensal (2026-09-29): NIF/atividade + recibo verde do mês.
-              const DriverFiscalCard(),
+              // Missão m2 (08/11/2026): o comprovativo de atividade e o
+              // NIF/recibo verde já NÃO aparecem aqui — este ramo é o das
+              // ofertas. Vivem em "A minha conta" e na barra fina do mapa.
               const Text(
                 "Pedidos disponíveis",
                 style: TextStyle(
@@ -1355,11 +1377,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   zoom: 15,
                 ),
                 myLocationEnabled: true,
-                myLocationButtonEnabled: true,
+                // Missão m2 · bloco 4 (pedido de 07/11): a mira nativa vivia
+                // no canto de cima; agora é o botão de 48 px à direita, a
+                // meio do ecrã (zona do polegar) — ver _botaoCentrarMapa.
+                myLocationButtonEnabled: false,
                 zoomControlsEnabled: false,
                 compassEnabled: false,
                 markers: const {},
-                onMapCreated: (_) {},
+                onMapCreated: (c) => _mapaOciosoCtrl = c,
               );
             },
           ),
@@ -1473,31 +1498,54 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
             left: 16,
             right: 16,
             top: MediaQuery.of(context).padding.top + 60,
-            child: Material(
-              color: Colors.white,
-              elevation: 2,
-              borderRadius: BorderRadius.circular(12),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  GanhoDeHojeCard(recarregarQuando: orderStore),
-                  // Mapa simples de procura (adendo 4 · item 10, 29/10/2026):
-                  // só leitura; some com o interruptor desligado.
-                  const BotaoMapaProcuraEstafeta(),
-                ],
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Missão m2 (08/11/2026): "Falta: NIF, IBAN e dívida 1,47 €".
+                // Só aqui, no mapa sem ofertas nem pedidos. Toque abre
+                // "A minha conta".
+                const BarraFaltaConta(margem: EdgeInsets.only(bottom: 8)),
+                Material(
+                  color: Colors.white,
+                  elevation: 2,
+                  borderRadius: BorderRadius.circular(12),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GanhoDeHojeCard(recarregarQuando: orderStore),
+                      // Mapa simples de procura (adendo 4 · item 10, 29/10/2026):
+                      // só leitura; some com o interruptor desligado.
+                      const BotaoMapaProcuraEstafeta(),
+                    ],
+                  ),
+                ),
+              ],
             ),
+          ),
+
+          // ── Centrar o mapa (missão m2 · bloco 4) ──────────────────────
+          Positioned(
+            right: 16,
+            top: MediaQuery.of(context).size.height * 0.55,
+            child: _botaoCentrarMapa(driverStore, driverPos),
           ),
 
           // ── Bottom status card ────────────────────────────────────────
           // [botoes-navbar-eta 31/08] viewPadding em vez de padding: o
           // padding pode chegar consumido por um SafeArea acima e o cartão
           // colava na navbar de 3 botões.
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: MediaQuery.of(context).viewPadding.bottom + 16,
+          // Missão m2 · bloco 3: com a faixa do trabalho em curso à vista, o
+          // cartão (e o interruptor Online) sobe — a faixa nunca o tapa.
+          ValueListenableBuilder<double>(
+            valueListenable: AtalhoTrabalhoEmCurso.alturaOcupada,
+            builder: (context, faixa, cartao) => Positioned(
+              left: 16,
+              right: 16,
+              bottom: MediaQuery.of(context).viewPadding.bottom + 16 + faixa,
+              child: cartao!,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1571,6 +1619,29 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Missão m2 · bloco 4 (pedido de 07/11): o botão de centrar o mapa, à
+  /// direita, a meio do ecrã um pouco abaixo (zona do polegar), 48 px — igual
+  /// no ecrã do motorista.
+  Widget _botaoCentrarMapa(DriverStore driverStore, LatLng inicial) {
+    return SizedBox(
+      width: 48,
+      height: 48,
+      child: FloatingActionButton(
+        key: const Key('driver_map_recenter'),
+        heroTag: 'driver_idle_recenter',
+        tooltip: 'Centrar no mapa',
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        onPressed: () {
+          final pos = driverStore.currentDriver?.location ?? inicial;
+          _mapaOciosoCtrl
+              ?.animateCamera(CameraUpdate.newLatLngZoom(pos.toGMaps(), 15.5));
+        },
+        child: const Icon(Icons.my_location),
       ),
     );
   }
@@ -3286,6 +3357,39 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Missão m2 · bloco 5: pedido agendado que toca antes de estar
+          // pronto — diz-se em grande a que horas fica pronto.
+          if (textoPedidoAgendado(
+                scheduledFor: order.scheduledFor,
+                readyAtPromised: order.readyAtPromised,
+                agora: DateTime.now(),
+              ) case final agendado?)
+            Container(
+              key: const Key('oferta_pedido_agendado'),
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.schedule, color: Colors.white, size: 26),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      agendado,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

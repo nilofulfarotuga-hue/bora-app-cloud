@@ -47,3 +47,8 @@ description: Procedimento certo para lançar uma missão grande no Claude Code d
   tudo o que exige site com sessão iniciada (Search Console, Bing Webmaster, Google Ads,
   Meta, Apple) fica para a Claude.ai com a extensão, e regista-se no e2e_log como
   `bloqueado` com esta razão, sem parar o resto da missão.
+
+> Quando uma missão traz AUTORIZO do Danilo com a ordem de tirar as travas (como a M10 de 08/11), o caminho é:
+> uma sessão `claude --safe-mode` corre o script de desligar (ver `docs/TRANCAS.md`, secção de 08/11), e a
+> missão corre numa sessão aberta DEPOIS disso, em "Ignorar permissões", com a lista PROIBIDO do prompt e do
+> `CLAUDE.md` como regra de leitura obrigatória. No fim da missão, `RESTAURAR-M10.ps1` volta a ligar tudo.

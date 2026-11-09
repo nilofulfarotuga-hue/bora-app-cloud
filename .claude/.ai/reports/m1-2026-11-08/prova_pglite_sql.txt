@@ -1,0 +1,78 @@
+PASS aplica 01_favor_diferencas_e_entrega_sem_codigo.sql
+PASS aplica 02_favor_aprovacao_com_tecto.sql
+PASS aplica 03_nif_estafeta_e_recibo_cliente.sql
+PASS aplica 04_gorjeta_conta_ganho_e_robo_talao.sql
+PASS aplica 07_taloes_guardados_para_sempre.sql
+PASS reaplica 01_favor_diferencas_e_entrega_sem_codigo.sql (idempotente)
+PASS reaplica 02_favor_aprovacao_com_tecto.sql (idempotente)
+PASS reaplica 03_nif_estafeta_e_recibo_cliente.sql (idempotente)
+PASS reaplica 04_gorjeta_conta_ganho_e_robo_talao.sql (idempotente)
+PASS reaplica 07_taloes_guardados_para_sempre.sql (idempotente)
+PASS tecto MB Way = pago − taxas = 14,40 €
+PASS tecto dinheiro = 12,00 × 1,15 = 13,80 €
+PASS outro estafeta não lê o tecto
+PASS valor dentro do tecto não pergunta
+PASS acima do tecto cria pedido pendente 180 s
+PASS cliente recebe push com toque persistente
+PASS segundo pedido com o primeiro vivo → pedido_em_curso
+PASS estafeta não pode sair antes do fim do prazo
+PASS quem não é dono não responde
+PASS cliente aprova (MB Way) → pedido de diferença
+PASS favor_diferencas: 17,97 + 6,00 − 20,40 = 3,57 € pedido, tentativa 101
+PASS aprovado mas MB Way por pagar → estafeta espera
+PASS webhook: pago
+PASS webhook repetido é idempotente
+PASS depois de pago o tecto sobe a 17,97 €
+PASS estafeta avisado do pagamento
+PASS fechar a compra com a diferença já paga não pede outro MB Way
+PASS cliente escolhe "comprar só até"
+PASS sem resposta → cancelamento pedido com taxa 3,00 €
+PASS painel avisado do cancelamento
+PASS não-admin não aprova pelo cliente
+PASS admin sem motivo → motivo_obrigatorio
+PASS admin aprova pelo cliente com registo
+PASS lista do painel traz os pedidos de aprovação
+PASS sem motivo não fecha
+PASS pickedUp → delivered pelo painel
+PASS segunda vez é idempotente
+PASS estado errado não fecha
+PASS sem estafeta não fecha
+PASS ops com quem inválido → recusa
+PASS ops sem a frase → recusa
+PASS ops do Claude.ai fecha e regista
+PASS cliente não chama a porta ops
+PASS sem NIF do cliente → NIF da Bora 519686233
+PASS cliente pediu NIF → estafeta vê o NIF
+PASS loja parceira → não mostra ao estafeta
+PASS outro estafeta não vê o NIF
+PASS entregue → recibo pedido uma vez
+PASS nova gravação não reenvia
+PASS recibo BK: total 34,62 + gorjeta 2,00 = pago 36,62 (= Stripe)
+PASS recibo BK: 2 itens, taxa de serviço e saco
+PASS recibo de pedido não entregue = vazio
+PASS interruptor desligado → não envia
+PASS painel reenvia mesmo desligado (forçado)
+PASS gorjeta herda a conta empresa do pedido
+PASS conta gravada depois → gorjeta acompanha
+PASS ganho do dia = 5,23 + gorjeta 2,00 = 7,23 €
+   casamento: [{"idx":0,"sim":0.588,"menu":true,"casou":true,"grupo":["Tripwhopper","EXTRA BACON 2 FATIAS","Com Cebola","Batatas Media","Cola Media","3C Whopper"],"linha":"Tripwhopper","product_id":"bk-078771af-f4cb-451a-b645-3738400175df","extras_app_mod":0.91,"base_talao_cents":1245,"extras_app_outros":0.08,"extras_talao_cents":250},{"idx":1,"sim":0.588,"menu":true,"casou":true,"grupo":["Tripwhopper","EXTRA BACON 2 FATIAS","Com Pepino","Extra Alface","Patatas Supreme M PT","Cola Zero Media"],"linha":"Tripwhopper","product_id":"bk-078771af-f4cb-451a-b645-3738400175df","extras_app_mod":0.91,"base_talao_cents":1245,"extras_app_outros":0.58,"extras_talao_cents":250}]
+PASS menu 1 = Tripwhopper + batatas + cola = 12,45 €; extra 2,50 €
+PASS menu 2 casa com o 2.º Tripwhopper (12,45 € + 2,50 €)
+   robô: {"ok":true,"aplicadas":0,"ja_batiam":0,"pendentes":1,"sem_match":0,"extras_mais_caros":[{"grupo":["Tripwhopper","EXTRA BACON 2 FATIAS","Com Cebola","Batatas Media","Cola Media","3C Whopper"],"product_id":"bk-078771af-f4cb-451a-b645-3738400175df","extras_app_cents":91,"extras_talao_cents":250},{"grupo":["Tripwhopper","EXTRA BACON 2 FATIAS","Com Pepino","Extra Alface","Patatas Supreme M PT","Cola Zero Media"],"product_id":"bk-078771af-f4cb-451a-b645-3738400175df","extras_app_cents":91,"extras_talao_cents":250}]} {"status":"pending","old_base":"13.25","new_base":"12.37","linha_talao":"Tripwhopper + EXTRA BACON 2 FATIAS + Com Cebola + Batatas Media + Cola Media + 3C Whopper"}
+PASS robô NÃO sobe o menu (talão mais barato) → pendente
+PASS robô avisa que o EXTRA Bacon está mais caro ao balcão (2,50 vs 0,91)
+PASS talão mais caro (12,45 vs 11,08) → sobe a base para 12,37
+PASS fotos antigas entram no registo tal como estão (2)
+PASS reaplicar o 07 não duplica fotos
+PASS o mesmo ficheiro não entra duas vezes
+PASS painel: 3 fotos do pedido, valor escrito 12,34 e NIF da Bora
+PASS painel: NIF do cliente quando pediu fatura
+PASS página Talões: as 4 fotos do mês
+PASS filtro por loja (Continente = 3)
+PASS outro mês vazio
+PASS mês mal escrito recusado
+PASS pedido entregue sem talão aparece (Lidl)
+PASS estafeta não lê a página Talões
+PASS política de leitura do estafeta no caminho novo criada
+
+RESULTADO: 74 passaram, 0 falharam

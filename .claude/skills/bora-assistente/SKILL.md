@@ -117,6 +117,31 @@ A resposta estruturada fica em `assistant_chat_messages.structured` para redesen
   `assistant_learned` direto pela RLS `is_admin()`). Testes: `test/assistente_fotos_comparacao_test.dart`,
   `test/admin_assistente_aprendidas_test.dart`.
 
+## Amigo Bora (v11, 08/11/2026 — missão m4-amigo-bora-v1)
+- Nome ao cliente "Amigo Bora". Interruptor `assistant_personality_enabled` (desligado ou sem a migração
+  `20261108210000_amigo_bora_v1.sql` = assistente de compras como antes). `deixa_promocoes_enabled`,
+  `assistant_amigo_model` (conversa livre, Haiku, robô `edge-amigo`), `assistant_amigo_welcome_text`.
+- Entrada ÚNICA: botão "Ajuda-me a escolher" por baixo da pesquisa da home
+  (`lib/screens/client/assistant/amigo_bora_entrada.dart`, avatar `assets/branding/amigo_bora.png`);
+  `BoraClientFabs` ficou só com o suporte; faixa permanente do assistente desligada.
+- Memória por cliente: `assistant_client_profile` (perfil JSON, `lembrar`, `esquecido_em`), refrescado
+  pela Edge `assistant-profile-refresh` (cron `amigo-bora-perfis` de hora a hora; factos por SQL
+  `assistant_amigo_factos`, conversa só com 3+ mensagens novas no Haiku `edge-amigo-perfil`). Contexto
+  do modelo: `assistant_amigo_contexto` (perfil ≤ ~600 tokens + últimos 5 pedidos + promoções + parceiros
+  novos 14 dias). Perfil do cliente: "O que o Amigo Bora sabe de mim" (`assistant_amigo_esquecer`,
+  `assistant_amigo_lembrar`).
+- `abrir: true` na Edge = saudação sem modelo e sem quota; hábito ("sexta à noite: Jyosmi") → último
+  pedido dessa loja em `assistant_propose_cart` + ação `repetir_habitual`.
+- Compra/marcação acaba numa ação (`ACAO_NUDGE`, `suggest_action` `pedir_favor` / `marcar_limpeza`).
+- Comparação: `comparar_outra_app` (preços escritos) e prints com `preco_eur` por linha → linhas em
+  código (`amigo.ts` `compararLinhas`), guardadas em `assistant_comparacoes`. Nunca preço da outra app
+  que o cliente não deu.
+- Deixa: escolhida em código (`candidatasDeixa`: tokens a expirar > check-in > parceiro novo > promoção),
+  rotação 24 h em `assistant_deixas`; nunca em compras, fotos, comparações, ajuda/suporte.
+- Painel: separador "Amigo Bora" em `/admin/assistente` (`admin_amigo_overview`,
+  `admin_amigo_ver_perfil` com motivo e auditoria). Lógica pura e testes: `amigo.ts`/`amigo_test.ts`,
+  `assistant-profile-refresh/perfil.ts`, `test/amigo_bora_test.dart`.
+
 ## Armadilhas já vistas (07/10/2026)
 - O conector "claude ai Supabase" (apply_migration/execute_sql) prendeu 3× nesse dia: SQL vai pela
   gaveta `platform_settings.staged_<nome>_<data>` (JSON com sql/estado/motivo/prova) e a Claude.ai aplica.

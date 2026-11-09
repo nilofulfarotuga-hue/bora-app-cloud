@@ -35,6 +35,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { corsHeaders } from '../_shared/cors.ts';
 import { secretKey } from '../_shared/keys.ts';
 import { lerConfigEmbeddings, resumoTentativas, vetorDaPergunta } from '../_shared/embeddings.ts';
+import { querFalarComPessoa, respostaPessoa } from './pessoa.ts';
 import {
   claudePrimeiro,
   conversaParaClaude,
@@ -1004,17 +1005,22 @@ Deno.serve(async (req: Request) => {
   let sessionId = payload.session_id;
   let messagesCount = 0;
   let pedidoDaSessao: string | null = null;
+  // Adendo 1 (08/11/2026): 'admin' = a equipa Bora assumiu a conversa e o robô fica calado.
+  let modoSessao = 'ai';
+  let escaladaSessao = false;
   if (sessionId) {
     const { data: sess } = await adminClient
       .from('support_chatbot_sessions')
-      .select('id, user_id, messages_count, order_id')
+      .select('id, user_id, messages_count, order_id, mode, escalated')
       .eq('id', sessionId).maybeSingle();
     if (!sess || sess.user_id !== userId) {
       return jsonResponse({ error: 'session not found or not owner' }, 404);
     }
     messagesCount = (sess.messages_count as number | undefined) ?? 0;
     pedidoDaSessao = (sess.order_id as string | null | undefined) ?? null;
-    if (messagesCount >= settings.max_messages_per_session) {
+    modoSessao = (sess.mode as string | null | undefined) ?? 'ai';
+    escaladaSessao = (sess.escalated as boolean | null | undefined) === true;
+    if (modoSessao !== 'admin' && messagesCount >= settings.max_messages_per_session) {
       return jsonResponse({
         reply: 'Esta conversa atingiu o limite. Posso transferir-te para humano?',
         escalated: false,
@@ -1036,6 +1042,21 @@ Deno.serve(async (req: Request) => {
       session_id: sessionId, role: 'user', content: userMessage,
     });
     if (insUserErr) console.error('[CHATBOT] insert user message failed:', insUserErr.message);
+  }
+
+  // Adendo 1 (08/11/2026): a equipa assumiu → o robô não responde; a mensagem já ficou gravada (e o
+  // gatilho avisa o admin). A app mostra as respostas da equipa pelo Realtime.
+  if (modoSessao === 'admin') {
+    await adminClient.from('support_chatbot_sessions').update({ messages_count: messagesCount + 1 }).eq('id', sessionId);
+    return jsonResponse({
+      reply: '',
+      session_id: sessionId,
+      escalated: escaladaSessao,
+      modo: 'admin',
+      ticket_id: null,
+      messages_remaining_today: Math.max(0, settings.rate_limit_per_user_day - usedToday),
+      messages_remaining_session: Math.max(0, settings.max_messages_per_session - (messagesCount + 1)),
+    });
   }
 
   const { data: histRows } = await adminClient
@@ -1104,6 +1125,8 @@ Deno.serve(async (req: Request) => {
       pushText('user', m.content ?? '');
     } else if (m.role === 'assistant') {
       pushText('model', m.content ?? '');
+    } else if (m.role === 'admin') {
+      pushText('model', `(Equipa Bora, uma pessoa) ${m.content ?? ''}`);
     } else if (m.role === 'tool') {
       let out = '';
       try { out = JSON.stringify(m.tool_output ?? null).slice(0, 4000); } catch { out = ''; }
@@ -1243,14 +1266,18 @@ Deno.serve(async (req: Request) => {
   const geminiModelo = ehModeloClaude(settings.gemini_model) ? GEMINI_PADRAO : settings.gemini_model;
 
   // ── v29: Claude primeiro (robô edge-suporte, P1). null em qualquer volta → Gemini abaixo. ──
-  let claudeTerminou = false;
+  // Adendo 1 (08/11/2026): pedir uma pessoa ("falar com assistente", "quero um humano") não passa pelo
+  // modelo: resposta fixa com o WhatsApp da Bora, sessão escalada e equipa avisada (mais abaixo).
+  const pedePessoa = querFalarComPessoa(userMessage);
+  let claudeTerminou = pedePessoa;
   const ferramentasFeitas: Array<{ nome: string; saida: unknown }> = [];
-  if (TEM_CLAUDE) {
+  if (TEM_CLAUDE && !pedePessoa) {
     const claudeMsgs: MensagemClaude[] = conversaParaClaude(
       // deno-lint-ignore no-explicit-any
       history.flatMap((m: any): Array<{ role: 'user' | 'assistant'; texto: string }> => {
         if (m.role === 'user') return [{ role: 'user', texto: String(m.content ?? '') }];
         if (m.role === 'assistant') return [{ role: 'assistant', texto: String(m.content ?? '') }];
+        if (m.role === 'admin') return [{ role: 'assistant', texto: `(Equipa Bora, uma pessoa) ${String(m.content ?? '')}` }];
         if (m.role === 'tool') {
           let out = '';
           try { out = JSON.stringify(m.tool_output ?? null).slice(0, 4000); } catch { out = ''; }
@@ -1371,6 +1398,10 @@ Deno.serve(async (req: Request) => {
     break;
   }
 
+  if (pedePessoa) {
+    finalText = respostaPessoa(settings.whatsapp_number);
+    escalated = true;
+  }
   if (toolIters > settings.max_tool_iterations && !finalText) {
     finalText = 'Nao consegui resolver. Posso transferir-te para WhatsApp/Email?';
     escalated = true;
@@ -1417,7 +1448,7 @@ Deno.serve(async (req: Request) => {
     await adminClient.from('support_chatbot_sessions').update({
       messages_count: newCount,
       escalated: true,
-      escalation_reason: geminiError ?? 'agent_handoff',
+      escalation_reason: geminiError ?? (pedePessoa ? 'pediu_pessoa' : 'agent_handoff'),
       ticket_id: ticketId,
     }).eq('id', sessionId);
 

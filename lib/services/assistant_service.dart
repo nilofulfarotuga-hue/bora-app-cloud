@@ -15,6 +15,8 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../l10n/tr.dart';
+
 /// Chave de SharedPreferences com a conversa activa.
 const String kAssistantConversationPrefsKey = 'bora_assistant.conversation_id';
 
@@ -281,6 +283,8 @@ class AssistantComparacao {
     required this.diferencaCents,
     required this.boraMaisBarato,
     required this.nota,
+    this.linhas = const [],
+    this.vencedor,
   });
 
   /// Nome da outra app ("Glovo", "Uber Eats") ou "outra app".
@@ -303,13 +307,25 @@ class AssistantComparacao {
   final bool boraMaisBarato;
   final String? nota;
 
+  /// Amigo Bora (08/11/2026): artigo a artigo, o preço na outra app (o que o
+  /// cliente mostrou/escreveu) e no Bora. Vazio nos servidores antigos.
+  final List<AssistantLinhaComparada> linhas;
+
+  /// bora | outra | empate | sem_total (null nos servidores antigos).
+  final String? vencedor;
+
+  /// O cliente mostrou/escreveu o total da outra app (sem ele só há linhas).
+  bool get temTotalOutra => totalOutraAppCents > 0;
+
   /// Igual nos dois lados (diferença zero).
-  bool get igual => diferencaCents == 0;
+  bool get igual => temTotalOutra && diferencaCents == 0;
 
   factory AssistantComparacao.fromJson(Map<String, dynamic> j) {
     final falta = j['em_falta'];
     final app = _str(j['app']).trim();
     return AssistantComparacao(
+      linhas: _lista(j['linhas']).map(AssistantLinhaComparada.fromJson).toList(),
+      vencedor: j['vencedor']?.toString(),
       app: app.isEmpty ? 'outra app' : app,
       totalOutraAppCents: _int(j['total_outra_app_cents']),
       totalBoraCents: _int(j['total_bora_cents']),
@@ -325,6 +341,70 @@ class AssistantComparacao {
       diferencaCents: _int(j['diferenca_cents']),
       boraMaisBarato: _bool(j['bora_mais_barato']),
       nota: j['nota']?.toString(),
+    );
+  }
+}
+
+/// Uma linha da comparação com outra app (calculada no servidor, nunca aqui).
+class AssistantLinhaComparada {
+  const AssistantLinhaComparada({
+    required this.artigo,
+    required this.quantidade,
+    this.outraCents,
+    this.boraCents,
+    this.boraNome,
+    this.diferencaCents,
+  });
+
+  final String artigo;
+  final int quantidade;
+  final int? outraCents;
+  final int? boraCents;
+  final String? boraNome;
+
+  /// outra − Bora (positivo = o Bora é mais barato nesta linha).
+  final int? diferencaCents;
+
+  static int? _intOuNulo(Object? v) => v == null ? null : _int(v);
+
+  factory AssistantLinhaComparada.fromJson(Map<String, dynamic> j) =>
+      AssistantLinhaComparada(
+        artigo: _str(j['artigo']),
+        quantidade: _int(j['quantidade'], 1),
+        outraCents: _intOuNulo(j['outra_cents']),
+        boraCents: _intOuNulo(j['bora_cents']),
+        boraNome: j['bora_nome']?.toString(),
+        diferencaCents: _intOuNulo(j['diferenca_cents']),
+      );
+}
+
+/// A "deixa" do Amigo Bora: uma linha útil no fim de uma conversa livre
+/// (promoção, parceiro novo, tokens a expirar, check-in). Escrita pelo
+/// servidor; tocar conta como clique no painel.
+class AssistantDeixa {
+  const AssistantDeixa({
+    required this.id,
+    required this.tipo,
+    required this.texto,
+    required this.acaoTipo,
+    this.acaoDestino,
+  });
+
+  final String id;
+  final String tipo;
+  final String texto;
+  final String acaoTipo;
+  final String? acaoDestino;
+
+  factory AssistantDeixa.fromJson(Map<String, dynamic> j) {
+    final a = j['acao'];
+    final acao = a is Map ? Map<String, dynamic>.from(a) : const <String, dynamic>{};
+    return AssistantDeixa(
+      id: _str(j['id']),
+      tipo: _str(j['tipo']),
+      texto: _str(j['texto']),
+      acaoTipo: _str(acao['tipo']),
+      acaoDestino: acao['destino']?.toString(),
     );
   }
 }
@@ -435,7 +515,15 @@ class AssistantReply {
     required this.messagesRemainingToday,
     required this.poupancaAcumuladaCents,
     this.comparacao,
+    this.deixa,
+    this.saudacao,
   });
+
+  /// Amigo Bora: a linha útil do fim da conversa livre (ou null).
+  final AssistantDeixa? deixa;
+
+  /// Amigo Bora: 'habitual' | 'simples' quando é a saudação ao abrir.
+  final String? saudacao;
 
   final String? conversationId;
   final String texto;
@@ -466,10 +554,15 @@ class AssistantReply {
     final fp = j['favor_preco'];
     final le = j['lista_extraida'];
     final cmp = j['comparacao'];
+    final dx = j['deixa'];
     return AssistantReply(
       comparacao: cmp is Map
           ? AssistantComparacao.fromJson(Map<String, dynamic>.from(cmp))
           : null,
+      deixa: dx is Map
+          ? AssistantDeixa.fromJson(Map<String, dynamic>.from(dx))
+          : null,
+      saudacao: j['saudacao']?.toString(),
       conversationId: j['conversation_id']?.toString(),
       texto: _str(j['texto']),
       propostas: _lista(j['propostas']).map(AssistantProposal.fromJson).toList(),
@@ -749,6 +842,141 @@ class AssistantService {
     if (uid == null) return;
     await _c.from('assistant_client_memory').delete().eq('user_id', uid);
   }
+
+  // ── Amigo Bora (08/11/2026, missão m4) ────────────────────────────────
+
+  /// Saudação ao abrir o Amigo: sem modelo e sem gastar a quota. Se agora
+  /// bate com um hábito do cliente, vem com o último pedido dessa loja num
+  /// carrinho proposto e o botão "Sim, repete". Nunca lança: null = sem
+  /// saudação (a app mostra o ecrã vazio de sempre).
+  static Future<AssistantReply?> abrir({
+    double? dropoffLat,
+    double? dropoffLng,
+    bool apartmentDelivery = false,
+  }) async {
+    try {
+      final res = await _c.functions.invoke('client-assistant', body: {
+        'abrir': true,
+        'platform': plataforma,
+        'dropoff_lat': dropoffLat,
+        'dropoff_lng': dropoffLng,
+        'apartment_delivery': apartmentDelivery,
+      });
+      final data = res.data;
+      if (data is! Map || data['ok'] != true) return null;
+      final r = AssistantReply.fromJson(Map<String, dynamic>.from(data));
+      return r.texto.trim().isEmpty ? null : r;
+    } catch (e) {
+      debugPrint('[AssistantService] abrir: $e');
+      return null;
+    }
+  }
+
+  /// Conta o toque na deixa (painel: "deixas clicadas"). Fire-and-forget.
+  static Future<void> deixaClicada(String id) async {
+    if (id.isEmpty) return;
+    try {
+      await _c.rpc('assistant_amigo_deixa_clicada', params: {'p_id': id});
+    } catch (e) {
+      debugPrint('[AssistantService] deixaClicada: $e');
+    }
+  }
+
+  /// O resumo que o Amigo guarda do cliente (RLS: só o próprio).
+  static Future<Map<String, dynamic>?> perfilAmigo() async {
+    final uid = _c.auth.currentUser?.id;
+    if (uid == null) return null;
+    try {
+      final r = await _c
+          .from('assistant_client_profile')
+          .select('perfil, lembrar, esquecido_em, atualizado_em')
+          .eq('user_id', uid)
+          .maybeSingle();
+      return r == null ? null : Map<String, dynamic>.from(r);
+    } catch (e) {
+      debugPrint('[AssistantService] perfilAmigo: $e');
+      return null;
+    }
+  }
+
+  /// "Esquecer tudo" (RGPD): apaga as preferências, limpa o resumo e o Amigo
+  /// só volta a aprender com o que acontecer daqui para a frente.
+  static Future<bool> esquecerTudo() async {
+    try {
+      final r = await _c.rpc('assistant_amigo_esquecer');
+      return r is Map && r['ok'] == true;
+    } catch (e) {
+      debugPrint('[AssistantService] esquecerTudo: $e');
+      // Servidor sem a migração do Amigo: apaga pelo menos as preferências.
+      await apagarMemoriaToda();
+      return true;
+    }
+  }
+
+  /// Deixar (ou não) o Amigo lembrar-se do cliente.
+  static Future<bool> lembrar(bool sim) async {
+    try {
+      final r = await _c.rpc('assistant_amigo_lembrar', params: {'p_lembrar': sim});
+      return r is Map && r['ok'] == true;
+    } catch (e) {
+      debugPrint('[AssistantService] lembrar: $e');
+      return false;
+    }
+  }
+}
+
+/// Resumo do perfil do Amigo em frases curtas para o cliente ler (puro,
+/// testado). Nunca mostra valores: só o que o Amigo usa para ajudar.
+List<String> frasesDoPerfilAmigo(Map<String, dynamic>? perfil) {
+  if (perfil == null || perfil.isEmpty) return const [];
+  final out = <String>[];
+  final nome = perfil['nome_tratamento']?.toString().trim() ?? '';
+  if (nome.isNotEmpty) out.add('Chamo-te {0}.'.trArgs([nome]));
+  for (final h in _lista(perfil['habitos']).take(3)) {
+    final dia = switch ((h['dia'] as num?)?.toInt()) {
+      1 => 'à segunda'.tr,
+      2 => 'à terça'.tr,
+      3 => 'à quarta'.tr,
+      4 => 'à quinta'.tr,
+      5 => 'à sexta'.tr,
+      6 => 'ao sábado'.tr,
+      7 => 'ao domingo'.tr,
+      _ => '',
+    };
+    final periodo = switch (h['periodo']?.toString()) {
+      'manha' => 'de manhã'.tr,
+      'almoco' => 'ao almoço'.tr,
+      'tarde' => 'à tarde'.tr,
+      _ => 'à noite'.tr,
+    };
+    final loja = h['loja']?.toString() ?? '';
+    if (dia.isNotEmpty && loja.isNotEmpty) {
+      out.add('Costumas pedir no {0} {1} {2}.'.trArgs([loja, dia, periodo]));
+    }
+  }
+  final lojas = _lista(perfil['lojas_favoritas'])
+      .map((l) => l['nome']?.toString() ?? '')
+      .where((n) => n.isNotEmpty)
+      .take(3)
+      .toList();
+  if (lojas.isNotEmpty) out.add('Lojas favoritas: {0}.'.trArgs([lojas.join(', ')]));
+  final rec = _lista(perfil['recorrentes'])
+      .map((r) => r['nome']?.toString() ?? '')
+      .where((n) => n.isNotEmpty)
+      .take(5)
+      .toList();
+  if (rec.isNotEmpty) out.add('Pedes muitas vezes: {0}.'.trArgs([rec.join(', ')]));
+  final restr = (perfil['restricoes'] is List ? perfil['restricoes'] as List : const [])
+      .map((e) => e.toString())
+      .where((e) => e.trim().isNotEmpty)
+      .toList();
+  if (restr.isNotEmpty) out.add('Disseste-me: {0}.'.trArgs([restr.join(', ')]));
+  final gostos = (perfil['gostos'] is List ? perfil['gostos'] as List : const [])
+      .map((e) => e.toString())
+      .where((e) => e.trim().isNotEmpty)
+      .toList();
+  if (gostos.isNotEmpty) out.add('Gostas de: {0}.'.trArgs([gostos.join(', ')]));
+  return out;
 }
 
 /// Interruptor `platform_settings.assistant_enabled`.
@@ -760,6 +988,15 @@ class AssistantFlags {
   AssistantFlags._();
 
   static final ValueNotifier<bool> enabled = ValueNotifier<bool>(true);
+
+  /// Amigo Bora (08/11/2026): `assistant_personality_enabled`. Enquanto não
+  /// se sabe (ou sem a migração) fica DESLIGADO: o nome e o cartão de
+  /// boas-vindas só aparecem com o servidor pronto.
+  static final ValueNotifier<bool> personalidade = ValueNotifier<bool>(false);
+
+  /// `assistant_amigo_welcome_text` (editável no painel); vazio = texto da app.
+  static final ValueNotifier<String> boasVindasAmigo = ValueNotifier<String>('');
+
   static bool _carregado = false;
   static Future<void>? _emCurso;
 
@@ -770,20 +1007,34 @@ class AssistantFlags {
 
   static Future<void> _ler() async {
     try {
-      final linha = await Supabase.instance.client
+      final linhas = await Supabase.instance.client
           .from('platform_settings')
-          .select('value')
-          .eq('key', 'assistant_enabled')
-          .maybeSingle();
-      // Linha vazia = ainda sem sessão (RLS), não "desligado".
-      if (linha == null) return;
-      final v = linha['value'];
-      final on = v is bool ? v : (v?.toString() != 'false');
-      enabled.value = on;
-      _carregado = true;
+          .select('key, value')
+          .inFilter('key', [
+        'assistant_enabled',
+        'assistant_personality_enabled',
+        'assistant_amigo_welcome_text',
+      ]);
+      aplicar({
+        for (final l in (linhas as List).whereType<Map>())
+          l['key'].toString(): l['value'],
+      });
     } catch (e) {
       debugPrint('[AssistantFlags] carregar: $e');
     }
+  }
+
+  /// Aplica as definições lidas (puro; usado também nos testes).
+  @visibleForTesting
+  static void aplicar(Map<String, dynamic> valores) {
+    // Sem linhas = ainda sem sessão (RLS), não "desligado".
+    if (!valores.containsKey('assistant_enabled')) return;
+    final v = valores['assistant_enabled'];
+    enabled.value = v is bool ? v : (v?.toString() != 'false');
+    personalidade.value = valores['assistant_personality_enabled'] == true;
+    final w = valores['assistant_amigo_welcome_text'];
+    boasVindasAmigo.value = w is String ? w.trim() : '';
+    _carregado = true;
   }
 
   /// Só para testes.
@@ -791,5 +1042,7 @@ class AssistantFlags {
   static void reset() {
     _carregado = false;
     enabled.value = true;
+    personalidade.value = false;
+    boasVindasAmigo.value = '';
   }
 }

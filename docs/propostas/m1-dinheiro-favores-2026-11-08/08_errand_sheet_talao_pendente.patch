@@ -1,0 +1,126 @@
+diff --git a/lib/widgets/errand_execution_sheet.dart b/lib/widgets/errand_execution_sheet.dart
+--- a/lib/widgets/errand_execution_sheet.dart
++++ b/lib/widgets/errand_execution_sheet.dart
+@@ -11,6 +11,7 @@
+ //   pickedUp       = saiu do local do favor (após compra/recolha)
+ //   onTheWay       = a caminho da entrega
+ //   delivered      = entregue (advance pelo botão final)
++import 'dart:async';
+ import 'dart:io';
+
+ import 'package:flutter/material.dart';
+@@ -20,7 +21,7 @@
+
+ import '../config/app_colors.dart';
+ import '../models/order_model.dart';
+-import '../services/receipt_upload_service.dart';
++import '../services/talao_pendente_service.dart';
+ import '../stores/order_store.dart';
+ import 'driver_invoice_nif_card.dart';
+ import 'favor_teto_compra_card.dart';
+@@ -55,6 +56,11 @@
+   final _cashReceivedCtrl = TextEditingController();
+   final _talaoTotalCtrl = TextEditingController();
+   File? _receiptPhoto;
++
++  /// M1 08/11/2026 ("toda foto de talão ... nunca se pode perder"): a foto do
++  /// talão vai para a fila do telemóvel ANTES de subir, com o mesmo fotoId em
++  /// todas as tentativas (o servidor não duplica nem substitui).
++  TalaoPendente? _talaoPendente;
+   bool _busy = false;
+   String? _error;
+
+@@ -72,6 +78,24 @@
+     _phase = o.errandHomeStop
+         ? _Phase.collect
+         : (o.errandHasPurchase ? _Phase.purchase : _Phase.deliver);
++    if (o.errandHasPurchase) unawaited(_reporTalaoGuardado());
++  }
++
++  /// M1 08/11/2026: a app fechou depois da foto do talão → ao reabrir a folha
++  /// a foto guardada no telemóvel volta (e o valor, se o campo está vazio).
++  /// "Tirar nova foto" continua a funcionar: a nova fica como extra.
++  Future<void> _reporTalaoGuardado() async {
++    await TalaoPendenteService.carregar();
++    final t = TalaoPendenteService.ultimoDo(widget.order.id);
++    if (t == null || !mounted || _receiptPhoto != null) return;
++    setState(() {
++      _talaoPendente = t;
++      _receiptPhoto = File(t.localPath);
++      if (_talaoTotalCtrl.text.trim().isEmpty && t.totalCents > 0) {
++        _talaoTotalCtrl.text =
++            (t.totalCents / 100).toStringAsFixed(2).replaceAll('.', ',');
++      }
++    });
+   }
+
+   @override
+@@ -113,7 +137,12 @@
+     }
+     if (x == null || !mounted) return;
+     final path = x.path;
+-    setState(() => _receiptPhoto = File(path));
++    setState(() {
++      _receiptPhoto = File(path);
++      // Foto nova = entrada nova na fila; a anterior (se já foi guardada)
++      // continua lá e sobe como extra.
++      _talaoPendente = null;
++    });
+   }
+
+   Future<void> _confirmCollect() async {
+@@ -205,11 +234,34 @@
+       _error = null;
+     });
+     try {
+-      final path = await ReceiptUploadService.uploadReceipt(
+-        orderId: o.id,
+-        photoFile: _receiptPhoto!,
+-        totalCents: _talaoCents,
+-      );
++      // M1 08/11/2026: primeiro no telemóvel, depois no servidor (mesmo
++      // fotoId em todas as tentativas). Falhou → fica guardada, sobe sozinha
++      // e o próximo "Confirmar compra" reenvia a MESMA foto.
++      var talao = _talaoPendente;
++      if (talao == null) {
++        talao = await TalaoPendenteService.guardar(
++          orderId: o.id,
++          foto: _receiptPhoto!,
++          totalCents: _talaoCents,
++        );
++        _talaoPendente = talao;
++      }
++      final path = (talao.enviado ? talao.path : null) ??
++          await TalaoPendenteService.enviar(talao);
++      final atual = TalaoPendenteService.porFotoId(talao.fotoId) ?? talao;
++      if (!mounted) return;
++      if (path == null) {
++        setState(() {
++          if (atual.estado == TalaoPendente.estadoSemFicheiro) {
++            _talaoPendente = null;
++            _receiptPhoto = null; // pede outra foto
++          }
++          _error = TalaoPendenteService.avisoNaoEnviado(atual);
++        });
++        return;
++      }
++      // "Talão guardado no servidor ✓" aparece debaixo da foto.
++      setState(() => _talaoPendente = atual);
+       // Chama a RPC criada na Fase 2.C — escreve final_total/final_purchase
+       // via GUC bypass, dispara ocr-receipt + charge-extra se buffer ultrapassado.
+       final res = await Supabase.instance.client.rpc(
+@@ -413,6 +465,14 @@
+               tooltip: 'Tirar nova foto',
+             ),
+           ]),
++        if (_talaoPendente?.enviado ?? false) ...[
++          const SizedBox(height: 6),
++          const Text('Talão guardado no servidor ✓',
++              style: TextStyle(
++                  fontSize: 12,
++                  fontWeight: FontWeight.w600,
++                  color: AppColors.success)),
++        ],
+         const SizedBox(height: 12),
+         TextField(
+           controller: _talaoTotalCtrl,

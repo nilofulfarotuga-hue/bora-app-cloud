@@ -21,8 +21,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../models/order_model.dart';
-import '../services/receipt_upload_service.dart';
+import '../services/talao_pendente_service.dart';
 import '../stores/order_store.dart';
+import 'driver_invoice_nif_card.dart';
+import 'favor_teto_compra_card.dart';
 import 'private_bucket_image.dart';
 import '../utils/safe_image_picker.dart';
 
@@ -54,13 +56,20 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
   final _cashReceivedCtrl = TextEditingController();
   final _talaoTotalCtrl = TextEditingController();
   File? _receiptPhoto;
+
+  /// M1 08/11/2026 ("toda foto de talão ... nunca se pode perder"): a foto do
+  /// talão vai para a fila do telemóvel ANTES de subir, com o mesmo fotoId em
+  /// todas as tentativas (o servidor não duplica nem substitui).
+  TalaoPendente? _talaoPendente;
   bool _busy = false;
   String? _error;
 
-  // 8.2 — pedido de aumento de orçamento (timing A: pedir ANTES de comprar).
-  String? _budgetStatus; // null|pending|approved|rejected|disputed
   bool _disputed = false; // retorno do finalize (talão acima do autorizado)
-  Timer? _budgetPoll;
+
+  // M1 08/11/2026 — tecto da compra + aprovação do cliente vivem no
+  // FavorTetoCompraCard (errand_teto_compra); a folha só lê o controlador
+  // para ligar/desligar o "Confirmar compra".
+  final _tetoCtrl = FavorTetoController();
 
   @override
   void initState() {
@@ -69,13 +78,29 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
     _phase = o.errandHomeStop
         ? _Phase.collect
         : (o.errandHasPurchase ? _Phase.purchase : _Phase.deliver);
-    _budgetStatus = o.errandBudgetStatus;
-    if (_budgetStatus == 'pending') _startBudgetPoll();
+    if (o.errandHasPurchase) unawaited(_reporTalaoGuardado());
+  }
+
+  /// M1 08/11/2026: a app fechou depois da foto do talão → ao reabrir a folha
+  /// a foto guardada no telemóvel volta (e o valor, se o campo está vazio).
+  /// "Tirar nova foto" continua a funcionar: a nova fica como extra.
+  Future<void> _reporTalaoGuardado() async {
+    await TalaoPendenteService.carregar();
+    final t = TalaoPendenteService.ultimoDo(widget.order.id);
+    if (t == null || !mounted || _receiptPhoto != null) return;
+    setState(() {
+      _talaoPendente = t;
+      _receiptPhoto = File(t.localPath);
+      if (_talaoTotalCtrl.text.trim().isEmpty && t.totalCents > 0) {
+        _talaoTotalCtrl.text =
+            (t.totalCents / 100).toStringAsFixed(2).replaceAll('.', ',');
+      }
+    });
   }
 
   @override
   void dispose() {
-    _budgetPoll?.cancel();
+    _tetoCtrl.dispose();
     _cashReceivedCtrl.dispose();
     _talaoTotalCtrl.dispose();
     super.dispose();
@@ -112,106 +137,11 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
     }
     if (x == null || !mounted) return;
     final path = x.path;
-    setState(() => _receiptPhoto = File(path));
-  }
-
-  // 8.2 — limite de compra já autorizado (buffer = estimativa × 1.2).
-  int get _authorizedCents =>
-      (widget.order.errandEstimatedPurchaseCents * 1.2).round();
-
-  // 8.2 — estafeta pede aumento ANTES de comprar (timing A).
-  Future<void> _requestBudgetIncrease() async {
-    final ctrl = TextEditingController();
-    final cents = await showDialog<int>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Pedir aumento de orçamento'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Limite autorizado: ~€${(_authorizedCents / 100).toStringAsFixed(2)}. '
-              'Indica o novo total previsto da compra.',
-              style: const TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: ctrl,
-              autofocus: true,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'Novo total previsto',
-                prefixText: '€ ',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar')),
-          ElevatedButton(
-            onPressed: () {
-              final v =
-                  double.tryParse(ctrl.text.trim().replaceAll(',', '.')) ?? 0;
-              Navigator.pop(ctx, (v * 100).round());
-            },
-            child: const Text('Pedir'),
-          ),
-        ],
-      ),
-    );
-    if (cents == null || cents <= 0) return;
     setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      await Supabase.instance.client.rpc(
-        'errand_request_budget_increase',
-        params: {'p_order_id': widget.order.id, 'p_new_total_cents': cents},
-      );
-      if (!mounted) return;
-      setState(() => _budgetStatus = 'pending');
-      _startBudgetPoll();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
-            'Pedido enviado ao cliente. Aguarda a autorização antes de comprar.'),
-      ));
-    } catch (e) {
-      debugPrint('[favor] pedir aumento: $e');
-      if (mounted) {
-        setState(() => _error =
-            'Não foi possível pedir o aumento. Verifica a ligação e tenta de novo.');
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  // Poll leve enquanto pendente — reflete a resposta do cliente (push/refresh).
-  void _startBudgetPoll() {
-    _budgetPoll?.cancel();
-    _budgetPoll = Timer.periodic(const Duration(seconds: 4), (t) async {
-      if (!mounted || _budgetStatus != 'pending') {
-        t.cancel();
-        return;
-      }
-      try {
-        final row = await Supabase.instance.client
-            .from('orders')
-            .select('errand_budget_status')
-            .eq('id', widget.order.id)
-            .maybeSingle();
-        final s = row?['errand_budget_status'] as String?;
-        if (s != null && s != 'pending' && mounted) {
-          setState(() => _budgetStatus = s);
-          t.cancel();
-        }
-      } catch (_) {}
+      _receiptPhoto = File(path);
+      // Foto nova = entrada nova na fila; a anterior (se já foi guardada)
+      // continua lá e sobe como extra.
+      _talaoPendente = null;
     });
   }
 
@@ -304,11 +234,34 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
       _error = null;
     });
     try {
-      final path = await ReceiptUploadService.uploadReceipt(
-        orderId: o.id,
-        photoFile: _receiptPhoto!,
-        totalCents: _talaoCents,
-      );
+      // M1 08/11/2026: primeiro no telemóvel, depois no servidor (mesmo
+      // fotoId em todas as tentativas). Falhou → fica guardada, sobe sozinha
+      // e o próximo "Confirmar compra" reenvia a MESMA foto.
+      var talao = _talaoPendente;
+      if (talao == null) {
+        talao = await TalaoPendenteService.guardar(
+          orderId: o.id,
+          foto: _receiptPhoto!,
+          totalCents: _talaoCents,
+        );
+        _talaoPendente = talao;
+      }
+      final path = (talao.enviado ? talao.path : null) ??
+          await TalaoPendenteService.enviar(talao);
+      final atual = TalaoPendenteService.porFotoId(talao.fotoId) ?? talao;
+      if (!mounted) return;
+      if (path == null) {
+        setState(() {
+          if (atual.estado == TalaoPendente.estadoSemFicheiro) {
+            _talaoPendente = null;
+            _receiptPhoto = null; // pede outra foto
+          }
+          _error = TalaoPendenteService.avisoNaoEnviado(atual);
+        });
+        return;
+      }
+      // "Talão guardado no servidor ✓" aparece debaixo da foto.
+      setState(() => _talaoPendente = atual);
       // Chama a RPC criada na Fase 2.C — escreve final_total/final_purchase
       // via GUC bypass, dispara ocr-receipt + charge-extra se buffer ultrapassado.
       final res = await Supabase.instance.client.rpc(
@@ -470,6 +423,10 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
         Text(o.errandLocation ?? 'Local do favor',
             style: const TextStyle(color: AppColors.textSecondary)),
         const SizedBox(height: 12),
+        // M1 08/11/2026 — "Podes comprar até X €" + "O preço é maior" +
+        // contagem do prazo do cliente + resposta (errand_teto_compra).
+        FavorTetoCompraCard(order: o, controller: _tetoCtrl),
+        const SizedBox(height: 12),
         // 8.1 — foto que o cliente enviou do que comprar (opcional).
         if (o.errandRequestPhotoUrl != null &&
             o.errandRequestPhotoUrl!.isNotEmpty) ...[
@@ -482,6 +439,11 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
             height: 160,
             borderRadius: BorderRadius.circular(12),
           ),
+          const SizedBox(height: 12),
+        ],
+        // M1 08/11/2026 — NIF da fatura (loja não-parceira; esconde-se sozinho).
+        if (!o.isPartnerStore) ...[
+          DriverInvoiceNifCard(orderId: o.id),
           const SizedBox(height: 12),
         ],
         if (_receiptPhoto == null)
@@ -503,6 +465,14 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
               tooltip: 'Tirar nova foto',
             ),
           ]),
+        if (_talaoPendente?.enviado ?? false) ...[
+          const SizedBox(height: 6),
+          const Text('Talão guardado no servidor ✓',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.success)),
+        ],
         const SizedBox(height: 12),
         TextField(
           controller: _talaoTotalCtrl,
@@ -513,61 +483,30 @@ class _ErrandExecutionSheetState extends State<ErrandExecutionSheet> {
             prefixText: '€ ',
           ),
         ),
-        const SizedBox(height: 12),
-        // 8.2 — timing A: pedir aumento ANTES de comprar se vai passar o limite.
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.surface2,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Limite autorizado pelo cliente: ~€${(_authorizedCents / 100).toStringAsFixed(2)}',
-                style: const TextStyle(
-                    fontSize: 13, color: AppColors.textSecondary),
-              ),
-              if (_budgetStatus == 'pending') ...[
-                const SizedBox(height: 6),
-                const Text('À espera da autorização do cliente…',
-                    style:
-                        TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-              ] else if (_budgetStatus == 'approved') ...[
-                const SizedBox(height: 6),
-                const Text('Autorizado — podes comprar.',
-                    style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.success,
-                        fontWeight: FontWeight.w700)),
-              ] else if (_budgetStatus == 'rejected') ...[
-                const SizedBox(height: 6),
-                const Text('Recusado — não compres; cancela o favor.',
-                    style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.error,
-                        fontWeight: FontWeight.w700)),
-              ] else ...[
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: _busy ? null : _requestBudgetIncrease,
-                  icon: const Icon(Icons.trending_up),
-                  label: const Text('Pedir aumento de orçamento'),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                    'Só se o total vai passar o limite. Pede ANTES de pagar.',
-                    style: TextStyle(
-                        fontSize: 11, color: AppColors.textSecondary)),
-              ],
-            ],
-          ),
-        ),
         const SizedBox(height: 16),
-        ElevatedButton(
-          onPressed: _busy ? null : _finalizePurchase,
-          child: Text(_busy ? 'A enviar…' : 'Confirmar compra'),
+        // M1 08/11: aprovação pendente de MB Way ou Favor a cancelar desligam
+        // o botão (o fecho da compra em si não muda).
+        ListenableBuilder(
+          listenable: Listenable.merge([_tetoCtrl, _talaoTotalCtrl]),
+          builder: (context, _) {
+            final motivo = _tetoCtrl.motivoBloqueio(_talaoCents);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ElevatedButton(
+                  onPressed:
+                      _busy || motivo != null ? null : _finalizePurchase,
+                  child: Text(_busy ? 'A enviar…' : 'Confirmar compra'),
+                ),
+                if (motivo != null) ...[
+                  const SizedBox(height: 6),
+                  Text(motivo,
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.textSecondary)),
+                ],
+              ],
+            );
+          },
         ),
       ],
     );

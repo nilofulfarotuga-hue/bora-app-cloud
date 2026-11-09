@@ -1,0 +1,70 @@
+{
+  "_nota": "Plano dos grupos da Guarda para 09/11 a 15/11/2026 (missao m6-crescimento-hermes-2026-11-08). Uma peca por dia: foto REAL de um parceiro ativo (coming_soon=false confirmado na base a 08/11) + texto humano (VOZ-HUMANA.md). Cada texto vai, nesse dia, para os grupos que a ordem escolher (1 publicacao por grupo por semana, max 5 por dia, 20 min entre elas); em cada grupo troca-se {link} por https://boraguarda.com/baixar?de=qr-grupo-<slug-do-grupo>. Se o mesmo dia tiver 2+ grupos, o 2.o e seguintes usam o texto do dia seguinte (nunca o mesmo corpo duas vezes no mesmo dia). Juiz com visao: as 7 fotos foram vistas uma a uma a 08/11 (nada cortado, uma so peca de comida por foto, a foto e o que o texto diz).",
+  "regras": "/opt/data/social/VOZ-HUMANA.md",
+  "identidade": "Publicar como a pagina do Bora quando o grupo deixa. Grupo so de perfis: so com o sim do Danilo para esse grupo nesse dia (grupos-estado.json perfil_pessoal_ok_em = data de hoje).",
+  "dias": [
+    {
+      "data": "2026-11-09",
+      "loja": "Boom! Burger",
+      "loja_id": "boom-burger-guarda",
+      "foto": "https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/restaurant-assets/boom-burger-guarda/produtos/boom-duplo-smash.webp",
+      "foto_origem": "foto do dono (WhatsApp 27/10/2026, wa-11)",
+      "juiz": "ok: Duplo Smash com cheddar e batatas, prato inteiro, nada cortado",
+      "texto": "Segunda-feira e o frigorífico a pedir socorro? A Boom! Burger aqui da Guarda faz o Duplo Smash, nós vamos lá buscar e levamos-to a casa. Pedes na app Bora; no primeiro pedido usa o código BEMVINDO.\n👉 {link}"
+    },
+    {
+      "data": "2026-11-10",
+      "loja": "Sabores do Brasil - Keli Barbosa",
+      "loja_id": "sabores-brasil-guarda",
+      "foto": "https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/restaurant-assets/sabores-brasil-guarda/variados-real.jpg",
+      "foto_origem": "foto real da Keli (catalogo)",
+      "juiz": "ok: caixa de salgados (coxinhas, kibe, enroladinhos, bolinhas), caixa inteira",
+      "texto": "Lanche resolvido: a Keli, do Sabores do Brasil, faz por encomenda coxinhas, kibe e enroladinhos, e nós entregamos onde estiveres na Guarda. Encomendas na app Bora, com o código BEMVINDO no primeiro pedido.\n👉 {link}"
+    },
+    {
+      "data": "2026-11-11",
+      "loja": "Goola Açaí",
+      "loja_id": "goola-acai-guarda",
+      "foto": "https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/restaurant-assets/goola-acai-guarda/big-bowl-1787900000000.jpg",
+      "foto_origem": "foto da propria marca (goolaacai.com)",
+      "juiz": "ok: copo de acai da Goola, um so produto",
+      "texto": "A meio da semana sabe bem um açaí. O da Goola chega-te a casa bem fresco: pedes na app Bora e vamos nós buscar. Primeiro pedido com o código BEMVINDO.\n👉 {link}"
+    },
+    {
+      "data": "2026-11-12",
+      "loja": "Boom! Burger",
+      "loja_id": "boom-burger-guarda",
+      "foto": "https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/restaurant-assets/boom-burger-guarda/produtos/boom-the-king-elvis-foto-dono.webp",
+      "foto_origem": "foto do dono dentro da loja (WhatsApp 27/10/2026, wa-41)",
+      "juiz": "ok: King Elvis no prato, sala da Boom ao fundo, um so hamburguer",
+      "texto": "Este é o King Elvis da Boom! Burger, fotografado lá dentro pelo próprio dono. Se te apetece, pedes na app Bora e nós levamos-to à porta. Código BEMVINDO no primeiro pedido.\n👉 {link}"
+    },
+    {
+      "data": "2026-11-13",
+      "loja": "Sabores do Brasil - Keli Barbosa",
+      "loja_id": "sabores-brasil-guarda",
+      "foto": "https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/restaurant-assets/sabores-brasil-guarda/cento-real.jpg",
+      "foto_origem": "foto real da Keli (catalogo)",
+      "juiz": "ok: caixa com um cento de salgados, inteira",
+      "texto": "Sexta-feira, amigos lá em casa? Um cento de salgados da Keli resolve. Encomendas na app Bora com tempo e nós vamos buscar e entregar. Código BEMVINDO no primeiro pedido.\n👉 {link}"
+    },
+    {
+      "data": "2026-11-14",
+      "loja": "Boom! Burger",
+      "loja_id": "boom-burger-guarda",
+      "foto": "https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/restaurant-assets/boom-burger-guarda/produtos/boom-cheddar-lovers.webp",
+      "foto_origem": "foto do dono (WhatsApp 27/10/2026, wa-09)",
+      "juiz": "ok: Cheddar Lovers com batatas ao lado, nada cortado",
+      "texto": "Sábado pede queijo. O Cheddar Lovers da Boom! Burger chega-te quentinho a casa, levado por nós. Pedes na app Bora, código BEMVINDO no primeiro pedido.\n👉 {link}"
+    },
+    {
+      "data": "2026-11-15",
+      "loja": "Sabores do Brasil - Keli Barbosa",
+      "loja_id": "sabores-brasil-guarda",
+      "foto": "https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/restaurant-assets/sabores-brasil-guarda/bolo-brigadeiro-real.jpg",
+      "foto_origem": "foto real da Keli (catalogo)",
+      "juiz": "ok: bolo de cenoura com brigadeiro, um so bolo",
+      "texto": "Domingo é dia de bolo. Este é o bolo de cenoura com brigadeiro da Keli, feito por encomenda aqui na Guarda. Pedes na app Bora e nós levamos-to. Código BEMVINDO no primeiro pedido.\n👉 {link}"
+    }
+  ]
+}

@@ -84,6 +84,12 @@ Incrementar `execucoes` e `sucessos`/`falhas` + `ultima_execucao` no frontmatter
 skill, e acrescentar linha em `.claude/.ai/knowledge/wiki/skills-metrics.md`:
 `| diretor-criativo | <data> | <campanha> | <n peças> | <resultado> |`
 
+## Voz humana (ordem do Danilo, 08/11/2026 — manda sobre o resto desta skill)
+Toda a campanha segue `ferramentas/vps/social/VOZ-HUMANA.md`: pessoa da Guarda na primeira pessoa do plural,
+fotos reais com retoque leve (nunca prato inventado por IA), legenda curta com um detalhe verdadeiro e uma chamada,
+no máximo 1 emoji, stories de bastidores, só parceiros ativos (nunca Ouro e Prata), e juiz com visão antes de sair.
+O anti-slop deste ficheiro continua: a voz humana é o que se pede além dele.
+
 ## Admin Panel Needed?
 Sim — proposta registada: `AdminMarketingScreen` (PT-BR): listar campanhas geradas,
 estado (rascunho/aprovada/agendada/publicada), pré-visualização das artes, botão aprovar →

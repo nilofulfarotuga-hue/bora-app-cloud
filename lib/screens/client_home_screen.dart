@@ -28,6 +28,7 @@ import '../widgets/address_autocomplete_field.dart';
 import '../widgets/web_push_card.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/bora_assistant_fab.dart';
+import 'client/assistant/amigo_bora_entrada.dart';
 import '../widgets/home/checkin_diario_card.dart';
 import '../widgets/home/meus_habituais.dart';
 import '../widgets/home/receita_do_dia_card.dart';
@@ -429,6 +430,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                       });
                     },
                   ),
+                  // Amigo Bora (08/11/2026): a entrada ÚNICA do assistente —
+                  // "Ajuda-me a escolher" junto à pesquisa (o botão flutuante
+                  // do assistente saiu). Some com o assistente desligado.
+                  const AmigoBoraEntrada(),
                   const SizedBox(height: Spacing.xl),
                   // Os meus habituais (adendo 4 · item 6, 29/10/2026): os
                   // últimos pedidos, repetidos num toque. Some sozinho sem

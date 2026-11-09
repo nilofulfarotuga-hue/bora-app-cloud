@@ -6,6 +6,7 @@ import '../screens/shared/comprovativo_atividade_screen.dart';
 import '../services/driver_documentos.dart';
 import '../services/driver_foto_upload.dart';
 import '../services/estafeta_documentos_service.dart';
+import '../services/minha_conta.dart' show TextosFila;
 import '../utils/safe_image_picker.dart';
 import 'robo_documentos_estado.dart';
 
@@ -275,10 +276,8 @@ class _EstafetaDocumentosEmFaltaState extends State<EstafetaDocumentosEmFalta> {
           children: [
             Icon(Icons.check_circle, color: AppColors.success),
             SizedBox(width: 10),
-            Expanded(
-              child: Text('Recebemos todos os teus documentos. Agora é só '
-                  'esperar pela análise.'),
-            ),
+            // Missão m2 (08/11/2026): o texto fixo da fila de espera.
+            Expanded(child: Text(TextosFila.tudoEntregue)),
           ],
         ),
       );
@@ -299,8 +298,11 @@ class _EstafetaDocumentosEmFaltaState extends State<EstafetaDocumentosEmFalta> {
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
           ),
           const SizedBox(height: 4),
+          // Missão m2 (08/11/2026): o texto fixo do que falta (o mesmo do
+          // push e do WhatsApp do robô dos documentos).
           Text(
-            'Sem isto não conseguimos aprovar a tua conta. Envia aqui mesmo.',
+            TextosFila.emFalta(
+                falta.map((i) => i.rotulo.toLowerCase()).toList()),
             style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
           ),
           const SizedBox(height: 8),

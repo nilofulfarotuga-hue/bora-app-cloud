@@ -39,6 +39,7 @@ const Set<String> _dominiosProxiados = {
   'cdn.sanity.io',
   'www.lidl.pt',
   'www.google.com',
+  'strangeroasis.com', // fotos da Jyosmi Sushi tiradas do site da loja (08/11/2026)
 };
 
 /// Devolve a URL que a app deve pedir para [url].

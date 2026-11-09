@@ -116,9 +116,20 @@ void main() {
   });
 
   group('painel: Marcar entregue sem código', () {
-    testWidgets('só aparece a caminho', (t) async {
-      await t.pumpWidget(_app(AdminEntregueSemCodigoButton(orderId: 'x', status: 'pickedUp', onDone: () {})));
-      expect(find.byKey(const Key('btn_entregue_sem_codigo')), findsNothing);
+    // M1 08/11/2026 (ordem do Danilo "É pra forçar e pronto"): o servidor aceita pickedUp e
+    // onTheWay; antes da recolha e depois de entregue o botão não aparece.
+    testWidgets('aparece em pickedUp e onTheWay', (t) async {
+      for (final s in ['pickedUp', 'onTheWay']) {
+        await t.pumpWidget(_app(AdminEntregueSemCodigoButton(orderId: 'x', status: s, onDone: () {})));
+        expect(find.byKey(const Key('btn_entregue_sem_codigo')), findsOneWidget, reason: s);
+      }
+    });
+
+    testWidgets('não aparece antes da recolha nem depois de entregue', (t) async {
+      for (final s in ['preparing', 'driverAccepted', 'delivered', 'cancelled']) {
+        await t.pumpWidget(_app(AdminEntregueSemCodigoButton(orderId: 'x', status: s, onDone: () {})));
+        expect(find.byKey(const Key('btn_entregue_sem_codigo')), findsNothing, reason: s);
+      }
     });
 
     testWidgets('motivo curto não chama o servidor; com motivo fecha', (t) async {

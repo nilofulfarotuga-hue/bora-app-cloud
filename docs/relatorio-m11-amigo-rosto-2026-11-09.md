@@ -81,10 +81,18 @@ clientes a pedir sem ninguém para ir, por isso também não liguei a Casa, a fa
 prova nem a notificação aos clientes. Está tudo pronto e provado (docs/casa/PUBLICACAO2-casa.md): logo
 que a tua ficha estiver completa, corro o resto em poucos minutos.
 
-**Roupeiro (80 €), cama (70 €) e televisão (45 €) não se conseguem pedir.** A Casa só aceita dinheiro
-e o dinheiro tem o limite de 40 €. ⚠️ ISTO MEXE EM PAGAMENTO/DINHEIRO. Há duas saídas e as duas
-precisam do teu "autorizo": cartão e MB Way na Casa pelo mesmo caminho da Limpeza (está escrito e
-pronto), ou um limite de dinheiro próprio da Casa.
+**Cartão e MB Way na Casa: pronto, mas desligado.** Escolheste "Cartão e MB Way" para o roupeiro
+(80 €), a cama (70 €) e a televisão (45 €), que em dinheiro passam o limite de 40 €. Construí tudo pelo
+mesmo caminho da Limpeza e da Lavagem, num ramo de ensaio: o pedido pago na app fica "à espera do
+pagamento" e só vai aos profissionais depois de pago; se o cliente cancelar com mais de 12 horas, ou se
+ninguém aceitar, a devolução sai sozinha e nunca duas vezes; o profissional recebe o ganho no acerto
+semanal, como já estava previsto. No painel há o interruptor "Cartão e MB Way" (pede para escrever
+LIGAR) e o botão "Devolver ao cliente" na ficha do pedido. Provei o servidor num Postgres local com as
+funções reais da Casa (47 de 47 verificações) e a app com os testes (todos verdes). ⚠️ ISTO MEXE EM
+PAGAMENTO/DINHEIRO e no webhook da Stripe (zona protegida): nada foi aplicado nem publicado. Está tudo
+pronto — para ligar preciso que digas "autorizo cartão e MB Way na Casa". Depois de ligado, o teste real
+é teu, com o teu dinheiro (regra dos testes de pagamento): um roupeiro por MB Way, cancelar, e ver a
+devolução chegar. Valor extra num pedido pago na app fica para a fase 2.
 
 **Voz do servidor da Google** (para telemóveis sem voz de Portugal): não liguei, porque o projeto da
 Google não tem faturação e a Google exige-a mesmo no escalão grátis.
@@ -116,8 +124,8 @@ caído (o Amigo dava "sem sessão"): basta entrar de novo.
 1. Completar a tua ficha de profissional da Casa na app (entrar como profissional da Casa, abrir a
    candidatura e preencher NIF, IBAN, data de nascimento e a autocertificação, e enviar). Diz-me
    quando estiver e eu ligo a Casa, a faixa, o pedido de prova e a notificação.
-2. Para o roupeiro, a cama e a TV: "autorizo cartão e MB Way na Casa" ou "autorizo limite de dinheiro
-   da Casa de X €".
+2. Cartão e MB Way na Casa estão prontos e desligados: para os ligar, "autorizo cartão e MB Way na
+   Casa". Depois, o teste com o teu dinheiro (um roupeiro por MB Way e cancelar).
 3. Opcional: faturação na Google para a voz do servidor.
 
 ## Próximo passo

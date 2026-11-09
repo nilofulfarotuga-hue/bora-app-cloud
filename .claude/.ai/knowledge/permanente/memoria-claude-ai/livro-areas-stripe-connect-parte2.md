@@ -2,30 +2,19 @@
 id: memoria-claude-ai-livro-areas-stripe-connect-parte2
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-04
+ultima_confirmacao: 2026-11-09
 zona: verde
 confianca: alta
 estado: atual
 ---
 
-# Stripe Connect Express no Bora — decisão do Danilo, estado real (conta dele de motorista já ATIVA, Goola e Ouro e Prata por preencher, repasse automático ainda desligado), como gerar o link de cadastro, taxas por parceiro e plano por fases (parte 2 de 3)
+# Stripe Connect Express no Bora (parte 2 de 3 — continua em livro-areas-stripe-connect-parte3)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-stripe-connect-parte2`, origem `claude-ai`, atualizada em 2026-11-04T21:13:32.954255+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-stripe-connect-parte2`, origem `claude-ai`, atualizada em 2026-11-09T14:21:03.071688+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas stripe connect parte2 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/stripe-connect.md), copiada a 2026-11-04 21:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos. (parte 2 de 3 — começa em livro-areas-stripe-connect, continua em livro-areas-stripe-connect-parte3)
-
-CAUSA RAIZ ACHADA (2026-08-13, verificada por MCP) — TVDE MB Way não chama motorista
-- [stated] `stripe-webhook` (v32) NÃO tem ramo para corridas: PIs com metadata.kind='tvde_ride'/'tvde_roundtrip'/'tvde_stop' caem no else e só registam "missing metadata.draft_id and order_id". Logo `tvde_rides.payment_status` nunca passa a 'succeeded' pelo servidor.
-- [stated] Cadeia de despacho (lida do banco): trigger `tr_tvde_dispatch_on_request` só despacha CASH no insert; `tr_tvde_dispatch_on_paid` só corre quando payment_status vira 'succeeded' → `tvde_offer_to_next` → `tr_notify_tvde_driver_on_offer` → Edge Fn `notify-tvde-driver`. Como o 'succeeded' só vem do poll do cliente (confirm_ride_payment, 3s/120s), se o MB Way demorar mais de 2 min ou a app fechar, NENHUM motorista é chamado. Todas as corridas têm tried_driver_ids=[] e current_offer_driver_id=null.
-- [stated] O motorista não é o problema: Danilo estava online, com token FCM, coordenadas e heartbeat fresco em drivers + driver_locations.
-- [stated] CLIENTE REAL PERDIDO: users e99d105d-f6e9-40a3-b809-0981c31235b0 (jvillarroeltrm@gmail.com, sem nome nem telefone gravados, registado 07/08) — 3 corridas: 12/08 14:37 e 13/08 12:41 pagou €5 por MB Way, esperou ~2 min sem motorista, cancelou e foi reembolsado; 12/08 15:00 fez uma em dinheiro que essa sim terminou.
-- [stated] Danilo (13/08): o "passar o cartão por aproximação no telemóvel" é a máquina dele fora do app (ele mesmo mete o valor e o cliente aproxima) — NÃO tem a ver com o Bora App. O problema do app é o MB Way não chamar o motorista.
-- [stated] Ordem criada para corrigir (zona vermelha, à espera do "vai" do Danilo): prop-98c2fc14 "tvde-mbway-nao-chama-motorista" — ramo TVDE no webhook, ecrã "à espera da confirmação MB Way" + poll 300s, auditar o mesmo buraco nas entregas, lista admin de corridas presas no pagamento, e limpar a corrida presa e3a6cc36 (PI pi_3U43bSGlT3R2jCYp1WuEIVxZ).
-- [stated] BONIFICAÇÃO FEITA por MCP a pedido do Danilo (2026-08-13): 1.000 tokens (=€5, `token_value_cents_x100`=50 → 0,5 cêntimos/token) creditados ao cliente e99d105d, válidos 60 dias (bora_tokens id eed4bc09-3162-44d2-8dd5-e768ea00f3a2, expira 12/10/2026), com linha em admin_audit_log. O RPC `admin_grant_tokens` exige `_admin_op_guard()` (JWT de admin), por isso não corre por MCP — foi INSERT direto + auditoria à mão. Guardar esta nota.
-- [stated] LIMITE A TER EM CONTA: `token_payment_max_pct`=50 — tokens só pagam até 50% de cada pedido/corrida. Logo os €5 de tokens não pagam uma corrida de €5 inteira; dão desconto de €2,50 em duas corridas de €5. Danilo foi avisado.
-- [stated] Email de desculpas ao cliente ficou em RASCUNHO no Gmail do Danilo (draft r-4592156499866028835) — o conector Gmail da Claude.ai só cria rascunhos, não envia. É o Danilo que carrega em Enviar.
+> Continuação (parte 2 de 3) da cópia da memória da Claude.ai (ficheiro /areas/stripe-connect.md), copiada a 2026-11-09 14:19 (Lisboa). Início em livro-areas-stripe-connect. Não editar aqui.
 
 TESTE DO DANILO 13/08 19:01 — mais 3 bugs provados por MCP (corrida 09c01c88-cc50-419d-951e-15c7afc6b033, PI pi_3U43sVGlT3R2jCYp0fulK3tK)
 - [stated] TOKENS NÃO DESCONTAM no cartão/MB Way: a RPC `tvde_request_ride` TEM o parâmetro `p_tokens_to_apply` (1 token = 5 cêntimos, tecto 50% da tarifa, desconta também bora_cut_cents), mas a Edge Fn `tvde-payment` (v8) NÃO o passa — nem em `charge` nem em `charge_roundtrip`. Prova: evento da corrida com `"tokens_requested": 0` apesar de o Danilo ter escolhido usar tokens. As colunas `tokens_applied_count`/`tokens_applied_value_cents` ficam sempre 0.
@@ -57,4 +46,19 @@ ARMADILHA POSTGRES a evitar no desarme da mina (verificada por MCP 2026-08-13)
 - [stated] Executor (commit be13c8e) corrigiu o BUG 6 em dois sítios: o Flutter deixou de criar a ida do pacote sem `paymentMethod` (caía no default 'cash'), e o gate `fn_tvde_dispatch_on_request` passou a exigir `payment_method = 'cash'` explícito, gravando `dispatch_deferred` no evento para o resto. Achado extra dele: `retryRide()` tinha o mesmo default — quem pagou por MB Way e carregava em "Tentar de novo" recebia uma corrida em DINHEIRO sem saber, e o motorista ia pedir o valor em mão a quem já tinha pago.
 - [stated] VÁLVULA do executor: como o `'cash'` acidental era a ÚNICA coisa que despachava a ida do pacote online, `tvde_create_roundtrip_credit` passa a marcar `payment_status='succeeded'` ao ligar o vale, e o despacho sai pelo `tr_tvde_dispatch_on_paid` como em qualquer corrida paga.
 - [stated] ORDEM DE APLICAÇÃO MUDOU: a migration do BUG 6 e o webhook do BUG 1 têm de ir JUNTOS. A migration sozinha tira o despacho no INSERT a cartão/MB Way e deixa as corridas online paradas.
+
+DIVERGÊNCIA DO VALOR DO TOKEN (achada pelo executor, confirmada por MCP 2026-08-13)
+- [stated] `tvde_request_ride` e `tvde_finish_ride` usam `p_tokens_to_apply * 5` (5 cêntimos por token) — cravado no SQL, sem ler definição nenhuma. Todo o resto (entregas, carteira, ecrãs do app, pacote online) usa `token_value_cents_x100`=50, ou seja 0,5 cêntimos. As RPCs do TVDE davam 10× o valor documentado (CLAUDE.md §5: 100 tokens = €0,50). Nunca se notou porque os tokens nunca chegavam a ser descontados no TVDE (BUG 2).
+- [stated] EXPOSIÇÃO medida por MCP no momento da decisão: 3.233 tokens activos em 5 pessoas → €16,17 a 0,5c, ou €161,65 a 5c.
+- [stated] DECISÃO (Claude.ai, comunicada ao Danilo): alinhar TUDO em 0,5 cêntimos, lendo `token_value_cents_x100`, e nunca voltar a cravar o valor no SQL. Fundamento: é o que os ecrãs do app mostram ao cliente e o que está documentado; ninguém foi prometido 5c e ninguém perde nada, porque o desconto nunca chegou a sair.
+- [stated] Executor (commit 1ec200c) desarmou a mina como pedido: DROP da função de 1 argumento + CREATE da de 2 com DEFAULT 0, tudo na mesma transacção da migration do BUG 6, DROP deliberadamente SEM `IF EXISTS` (aborta tudo em vez de deixar meio-estado). Repôs os grants a `authenticated` + `service_role` e NÃO repôs PUBLIC/anon. Tokens do pacote ficam registados na IDA (o vale não tem colunas para isso), passando pelo consumidor único `tr_tvde_consume_tokens`; guard anti-duplo grava `tokens_skipped_on_credit`.
+- [stated] AINDA DE PÉ, não fazer deploy: `tvde-plan-payment` chama `tvde_create_roundtrip_credit` com 6 argumentos e produção tem 4 (confirmado por MCP). A migration 20260804000000 existe e está por aplicar; se for aplicada DEPOIS da do BUG 6 tem de levar a linha do `payment_status`, senão a ida do pacote online deixa de ser despachada.
+- [stated] Estado: 3 commits locais (be13c8e, 1ec200c e o anterior b7d2d94), nada aplicado, nada em push.
+
+PRONTO A APLICAR (2026-08-13, fim da sessão) — nada em produção ainda
+- [stated] REGRA NOVA QUE FICA: o valor do token e o tecto de desconto NUNCA se cravam no SQL — lêem-se sempre de `token_value_cents_x100` e `token_payment_max_pct`. O tecto também estava cravado nas duas RPCs do TVDE, e por isso o botão do painel admin nunca teve efeito nenhum nas corridas.
+- [stated] CONFIRMADO por MCP no fim da sessão: produção continua intocada — `tvde_request_ride` e `tvde_finish_ride` ainda têm o `* 5` e não lêem definição nenhuma; `tvde_create_roundtrip_credit_cash` ainda tem 1 argumento; `stripe-webhook` v32; `tvde-payment` v8. Os 4 commits (b7d2d94, be13c8e, 1ec200c, bd9517d) estão locais e sem push.
+- [stated] `tvde_finish_ride` entrou por CREATE OR REPLACE com assinatura idêntica (p_ride_id uuid, p_final_distance_km numeric, p_distance_source text, p_tokens_to_apply integer) — sem risco de overload, ao contrário do caso `_cash`.
+- [stated] ORDEM DE APLICAÇÃO acordada: migration 20260813200000 → migration 20260813210000 → webhook (aplicar a proposta + deploy) → tvde-payment → app. Os passos da migration do BUG 6 e do webhook do BUG 1 vão SEMPRE juntos.
+- [stated] Prova a exigir depois de aplicar: numa corrida MB Way o evento `solicitada` tem de trazer `dispatch_deferred=true` e não pode haver `oferta` até o pagamento fechar; uma corrida em dinheiro tem de continuar a despachar na hora; e uma corrida com tokens tem de mostrar `tokens_applied_value_cents` > 0 com o saldo do cliente a baixar.
 

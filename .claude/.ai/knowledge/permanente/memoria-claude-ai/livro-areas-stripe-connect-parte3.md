@@ -2,34 +2,19 @@
 id: memoria-claude-ai-livro-areas-stripe-connect-parte3
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-04
+ultima_confirmacao: 2026-11-09
 zona: verde
 confianca: alta
 estado: atual
 ---
 
-# Stripe Connect Express no Bora — decisão do Danilo, estado real (conta dele de motorista já ATIVA, Goola e Ouro e Prata por preencher, repasse automático ainda desligado), como gerar o link de cadastro, taxas por parceiro e plano por fases (parte 3 de 3)
+# Stripe Connect Express no Bora (parte 3 de 3)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-stripe-connect-parte3`, origem `claude-ai`, atualizada em 2026-11-04T21:13:32.954255+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-stripe-connect-parte3`, origem `claude-ai`, atualizada em 2026-11-09T14:21:40.958555+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas stripe connect parte3 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/stripe-connect.md), copiada a 2026-11-04 21:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos. (parte 3 de 3 — começa em livro-areas-stripe-connect)
-
-DIVERGÊNCIA DO VALOR DO TOKEN (achada pelo executor, confirmada por MCP 2026-08-13)
-- [stated] `tvde_request_ride` e `tvde_finish_ride` usam `p_tokens_to_apply * 5` (5 cêntimos por token) — cravado no SQL, sem ler definição nenhuma. Todo o resto (entregas, carteira, ecrãs do app, pacote online) usa `token_value_cents_x100`=50, ou seja 0,5 cêntimos. As RPCs do TVDE davam 10× o valor documentado (CLAUDE.md §5: 100 tokens = €0,50). Nunca se notou porque os tokens nunca chegavam a ser descontados no TVDE (BUG 2).
-- [stated] EXPOSIÇÃO medida por MCP no momento da decisão: 3.233 tokens activos em 5 pessoas → €16,17 a 0,5c, ou €161,65 a 5c.
-- [stated] DECISÃO (Claude.ai, comunicada ao Danilo): alinhar TUDO em 0,5 cêntimos, lendo `token_value_cents_x100`, e nunca voltar a cravar o valor no SQL. Fundamento: é o que os ecrãs do app mostram ao cliente e o que está documentado; ninguém foi prometido 5c e ninguém perde nada, porque o desconto nunca chegou a sair.
-- [stated] Executor (commit 1ec200c) desarmou a mina como pedido: DROP da função de 1 argumento + CREATE da de 2 com DEFAULT 0, tudo na mesma transacção da migration do BUG 6, DROP deliberadamente SEM `IF EXISTS` (aborta tudo em vez de deixar meio-estado). Repôs os grants a `authenticated` + `service_role` e NÃO repôs PUBLIC/anon. Tokens do pacote ficam registados na IDA (o vale não tem colunas para isso), passando pelo consumidor único `tr_tvde_consume_tokens`; guard anti-duplo grava `tokens_skipped_on_credit`.
-- [stated] AINDA DE PÉ, não fazer deploy: `tvde-plan-payment` chama `tvde_create_roundtrip_credit` com 6 argumentos e produção tem 4 (confirmado por MCP). A migration 20260804000000 existe e está por aplicar; se for aplicada DEPOIS da do BUG 6 tem de levar a linha do `payment_status`, senão a ida do pacote online deixa de ser despachada.
-- [stated] Estado: 3 commits locais (be13c8e, 1ec200c e o anterior b7d2d94), nada aplicado, nada em push.
-
-PRONTO A APLICAR (2026-08-13, fim da sessão) — nada em produção ainda
-- [stated] REGRA NOVA QUE FICA: o valor do token e o tecto de desconto NUNCA se cravam no SQL — lêem-se sempre de `token_value_cents_x100` e `token_payment_max_pct`. O tecto também estava cravado nas duas RPCs do TVDE, e por isso o botão do painel admin nunca teve efeito nenhum nas corridas.
-- [stated] CONFIRMADO por MCP no fim da sessão: produção continua intocada — `tvde_request_ride` e `tvde_finish_ride` ainda têm o `* 5` e não lêem definição nenhuma; `tvde_create_roundtrip_credit_cash` ainda tem 1 argumento; `stripe-webhook` v32; `tvde-payment` v8. Os 4 commits (b7d2d94, be13c8e, 1ec200c, bd9517d) estão locais e sem push.
-- [stated] `tvde_finish_ride` entrou por CREATE OR REPLACE com assinatura idêntica (p_ride_id uuid, p_final_distance_km numeric, p_distance_source text, p_tokens_to_apply integer) — sem risco de overload, ao contrário do caso `_cash`.
-- [stated] ORDEM DE APLICAÇÃO acordada: migration 20260813200000 → migration 20260813210000 → webhook (aplicar a proposta + deploy) → tvde-payment → app. Os passos da migration do BUG 6 e do webhook do BUG 1 vão SEMPRE juntos.
-- [stated] Prova a exigir depois de aplicar: numa corrida MB Way o evento `solicitada` tem de trazer `dispatch_deferred=true` e não pode haver `oferta` até o pagamento fechar; uma corrida em dinheiro tem de continuar a despachar na hora; e uma corrida com tokens tem de mostrar `tokens_applied_value_cents` > 0 com o saldo do cliente a baixar.
+> Continuação (parte 3 de 3) da cópia da memória da Claude.ai (ficheiro /areas/stripe-connect.md), copiada a 2026-11-09 14:19 (Lisboa). Início em livro-areas-stripe-connect. Não editar aqui.
 
 APLICADO EM PRODUÇÃO (2026-08-13, fim) — verificado por MCP
 - [stated] Migrations 1 e 2 APLICADAS: `tvde_request_ride` e `tvde_finish_ride` já lêem `token_value_cents_x100` e `token_payment_max_pct` (o `* 5` que sobra em tvde_finish_ride é só o comentário a explicar o que era); `tvde_create_roundtrip_credit_cash` ficou com UMA só assinatura `(uuid, integer)` — o DROP+CREATE correu bem, sem overload. `stripe-webhook` foi de v32 para v33.
@@ -59,7 +44,7 @@ Estado real a 2026-09-14 (Claude.ai por MCP) — CORRIGE linhas antigas deste fi
 - CADEIA PROVADA PONTA A PONTA: o `stripe-connect-webhook` apanhou o account.updated sozinho e `drivers.stripe_account_status` passou a 'enabled' sem ninguém tocar em nada.
 - Pendente na conta dele: `individual.verification.document` em eventually_due (a Stripe vai pedir foto do documento; ainda não trava nada) e a morada ficou com o nº 12 quando é o 14 — decidi NÃO mexer agora para não reabrir verificação, e corrigir as duas coisas juntas quando o documento for pedido.
 - `stripe_connect_enabled` continua FALSE e a Fase 2 (transferência automática no fecho semanal) continua por fazer — mesmo com o cadastro terminado o acerto continua manual/MB Way. [stated] Ele quer o repasse automático a funcionar já na semana seguinte; avisei que ligar mexe em dinheiro a sério e fica à espera da palavra dele.
-- O conector Stripe da Claude.ai VOLTOU a ter a conta LIVE (acct_1T8MFaGlT3R2jCYp, livemode true) — já dá para ler contas e requisitos por MCP. O MCP NÃO expõe account_links (PostAccountLinks não existe), MAS há caminho que FUNCIONA e é só meu, sem executor: Edge `tmp-connect-link` (criada 14/09, segredo [REMOVIDO]), chamada por `net.http_post` com a service_role key de `vault.decrypted_secrets`, resposta lida em `net._http_response`. O Account Link da Stripe expira em ~5 MINUTOS, por isso a v2 da função (verify_jwt FALSE) tem também um CONVITE PERMANENTE por GET: `https://ojykpzwqrtusfeakzrna.supabase.co/functions/v1/tmp-connect-link?a=<acct_>&k=<chave>`, em que a chave são os 16 primeiros hex de SHA-256("<acct_>|<segredo>") — devolvida no campo `convite_key` do POST. Gera um link fresco a cada toque, logo pode ser enviado por mensagem ao parceiro (a do [[goola-acai]] é [REMOVIDO]). Testado a funcionar.
+- O conector Stripe da Claude.ai VOLTOU a ter a conta LIVE (acct_1T8MFaGlT3R2jCYp, livemode true) — já dá para ler contas e requisitos por MCP. O MCP NÃO expõe account_links (PostAccountLinks não existe), MAS há caminho que FUNCIONA e é só meu, sem executor: Edge `tmp-connect-link` (criada 14/09, segredo `[REMOVIDO]`), chamada por `net.http_post` com a service_role key de `vault.decrypted_secrets`, resposta lida em `net._http_response`. O Account Link da Stripe expira em ~5 MINUTOS, por isso a v2 da função (verify_jwt FALSE) tem também um CONVITE PERMANENTE por GET: `https://ojykpzwqrtusfeakzrna.supabase.co/functions/v1/tmp-connect-link?a=<acct_>&k=<chave>`, em que a chave são os 16 primeiros hex de SHA-256("<acct_>|<segredo>") — devolvida no campo `convite_key` do POST. Gera um link fresco a cada toque, logo pode ser enviado por mensagem ao parceiro (a do [[goola-acai]] é [REMOVIDO]). Testado a funcionar.
 - LIMITE DA STRIPE a não voltar a tentar: em contas Express com recolha pela Stripe, a plataforma SÓ pode pré-preencher `business_profile` (nome, url, mcc, contactos de apoio). `company`, `email` e o IBAN são recusados ("not authorized to edit"/"does not have the required permissions") — o NIPC, a morada, os dados do dono e o IBAN têm mesmo de ser metidos pela própria pessoa no formulário, mesmo quando já os temos na ficha da loja.
 - CAMPO "website" do onboarding: a resposta certa para TODA a gente (estafetas e parceiros) é `boraguarda.com` — é a plataforma de onde vem o dinheiro, como o motorista da Uber que põe uber.com. Ele confundiu-se a pensar que era um site dele; explicado.
 
@@ -73,4 +58,6 @@ Stripe nova da empresa (24/10/2026)
 - [stated] 01/11/2026: ABRIU a Stripe da empresa (na conta Google da Bora) e passou-a para eu gerir e preencher tudo ("agora vai ficar por sua conta"). A partir daí há DUAS Stripes — a da empresa e a pessoal dele — e tem de se saber dividir: usar sempre a conta certa em cada caminho
 - [stated] Para o email das contas da empresa decidiu usar, por enquanto, o domínio do Bora (boraguarda.com) em vez de criar um Gmail novo
 - [stated] 04/11/2026: com o banco online da empresa no Millennium ativo, mandou configurar a Stripe da empresa para o pagamento semanal das lojas "cair automaticamente" e refazer o acordo/registo de recebimento com o Emanuel ([[boom-burger]]) e o Cauã ([[goola-acai]] e [[sabores-de-casa]]); autorizou aceitar as responsabilidades do Connect na Stripe da empresa
+- [stated] 09/11/2026: a verificação do documento de identidade dele na Stripe da empresa foi aprovada (deixa de ser pendência dele); mandou terminar o Connect da empresa
+- [stated] 09/11/2026 13:51 (mandou gravar): os ESTAFETAS também vão passar a receber automaticamente pelo Connect da Stripe da empresa, como as lojas — fazer o mesmo cadastro com eles
 

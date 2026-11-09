@@ -25,6 +25,8 @@ import '../widgets/fatura_nif_pedido.dart';
 import '../widgets/partilhar_localizacao_card.dart';
 import '../widgets/partilhar_seguimento.dart';
 import '../widgets/pedido_agendado_aviso.dart';
+// M10 2.12 (09/11/2026): mesmo texto de prazo do diálogo de reembolso.
+import '../widgets/refund_choice_dialog.dart' show prazoDevolucaoAoMeio;
 import '../widgets/takeaway/pickup_code_card.dart';
 import '../widgets/takeaway/preparing_countdown_banner.dart';
 import '../services/directions_service.dart';
@@ -1354,7 +1356,10 @@ class _BottomCardState extends State<_BottomCard> {
     ];
     final canChooseRefund =
         isElectronic && refundableStatuses.contains(widget.order.status);
-    String refundTarget = 'card';
+    // M10 2.12 (09/11/2026): nada vem marcado à partida — o cliente escolhe
+    // entre Carteira Bora e devolver ao meio original (regra do Danilo).
+    // Os valores enviados ao servidor são os mesmos: 'wallet' | 'card'.
+    String? refundTarget;
     final feeLabel = isGrace
         ? 'Grátis'.tr
         : _feeLabelForStatus(widget.order.status, widget.order.total);
@@ -1364,7 +1369,10 @@ class _BottomCardState extends State<_BottomCard> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           title: Text('Cancelar pedido'.tr),
-          content: Column(
+          // M10 2.12 (09/11/2026): com as duas opções grandes o conteúdo
+          // cresce — rola em ecrãs pequenos em vez de transbordar.
+          content: SingleChildScrollView(
+           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1385,23 +1393,44 @@ class _BottomCardState extends State<_BottomCard> {
                 const SizedBox(height: 12),
                 Text('Como queres o reembolso?'.tr,
                     style: const TextStyle(fontWeight: FontWeight.w600)),
-                RadioListTile<String>(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  value: 'card',
-                  groupValue: refundTarget,
-                  onChanged: (v) => setDialogState(() => refundTarget = v!),
-                  title: Text('De volta ao cartão (~5 dias úteis)'.tr),
+                // M10 2.12 (09/11/2026): o mesmo padrão e os mesmos textos do
+                // RefundChoiceDialog (detalhe do pedido). Saiu o texto antigo
+                // "80% saldo + 20% pontos": o servidor (client-cancel-order)
+                // põe 100% em saldo e os tokens voltam como tokens.
+                const SizedBox(height: 8),
+                _OpcaoReembolso(
+                  key: const Key('opcao_reembolso_wallet'),
+                  selecionada: refundTarget == 'wallet',
+                  icon: Icons.account_balance_wallet_outlined,
+                  titulo: 'Carteira Bora'.tr,
+                  detalhe:
+                      'Fica já disponível: podes usar na mesma hora no próximo pedido.'
+                          .tr,
+                  onTap: () => setDialogState(() => refundTarget = 'wallet'),
                 ),
-                RadioListTile<String>(
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  value: 'wallet',
-                  groupValue: refundTarget,
-                  onChanged: (v) => setDialogState(() => refundTarget = v!),
-                  title: Text(
-                      'Na carteira, imediato (80% saldo + 20% pontos)'.tr),
+                const SizedBox(height: 8),
+                _OpcaoReembolso(
+                  key: const Key('opcao_reembolso_meio'),
+                  selecionada: refundTarget == 'card',
+                  icon: Icons.undo_rounded,
+                  titulo: 'Devolver para a minha conta'.tr,
+                  detalhe: prazoDevolucaoAoMeio(
+                      widget.order.paymentMethod.name),
+                  onTap: () => setDialogState(() => refundTarget = 'card'),
                 ),
+                if (widget.order.tokensAppliedValueCents > 0) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Os teus tokens (€{0}) voltam como tokens, com a mesma validade.'
+                        .trArgs([
+                      (widget.order.tokensAppliedValueCents / 100)
+                          .toStringAsFixed(2)
+                          .replaceAll('.', ',')
+                    ]),
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                ],
               ],
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
@@ -1431,6 +1460,7 @@ class _BottomCardState extends State<_BottomCard> {
                 ),
               ],
             ],
+           ),
           ),
           actions: [
             TextButton(
@@ -1438,7 +1468,10 @@ class _BottomCardState extends State<_BottomCard> {
               child: Text('Não'.tr),
             ),
             TextButton(
-              onPressed: selectedReason == null
+              // M10 2.12 (09/11/2026): sem escolha de reembolso feita, o
+              // botão fica desligado — fechar o diálogo nunca cancela.
+              onPressed: selectedReason == null ||
+                      (canChooseRefund && refundTarget == null)
                   ? null
                   : () => Navigator.of(ctx).pop(true),
               style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -1466,7 +1499,9 @@ class _BottomCardState extends State<_BottomCard> {
     final result = await orderStore.clientCancelOrder(
       widget.order,
       reason: finalReason,
-      refundTarget: refundTarget,
+      // M10 2.12 (09/11/2026): sem escolha possível (dinheiro, ou estado sem
+      // reembolso) vai 'card', o mesmo valor que ia até aqui por defeito.
+      refundTarget: refundTarget ?? 'card',
     );
 
     if (!context.mounted) return;
@@ -1514,6 +1549,77 @@ class _BottomCardState extends State<_BottomCard> {
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// M10 2.12 (09/11/2026): opção grande de reembolso, o mesmo padrão do
+/// `RefundChoiceDialog` (cartão com borda, ícone e bolinha à direita).
+/// Nenhuma vem marcada à partida — quem escolhe é o cliente.
+class _OpcaoReembolso extends StatelessWidget {
+  const _OpcaoReembolso({
+    super.key,
+    required this.selecionada,
+    required this.icon,
+    required this.titulo,
+    required this.detalhe,
+    required this.onTap,
+  });
+
+  final bool selecionada;
+  final IconData icon;
+  final String titulo;
+  final String detalhe;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cor = Theme.of(context).colorScheme.primary;
+    return Semantics(
+      button: true,
+      selected: selecionada,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selecionada ? cor : AppColors.textSubtle,
+              width: selecionada ? 2 : 1,
+            ),
+            color: selecionada ? cor.withValues(alpha: 0.08) : null,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: selecionada ? cor : AppColors.textSecondary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(titulo,
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    Text(detalhe,
+                        style: const TextStyle(
+                            fontSize: 13, color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+              Icon(
+                selecionada
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_off,
+                color: selecionada ? cor : AppColors.textSubtle,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _CodeDigit extends StatelessWidget {
   const _CodeDigit({required this.digit});

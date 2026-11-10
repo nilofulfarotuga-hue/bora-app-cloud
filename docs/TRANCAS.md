@@ -507,3 +507,16 @@ envio git passou nas sessões novas (a orquestradora, aberta antes, continuou co
   `supabase/migrations/20261109220000_volta_catalogo_e_talao.sql`, a de dinheiro como proposta em
   `.claude/.ai/missoes/volta-deposito-kfc-2026-11-09/PARTE2-dinheiro-proposta.md`, tudo provado no PGlite (52/52);
   enviado só o ramo `ai/2026-11-09-volta-deposito-kfc`, pedido de revisão bora-app-cloud#8 para o Claude.ai aplicar e publicar.
+- **10/11/2026 ~17:50, missão `fechar-tudo-2026-11-10` (migrações de dinheiro aplicadas, ficheiro fora de `supabase/migrations`)** —
+  três migrações que tocam dinheiro foram aplicadas hoje em produção com ordem do Danilo, mas a bora-tranca não deixa
+  gravar o ficheiro em `supabase/migrations` ("migration que toca tokens/wallet/pagamentos/ledger"), por isso não se
+  contornou e o texto fica guardado assim: `20261110170519_seguranca_guarda_current_user_2026_11_10` (texto igual a
+  `docs/propostas/fecho-contabilista-2026-11-10/02_seguranca_guarda_current_user.sql`, md5 f928f77b…),
+  `20261110171114_fecho_contabilista_regras_hugo_2026_11_10` (igual a
+  `docs/propostas/fecho-contabilista-2026-11-10/01_fecho_contabilista_regras_hugo.sql`, md5 2b2f42c4…) e
+  `20261110173929_volta_cobranca` (igual ao bloco ```sql de
+  `.claude/.ai/missoes/volta-deposito-kfc-2026-11-09/PARTE2-dinheiro-proposta.md`, linhas 51-451, md5 e0b37d6c…; ordem
+  "Aplica tu" de 10/11 ~17:40). O texto exato aplicado está em `supabase_migrations.schema_migrations.statements` de cada
+  versão; os md5 acima são do texto em LF (`git show HEAD:<caminho>`) e batem com o `md5(statements[1])` da base. As
+  restantes de hoje (20261110171159, 20261110171238, 20261110173749, 20261110174156, 20261110174403, 20261110174604)
+  estão em `supabase/migrations` com o nome da versão aplicada.

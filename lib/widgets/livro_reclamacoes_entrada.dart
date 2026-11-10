@@ -15,11 +15,11 @@ const Color kAmareloLivroReclamacoes = Color(0xFFFFD400);
 /// tem o acesso ao Livro de Reclamações Eletrónico em destaque). Abre
 /// https://www.livroreclamacoes.pt.
 ///
-/// Missão fechar-tudo-2026-11-10, bloco E2b. O selo é desenhado com as cores
-/// do Livro de Reclamações ([LivroReclamacoesSelo]); o ficheiro oficial do
-/// ícone (manual da Direção-Geral do Consumidor) ainda não está em `assets/`
-/// — quando estiver, troca-se só o [LivroReclamacoesSelo] por um
-/// `Image.asset`. Texto legal: sem `.tr` de propósito, como o resto de
+/// Missão fechar-tudo-2026-11-10, bloco E2b. O selo ([LivroReclamacoesSelo])
+/// é o ícone OFICIAL do Livro de Reclamações Eletrónico (pacote de logótipos
+/// da Direção-Geral do Consumidor, versão positiva 140×58, sem alterações),
+/// em `assets/branding/livro-reclamacoes.png` — o mesmo dos rodapés dos sites.
+/// Texto legal: sem `.tr` de propósito, como o resto de
 /// "Sobre / Informação legal".
 class LivroReclamacoesEntrada extends StatelessWidget {
   const LivroReclamacoesEntrada({
@@ -86,15 +86,33 @@ class LivroReclamacoesSelo extends StatelessWidget {
 
   final double tamanho;
 
+  /// Ícone oficial (manual da DGC): não se recolore nem deforma.
+  static const String asset = 'assets/branding/livro-reclamacoes.png';
+
   @override
   Widget build(BuildContext context) => Container(
-        width: tamanho,
-        height: tamanho,
+        // fundo branco: o manual pede contraste com o fundo (modo escuro)
+        padding: const EdgeInsets.all(2),
         decoration: BoxDecoration(
-          color: kAmareloLivroReclamacoes,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.black, width: 2),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(4),
         ),
-        child: Icon(Icons.menu_book, color: Colors.black, size: tamanho * 0.55),
+        child: Image.asset(
+          asset,
+          height: tamanho,
+          fit: BoxFit.contain,
+          semanticLabel: 'Livro de Reclamações Eletrónico',
+          // sem o ficheiro (teste sem assets), mostra o selo desenhado de antes
+          errorBuilder: (_, __, ___) => Container(
+            width: tamanho,
+            height: tamanho,
+            decoration: BoxDecoration(
+              color: kAmareloLivroReclamacoes,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.black, width: 2),
+            ),
+            child: Icon(Icons.menu_book, color: Colors.black, size: tamanho * 0.55),
+          ),
+        ),
       );
 }

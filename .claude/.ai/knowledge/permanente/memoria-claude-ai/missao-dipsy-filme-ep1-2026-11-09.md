@@ -2,7 +2,7 @@
 id: memoria-claude-ai-missao-dipsy-filme-ep1-2026-11-09
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-09
+ultima_confirmacao: 2026-11-10
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Missão do Dipsy: acabar o filme das meninas (Ep1 Haja Luz) perfeito, plano a plano, motores grátis (09/11/2026)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `missao-dipsy-filme-ep1-2026-11-09`, origem `claude-ai`, atualizada em 2026-11-09T22:06:49.001662+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `missao-dipsy-filme-ep1-2026-11-09`, origem `claude-ai`, atualizada em 2026-11-10T00:28:26.123541+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: missao dipsy filme ep1 2026 11 09 · memoria claude.ai · claude_ai_memoria
 
@@ -189,4 +189,10 @@ O QUE NÃO FAZES
 - Não entras nas contas do Claude, ChatGPT ou Gemini por cookie (isso é com o Claude Code).
 - Não mexes na app Bora nem em dinheiro.
 - Não dás o filme por pronto com um único critério por cumprir.
+
+ADENDO 1 (Claude.ai, 10/11/2026 00:15), depois da ronda 2:
+15. NADA SE DÁ POR CONCLUÍDO SEM PROVA. Cada passo 'concluído' leva no e2e_log os números que o provam (contagens, linhas, hashes). Sem prova é 'em curso'. Dizer 'concluído' sem prova é o pior erro desta missão.
+16. TRABALHO MECÂNICO = SCRIPT. Transformar, contar, copiar, listar e comparar faz-se com um script testado em _dipsy/ferramentas/, nunca à mão. O modelo pensa e decide; o script faz.
+17. FICHEIROS SEMPRE EM UTF-8. Lê e escreve sempre em UTF-8. Antes de gravar, confirma que não há Ã, Â nem caracteres de substituição.
+18. RONDAS PEQUENAS. Cada ronda faz UM passo pequeno (um plano, uma folha, um fiscal), prova-o e grava. Em cada ronda lês o CONTINUAR.md e o _dipsy/REGRAS-CURTAS.md; a MISSAO.md inteira só quando o CONTINUAR.md mandar.
 

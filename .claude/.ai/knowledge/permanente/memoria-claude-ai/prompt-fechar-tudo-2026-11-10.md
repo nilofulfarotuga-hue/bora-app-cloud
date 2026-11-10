@@ -1,0 +1,104 @@
+---
+id: memoria-claude-ai-prompt-fechar-tudo-2026-11-10
+tipo: conceito
+origem: [claude-ai, public.claude_ai_memoria]
+ultima_confirmacao: 2026-11-10
+zona: verde
+confianca: alta
+estado: atual
+---
+
+# Prompt da missão fechar-tudo 10/11/2026
+
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `prompt-fechar-tudo-2026-11-10`, origem `claude-code`, atualizada em 2026-11-10T16:55:39.237162+00:00).
+> Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
+> Palavras-chave: prompt fechar tudo 2026 11 10 · memoria claude.ai · claude_ai_memoria
+
+# Prompt da missão fechar-tudo-2026-11-10 (colado pelo Danilo no Claude Code do PC, 10/11/2026 ~17:00)
+
+> Guardado pelo Claude Code no arranque (Bloco 0, passo 5). Cópia no livro: página prompt-fechar-tudo-2026-11-10.
+> NÃO colar outra vez: é o registo do que foi pedido.
+
+⚠️ MODO PROTECÇÃO TOTAL ⚠️
+MOTOR: Opus 5.5 PORTA: app Claude no PC › Code › Este computador › pasta bora_app › Ignorar permissões › SESSÃO NOVA (worktree própria C:\BoraLocal\wt-fechar-2026-11-10, ramo ai/2026-11-10-fechar-tudo a partir de origin/autonomous-night-2026-04-29) FLUXO e2e_log: fechar-tudo-2026-11-10 (um passo por bloco, com prova) ORQUESTRADOR: invoca o CEO-AI em .claude/skills/ceo-ai/ e as skills protocolo-missao-bora, danilo-como-trabalhar, distribuir-trabalho e contas-e-navegadores. Um líder + 2 a 4 agentes por bloco, nunca todos ao mesmo tempo (RAM do PC é curta: medir antes de compilar 800 MB e antes do emulador 3 GB).
+
+AUTORIZAÇÃO DO DANILO (literal, 10/11/2026 16:43, na conversa com o Claude.ai, depois da lista numerada do que faltava): "Tudo que for fazer sem mim, você vai fazer agora. Quero acabar com isso de uma vez por todas. Vai a fundo em cada missão, faça e encerra. Depósito KFC, tem que fazer. GPS, tem que fazer. A do Hermes 0.23 faz. A do Em Dia e a animação do estúdio manda pro Dipsy fazer. CRM do WhatsApp, faz, mas manda o Dipsy fazer. Em Dia da semana é o Dipsy que faz, Dipsy ou Hermes. Menu e barras de navegação tem que fazer. 7 tem que fazer. 8 tem que fazer. 9 tem que fazer, livro de reclamação vai bem a fundo, faz no site. Check-in: olha como os melhores fazem, arruma o visual, faça uma coisa bem bonita, vai a fundo, as regras você vai pôr, vai ver a melhor. Google do juiz: tudo tem que trocar pro Claude, API, e depois colocar as gratuitas de reserva. Coloca as telas aqui na minha frente, eu só dou poucos cliques." Mais: "Eu autorizo" dele de 09/11 19:36 para os preços do KFC; "Autorizo" de 26/10 e 02/11 para cobrar a diferença do peso no cartão. Vale só para esta missão e só para os blocos abaixo. FORA desta autorização (não tocar): preço do bacon/extras do Burger King, ler o talão do McDonald's de 08/11, repasse automático às lojas (stripe_connect_enabled), mensagens a pessoas, publicar nas redes, comissões.
+
+O DANILO ESTÁ À FRENTE DO PC. Sempre que um passo precisar dele (login, código de 2 passos, botão verde), abre a página no Chrome certo, POR CIMA de tudo, já preenchida, e diz-lhe numa linha em português simples onde está o botão. Ele não escreve nada, não escolhe nada, só carrega. Perfil Bora = deviceId d9e862e0 (Apple, Stripe, Supabase, Meta, Google da Bora); perfil pessoal = 5b260cdd (GitHub, Google Cloud boraapp-d2bea). Fecha os separadores que abriste quando acabares.
+
+## ANTES DE TUDO (Bloco 0)
+1. Ler no livro (claude_ai_memoria): erros-aprendidos (todas as partes), regras-do-danilo, regras-operacao-agentes, livro-indice, digest-2026-11-09-pendencias, digest-2026-11-09-volta-deposito-kfc, digest-2026-11-09-m11, leis-bora, regras-checkin-v2-2026-10-30, livro-areas-bora-todo-dia.
+2. Ler e2e_log dos fluxos pendencias-30-dias-2026-11-09, volta-deposito-kfc-2026-11-09, fecho-contabilista-2026-11-10 (está a correr noutra sessão: NÃO tocar nos ficheiros dela — emails do fecho, monthly-partner-statement, restos do NIF da Bora, lista fiscal dos prestadores; se precisares do mesmo ficheiro, espera que ela envie e parte do que ela enviou).
+3. Regra de sempre: em cada passo escreve no e2e_log que função/tabela/ecrã mexes e porquê. Outro erro que encontres pelo caminho: REPORTA no e2e_log e no relatório, não corrijas calado nem cales. Nunca apagar dados de produção; backup bkp_<nome>_20261110 antes de mexer em linhas ou funções. Toda migração aplicada fica também em supabase/migrations e registada.
+4. Travas: só as janelas que a missão de ontem usou (DESLIGAR-M11.ps1 e depois RESTAURAR-M10.ps1 com MD5 IGUAL; nunca correr o desligar em estado meio-desligado). Janela aberta só para aplicar SQL, publicar Edge e enviar para o servidor, e fechada logo. O envio (git) faz-se por sessão nova, porque a tranca fica em memória. git add sempre por caminho.
+5. Guarda este prompt no livro (página prompt-fechar-tudo-2026-11-10) e no Obsidian (C:\Users\danil\Desktop\Bora\prompts).
+6. Se um bloco travar 15 min, regista, salta, segue; nunca terminar o turno à espera. O que ficar por um clique do Danilo: página à frente dele e segue com o bloco seguinte.
+
+## BLOCO A — Depósito Volta + KFC (pôr no ar o que está pronto desde 09/11)
+Porquê: os clientes ainda não pagam os 0,10 € das latas e garrafas de plástico, o robô do talão conta mal os menus do KFC e 132 preços do KFC estão abaixo do balcão. O quê: ramo ai/2026-11-09-volta-deposito-kfc (pedido de revisão n.º 8). Pela ordem do digest: (1) 20261109220000_volta_catalogo_e_talao.sql; (2) PARTE2-dinheiro-proposta.md (create_order, quote, tokens sem depósito, livro-razão deposit_volta, acerto do parceiro, finalizar_talao, gatilho do talão); (3) passo-3-marcar-catalogo.sql; (4) passo-4-kfc-precos-e-opcoes.sql; (5) publicar ocr-receipt v13; (6) juntar o ramo. Antes de aplicar, repete a prova PGlite contra as definições de produção DE HOJE (mudaram ontem à noite: robô dos extras, comprovativo, NIF de hoje 10/11 — _nif_caixa_regra e _talao_nif_usado). Se algum md5 não bater, refaz o remendo por cima da versão do ar, nunca por cima da antiga. Regras que não mudam: Burger King não cobra depósito (copo); depósito aparece separado do preço, não entra em margem, comissão nem tokens; em loja parceira vai inteiro para a loja; só cobra quando a app manda deposit_units (app antiga nunca paga o que não vê); KFC só sobe, nunca acima do Glovo da Guarda. Os 1.289 produtos "para rever" ficam na lista do painel, não se marcam às cegas. Prova: emulador Android, pedido em DINHEIRO com 2 latas num mercado e 1 menu KFC com bebida; talão com depósito; painel "Depósito Volta" a abrir. Depois publicar (Bloco K intermédio).
+
+## BLOCO B — GPS do estafeta parado (zona de despacho; "vai" do Danilo de 09/11 e de hoje)
+Porquê: a app só manda a posição quando o estafeta se mexe; para não deixar de chamar quem está parado, desde 04/10 dispatch_gps_fresh_seconds_entregas está em 172800 (2 dias), largo demais. O quê: ler a proposta proposta-gps-heartbeat-posicao-parado-2026-11-06 no Córtex. A app do estafeta passa a mandar a posição de tempos a tempos mesmo parado, enquanto está online (em primeiro e segundo plano, Android e iPhone; na web enquanto o separador está aberto). Painel admin: ver a última posição e há quanto tempo de cada estafeta online. Apertar a regra só com prova: depois de publicado, quando os estafetas ativos (Valdemir, Érica, Danilo) tiverem a versão nova e posições a chegar paradas, passa a janela para 900 s. Se nesta sessão ainda não estiverem todos na versão nova, deixa 172800, regista, e deixa a tarefa agendada da ronda (trig_01TtK5hw39wEBzsXD1omTpQ5) a fazer a troca sozinha quando a condição se cumprir. Nunca deixar um estafeta online sem receber pedidos por causa disto.
+
+## BLOCO C — Peso ao quilo cobrado no cartão (item 8)
+O quê: a Edge cobrar-diferenca-peso existe e está desligada (weight_adjust_card_charge_enabled=false). Falta a prova sem cobrar a sério. Abre à frente do Danilo, no Chrome da Bora, a Stripe da EMPRESA em modo de teste (sandbox) na página das chaves; ele só carrega no que for preciso; a chave de teste vai direta para os segredos (Supabase STRIPE_TEST_SECRET_KEY_EMPRESA e GitHub), nunca escrita no chat nem em ficheiros do repo. Prova ponta a ponta em teste: melancia a mais → cobra a diferença; a menos → devolve; cartão recusado → pedido não trava e fica dívida visível no painel. Com as provas verdes, liga o interruptor. Dinheiro e MB Way ficam como estão.
+
+## BLOCO D — Entrar com Apple no iPhone (item 7)
+Porquê: no iPhone o botão do Google só pode aparecer junto com o da Apple; hoje não aparece nenhum (authorize?provider=apple dá 400, falta o segredo). O quê: na conta Apple Developer (Chrome da Bora, à frente do Danilo para o login e o código): Services ID para pt.boraapp.bora, chave .p8 de Sign in with Apple, domínio e volta do Supabase. Gerar o segredo e gravá-lo no fornecedor Apple do Supabase (direto, sem passar pelo chat). Ligar login_apple_ativo. Atenção: o segredo da Apple caduca aos 6 meses — criar lembrete/tarefa de renovação e escrever no livro. Prova: iPhone (simulador do CI) mostra "Continuar com Apple" e "Continuar com Google"; conta nova pede telemóvel como as outras; painel mostra o método de entrada.
+
+## BLOCO E — Leis (item 9; dossier docs/legal/dossier-leis-2026-11-08.md e página leis-bora)
+E1. Empresa em todo o lado: app, site, termos, privacidade e emails passam a identificar "Danilo Fulfaro da Silva - Unipessoal Lda", NIPC 519686233, sede Rua do Torreão 14, 6300-610 Guarda (lib/config/legal_identity.dart, docs/legal, bora-site). O Bora Motorista continua fechado; não mexer nos textos dele.
+E2. Livro de Reclamações, a fundo: (a) no site boraguarda.com e em app.boraguarda.com, o ícone oficial do Livro de Reclamações Eletrónico (manual do ícone da Direção-Geral do Consumidor) em local visível e destacado, no rodapé de todas as páginas e na página de contacto, com ligação a https://www.livroreclamacoes.pt; (b) na app (cliente, estafeta, parceiro): entrada "Livro de Reclamações" em Ajuda/Definições; (c) tirar o link da plataforma europeia ODR (fechou); (d) registo da EMPRESA na plataforma do Livro de Reclamações Eletrónico: abre a página à frente do Danilo no Chrome da Bora, preenche tudo, ele só confirma — se pedir pagamento ou autenticação dele, pára aí com a página aberta e diz-lhe; (e) painel admin: registo das reclamações recebidas com prazo de 15 dias úteis e alerta ao Danilo.
+E3. Regra nova para TODOS os sites de clientes: atualizar a skill do método de sites (metodo-sites / mini-site) — todo site de negócio português que vende ou presta serviços a consumidores (barbearia, restaurante, loja, clube com loja) leva o ícone do Livro de Reclamações com link no rodapé; o registo na plataforma é do dono do negócio. Site pessoal sem venda (ex.: jaiagarwala.com) não leva. Fazer a lista dos sites já entregues (Mister Navalha, Sabores de Casa, Ouro e Prata, Goola, Leonidas, Boom, Guarda FC com loja, PartsFlow) e pôr o ícone nos que estão no ar e são nossos de publicar; os outros ficam listados no relatório.
+E4. "Como o Bora decide" (prazo 02/12, Diretiva 2024/2831): o texto já existe no livro (legal-gestao-algoritmica-prestadores, legal-politica-suspensao-revisao-humana). Mostrar a cada prestador na app, com "Li e percebi" e registo (quem, quando, versão); painel admin com quem já leu. Não mandar mensagens a ninguém.
+E5. Faturas: hoje há 37 linhas por lançar em bora_invoices_pending (152,85 €, 02/10 a 09/11, nenhuma com número). NÃO emitir nada (é do contabilista e de programa certificado). Só: conferir a lista contra o fecho de outubro, exportar CSV/PDF limpo no painel e pôr no relatório o que falta decidir com o Hugo. O email ao cliente passa a dizer "Resumo do pedido — este documento não serve de fatura".
+E6. Assistente/Amigo diz que é IA na primeira fala; consentimento antes de guardar alergias/dietas. Alergénios: campo dos 14 alergénios por prato no painel do parceiro e no admin, e aviso "contacta a loja antes de pagar" enquanto estiver vazio.
+
+## BLOCO F — Menus e barras de navegação do estafeta e do parceiro (ficou de 08/11 e nunca entrou)
+Ler o que a M7 deixou (docs do ramo ai/2026-11-08-m7 sobre menu/navegação dos 3 apps). Barra de baixo simples e igual ao padrão Uber/Glovo: estafeta = Início (mapa/online), Ganhos, Pedidos/Histórico, Conta; parceiro = Pedidos, Menu/Produtos, Ganhos, Loja. Nada de funções escondidas em menus de 3 pontos; tudo o que já existe continua a existir. PT-PT. Prova no emulador, nos dois papéis.
+
+## BLOCO G — Check-in diário, a fundo (visual, fluxo e regras)
+Passo 1, pesquisa (agentes com web): como fazem Duolingo (sequência, protetor), Shopee/Temu/Shein/AliExpress (check-in com moedas), Starbucks, McDonald's app, Too Good To Go, iFood/Rappi/Glovo. Guardar o resumo no livro (pesquisa-checkin-2026-11-10) com o que copiamos e o que não.
+Passo 2, estado real por SELECT: escada de 30 dias de 04/11 (salgados Keli dia 14, açaí Goola dia 19, hambúrguer do mês da Boom dia 28, limpeza/lavagem dia 30; não-parceiras e descontos preparados), quem tem o quê, o que custa.
+Passo 3, regras (decididas pelo Claude.ai por ordem do Danilo; todas com interruptor e explicação no painel PT-BR):
+R1. Tokens diários ficam como estão (5,5,10,10,15,15,40) e são para todos.
+R2. TODO prémio (produto, desconto ou serviço) só desbloqueia com 1 pedido pago nos últimos 30 dias (corrida não conta enquanto o Bora Motorista estiver fechado). Sem pedido: o prémio fica guardado, "Falta 1 pedido para desbloquear", e desbloqueia sozinho quando comprar. Usa o mecanismo de espera que o dia 30 já usa (checkin_vale_emitir / checkin_premios_manutencao). Quem já levantou não perde. Os prémios guardados da Cláudia e do Paulo Furtado passam a esperar pelo pedido.
+R3. Um prémio por sequência (regra de 29/10): ao chegar a um marco, ecrã de festa com o prémio em grande (foto real e nome) e dois botões: "Quero este" e "Continuar para o próximo" (mostra a foto do próximo e quantos dias faltam). Escolheu "Quero este" → sequência volta ao dia 1. Não tocou em nada → fica guardado e continua.
+R4. "A melhor sugestão": a app sugere um prémio só — o mais valioso a que a pessoa já chegou e, entre iguais, a loja onde ela mais pediu. Sem lista comprida.
+R5. Perdão: 1 dia falhado perdoado por mês, só para quem tem pedido pago nos últimos 30 dias, com aviso "Usámos o teu perdão deste mês". Sem compra não há perdão.
+R6. Tecto de custo mensal dos prémios no painel (o que existe), com aviso ao Danilo aos 80%.
+R7. Os 6 degraus de desconto (Continente, Mercadona): acabar o que falta (create_order com o vale, vale devolvido ao cancelar — docs/propostas/PROPOSTA_20261104*), provar em dinheiro no emulador e deixar DESLIGADOS como ele mandou; liga quando ele disser.
+R8. Lembrete diário à hora a que a pessoa costuma abrir a app; pára depois de falhar (regra de 18/10).
+Passo 4, visual: caminho/escada bonita com os 30 dias, foto real de cada prémio, o dia de hoje a brilhar, barra "faltam X dias para o açaí", confetes ao fazer check-in e festa nos marcos, cartão na home com a faixa dos 7 dias e seta para o mês. Cores e fonte do Bora; nunca alterar fotos reais dos produtos; o prémio da loja usa a foto da loja. Juiz de visão antes de dar por pronto (ver Bloco H) e golden tests.
+Passo 5, painel admin: escada editável, quem está em que dia, prémios guardados/à espera/levantados, custo do mês, interruptores de R2 a R8. Prova: contas de teste a percorrer a escada no emulador (com e sem pedido pago), web e Android; iPhone pelo simulador do CI.
+
+## BLOCO H — Juiz e robôs: Claude primeiro, grátis de reserva (item 13)
+Porquê: o projeto Google do juiz (bora-juiz) tem a conta de pagamento vencida e o juiz de visão dá erro 402; o Danilo não quer pagar mais Google aí. O quê: vision_judge.py, fiscal de arte, robô de documentos, ocr-receipt e o que mais ainda chamar o Gemini do bora-juiz passam a usar PRIMEIRO a API do Claude (crédito mensal do plano, o modelo mais barato que veja imagens e chegue) e, se falhar ou acabar o crédito, a rotação grátis (OmniRoute / motores grátis). Regra dele de 01/11: a API é só para os robôs, não para o Claude Code. Não pôr pagamento novo em nenhum projeto Google. Painel/registo: quanto cada robô gastou por dia (ia_gastos). Voz do Amigo pelo servidor: sem faturação Google não liga. Ver se há caminho grátis e bom em pt-PT (o edge-tts que o porteiro já usa na VPS); se a prova no telemóvel real ficar boa, liga; senão fica a voz do aparelho e regista. Chave do Google Maps sem restrição (AIzaSyBY…, em web/index.html e no AndroidManifest): descobrir em que conta Google vive (as duas contas dele, pelo Chrome, só a ver). Se for nossa: restringir (web por domínio, Android por pacote + SHA-1) com o Danilo a carregar no Guardar. Se não se achar: relatório com o risco numa linha. Não desligar APIs do Maps (o código usa-as).
+
+## BLOCO I — Hermes 0.23 e fila presa (VPS)
+1. Fila de ordens do Hermes presa na ordem antiga ordem-20260811151105-c2f0-aprovado (estado "respondida"): fechar essa ordem para a fila andar e provar com uma ordem de teste verde. Corrigir o comando pc (IP velho 100.71.105.7 → 100.75.79.116).
+2. Motores do Hermes: ontem a tarefa 1710 falhou com "todos os fornecedores falharam para perfil:raciocinio". Ver o que está pausado/castigado e repor a rotação a funcionar (Claude API primeiro para os robôs, grátis de reserva).
+3. Hermes 0.17 → 0.23: cópia completa antes (contentor, volume /opt/data, configuração); subir num contentor ao lado; provar Telegram, porteiro, rondas e despacho; só então trocar; volta atrás pronta num comando. O painel continua fora da internet (só Tailscale com senha). Se a 0.23 partir alguma coisa que não se arruma em 30 min, volta à 0.17 e regista porquê.
+
+## BLOCO J — Missões para o Dipsy (motor grátis; o Dipsy está agora no filme)
+Lançar pelo DIPSY-MISSAO.cmd (worktree e e2e_log próprios), UMA de cada vez e sem parar o filme a meio de um passo: entram na fila por esta ordem e correm quando o filme chegar a um ponto de paragem do CONTINUAR.md; depois de cada uma, o filme retoma. Cada missão escrita em ficheiro em Desktop\Bora\prompts e no livro, com carta de autonomia, critério de pronto e "dúvida → pergunta ao Claude.ai na página duvidas-dipsy".
+J1. Em Dia da semana (fluxo em-dia-semana-2026-11-08): os blocos 2, 3 e 4 que ficaram por fazer — 7 publicações da semana, grupos do Facebook pelas regras da página emdia-grupos-facebook (máx. 4/dia, 1 por grupo por semana, parar ao 1.º aviso), defeitos pequenos da app web. O que precisar de Chrome pede ao Claude Code.
+J2. Em Dia, tarefa do radar (radar-tarefa-em-dia): calculadoras grátis no site — conferir as 3 que já existem (recibo-verde, seguranca-social, irs-do-mes), fazer "contrato vs recibos verdes", lembrete de emitir recibo, e os reels de mitos. Contas conferidas nas fontes oficiais.
+J3. Animação do estúdio (radar-tarefa-studio-animacao): registar e testar os caminhos grátis da página caminhos-animacao-filme dentro da própria missão do filme; resultado na página do filme.
+J4. CRM de WhatsApp para pequenas empresas (tarefa 1710 que o Hermes não fez): programa aberto e grátis (DeskcommCRM + ligação por QR), em contentor próprio na VPS, base no projeto Supabase grátis bora-crm-pmes (ref xmwqltqocytijzfqkfrh), atrás de HTTPS e senha; parar no ecrã do QR. Proibido gastar dinheiro, mandar mensagens ou tocar no Supabase do Bora. Marcar a tarefa 1710 do despacho como passada ao Dipsy.
+Hoje a guarda do Dipsy não o deixa publicar nem sair dos sites do Bora sem "sim" do Danilo no Telegram: escrever isso em cada missão e pedir os sins juntos, uma vez.
+
+## BLOCO K — Publicar nas 3 e fechar
+1. Gate do Juiz completo (anti_trapaca primeiro, analyze 0 erros, suíte verde no Flutter 3.41.2 do CI).
+2. Duas publicações: uma intermédia depois do Bloco A (Volta + KFC), outra no fim com o resto. Cada uma: Android (produção), web (app.boraguarda.com) e iPhone (enviar e submeter à Apple; se a 1.0.40 ainda estiver em revisão, a nova entra a seguir — não cancelar a que está em revisão sem necessidade). Atualizar ios/notas_de_versao.json (ontem ficou o texto antigo).
+3. Provar as 3: versão no ar, texto novo no main.dart.js da web, AAB aceite, build do iPhone VALID e estado da submissão lido de volta.
+4. Testes de pagamento sempre em DINHEIRO (o cartão só no modo de teste do Bloco C).
+5. bora-site: publicar o rodapé novo (empresa + Livro de Reclamações) e provar no ar.
+
+## FECHO
+- Relatório em TEXTO CORRIDO, curto, "fiz isto, falta isto", bloco a bloco, com os erros encontrados fora do scope e a lista exata do que ficou à espera de um clique do Danilo (com a página aberta). docs/relatorio-fechar-tudo-2026-11-10.md + Telegram pelo porteiro.
+- digest-2026-11-10-fechar-tudo no livro; nota no Obsidian; erros novos em erros-aprendidos (livro_aprender).
+- Enviar tudo para o servidor: git push origin autonomous-night-2026-04-29 (por sessão nova, na janela das travas).
+- /ctx doctor
+- /ctx stats
+

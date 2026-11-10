@@ -1,12 +1,15 @@
 /// Identidade legal de quem opera a Bora — fonte única na app.
 ///
-/// A Bora é operada por um empresário em nome individual (lei portuguesa).
-/// Estes dados aparecem no ecrã "Sobre / Informação legal" (cliente, estafeta
-/// e parceiro) e são os mesmos que já constam em `ios/NOTAS-AO-REVISOR.md` e
-/// `ios/CHECKLIST-APPLE.md`. Regra dos gémeos: **nunca** escrever outro NIF
-/// ou outra morada noutro sítio — quem precisar lê daqui.
+/// Desde 09/10/2026 a Bora é operada pela sociedade unipessoal
+/// "Danilo Fulfaro da Silva - Unipessoal Lda" (DL 24/2014, art. 4.º; RGPD,
+/// art. 13.º — identidade do prestador/responsável). Estes dados aparecem no
+/// ecrã "Sobre / Informação legal" (cliente, estafeta e parceiro). Regra dos
+/// gémeos: **nunca** escrever outro NIPC ou outra morada noutro sítio da app —
+/// quem precisar lê daqui.
 ///
-/// Missão ronda-fecho-2026-09-22, bloco D1.
+/// Missão ronda-fecho-2026-09-22, bloco D1; empresa em vez do empresário em
+/// nome individual na missão fechar-tudo-2026-11-10, bloco E1. O Bora
+/// Motorista (TVDE, fechado) tem textos próprios que não mudam aqui.
 library;
 
 class LegalIdentity {
@@ -14,9 +17,13 @@ class LegalIdentity {
 
   // ── Operador ───────────────────────────────────────────────────────────
   static const String appName = 'Bora';
-  static const String nome = 'Danilo Fulfaro da Silva';
-  static const String qualidade = 'empresário em nome individual';
-  static const String nif = '322151171';
+  static const String nome = 'Danilo Fulfaro da Silva - Unipessoal Lda';
+  static const String qualidade = 'sociedade unipessoal por quotas';
+
+  /// Número de identificação de pessoa coletiva (é o NIF da sociedade).
+  static const String nipc = '519686233';
+
+  /// Sede da sociedade.
   static const String morada = 'Rua do Torreão 14, 6300-610 Guarda, Portugal';
 
   // ── Contactos ──────────────────────────────────────────────────────────
@@ -46,11 +53,10 @@ class LegalIdentity {
   static const String caccdcNota = 'Competente para a Guarda';
   static const String caccdcUrl = 'https://www.centrodearbitragemdecoimbra.com';
 
-  static const String odrNome = 'Plataforma ODR da União Europeia';
-  static const String odrNota = 'Resolução de litígios em linha';
-  static const String odrUrl = 'https://ec.europa.eu/consumers/odr';
+  // A plataforma europeia de resolução de litígios em linha (ODR) fechou
+  // (Regulamento (UE) 2024/3228): o link saiu da app em 10/11/2026 (E2b).
 
-  // ── Livro de Reclamações Eletrónico ────────────────────────────────────
+  // ── Livro de Reclamações Eletrónico (DL 156/2005, art. 5.º-B) ─────────
   static const String livroReclamacoesUrl =
       'https://www.livroreclamacoes.pt/Inicio/';
 

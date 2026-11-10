@@ -867,10 +867,11 @@ class _OrderInfoCard extends StatelessWidget {
 // gémeos: o NIF e a morada da Bora só se escrevem num sítio. A leitura nunca
 // bloqueia o ecrã: sem resposta ou com erro, fica o nome da loja que o pedido
 // já traz e a linha da Bora.
+// [fechar-tudo-2026-11-10 · E1] A sociedade (NIPC e sede), já não o NIF
+// pessoal do empresário em nome individual.
 const String _kBoraIntermediaryLine =
     'Intermediário: ${LegalIdentity.appName} — ${LegalIdentity.nome}, '
-    '${LegalIdentity.qualidade}, NIF ${LegalIdentity.nif}, '
-    '${LegalIdentity.morada}';
+    'NIPC ${LegalIdentity.nipc}, sede ${LegalIdentity.morada}';
 
 class _SellerCard extends StatefulWidget {
   const _SellerCard({required this.order});

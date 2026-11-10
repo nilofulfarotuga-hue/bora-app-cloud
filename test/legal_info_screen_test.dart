@@ -37,10 +37,20 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Sobre / Informação legal'), findsOneWidget);
-    expect(find.textContaining('Danilo Fulfaro da Silva'), findsOneWidget);
-    expect(find.textContaining('322151171'), findsOneWidget);
+    // [fechar-tudo-2026-11-10 · E1] Desde 09/10/2026 opera a sociedade: o
+    // NIF pessoal saiu do ecrã, entra o NIPC e a sede.
+    expect(find.text('Danilo Fulfaro da Silva - Unipessoal Lda'),
+        findsOneWidget);
+    expect(find.textContaining('NIPC 519686233'), findsOneWidget);
+    expect(find.textContaining('Sede: Rua do Torreão 14, 6300-610 Guarda'),
+        findsOneWidget);
+    expect(find.textContaining('322151171'), findsNothing);
+    expect(find.textContaining('nome individual'), findsNothing);
     expect(find.textContaining('CNIACC'), findsOneWidget);
     expect(find.text('LIVRO DE RECLAMAÇÕES'), findsOneWidget);
+    // [E2b] A plataforma europeia ODR fechou (Reg. (UE) 2024/3228).
+    expect(find.textContaining('ODR'), findsNothing);
+    expect(find.textContaining('ec.europa.eu'), findsNothing);
   });
 
   testWidgets('cada linha pede o endereço certo (mailto, tel, https)',

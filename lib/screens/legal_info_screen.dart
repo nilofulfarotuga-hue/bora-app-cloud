@@ -87,7 +87,7 @@ class LegalInfoScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${LegalIdentity.nome}, ${LegalIdentity.qualidade}',
+                        LegalIdentity.nome,
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
@@ -95,9 +95,17 @@ class LegalInfoScreen extends StatelessWidget {
                           height: 1.4,
                         ),
                       ),
+                      Text(
+                        LegalIdentity.qualidade,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
                       SizedBox(height: Spacing.xs),
                       Text(
-                        'NIF ${LegalIdentity.nif}',
+                        'NIPC ${LegalIdentity.nipc}',
                         style: TextStyle(
                           fontSize: 14,
                           color: AppColors.textPrimary,
@@ -105,7 +113,7 @@ class LegalInfoScreen extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        LegalIdentity.morada,
+                        'Sede: ${LegalIdentity.morada}',
                         style: TextStyle(
                           fontSize: 14,
                           color: AppColors.textPrimary,
@@ -171,13 +179,6 @@ class LegalInfoScreen extends StatelessWidget {
                       '${_semEsquema(LegalIdentity.caccdcUrl)}',
                   onTap: () =>
                       _abrir(context, Uri.parse(LegalIdentity.caccdcUrl)),
-                ),
-                _LinhaLigacao(
-                  icone: Icons.public,
-                  titulo: LegalIdentity.odrNome,
-                  subtitulo: '${LegalIdentity.odrNota} · '
-                      '${_semEsquema(LegalIdentity.odrUrl)}',
-                  onTap: () => _abrir(context, Uri.parse(LegalIdentity.odrUrl)),
                 ),
               ],
             ),

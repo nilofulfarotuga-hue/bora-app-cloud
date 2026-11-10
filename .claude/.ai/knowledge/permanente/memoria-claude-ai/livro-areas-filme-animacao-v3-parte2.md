@@ -10,11 +10,11 @@ estado: atual
 
 # Continuação de filme-animacao a partir da 3.ª reprovação (31/08) — estado da produção v3 do Ep1 "A Semente da Luz" (parte 2 de 3 — continua em livro-areas-filme-animacao-v3-parte3)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-filme-animacao-v3-parte2`, origem `claude-ai`, atualizada em 2026-11-10T00:14:41.195506+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-filme-animacao-v3-parte2`, origem `claude-ai`, atualizada em 2026-11-10T02:16:57.734975+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas filme animacao v3 parte2 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/filme-animacao-v3.md, parte 2 de 3), copiada a 2026-11-10 00:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/filme-animacao-v3.md, parte 2 de 3), copiada a 2026-11-10 02:16 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ## 16/10 — 5.ª remessa (30/09→01/10) ficou sem imagens; ordem de missão dia-e-noite
 - [stated] 16/10: a última remessa "parou, disse que estava pronto, mas não tinha nenhuma imagem, nenhuma animação" (confirmado no Córtex: v4 de 01/10 = 6 min, 52 imagens paradas com zoom, 31 erros do juiz: Tailine de cabelo preto em 14 planos, Tabita sem flores e com voz de adulto, falas cortadas). Quer um prompt para a fábrica trabalhar dia e noite, dias seguidos, até o juiz não ter nada a apontar; acabou um limite → tenta outro grátis; aproveitar tudo o que presta (inclusive do que foi para o lixo); roteiro bem detalhado; mais agentes se precisar; animação com efeitos de ambiente (vento nas plantas, fumo, etc.); crianças humanizadas, nada robotizado nem "cara de IA"; vozes de criança bem animadas no estilo Turminha da Graça ("pode copiar e só fazer alguma diferença, eu assumo os riscos; não é para publicar, só para os conhecidos"); abertura perfeita e memorável, a mesma em todos os episódios, seguida do cartão com nome do episódio e versão; música que se quer ouvir de novo — o tema "Alguém Me Responde" cujo verso "Eu tenho uma dúvida desde que eu nasci" as filhas já cantam mantém-se e melhora; autorizou tudo ("eu dou permissão, eu autorizo fazer tudo, não quero fazer nada"); quis ser ELE a colar o prompt e que eu lhe dissesse o motor

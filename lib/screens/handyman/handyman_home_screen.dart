@@ -25,6 +25,7 @@ import 'handyman_disponibilidade_screen.dart';
 import 'handyman_documentos_screen.dart';
 import 'handyman_ganhos_screen.dart';
 import 'handyman_orcamento_screen.dart';
+import '../../widgets/aviso_dados_fiscais_em_falta.dart';
 import 'handyman_trabalho_screen.dart';
 
 /// CASA E MANUTENÇÃO — o painel do PROFISSIONAL (papel técnico `handyman`).
@@ -538,6 +539,10 @@ class _Painel extends StatelessWidget {
         padding: EdgeInsets.fromLTRB(Spacing.lg, Spacing.lg, Spacing.lg,
             BoraBottomActionBar.folgaInferior(context)),
         children: [
+          // [10/11/2026] Faltam dados para as Finanças (DAC7) — aviso, não bloqueia.
+          const AvisoDadosFiscaisEmFalta(
+              papel: 'casa', semComprovativo: true,
+              margem: EdgeInsets.only(bottom: Spacing.md)),
           if (ativo != null)
             InkWell(
               key: const Key('casa_trabalho_em_curso'),

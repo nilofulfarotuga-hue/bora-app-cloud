@@ -34,6 +34,16 @@
 // Também manda à PROFISSIONAL DE LIMPEZA o extrato do mês com os dados do recibo (RPC
 // fecho_mensal_prestadores; log em cleaner_monthly_statement_log) e salta a conta do próprio Danilo.
 // Publicada a 01/11/2026 (ordem do Danilo), sem disparo: o próximo envio é o reenvio de outubro com force:true.
+//
+// v4 (10/11/2026, missão fecho-contabilista-2026-11-10). Nota: a 10/11 o código no ar (v12 da plataforma) era
+// igual ao v3 do repo — a v3 estava publicada. Regras fechadas com o contabilista (Hugo Carvalho) a 10/11:
+//  - nada de "IVA isento art. 53.º" nem "sem retenção" fixos: uns prestadores são isentos e outros não; o
+//    regime de IVA e a retenção de cada um são confirmados pelo contabilista;
+//  - o adquirente (a quem o prestador fatura) vem da RPC driver_monthly_invoice_summary /
+//    fecho_mensal_prestadores (Danilo em nome individual até 10/2026, a sociedade desde 11/2026);
+//  - às lojas: a parte da Bora fatura-se aos clientes, a loja não recebe fatura da Bora;
+//  - TVDE fora do resumo.
+// NÃO reenviar outubro: o contabilista já o recebeu e decide ele como tratar.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { secretKey } from '../_shared/keys.ts'
@@ -363,12 +373,10 @@ function htmlEstafeta(e, nomeMes, adquirente, tipo, extra) {
     (forte ? ';font-weight:800;color:' + GREEN : '') + '">' + b + '</td></tr>'
   const adq = adquirente ?? {}
   const unidade = tipo === 'limpezas' ? 'limpezas' : 'entregas'
-  const nomeAdq = adq.nome || e.cliente || 'Consumidor final'
+  // v4: o adquirente vem sempre da RPC do mês (nunca "Consumidor final"); IVA e retenção sem regra fixa.
+  const nomeAdq = adq.nome || e.cliente || ''
   const nifAdq = adq.nif || e.cliente_nif || ''
   const moradaAdq = adq.morada || ''
-  const retencao = adq.retencao || (adq.tipo === 'sociedade'
-    ? 'Retenção na fonte de IRS, salvo dispensa (até 15.000 €/ano)'
-    : 'Sem retenção (quem paga é um particular sem contabilidade organizada)')
   const descricao = 'Serviços prestados em ' + nomeMes + ' de ' + e.ano + ' através da plataforma Bora' +
     (e.entregas ? ' (' + e.entregas + ' ' + unidade + ')' : '')
   const aviso = (!e.nif || !e.atividade_aberta)
@@ -394,14 +402,13 @@ function htmlEstafeta(e, nomeMes, adquirente, tipo, extra) {
     '<div style="opacity:.9">O seu recibo verde de ' + esc(nomeMes) + ' de ' + e.ano + '</div></div>' +
     '<div style="border:1px solid #eee;border-top:0;border-radius:0 0 12px 12px;padding:20px">' +
     '<p style="margin:0 0 12px">Olá <b>' + esc(e.nome) + '</b>, em ' + esc(nomeMes) + ' fez <b>' + esc(e.entregas ?? 0) + '</b> ' + unidade + ' pela Bora e ganhou <b>' + eur(e.total_a_faturar) + '</b>. ' +
-    'Para ficar tudo certo nas Finanças, passe uma fatura-recibo (recibo verde) no Portal das Finanças com estes dados:</p>' +
+    'Cada um fatura a sua parte: passe a fatura-recibo (recibo verde) do que ganhou no Portal das Finanças com estes dados:</p>' +
     '<table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:12px">' +
     linha('Valor', eur(e.total_a_faturar), true) +
-    linha('Passar a (adquirente)', esc(nomeAdq)) +
+    (nomeAdq ? linha('Passar a (adquirente)', esc(nomeAdq)) : '') +
     (nifAdq ? linha('NIF do adquirente', esc(nifAdq)) : '') +
     (moradaAdq ? linha('Morada do adquirente', esc(moradaAdq)) : '') +
-    linha('IVA', 'Isento, art. 53.º do CIVA (se estiver nesse regime; se cobra IVA, acrescente 23%)') +
-    linha('Retenção de IRS', esc(retencao)) +
+    linha('IVA e retenção de IRS', 'Dependem do seu regime nas Finanças (há quem seja isento de IVA e quem não seja); o contabilista da Bora confirma consigo.') +
     '</table>' +
     detalhe +
     '<p style="font-size:13px;color:#555;margin:0 0 4px">Descrição para copiar:</p>' +
@@ -434,7 +441,7 @@ function htmlParceiro(x) {
     '<table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:12px">' +
     '<tr><td>Pedidos entregues</td><td style="text-align:right;font-weight:700">' + (t.pedidos ?? 0) + '</td></tr>' +
     '<tr><td>Vendas</td><td style="text-align:right">' + eur(t.vendas) + '</td></tr>' +
-    '<tr><td>Comissão Bora</td><td style="text-align:right;color:#B45309">−' + eur(t.comissao) + '</td></tr>' +
+    '<tr><td>Parte da Bora</td><td style="text-align:right;color:#B45309">−' + eur(t.comissao) + '</td></tr>' +
     '<tr><td style="font-weight:700">A sua parte</td><td style="text-align:right;font-weight:800;color:' + GREEN + '">' + eur(t.parte_loja) + '</td></tr>' +
     '<tr><td>Pago no mês (acertos semanais)</td><td style="text-align:right">' + eur(x.total_pago_no_mes) + '</td></tr>' +
     '<tr><td style="font-weight:700">Saldo</td><td style="text-align:right;font-weight:800">' + eur(x.saldo) + '</td></tr>' +
@@ -445,7 +452,8 @@ function htmlParceiro(x) {
     linhas + '</table>' +
     '<h3 style="font-size:15px;margin:18px 0 6px">Acertos semanais</h3>' +
     '<table style="width:100%;border-collapse:collapse;font-size:13px">' + (acertos || '<tr><td style="color:#999">Sem acertos neste mês.</td></tr>') + '</table>' +
-    '<p style="font-size:12px;color:#777;margin-top:18px">Também pode ver e descarregar este extrato na app, em Ganhos → Este mês.</p>' +
+    '<p style="font-size:12px;color:#777;margin-top:18px">A loja fatura o balcão aos clientes como sempre. A parte da Bora é faturada pela Bora diretamente aos clientes: a loja não recebe fatura da Bora nem passa fatura à Bora.</p>' +
+    '<p style="font-size:12px;color:#777;margin-top:8px">Também pode ver e descarregar este extrato na app, em Ganhos → Este mês.</p>' +
     '<p style="font-size:11px;color:#999;margin-top:12px">Bora App · extrato mensal automático</p></div></div>'
 }
 
@@ -466,13 +474,12 @@ function htmlAdmin(f, resultados, estafetas) {
     '<p>Pedidos entregues: <b>' + t.pedidos_entregues + '</b> · Pago pelos clientes: <b>' + eur(t.pago_pelos_clientes) + '</b><br>' +
     'Mercadoria: ' + eur(t.custo_mercadoria) + ' · Receita própria: <b>' + eur(t.receita_propria_bora) + '</b><br>' +
     'Estafetas: ' + eur(t.pago_a_estafetas) + ' · Lucro: <b>' + eur(t.lucro) + '</b><br>' +
-    'Limpezas: ' + eur((f.limpeza_totais ?? {}).pago_pelos_clientes) + ' · Taxa Bora limpezas: <b>' + eur(fin.receita_limpeza) + '</b><br>' +
-    'TVDE de outros motoristas (parte Bora, fora da declaração): ' + eur(fin.parte_bora_tvde_outros) + '</p>' +
-    '<h3>Para as Finanças</h3><p style="line-height:1.5">' + esc(fin.texto) + '</p>' +
-    '<p>Total a declarar: <b>' + eur(fin.total_a_declarar) + '</b></p>' +
-    '<h3>Faturas-recibo a emitir</h3><ul>' + fat + '</ul>' +
+    'Limpezas: ' + eur((f.limpeza_totais ?? {}).pago_pelos_clientes) + ' · Taxa Bora limpezas: <b>' + eur(fin.receita_limpeza) + '</b></p>' +
+    '<h3>Para o contabilista</h3><p style="line-height:1.5">' + esc(fin.texto) + '</p>' +
+    '<p>Receita própria da Bora: <b>' + eur(fin.total_a_declarar) + '</b></p>' +
+    '<h3>Faturação da parte da Bora (emitida pelo escritório do contabilista)</h3><ul>' + fat + '</ul>' +
     (prej ? '<h3 style="color:#B45309">Pedidos no prejuízo</h3><ul>' + prej + '</ul>' : '') +
     (ext ? '<h3>Extratos às lojas</h3><ul>' + ext + '</ul>' : '') +
-    (est ? '<h3>Recibos verdes aos prestadores (estafetas e limpeza)</h3><ul>' + est + '</ul>' : '') +
+    (est ? '<h3>Resumos do mês aos prestadores (estafetas e limpeza)</h3><ul>' + est + '</ul>' : '') +
     '<p style="font-size:11px;color:#999">Bora App · fecho mensal · detalhe em /admin/fecho-mensal</p></div>'
 }

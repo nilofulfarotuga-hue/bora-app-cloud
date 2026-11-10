@@ -1,7 +1,9 @@
 // M10 b2-nif (09/11/2026) — painel admin (PT-BR) do NIF no caixa:
 //  - linha "NIF na caixa" na ficha do pedido (AdminFaturaNifSection.pedido);
-//  - ecrã "NIF nas compras": 7/30 dias, "só os não dados", CSV e o NIF da
-//    Bora (setting nif_compras_nao_parceiro) com validação.
+//  - ecrã "NIF nas compras": 7/30 dias, "só os não dados" e CSV.
+// Regra de 10/11/2026 (Danilo, fechada com o contabilista): só o NIF do CLIENTE
+// vai no caixa; sem NIF do cliente o talão é consumidor final. O NIF da Bora
+// saiu do sistema (o cartão e o editor dele saíram do ecrã).
 import 'package:bora_app/screens/admin/admin_menu_registry.dart';
 import 'package:bora_app/screens/admin/admin_nif_compras_screen.dart';
 import 'package:bora_app/widgets/admin/admin_fatura_nif_section.dart';
@@ -9,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Map<String, dynamic> _linha(String id,
-        {bool? dado, String? motivo, String tipo = 'bora', String? cliente}) =>
+        {bool? dado, String? motivo, String tipo = 'cliente', String? cliente}) =>
     {
       'order_id': id,
       'criado_em': '2026-11-08T18:30:00Z',
@@ -17,7 +19,7 @@ Map<String, dynamic> _linha(String id,
       'cliente': cliente,
       'estado': 'delivered',
       'tipo': tipo,
-      'nif': tipo == 'bora' ? '519686233' : '265148502',
+      'nif': tipo == 'cliente' ? '265148502' : '519686233',
       'dado': dado,
       'motivo': motivo,
       'confirmado_em': dado == null ? null : '2026-11-08T18:50:00Z',
@@ -40,14 +42,21 @@ void main() {
           t({
             'ok': true,
             'mostrar': true,
-            'tipo': 'bora',
-            'nif': '519686233',
+            'tipo': 'cliente',
+            'nif': '265148502',
             'confirmado': {'dado': false, 'motivo': 'A loja não aceitou'},
           }),
-          'NIF na caixa (o que o entregador deu no caixa): 519 686 233 — da Bora — não dado: A loja não aceitou');
+          'NIF na caixa (o que o entregador deu no caixa): 265 148 502 — do cliente — não dado: A loja não aceitou');
+      // 10/11/2026: o NIF da Bora nunca vai no caixa — mesmo que um servidor
+      // antigo o devolva, a linha não o mostra.
+      expect(
+          t({'ok': true, 'mostrar': true, 'tipo': 'bora', 'nif': '519686233'}),
+          isNull);
       expect(
           t({'ok': true, 'mostrar': true, 'pediu_fatura': false, 'nif': '519686233'}),
-          'NIF na caixa (o que o entregador deu no caixa): 519 686 233 — da Bora — ainda não confirmado');
+          isNull);
+      expect(t({'ok': true, 'mostrar': false, 'motivo': 'cliente_sem_nif'}),
+          'NIF na caixa: o cliente não pediu fatura com NIF — talão consumidor final.');
       expect(t({'ok': true, 'mostrar': false, 'loja_parceira': true}),
           'NIF na caixa: não se aplica (loja parceira — quem emite a fatura é a loja).');
       expect(t({'ok': true, 'mostrar': false, 'motivo': 'favor_sem_compra'}), isNull);
@@ -66,8 +75,8 @@ void main() {
         carregarCaixa: () async => {
           'ok': true,
           'mostrar': true,
-          'tipo': 'bora',
-          'nif': '519686233',
+          'tipo': 'cliente',
+          'nif': '265148502',
           'confirmado': {'dado': true},
         },
       )));
@@ -75,8 +84,9 @@ void main() {
       expect(find.text('Sem NIF (consumidor final).'), findsOneWidget);
       expect(
           find.text(
-              'NIF na caixa (o que o entregador deu no caixa): 519 686 233 — da Bora — dado ✓'),
+              'NIF na caixa (o que o entregador deu no caixa): 265 148 502 — do cliente — dado ✓'),
           findsOneWidget);
+      expect(find.textContaining('da Bora'), findsNothing);
     });
 
     testWidgets('função ainda fora do servidor: a linha não aparece e o resto funciona',
@@ -119,22 +129,21 @@ void main() {
               _linha('a3'),
             ];
           },
-          lerNifBora: () async => '"519686233"',
-          definirNifBora: (_) async {},
         ),
       ));
       await t.pumpAndSettle();
 
       expect(pedidos, [7], reason: 'abre nos últimos 7 dias');
-      expect(find.text('NIF da Bora: 519 686 233'), findsOneWidget);
+      expect(find.byKey(const Key('admin_nif_bora_cartao')), findsNothing,
+          reason: 'o NIF da Bora saiu do sistema a 10/11');
       expect(
           find.text(
               '3 compras · 1 com NIF dado · 1 não dados · 1 sem resposta'),
           findsOneWidget);
-      expect(find.text('NIF 519 686 233 (da Bora) — Dado ✓'), findsOneWidget);
+      expect(find.text('NIF 265 148 502 (do cliente) — Dado ✓'), findsOneWidget);
       expect(find.text('NIF 265 148 502 (do cliente) — Não dado: Esqueci-me'),
           findsOneWidget);
-      expect(find.text('NIF 519 686 233 (da Bora) — Ainda não confirmado'),
+      expect(find.text('NIF 265 148 502 (do cliente) — Ainda não confirmado'),
           findsOneWidget);
 
       await t.tap(find.byKey(const Key('admin_nif_so_nao_dados')));
@@ -161,32 +170,17 @@ void main() {
       expect(NifCompraLinha.deMapa(_linha('a1', dado: true)).problema, isFalse);
     });
 
-    testWidgets('editar o NIF da Bora: inválido avisa, válido vai ao servidor',
+    testWidgets('sem NIF da Bora: nem cartão nem editor, e a regra escrita',
         (t) async {
-      final gravados = <String>[];
       await t.pumpWidget(MaterialApp(
-        home: AdminNifComprasScreen(
-          listar: (_) async => const [],
-          lerNifBora: () async => '519686233',
-          definirNifBora: (nif) async => gravados.add(nif),
-        ),
+        home: AdminNifComprasScreen(listar: (_) async => const []),
       ));
       await t.pumpAndSettle();
       expect(find.text('Nada nestes dias.'), findsOneWidget);
-
-      await t.tap(find.byKey(const Key('admin_nif_bora_editar')));
-      await t.pumpAndSettle();
-      await t.enterText(find.byKey(const Key('admin_nif_bora_campo')), '123456788');
-      await t.tap(find.byKey(const Key('admin_nif_bora_salvar')));
-      await t.pumpAndSettle();
-      expect(find.text('NIF inválido (o dígito de controle não bate).'),
+      expect(find.byKey(const Key('admin_nif_bora_cartao')), findsNothing);
+      expect(find.byKey(const Key('admin_nif_bora_editar')), findsNothing);
+      expect(find.textContaining('Sem NIF do cliente o talão é consumidor final'),
           findsOneWidget);
-      expect(gravados, isEmpty);
-
-      await t.enterText(find.byKey(const Key('admin_nif_bora_campo')), '123 456 789');
-      await t.tap(find.byKey(const Key('admin_nif_bora_salvar')));
-      await t.pumpAndSettle();
-      expect(gravados, ['123456789']);
     });
 
     testWidgets('sem a migração no servidor: aviso claro', (t) async {
@@ -194,8 +188,6 @@ void main() {
         home: AdminNifComprasScreen(
           listar: (_) async =>
               throw Exception('PGRST202 Could not find the function'),
-          lerNifBora: () async => null,
-          definirNifBora: (_) async {},
         ),
       ));
       await t.pumpAndSettle();

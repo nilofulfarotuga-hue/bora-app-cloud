@@ -494,3 +494,10 @@ envio git passou nas sessões novas (a orquestradora, aberta antes, continuou co
   também não dá: o guardrail de git do PC só deixa enviar para `autonomous-night-2026-04-29`. O código ficou só no
   PC (worktree `bridge-cse_01HPEpVAGPaiWDPnrbGwZxmL`, ramo `zerar-2026-11-02`); publicar =
   `git push origin zerar-2026-11-02:autonomous-night-2026-04-29` corrido pelo Danilo ou numa sessão com licença.
+- **10/11/2026 ~16:30, missão `fecho-contabilista-2026-11-10`** — a bora-tranca (parte B, "publicar → Claude.ai")
+  recusou o `Write` de `supabase/migrations/20261110163000_fecho_contabilista_regras_hugo_2026_11_10.sql`
+  ("migration que toca tokens/wallet/pagamentos/ledger" — só lê `bora_tokens` e `ledger_entries` para o fecho) e
+  nega nesta sessão migration/DDL, deploy de Edge e envio fora de `ai/`. Não se contornou: o SQL ficou como proposta
+  em `docs/propostas/fecho-contabilista-2026-11-10/` (01 fecho, 02 segurança URGENTE, 03 NIF), provado no PGlite com
+  dados reais (42 verificações), e a publicação está em `LEIA-ME_PUBLICAR.md` para a Claude.ai. Também recusou um
+  `rm -rf build/unit_test_assets 2>/dev/null` (leu o `2>/dev/null` como caminho fora de `build/`); não foi preciso repetir.

@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
+import '../../widgets/admin/admin_fecho_contabilista_section.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import 'admin_order_detail_screen.dart';
 import 'faturas_bora_semana.dart';
@@ -457,7 +458,6 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
     final fin = _mapa(f['para_as_financas']);
     final metodo = _mapa(t['por_metodo']);
     final serv = _mapa(f['servicos_totais']);
-    final tvde = _mapa(f['tvde_outros_motoristas']);
     final mand = _mapa(f['modelo_a_partir_de_2026_10']);
     return [
       _secao('Resumo do mês', [
@@ -477,8 +477,7 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
         _linha('Marcações (serviços)', '${serv['marcacoes'] ?? 0} · ${_eur(serv['pago_pelos_clientes'])}'),
         _linha('Serviços: Bora reteve', _eur(serv['bora_reteve'])),
         _linha('Serviços: taxa Stripe', _eur(serv['taxa_stripe'])),
-        _linha('TVDE de outros motoristas (parte Bora)',
-            '${_eur(tvde['parte_bora'])} · ${tvde['corridas'] ?? 0} corridas'),
+        // 10/11/2026: o TVDE está fora da plataforma e não entra no fecho.
       ]),
       _secao('Para as Finanças', [
         Text((fin['regime'] ?? '').toString(),
@@ -498,9 +497,9 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
         const SizedBox(height: 8),
         for (final e in _mapa(fin['rubricas']).entries)
           _linha(_nomeRubrica(e.key), _eur(e.value)),
-        _linha('Total a declarar', _eur(fin['total_a_declarar']), forte: true),
+        _linha('Receita própria da Bora (total)', _eur(fin['total_a_declarar']), forte: true),
         const SizedBox(height: 8),
-        const Text('Faturas-recibo a emitir',
+        const Text('Faturação da parte da Bora (emitida pelo escritório do contabilista)',
             style: TextStyle(fontWeight: FontWeight.w700)),
         for (final x in _lista(fin['faturas_recibo']))
           ListTile(
@@ -530,6 +529,10 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
           ),
         ),
       ]),
+      // 10/11/2026 (missão fecho-contabilista): o mesmo conteúdo que vai ao
+      // contabilista, com copiar, CSV, nota do Danilo e reenviar.
+      AdminFechoContabilistaSection(
+          key: ValueKey('fecho_contabilista_$_ano-$_mes'), ano: _ano, mes: _mes),
       _secao('Parceiros', [
         for (final p in _lista(f['parceiros'])) _parceiro(p),
         if (_lista(f['parceiros']).isEmpty) _nota('Nenhuma loja parceira com pedidos neste mês.'),
@@ -760,9 +763,12 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
         'taxa_servico' => 'Taxa de serviço',
         'sacos' => 'Sacos',
         'taxa_pedido_pequeno' => 'Taxa de pedido pequeno',
-        'comissao_lojas_parceiras' => 'Comissão das lojas parceiras',
+        // 10/11/2026: a parte da Bora nas lojas parceiras fatura-se aos clientes,
+        // nunca às lojas — por isso "parte da Bora", não "comissão".
+        'comissao_lojas_parceiras' => 'Parte da Bora nas lojas parceiras',
         'margem_nao_parceiros' => 'Margem dos não-parceiros',
-        'ajustes_descontos' => 'Ajustes e descontos (tokens/carteira)',
+        'tokens_descontados' => 'Tokens descontados aos clientes',
+        'ajustes_descontos' => 'Ajustes',
         'estafetas' => 'estafetas',
         'lojas_parceiras' => 'lojas parceiras',
         'mercadoria_nao_parceiros' => 'mercadoria (não-parceiros)',

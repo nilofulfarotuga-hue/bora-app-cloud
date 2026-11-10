@@ -3,12 +3,13 @@
 // obrigatória "Dei este NIF na caixa e está no talão" (ou "Não consegui" com
 // motivo) nas folhas do talão (compras e Favor com compra).
 //
-// Regra do Danilo (04/11 e 08/11): "Não pode esquecer do NIF". Na caixa da
-// loja o estafeta dá SEMPRE um NIF: o que o cliente pediu na fatura; sem
-// pedido de fatura, o da Bora (setting `nif_compras_nao_parceiro`). Nunca
-// "consumidor final". O NIF e se aparece vêm do servidor (RPC
-// `driver_order_invoice_nif`, migração 20261109005413_m10_nif_na_caixa.sql) —
-// a app não decide nada.
+// Regra do Danilo (10/11/2026, fechada com o contabilista; substitui a de
+// 04/11 e 08/11): o estafeta só dá NIF na caixa quando o CLIENTE pediu fatura
+// com NIF. Sem NIF do cliente o talão é consumidor final e o cartão não
+// aparece. O NIF da Bora nunca vai na caixa (foi tirado do sistema a 10/11).
+// O NIF e se aparece vêm do servidor (RPC `driver_order_invoice_nif` →
+// `_nif_caixa_regra`) — a app não decide nada; por cautela, mesmo que um
+// servidor antigo devolva outro NIF, o cartão só aparece se for do cliente.
 //
 // Na loja parceira (a loja trata da fatura), num erro, sem rede ou com a função
 // ainda fora do servidor, o cartão não aparece e a caixa não trava nada (nunca
@@ -27,6 +28,12 @@ import '../utils/nif_pt.dart';
 /// Chamada a uma função do servidor (injetável nos testes).
 typedef NifRpc = Future<dynamic> Function(
     String funcao, Map<String, dynamic> params);
+
+/// 10/11/2026: o NIF que o estafeta dá na caixa só pode ser o do CLIENTE
+/// (pediu fatura com NIF). Qualquer outro (ex.: o da Bora, de um servidor
+/// antigo) não se mostra nem obriga a caixa.
+bool nifEDoCliente(Map<dynamic, dynamic> d) =>
+    d['tipo'] == 'cliente' || d['pediu_fatura'] == true;
 
 Future<dynamic> _rpcSupabase(String funcao, Map<String, dynamic> params) =>
     Supabase.instance.client.rpc(funcao, params: params);
@@ -239,6 +246,7 @@ class _DriverInvoiceNifCardState extends State<DriverInvoiceNifCard> {
       if (res is Map &&
           res['ok'] == true &&
           res['mostrar'] == true &&
+          nifEDoCliente(res) &&
           soDigitosNif(res['nif']?.toString()).isNotEmpty) {
         setState(() {
           _dados = Map<String, dynamic>.from(res);
@@ -301,8 +309,7 @@ class _DriverInvoiceNifCardState extends State<DriverInvoiceNifCard> {
     final d = _dados;
     if (d == null) return const SizedBox.shrink();
     final nif = soDigitosNif(d['nif']?.toString());
-    if (nif.isEmpty) return const SizedBox.shrink();
-    final doCliente = d['tipo'] == 'cliente' || d['pediu_fatura'] == true;
+    if (nif.isEmpty || !nifEDoCliente(d)) return const SizedBox.shrink();
     final nome = (d['nome'] as String? ?? '').trim();
     return Container(
       key: const Key('driver_invoice_nif_card'),
@@ -352,13 +359,11 @@ class _DriverInvoiceNifCardState extends State<DriverInvoiceNifCard> {
               ),
             ],
           ),
-          Text(
-            doCliente
-                ? 'Do cliente — pediu fatura'
-                : 'Da Bora — o cliente não pediu fatura',
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          const Text(
+            'Do cliente — pediu fatura',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           ),
-          if (doCliente && nome.isNotEmpty) ...[
+          if (nome.isNotEmpty) ...[
             const SizedBox(height: 2),
             Text(
               'Nome na fatura: $nome',

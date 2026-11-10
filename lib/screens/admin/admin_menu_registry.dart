@@ -97,6 +97,7 @@ import 'admin_ratings_screen.dart';
 import 'admin_receipts_screen.dart';
 import 'admin_taloes_screen.dart';
 import 'admin_nif_compras_screen.dart';
+import 'admin_dados_fiscais_screen.dart';
 import 'admin_referrals_screen.dart';
 import 'admin_reservations_config_screen.dart';
 import 'admin_reservations_metrics_screen.dart';
@@ -527,12 +528,26 @@ List<AdminMenuSection> adminMenuSections() => [
         'fatura', 'factura', 'nif', 'foto', 'fotos', 'drive', 'papel fiscal', 'sem talao', 'sem talão',
       ],
     ),
+    // 10/11/2026 (missão fecho-contabilista, bloco C): DAC7 — o que falta a
+    // cada prestador e loja para o contabilista comunicar.
+    AdminMenuItem(
+      id: 'dinheiro_dados_fiscais_dac7',
+      title: 'Dados fiscais (DAC7)',
+      subtitle: 'Nome legal, NIF, morada, data de nascimento, IBAN (sim/não) e comprovativo de atividade de entregadores, limpeza, Casa, lavagem e lojas parceiras; filtro "só em falta" e CSV',
+      icon: Icons.assignment_ind_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminDadosFiscaisScreen(),
+      keywords: const [
+        'dac7', 'fiscal', 'fiscais', 'nif', 'iban', 'morada', 'data de nascimento', 'contabilista',
+        'prestadores', 'estafetas', 'limpeza', 'casa', 'lojas', 'em falta', 'documentos',
+      ],
+    ),
     // M10 09/11/2026 (b2-nif): o NIF que o entregador dá no caixa nas compras
-    // de loja não parceira e Favores — do cliente ou da Bora — e se deu.
+    // de loja não parceira e Favores — desde 10/11 só o do cliente — e se deu.
     AdminMenuItem(
       id: 'dinheiro_nif_nas_compras',
       title: 'NIF nas compras',
-      subtitle: 'O NIF que o entregador dá no caixa (do cliente ou da Bora) nas lojas não parceiras e Favores, se deu ou não e porquê; 7/30 dias, CSV e o NIF da Bora',
+      subtitle: 'O NIF do cliente que o entregador dá no caixa (só quando o cliente pediu fatura com NIF; sem NIF é consumidor final) nas lojas não parceiras e Favores, se deu ou não e porquê; 7/30 dias e CSV',
       icon: Icons.badge_outlined,
       color: AppColors.primary,
       builder: () => const AdminNifComprasScreen(),

@@ -22,7 +22,7 @@ Map<String, dynamic> _foto(String pedido, int cents, {String recebida = '2026-11
       'payment_method': 'cash',
       'driver_uid': 'u-ana',
       'estafeta': 'Ana Estafeta',
-      'nif': {'nif': '519686233', 'origem': 'bora'},
+      'nif': {'nif': null, 'origem': 'consumidor_final'},
     };
 
 void main() {

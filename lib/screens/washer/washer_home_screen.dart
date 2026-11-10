@@ -19,6 +19,7 @@ import '../../stores/washer_store.dart';
 import '../../utils/safe_image_picker.dart';
 import '../prestador/conta_suspensa_screen.dart';
 import '../shared/carwash_chat_screen.dart';
+import '../../widgets/aviso_dados_fiscais_em_falta.dart';
 import 'washer_pickup_photos_screen.dart';
 
 /// LAVAGEM AUTO — ecrã do lavador.
@@ -258,6 +259,10 @@ class _WasherHomeScreenState extends State<WasherHomeScreen> {
             AvisoAtividadeBanner(
                 margem: const EdgeInsets.only(bottom: Spacing.md),
                 emCandidatura: !store.isApproved),
+            // [10/11/2026] Faltam dados para as Finanças (DAC7) — aviso, não bloqueia.
+            const AvisoDadosFiscaisEmFalta(
+                papel: 'lavagem', semComprovativo: true,
+                margem: EdgeInsets.only(bottom: Spacing.md)),
             // Missão m2 (08/11/2026): lavagem aceite para outro dia.
             const ProximoTrabalhoCard(
                 categoria: 'lavagem', margem: EdgeInsets.only(bottom: Spacing.md)),

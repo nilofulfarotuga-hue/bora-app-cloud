@@ -20,6 +20,20 @@
 // da declaração; a mercadoria das lojas não é receita da Bora.
 //
 // Corpo aceite: { year, month } (por defeito o mês anterior em Lisboa) · { force: true } · { cron: true } · { ping: true }
+//   · { dry_run: true } → monta tudo e devolve { assunto, html, texto, resumo } SEM enviar e SEM gravar no log.
+//
+// v2 (10/11/2026, missão fecho-contabilista-2026-11-10 — regras fechadas com o Hugo Carvalho a 10/11):
+//  - as faturas da Bora são emitidas pelo escritório do contabilista; a parte da Bora nas lojas parceiras
+//    fatura-se aos CLIENTES (consumidor final ou NIF do cliente), nunca às lojas;
+//  - cada prestador fatura a sua parte; o regime de IVA e a retenção de cada um são confirmados pelo
+//    contabilista (nada de "recibo verde ao adquirente" nem IVA/retenção fixos);
+//  - o TVDE está fora da plataforma e não entra no fecho;
+//  - secções novas (RPC admin_fecho_contabilista): tokens oferecidos e descontados, códigos promocionais,
+//    prémios do check-in, cancelados e reembolsos, taxas da Stripe só da parte Bora, pedidos com prejuízo,
+//    pedidos com NIF do cliente, dados em falta (DAC7) e a nota do Danilo. O mesmo texto vai como parte
+//    text/plain do email e é o que o painel /admin/fecho-mensal copia ("Copiar texto para o contabilista").
+//  Se a RPC admin_fecho_contabilista ainda não existir (migração por aplicar), o email sai sem as secções
+//  novas e com um aviso, em vez de falhar.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { secretKey } from '../_shared/keys.ts'
@@ -69,6 +83,7 @@ Deno.serve(async (req) => {
     mes = agora.mes === 1 ? 12 : agora.mes - 1
   }
   const force = b?.force === true
+  const dryRun = b?.dry_run === true
   const mesTxt = `${ano}-${String(mes).padStart(2, '0')}`
 
   const supabase = createClient(Deno.env.get('SUPABASE_URL'), secretKey())
@@ -86,13 +101,15 @@ Deno.serve(async (req) => {
 
   const { data: logRow } = await supabase.from('fecho_mensal_contabilista_log').select('*')
     .eq('ano', ano).eq('mes', mes).maybeSingle()
-  if (logRow?.email_status === 'sent' && !force) {
+  if (logRow?.email_status === 'sent' && !force && !dryRun) {
     return json({ ok: true, ano, mes, estado: 'ja_enviado', sent_at: logRow.sent_at })
   }
 
   // ── 1) actualiza o extrato da Stripe (não trava se falhar: usa o que já está guardado) ──
-  const stripeRefresh = await chamarFuncao(supabase, 'fecho-mensal-contabilista', 'stripe-relatorio-contabilista',
-    { desde: mesTxt, ate: mesTxt, guardar: true }) // duas contas: actualiza as duas; o resumo abaixo filtra
+  // Em ensaio (dry_run) não se mexe em nada: só lê o que já está guardado.
+  const stripeRefresh = dryRun ? { ok: false, erro: 'ensaio: extrato não actualizado' }
+    : await chamarFuncao(supabase, 'fecho-mensal-contabilista', 'stripe-relatorio-contabilista',
+      { desde: mesTxt, ate: mesTxt, guardar: true }) // duas contas: actualiza as duas; o resumo abaixo filtra
 
   // Duas contas Stripe (missão stripe-empresa-2026-11-01): a sociedade (Hugo) só leva a EMPRESA; o TVDE
   // (conta pessoal) nunca entra aqui. Se a RPC ainda não aceitar p_conta (proposta SQL por aplicar),
@@ -115,26 +132,49 @@ Deno.serve(async (req) => {
   ])
   const erros = [e1, e2, e3].filter(Boolean).map((e) => e.message)
   if (erros.length) {
-    await supabase.from('fecho_mensal_contabilista_log').upsert({
-      ano, mes, email_status: 'failed', email_error: 'leitura: ' + erros.join(' · '), updated_at: new Date().toISOString(),
-    }, { onConflict: 'ano,mes' })
+    if (!dryRun) {
+      await supabase.from('fecho_mensal_contabilista_log').upsert({
+        ano, mes, email_status: 'failed', email_error: 'leitura: ' + erros.join(' · '), updated_at: new Date().toISOString(),
+      }, { onConflict: 'ano,mes' })
+    }
     return json({ ok: false, error: 'leitura_falhou', detalhe: erros }, 500)
   }
 
-  const resumo = montarResumo(ano, mes, fecho, prest, stripeRes)
+  // v2: o conteúdo completo para o contabilista (secções novas + texto). Se a migração ainda não estiver
+  // aplicada, segue sem elas (aviso no email e na resposta).
+  const { data: completo, error: e4 } = await supabase.rpc('admin_fecho_contabilista', { p_year: ano, p_month: mes })
+  const avisoCompleto = e4 ? 'secções novas indisponíveis (' + e4.message.slice(0, 120) + ')' : null
+
+  const resumo = montarResumo(ano, mes, fecho, prest, stripeRes, e4 ? null : completo)
   let html = htmlContabilista(resumo, nomeHugo)
 
   // M1 adendo 1 (08/11/2026, Danilo): os talões do mês vão com o fecho — ZIP com todas as fotos e
   // um índice (pedido, loja, valor, NIF usado), link válido 7 dias. Falhar aqui não trava o fecho.
-  const taloes = await chamarFuncao(supabase, 'fecho-mensal-contabilista', 'taloes-zip-mes',
-    { mes: mesTxt, validade_segundos: 7 * 24 * 3600 })
+  // Em ensaio não se gera o ZIP (não cria ficheiros nem links).
+  const taloes = dryRun ? { ok: false, erro: 'ensaio: ZIP não gerado', dados: null }
+    : await chamarFuncao(supabase, 'fecho-mensal-contabilista', 'taloes-zip-mes',
+      { mes: mesTxt, validade_segundos: 7 * 24 * 3600 })
   const tz = (taloes.dados ?? {}) as { ok?: boolean; fotos?: number; url?: string }
   resumo.taloes = { ok: taloes.ok && tz.ok === true, fotos: tz.fotos ?? 0, erro: taloes.erro }
   const blocoTaloes = taloes.ok && tz.ok && tz.url
     ? `<p style="margin:16px 0">Talões do mês (${tz.fotos ?? 0} fotos, com índice em folha de cálculo): <a href="${esc(tz.url)}">descarregar o ZIP</a> (link válido 7 dias; o original fica guardado na Bora).</p>`
     : `<p style="margin:16px 0;color:#B45309">Os talões do mês não foram juntos automaticamente (${esc(taloes.erro ?? 'sem resposta')}). Peça o ZIP ao Danilo.</p>`
   html = html.includes('</body>') ? html.replace('</body>', blocoTaloes + '</body>') : html + blocoTaloes
-  const assunto = `Bora — fecho de ${NOMES[mes]} de ${ano} (comissões, prestadores e Stripe)`
+  if (avisoCompleto) {
+    html += `<p style="font-size:12px;color:#B45309">Aviso técnico: ${esc(avisoCompleto)}. O detalhe completo está no painel /admin/fecho-mensal.</p>`
+  }
+  // O mesmo texto que o painel copia ("Copiar texto para o contabilista") vai como parte de texto simples.
+  const texto = typeof completo?.texto === 'string' && !e4 ? completo.texto + (taloes.ok && tz.ok && tz.url
+    ? `\n\nTalões do mês (${tz.fotos ?? 0} fotos, com índice): ${tz.url} (link válido 7 dias)` : '') : null
+  const assunto = `Bora — fecho de ${NOMES[mes]} de ${ano} (receita da Bora, prestadores e Stripe)`
+
+  // O texto completo fica também no resumo do log: a tarefa do dia 1 que manda o fecho ao contabilista
+  // pelo WhatsApp lê fecho_mensal_contabilista_log.resumo — assim manda o MESMO texto do email e do painel.
+  resumo.texto = texto
+
+  if (dryRun) {
+    return json({ ok: true, ensaio: true, ano, mes, assunto, para: toHugo || ADMIN_EMAIL, aviso: avisoCompleto, texto, html, resumo })
+  }
 
   // ── 3) envia (ou explica porque não) ─────────────────────────────────
   // Sem email do contabilista: vai só ao Danilo, com aviso no assunto e no log ("falta email do
@@ -154,7 +194,7 @@ Deno.serve(async (req) => {
     if (!resendKey) {
       try { const { data } = await supabase.rpc('get_resend_key'); if (data) resendKey = String(data).trim() } catch (_e) {}
     }
-    const r = await sendResend(resendKey, destinatarios, copias, assuntoFinal, htmlFinal)
+    const r = await sendResend(resendKey, destinatarios, copias, assuntoFinal, htmlFinal, texto)
     estado = r.ok ? 'sent' : 'failed'; resendId = r.id
     erro = r.ok ? (faltaEmail ? 'falta email do contabilista: enviado só ao Danilo' : null) : r.error
   }
@@ -176,7 +216,7 @@ Deno.serve(async (req) => {
   return json({ ok: estado !== 'failed', ano, mes, estado, erro, para: destinatarios, cc: copias, falta_email_contabilista: faltaEmail, stripe_refresh: stripeRefresh.ok, resumo })
 })
 
-function montarResumo(ano, mes, fecho, prest, stripeRes) {
+function montarResumo(ano, mes, fecho, prest, stripeRes, completo) {
   const t = fecho?.totais ?? {}
   const rub = fecho?.para_as_financas?.rubricas ?? {}
   const serv = fecho?.servicos_totais ?? {}
@@ -195,17 +235,24 @@ function montarResumo(ano, mes, fecho, prest, stripeRes) {
       rubricas: {
         entrega: rub.entrega ?? 0, taxa_servico: rub.taxa_servico ?? 0, sacos: rub.sacos ?? 0,
         taxa_pedido_pequeno: rub.taxa_pedido_pequeno ?? 0, comissao_lojas_parceiras: rub.comissao_lojas_parceiras ?? 0,
-        margem_nao_parceiros: rub.margem_nao_parceiros ?? 0, ajustes_descontos: rub.ajustes_descontos ?? 0,
+        margem_nao_parceiros: rub.margem_nao_parceiros ?? 0, tokens_descontados: rub.tokens_descontados ?? null,
+        ajustes_descontos: rub.ajustes_descontos ?? 0,
       },
       por_metodo: t.por_metodo ?? {},
     },
     limpeza: { servicos: (prest?.limpeza ?? []).reduce((a, x) => a + Number(x.servicos ?? 0), 0), pago_pelos_clientes: limpezaPago, pago_a_prestadores: limpezaGanho, taxa_bora: limpezaTaxa },
     lavagem: { taxa_bora: lavTaxa },
     reservas: { marcacoes: serv.marcacoes ?? 0, bora_reteve: serv.bora_reteve ?? 0 },
-    tvde_outros_motoristas: { nota: 'Fora da declaração da Bora (TVDE de passageiros).', corridas: fecho?.tvde_outros_motoristas?.corridas ?? 0, parte_bora: fecho?.tvde_outros_motoristas?.parte_bora ?? 0 },
-    prestadores: { estafetas: prest?.estafetas ?? [], limpeza: prest?.limpeza ?? [], lavagem: prest?.lavagem ?? [], tvde: prest?.tvde_outros_motoristas ?? [] },
+    // 10/11/2026: o TVDE está fora da plataforma e não entra no fecho (nem como informativo).
+    prestadores: { estafetas: prest?.estafetas ?? [], limpeza: prest?.limpeza ?? [], lavagem: prest?.lavagem ?? [] },
     lojas_parceiras: prest?.lojas_parceiras ?? [],
+    faturacao: fecho?.para_as_financas?.faturas_recibo ?? [],
     stripe: { mes: stripeMes, por_tipo: (stripeRes?.por_mes_e_tipo ?? []), notas: stripeRes?.linhas_com_nota ?? [] },
+    // Secções novas (RPC admin_fecho_contabilista). null = migração por aplicar.
+    extras: completo?.extras ?? null,
+    pedidos_no_prejuizo: fecho?.pedidos_no_prejuizo ?? [],
+    dados_em_falta: completo?.dados_em_falta ?? null,
+    nota_admin: completo?.nota_admin ?? null,
     gerado_em: new Date().toISOString(),
   }
 }
@@ -216,20 +263,52 @@ function htmlContabilista(r, nomeHugo) {
   const e = r.entregas; const rb = e.rubricas; const adq = r.adquirente ?? {}
   const receitaBora = Number(e.receita_bora) + Number(r.limpeza.taxa_bora) + Number(r.lavagem.taxa_bora) + Number(r.reservas.bora_reteve)
 
+  // 10/11/2026: cada prestador fatura a sua parte (nada de "recibo verde ao adquirente"); a parte da Bora nas
+  // lojas parceiras fatura-se aos clientes, nunca às lojas; TVDE fora.
   const estafetas = r.prestadores.estafetas.map((x) =>
     `<tr><td style="${td}">${esc(x.nome)}${x.nif ? ' (NIF ' + esc(x.nif) + ')' : ' <span style="color:#B45309">(sem NIF)</span>'}</td>` +
     `<td style="${td}">${x.entregas} entregas</td><td style="${td};text-align:right;font-weight:700">${eur(x.ganho)}</td>` +
-    `<td style="${td}">${x.proprio_adquirente ? 'é o próprio adquirente — sem recibo' : 'recibo verde ao adquirente'}</td></tr>`).join('')
+    `<td style="${td}">${x.proprio_adquirente ? 'é o próprio Danilo' : ''}</td></tr>`).join('')
   const limpeza = r.prestadores.limpeza.map((x) =>
     `<tr><td style="${td}">${esc(x.nome)}${x.nif ? ' (NIF ' + esc(x.nif) + ')' : ''}</td><td style="${td}">${x.servicos} limpezas · clientes pagaram ${eur(x.pago_pelos_clientes)} (dinheiro ${eur(x.em_dinheiro)}, MB Way/cartão ${eur(x.por_mbway_cartao)})</td>` +
-    `<td style="${td};text-align:right;font-weight:700">${eur(x.ganho)}</td><td style="${td}">taxa Bora ${eur(x.taxa_bora)} · recibo verde ao adquirente</td></tr>`).join('')
+    `<td style="${td};text-align:right;font-weight:700">${eur(x.ganho)}</td><td style="${td}">taxa Bora ${eur(x.taxa_bora)}</td></tr>`).join('')
   const lavagem = r.prestadores.lavagem.map((x) =>
     `<tr><td style="${td}">${esc(x.nome)}</td><td style="${td}">${x.servicos} lavagens</td><td style="${td};text-align:right;font-weight:700">${eur(x.ganho)}</td><td style="${td}">taxa Bora ${eur(x.taxa_bora)}</td></tr>`).join('')
-  const tvde = r.prestadores.tvde.map((x) =>
-    `<tr><td style="${td}">${esc(x.nome)}</td><td style="${td}">${x.corridas} corridas</td><td style="${td};text-align:right">${eur(x.ganho_motorista)}</td><td style="${td}">parte Bora ${eur(x.parte_bora)} — fora da declaração</td></tr>`).join('')
   const lojas = r.lojas_parceiras.map((x) =>
-    `<tr><td style="${td}">${esc(x.nome)}${x.nif ? ' (NIF ' + esc(x.nif) + ')' : ' <span style="color:#B45309">(sem NIF)</span>'}</td><td style="${td}">${x.pedidos} pedidos · vendas ${eur(x.vendas)}</td>` +
-    `<td style="${td};text-align:right;font-weight:700">${eur(x.comissao_bora)}</td><td style="${td}">a Bora fatura esta comissão à loja</td></tr>`).join('')
+    `<tr><td style="${td}">${esc(x.nome)}${x.nif ? ' (NIF ' + esc(x.nif) + ')' : ' <span style="color:#B45309">(sem NIF)</span>'}</td><td style="${td}">${x.pedidos} pedido(s) · vendas ${eur(x.vendas)} · parte da loja ${eur(x.parte_loja)}</td>` +
+    `<td style="${td};text-align:right;font-weight:700">${eur(x.parte_bora ?? x.comissao_bora)}</td><td style="${td}">parte da Bora nos pedidos desta loja (faturada aos clientes)</td></tr>`).join('')
+  const fat = (r.faturacao ?? []).map((x) =>
+    linha(esc(x.destinatario) + (x.nif ? ' (NIF ' + esc(x.nif) + ')' : '') + ' — ' + esc(x.descricao ?? ''), eur(x.valor), true)).join('')
+  const x = r.extras
+  const ul = (itens) => itens.length ? `<ul style="font-size:13px;margin:4px 0">${itens.join('')}</ul>` : ''
+  const li = (s) => `<li>${s}</li>`
+  const blocoExtras = !x ? '' :
+    `<h3 style="margin:16px 0 6px">4. Tokens, códigos promocionais e prémios</h3>` +
+    ul([
+      li(`Tokens oferecidos aos clientes: ${esc(x.tokens_oferecidos?.tokens ?? 0)} tokens = ${eur(x.tokens_oferecidos?.valor)} (oferecer não é custo: só passa a custo quando são usados)` +
+        ul((x.tokens_oferecidos?.por_origem ?? []).map((o) => li(`${esc(String(o.origem).replace(/_/g, ' '))}: ${esc(o.tokens)} tokens (${eur(o.valor)})`)))),
+      li(`Tokens descontados em pedidos: ${esc(x.tokens_descontados_em_pedidos?.pedidos ?? 0)} pedidos, ${eur(x.tokens_descontados_em_pedidos?.valor)} (já na secção 1)`),
+      ...(x.codigos_promocionais ?? []).map((c) => li(`Código ${esc(c.codigo)}: ${esc(c.usos)} usos, ${eur(c.valor)} — ${esc(c.nota)}`)),
+      li(`Prémios do check-in: ${esc(x.premios_checkin?.emitidos ?? 0)} emitidos (custo previsto ${eur(x.premios_checkin?.emitidos_custo)}), ${esc(x.premios_checkin?.usados ?? 0)} usados (custo ${eur(x.premios_checkin?.usados_custo)})`),
+    ]) +
+    `<h3 style="margin:16px 0 6px">5. Cancelamentos e reembolsos</h3>` +
+    ul([
+      li(`Pedidos cancelados: ${esc(x.cancelados_e_reembolsos?.cancelados ?? 0)} (valor ${eur(x.cancelados_e_reembolsos?.cancelados_valor)}; ${esc(x.cancelados_e_reembolsos?.cancelados_com_cobranca ?? 0)} com cobrança feita)`),
+      li(`Reembolsos: ${esc(x.cancelados_e_reembolsos?.reembolsados ?? 0)}, total ${eur(x.cancelados_e_reembolsos?.reembolsado_valor)}` +
+        ul((x.cancelados_e_reembolsos?.lista_reembolsos ?? []).map((p) => li(`${esc(p.data)} ${esc(p.loja ?? '')}: ${eur(p.valor)} (${esc(p.meio ?? '')}, pedido ${esc(String(p.order_id).slice(0, 8))})`)))),
+    ]) +
+    `<h3 style="margin:16px 0 6px">6. Stripe — só a parte da Bora</h3>` +
+    ul([li(`Cobranças da Bora: ${esc(x.stripe_parte_bora?.cobrancas ?? 0)}, bruto ${eur(x.stripe_parte_bora?.bruto)}, taxas da Stripe <b>${eur(x.stripe_parte_bora?.taxas_a_considerar)}</b>` +
+      (x.stripe_parte_bora?.fonte === 'extrato_stripe' ? ' (extrato da Stripe)' : ' (estimativa pelos pedidos: o extrato deste mês ainda não tem linhas)') +
+      '. Fora: TVDE, gorjetas, serviços de sites e outros.')]) +
+    ((x.pedidos_com_nif_do_cliente ?? []).length
+      ? `<h3 style="margin:16px 0 6px">Pedidos em que o cliente pediu fatura com NIF</h3>` +
+        ul(x.pedidos_com_nif_do_cliente.map((p) => li(`${esc(p.data)} ${esc(p.loja ?? '')}: NIF ${esc(p.nif_cliente)}${p.nome ? ' (' + esc(p.nome) + ')' : ''} — parte da Bora ${eur(p.parte_bora)}`)))
+      : '')
+  const prej = (r.pedidos_no_prejuizo ?? []).map((p) =>
+    li(`${esc(p.data)} ${esc(p.loja ?? '')}: resultado ${eur(p.resultado)} (pago ${eur(p.pago)}, mercadoria ${eur(p.mercadoria)}, estafeta ${eur(p.estafeta)}) — ${esc(p.motivo)}`))
+  const falta = (r.dados_em_falta ?? []).map((d) =>
+    li(`${esc(d.nome)} (${esc(String(d.papel).replace(/_/g, ' '))}): falta ${esc((d.falta ?? []).join(', '))}`))
   const stripeTipos = r.stripe.por_tipo.filter((x) => x.categoria !== 'taxa_stripe' && x.categoria !== 'payout').map((x) =>
     linha(esc(x.categoria.replace(/_/g, ' ')) + ` (${x.n})`, `${eur(x.bruto)} bruto · ${eur(x.taxas_stripe)} taxas · ${eur(x.reembolsos)} reembolsos · ${eur(x.liquido)} líquido`)).join('')
   const stripeNotas = r.stripe.notas.map((x) => `<li>${esc(x.dia)} · ${eur(x.valor)} · ${esc(x.cliente ?? '')} — ${esc(x.nota)}</li>`).join('')
@@ -248,26 +327,30 @@ function htmlContabilista(r, nomeHugo) {
     linha('Entregas e mercados — taxa de serviço', eur(rb.taxa_servico)) +
     linha('Entregas e mercados — sacos', eur(rb.sacos)) +
     linha('Entregas e mercados — taxa de pedido pequeno', eur(rb.taxa_pedido_pequeno)) +
-    linha('Comissões de lojas parceiras', eur(rb.comissao_lojas_parceiras)) +
+    linha('Parte da Bora nos produtos das lojas parceiras', eur(rb.comissao_lojas_parceiras)) +
     linha('Margem sobre compras em lojas não parceiras', eur(rb.margem_nao_parceiros)) +
-    linha('Ajustes e descontos', eur(rb.ajustes_descontos)) +
+    (rb.tokens_descontados !== null && rb.tokens_descontados !== undefined
+      ? linha('Tokens descontados aos clientes nos pedidos', eur(rb.tokens_descontados)) : '') +
+    linha('Ajustes', eur(rb.ajustes_descontos)) +
     linha('Subtotal entregas e mercados (' + e.pedidos + ' pedidos)', eur(e.receita_bora), true) +
     linha('Limpeza — taxa da Bora (' + r.limpeza.servicos + ' serviços; clientes pagaram ' + eur(r.limpeza.pago_pelos_clientes) + ')', eur(r.limpeza.taxa_bora)) +
     linha('Lavagem — taxa da Bora', eur(r.lavagem.taxa_bora)) +
     linha('Reservas/marcações — retido pela Bora (' + r.reservas.marcacoes + ')', eur(r.reservas.bora_reteve)) +
     linha('TOTAL receita própria da Bora', eur(receitaBora), true) +
     `</table>` +
-    `<p style="font-size:12px;color:#555">Fora desta conta: mercadoria das lojas e mercados ${eur(e.mercadoria_das_lojas)} (pertence às lojas) e o TVDE de passageiros (${r.tvde_outros_motoristas.corridas} corridas de outros motoristas, parte Bora ${eur(r.tvde_outros_motoristas.parte_bora)}) — por regra do Danilo fica fora da declaração da Bora.</p>` +
+    `<p style="font-size:12px;color:#555">Fora desta conta: mercadoria das lojas e mercados ${eur(e.mercadoria_das_lojas)} (pertence às lojas). Pago aos estafetas ${eur(e.pago_a_estafetas)}; sobra das entregas depois dos estafetas ${eur(e.margem)}.</p>` +
 
-    `<h3 style="margin:16px 0 6px">2. O que foi pago aos prestadores e como documentam</h3>` +
-    `<p style="font-size:13px">Cada prestador passa fatura-recibo (recibo verde) a <b>${esc(adq.nome)}</b>, NIF ${esc(adq.nif)}, ${esc(adq.morada)}. ` +
-    `Descrição: "${esc(adq.descricao_sugerida)}". ${esc(adq.iva_prestador)}. ${esc(adq.retencao)}. ${esc(adq.prazo)}.</p>` +
+    `<h3 style="margin:16px 0 6px">Faturação da parte da Bora (emitida pelo escritório do contabilista)</h3>` +
+    `<table style="width:100%;border-collapse:collapse">${fat}</table>` +
+    `<p style="font-size:12px;color:#555">A parte da Bora nas lojas parceiras fatura-se aos clientes (consumidor final, ou o NIF do cliente quando o pediu), nunca às lojas.</p>` +
+
+    `<h3 style="margin:16px 0 6px">2. Prestadores e lojas</h3>` +
+    `<p style="font-size:13px">Cada prestador fatura a sua parte; o regime de IVA e a retenção de cada um são confirmados pelo contabilista.</p>` +
     `<table style="width:100%;border-collapse:collapse">` +
     (estafetas ? `<tr><td colspan="4" style="${td};font-weight:700">Estafetas (entregas) — total ${eur(e.pago_a_estafetas)}</td></tr>` + estafetas : '') +
     (limpeza ? `<tr><td colspan="4" style="${td};font-weight:700">Limpeza — total ${eur(r.limpeza.pago_a_prestadores)}</td></tr>` + limpeza : '') +
     (lavagem ? `<tr><td colspan="4" style="${td};font-weight:700">Lavagem</td></tr>` + lavagem : '') +
-    (tvde ? `<tr><td colspan="4" style="${td};font-weight:700">TVDE de outros motoristas (informativo)</td></tr>` + tvde : '') +
-    (lojas ? `<tr><td colspan="4" style="${td};font-weight:700">Lojas parceiras — comissão que a Bora lhes fatura</td></tr>` + lojas : '') +
+    (lojas ? `<tr><td colspan="4" style="${td};font-weight:700">Lojas parceiras — faturam o balcão aos clientes; não faturam à Bora nem recebem fatura da Bora</td></tr>` + lojas : '') +
     `</table>` +
 
     `<h3 style="margin:16px 0 6px">3. Stripe — o que passou pela conta neste mês</h3>` +
@@ -282,16 +365,23 @@ function htmlContabilista(r, nomeHugo) {
     (stripeNotas ? `<p style="font-size:13px;margin:8px 0 4px">Linhas com nota:</p><ul style="font-size:12px">${stripeNotas}</ul>` : '') +
     `<p style="font-size:12px;color:#555">Nota: o valor bruto da Stripe inclui dinheiro das lojas (mercadoria) e dos prestadores que só passou pela Bora; a receita da Bora é a da secção 1.</p>` +
 
+    blocoExtras +
+    `<h3 style="margin:16px 0 6px">7. Pedidos com prejuízo</h3>` + (prej.length ? ul(prej) : '<p style="font-size:13px">Nenhum.</p>') +
+    (r.dados_em_falta !== null
+      ? `<h3 style="margin:16px 0 6px">8. Dados em falta de prestadores e lojas (DAC7)</h3>` + (falta.length ? ul(falta) : '<p style="font-size:13px">Nada em falta.</p>')
+      : '') +
+    (r.nota_admin ? `<p style="background:#F3F4F6;border-radius:8px;padding:10px;font-size:13px"><b>Nota do Danilo:</b> ${esc(r.nota_admin)}</p>` : '') +
+
     `<p style="font-size:11px;color:#999;margin-top:16px">Bora App · fecho mensal automático · detalhe no painel /admin/fecho-mensal</p></div></div>`
 }
 
-async function sendResend(key, to, cc, subject, html) {
+async function sendResend(key, to, cc, subject, html, text) {
   if (!key) return { ok: false, error: 'RESEND_API_KEY em falta', id: null }
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: EMAIL_FROM, to, ...(cc && cc.length ? { cc } : {}), subject, html }),
+      body: JSON.stringify({ from: EMAIL_FROM, to, ...(cc && cc.length ? { cc } : {}), subject, html, ...(text ? { text } : {}) }),
     })
     const txt = await res.text().catch(() => '')
     if (res.ok) { let id = null; try { id = JSON.parse(txt)?.id ?? null } catch (_e) {} return { ok: true, error: null, id } }

@@ -2449,7 +2449,9 @@ class _StopRow extends StatelessWidget {
 /// não passar na caixa. Desde que o estafeta aceita até fechar o talão (o
 /// "Recolher pedido" só aparece depois do talão). Só o NIF: a caixa "Dei este
 /// NIF na caixa" continua na folha do talão. Se aparece decide-o o servidor
-/// (`driver_order_invoice_nif`). Público só para o teste de widget.
+/// (`driver_order_invoice_nif`): desde 10/11/2026 só quando o CLIENTE pediu
+/// fatura com NIF (sem NIF do cliente = consumidor final; o NIF da Bora nunca
+/// vai na caixa). Público só para o teste de widget.
 @visibleForTesting
 class NifCompraCartaoPrincipal extends StatelessWidget {
   const NifCompraCartaoPrincipal({super.key, required this.order, this.rpc});

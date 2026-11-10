@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-missao-domingo-noite
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-09
+ultima_confirmacao: 2026-11-10
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Missão grande de domingo à noite (08/11/2026) para terminar o que falta no Bora — lista de pendências que o Danilo vai ditando; ler antes de montar essa missão (parte 1 de 2 — continua em livro-areas-missao-domingo-noite-parte2)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-missao-domingo-noite`, origem `claude-ai`, atualizada em 2026-11-09T21:14:09.672617+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-missao-domingo-noite`, origem `claude-ai`, atualizada em 2026-11-10T17:16:35.759277+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas missao domingo noite · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/missao-domingo-noite.md), copiada a 09/11/2026 21:14 (hora de Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/missao-domingo-noite.md), copiada a 10/11/2026 17:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: missao-domingo-noite
@@ -35,4 +35,4 @@ aliases: [missão de domingo, lição enorme, terminar o que falta, pendências 
 - [stated] 08/11 19:55: ele colou o ficheiro 00_LEIA-ME numa sessão do Claude Code achando que era a missão 0 (não é missão; corrigi: fechar, colar M1..M4 e M7 em sessões novas) e corrigiu-me: "você não ouviu tudo — falei da Stripe e de um monte de coisa; ler palavra por palavra" → M7 criado (m7-stripe-parceiros-radar-leis-2026-11-08): Stripe da empresa por terminar (verificado 19:55: acct_1UX67LGWwQxC9wR2 com 155,79 € pendentes, 0 payouts, 0 contas Connect) + links Connect e WhatsApp aos parceiros/estafetas, pagamentos a vencer (VPS ~10/11), 30 propostas do radar + briefs (GIFs Images 2.6, IRS ao Hugo), balanço do plano de 14 dias (24/10-07/11, quase nada feito) e próximo, dossier de leis, menu/navegação dos 3 apps, paridade motorista→delivery, divergências do livro, concorrência. Lição em erros-aprendidos
 - [stated] 08/11 20:05: cliente novo Said (tel 961149560, registado às 20:02) escreveu só "falar com assistente" no suporte; o Danilo carregou no aviso e não conseguiu ver a conversa (deep_link ia para /admin/support-escalations e a sessão não estava escalada). Mandou arrumar num adendo. PROMPT REGISTADO: ADENDO 1 à M4 (fluxo e2e_log 'm4-adendo1-suporte-conversa-2026-11-08'), colado por mim às ~20:15 na sessão "Amigo Bora assistente cliente" (session_01HPEpVAq8owLJNhi9pTwcHZ, Opus 5.5, Ignorar permissões). Scope: aviso abre a conversa direta (painel + push Android/iPhone), ecrã da conversa e lista de todas as sessões no painel, admin responde ao cliente no chat ao vivo com o robô calado, pedido de falar com pessoa → WhatsApp da Bora 937 501 673 + escala + aviso. Estado: entregue, a correr. A minha mensagem direta ao Said no chat foi travada pelo sistema de segurança (espera "autorizo")
 - [stated] 08/11 20:39: mandou pôr adendo numa missão a correr — a foto do talão tem de ficar guardada num sítio certo e garantido. Verificado por SQL: bucket privado 'receipts' (<order_id>.jpg), 46 talões todos com ficheiro, sem nada que apague; só 2 pedidos antigos em dinheiro sem talão (01/08 e 05/09). PROMPT REGISTADO: ADENDO 1 à M1 (fluxo e2e_log 'm1-adendo1-taloes-guardados-2026-11-08'): fechar o pedido só com a foto confirmada no servidor e reenvio sozinho se a rede cair, guardar todas as fotos sem apagar (vários talões por pedido), mercados e Favores, cópia diária para um segundo sítio (Drive da Bora) e junto ao fecho mensal, ecrã "Talões" no painel com ZIP do mês. Estado: às 20:45 o PC estava bloqueado e a extensão do Chrome desligada; colado por mim às ~21:05 na sessão da M1 "Fluxo e2e pagamento Favores" (session_01HPEpV9ERyw9CnUdKNxfH8P), recebido e a pensar
-- 08/11 21:50 ESTADO REAL (e2e_log): M1 (+adendo talões), M2, M4 (+adendo suporte), M6 e M7 FECHARAM o código e testes (≈2935 testes verdes) mas a bora-tranca/trava recusou TODO o push, SQL e deploy: nada no GitHub, nada aplicado, nada publicado, nada testado no emulador (RAM < 3 GB). M3 Dipsy parcial (instalado no PC; VPS bloqueada por SSH). M5 Em Dia a correr no Dipsy. M7 pendentes do Danilo: mensagens aos 3 estafetas + Hugo (respondeu "Ainda não"), ativar Connect na empresa, repasses semanais Stripe (manual, 155,79 € pendentes). PROMPT REGISTADO: M8 m8-fechar-e-testar-noite-2026-11-08 (ficheiro entregue a ele para colar: Opus 5.5, bora_app, Ignorar permissões, sessão nova) — junta os 6 ramos ai/2026-11-08-*, aplica os SQL, publica Edge, 17 cenários no emulador Android, publica nas 3 e prova; check-in com desconto e navegação M7 ficam de fora. Estado: entregue 21:55
+

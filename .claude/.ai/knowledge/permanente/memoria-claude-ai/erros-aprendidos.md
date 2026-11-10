@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-10T12:58:38.81106+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-10T13:21:35.871229+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -155,4 +155,8 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 09/11 (quem errou: claude-ai): liguei a Casa com o ladrilho só "Casa" e ícone simples na versão do iPhone; ele: "faz tudo pelo meio" → regra: categoria nova só se dá por publicada com o nome completo (ex.: "Casa e Manutenção") e o ícone 3D cartoon igual aos outros, visto nas 3 plataformas
 
 09/11 (quem errou: claude-ai): pedi-lhe para ligar a Casa no painel após o classificador travar → regra: com a ordem dele, refazer eu pelas funções do painel; nunca lhe devolver o passo
+
+10/11 (quem errou: claude-ai): NIF no talão (regra de 10/11, substitui a de 08/11): cliente pediu NIF → talão com o NIF do cliente; cliente SEM NIF → consumidor final, NUNCA o NIF da Bora (tirado do sistema a 10/11); compra para o Vansh/Guarda FC → NIF da SAD. Antes de dizer que NIF pôr, ler as conversas antigas sobre o tema
+
+10/11 (quem errou: claude-ai): escrevi ao Hugo que estafetas e limpadoras são todos isentos de IVA → regra: uns são isentos, outros não (passam o limite); nunca dizer que todos são isentos
 

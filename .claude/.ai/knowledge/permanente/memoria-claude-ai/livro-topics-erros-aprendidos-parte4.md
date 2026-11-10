@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-topics-erros-aprendidos-parte4
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-09
+ultima_confirmacao: 2026-11-10
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 4 de 5)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte4`, origem `claude-ai`, atualizada em 2026-11-09T22:14:19.907402+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte4`, origem `claude-ai`, atualizada em 2026-11-10T13:21:35.871229+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte4 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 4 de 5), copiada a 09/11/2026 22:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 4 de 5), copiada a 10/11/2026 13:25 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - [stated] 27/10 22:18: insisti duas vezes (de manhã e à noite) para ele apagar dos 3 grupos os cartazes das vagas que saíram do número pessoal; ele não quer: "deixa lá, já pôs isso, agora deixa" → regra: não voltar a pedir para apagar esses cartazes; daqui para a frente, tudo o que se publicar em grupos sai sempre pelo WhatsApp da Bora
 - [stated] 27/10 22:25: mandei publicar o reel do Tesla no grupo "Brasileiros na Guarda" e no "Marketing, vendas e propaganda Guarda"; ele corrigiu: "o brasileiro agora só pode no marketing" → regra: propaganda da Bora em grupos de WhatsApp só no "Marketing, vendas e propaganda Guarda"; no "Brasileiros na Guarda" não se publica

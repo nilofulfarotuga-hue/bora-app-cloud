@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-topics-erros-aprendidos-parte5
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-09
+ultima_confirmacao: 2026-11-10
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 5 de 5)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte5`, origem `claude-ai`, atualizada em 2026-11-09T22:14:19.907402+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte5`, origem `claude-ai`, atualizada em 2026-11-10T13:21:35.871229+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte5 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 5 de 5), copiada a 09/11/2026 22:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 5 de 5), copiada a 10/11/2026 13:25 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - [stated] 31/10 16:44: ao marcar a limpeza do Divan para as 18h copiei a tentativa que ele tinha cancelado na app (pacote T2, 4 horas, 45 €) em vez das 3 horas de sempre; o Divan cancelou e a app registou-lhe 45 € de taxa → regra: a limpeza do Divan é de 3 horas por hora (produtos dele, 2 gatos), não o pacote T2; ao marcar uma limpeza por um cliente, seguir o formato das marcações habituais dele, nunca uma tentativa cancelada
 - [stated] 30/10 17:04: na mensagem ao Ricardo (cliente Uber, a quem faltava pagar um pouco) escrevi um limite duro ("até uma semana, não deixo acumular mais de 20 €, senão fica pesado para mim"); ele achou grosso → regra: com cliente que deve pouco, a mensagem é leve — diz quanto falta e pergunta quando consegue pagar; o limite vai só como ajuda futura ("se um dia precisares outra vez, posso ajudar, só não com um valor muito alto"), sem números, prazos nem queixas
@@ -32,7 +32,7 @@ estado: atual
 - [stated] 04/11 11:24: escrevi a tradução da mensagem do Vansh e da resposta entre ferramentas, e ela não lhe apareceu no ecrã; ele só viu o cartão em inglês e irritou-se → regra: as duas traduções ("O Vansh falou" e "O que eu estou a responder") vão sempre por mensagem visível (SendUserMessage) antes do cartão, ou como texto final depois da última ferramenta; nunca soltas no meio das ferramentas
 - [stated] 05/11 20:16: disse-lhe que os pedidos do McDonald's e do Jyosmi não tinham talão registado e calculei o lucro com o preço de balcão da app; ele corrigiu "o talão do McDonald's eu registei sim, tirei foto" — tinha razão: a minha consulta com várias instruções devolveu só o resultado da última e eu nem vi a tabela order_receipts_v2 → regra: ver sempre uma consulta de cada vez (ou conferir que todos os resultados vieram) e, antes de dizer que falta talão, ler order_receipts_v2 e o bucket receipts; conta de lucro de pedido não-parceiro usa o valor do TALÃO (driver_typed_total_cents), nunca o preço da app
 - [stated] 07/11 18:42: ele perguntou quanto o Valdemir lhe devia e eu respondi €3,24 (banco: €1,77 pendente + €1,47 meu cálculo) sem ter perguntado/lido se já tinha pago; ele corrigiu "o Valdemir já pagou tudo, não deve nada" → regra: dívida do Valdemir (e de qualquer motorista) só se lista se a conversa confirmar; o banco mostra "pendente" mesmo quando o Danilo já recebeu à mão — ele marca o pagamento por voz e o banco fica desatualizado. Ao responder "quanto deve", dizer o que o banco mostra e perguntar logo se já pagou, ou ver as conversas antigas primeiro
-- [stated] 08/11 18:00: pedido do Burger King sem NIF do cliente; eu disse-lhe "fatura sem NIF / consumidor final" e ele corrigiu "você tinha falado que era o NIF da Bora" → regra (conversa de 03/11): cliente deu NIF → talão com o NIF do cliente; cliente SEM NIF → talão com o NIF da Bora (519686233); compra para o Vansh/Guarda FC → NIF da SAD. Antes de dizer que NIF pôr, ler as conversas antigas sobre o tema
+- [stated] NIF no talão (regra de 10/11, substitui a de 08/11): cliente pediu NIF → talão com o NIF do cliente; cliente SEM NIF → consumidor final, NUNCA o NIF da Bora (tirado do sistema a 10/11); compra para o Vansh/Guarda FC → NIF da SAD. Antes de dizer que NIF pôr, ler as conversas antigas sobre o tema
 - [stated] 08/11 18:59: recusei forçar a entrega do pedido do Divan sem o código de 4 dígitos (disse que passava por cima da proteção da app); ele corrigiu: "eu sou o dono, é pra forçar e pronto" → regra: quando o Danilo manda finalizar/forçar um pedido, finaliza-se pela via oficial (RPC admin), sem exigir o código; o Dipsy e o Claude Code também têm de conseguir. Tirar as limitações, não inventar mais
 - [stated] 08/11 19:55: entreguei 6 missões sem cobrir tudo o que ele ditou (Stripe da empresa/parceiros/WhatsApp, vídeos do radar, briefs, pagamentos, plano de 14 dias, leis, menu, motorista→delivery) e o LEIA-ME sem dizer "não colar"; ele colou-o como missão e disse "você não ouviu tudo, ler palavra por palavra" → regra: antes de entregar, ler a mensagem dele frase a frase e marcar cada pedido num bloco (checklist 1:1); ficheiro de instruções leva no topo "NÃO colar"
 - [stated] 08/11 20:21: no pedido do McDonald's voltei a oferecer mandar ao Hugo a pergunta do NIF; ele irritou-se: "não é para mandar" → regra: dúvida do NIF não vai ao Hugo; respondo eu direto, com a lei, sem propor envios
@@ -44,4 +44,5 @@ estado: atual
 - [stated] 09/11 19:36: aceitei a troca do cliente do KFC (Durum Kebab) sem ver se existia, e não existia → regra: troca ou sugestão de produto de cadeia não-parceira só depois de confirmar no Glovo da Guarda (ou Uber Eats); no catálogo do Bora só fica o que lá existe
 - [stated] 09/11 20:21: ao Ricardo (adiantado até dia 30) pus o preço por dia (4,23 €) → regra: ao cliente vai só o total somado e arredondado (segunda a sábado, sem domingo), nunca o preço por dia
 - [stated] 09/11 21:04: pedi-lhe para ligar a Casa no painel após o classificador travar → regra: com a ordem dele, refazer eu pelas funções do painel; nunca lhe devolver o passo
+- [stated] 10/11: escrevi ao Hugo que estafetas e limpadoras são todos isentos de IVA → regra: uns são isentos, outros não (passam o limite); nunca dizer que todos são isentos
 

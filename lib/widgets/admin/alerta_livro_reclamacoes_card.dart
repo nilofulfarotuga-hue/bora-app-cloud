@@ -37,7 +37,7 @@ class _AlertaLivroReclamacoesCardState
         .eq('estado', 'aberta')
         .limit(500);
     return [
-      for (final r in (res as List).whereType<Map>())
+      for (final r in res)
         if (DateTime.tryParse('${r['prazo']}') case final DateTime d) d,
     ];
   }

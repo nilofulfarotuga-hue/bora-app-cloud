@@ -100,14 +100,12 @@ class _AdminLivroReclamacoesScreenState
       final res = await _sb
           .from('livro_reclamacoes_registo')
           .select()
-          .order('estado')
-          .order('prazo')
+          .order('estado', ascending: true)
+          .order('prazo', ascending: true)
           .limit(500);
       if (!mounted) return;
       setState(() {
-        _rows = (res as List)
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList();
+        _rows = [for (final e in res) Map<String, dynamic>.from(e)];
         _loading = false;
       });
     } catch (e) {
@@ -134,7 +132,7 @@ class _AdminLivroReclamacoesScreenState
           .from('livro_reclamacoes_registo')
           .insert(novo)
           .select('id');
-      if ((linhas as List).isEmpty) {
+      if (linhas.isEmpty) {
         throw StateError('nenhuma linha gravada (sem permissão?)');
       }
       await AdminAuditService.logAction(
@@ -192,7 +190,7 @@ class _AdminLivroReclamacoesScreenState
           })
           .eq('id', r['id'])
           .select('id');
-      if ((linhas as List).isEmpty) {
+      if (linhas.isEmpty) {
         throw StateError('nenhuma linha gravada (sem permissão?)');
       }
       await AdminAuditService.logAction(

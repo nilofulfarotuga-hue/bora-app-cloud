@@ -43,7 +43,7 @@ class PrestadorAvisos {
       return (
         respondeu: true,
         versoes: {
-          for (final r in (rows as List).whereType<Map>()) '${r['versao']}',
+          for (final r in rows) '${r['versao']}',
         },
       );
     } catch (e) {

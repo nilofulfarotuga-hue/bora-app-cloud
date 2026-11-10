@@ -10,10 +10,19 @@ import 'package:flutter/material.dart';
 import '../../config/app_colors.dart';
 
 class Confete extends StatefulWidget {
-  const Confete({super.key, this.duracao = const Duration(milliseconds: 1800), this.onFim});
+  const Confete({
+    super.key,
+    this.duracao = const Duration(milliseconds: 1800),
+    this.onFim,
+    this.quantidade = 38,
+  });
 
   final Duration duracao;
   final VoidCallback? onFim;
+
+  /// Papéis no ar: 16 no check-in de todos os dias, 38 num prémio novo, 90 na
+  /// festa de chegar a um degrau (Bloco G, 10/11/2026).
+  final int quantidade;
 
   @override
   State<Confete> createState() => _ConfeteState();
@@ -35,7 +44,7 @@ class _ConfeteState extends State<Confete> with SingleTickerProviderStateMixin {
       Color(0xFFF472B6),
     ];
     _papeis = List.generate(
-      38,
+      widget.quantidade,
       (i) => _Papel(
         x: r.nextDouble(),
         atraso: r.nextDouble() * 0.35,

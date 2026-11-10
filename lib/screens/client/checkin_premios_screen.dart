@@ -12,8 +12,11 @@ import 'package:flutter/material.dart';
 import '../../config/app_colors.dart';
 import '../../l10n/tr.dart';
 import '../../services/checkin_premios_service.dart';
+import '../../utils/checkin_regras.dart';
 import '../../utils/premio_checkin_fluxo.dart';
+import '../../widgets/checkin/checkin_caminho.dart';
 import '../../widgets/checkin/checkin_mes_sheet.dart';
+import '../../widgets/checkin/premio_foto.dart';
 import 'checkin_premio_servico_screen.dart';
 
 class CheckinPremiosScreen extends StatefulWidget {
@@ -117,12 +120,33 @@ class _CheckinPremiosScreenState extends State<CheckinPremiosScreen> {
                             : 'Os marcos do check-in'.tr),
                       ),
                     const SizedBox(height: 12),
+                    // Bloco G (10/11/2026): a melhor sugestão (R4) e o caminho dos 30 dias.
+                    if (e.sugestao != null) ...[
+                      _SugestaoCartao(marco: e.sugestao!, precisaPedido: e.precisaPedido),
+                      const SizedBox(height: 12),
+                    ],
+                    if (e.perdao != null && e.marcos.isNotEmpty) ...[
+                      _titulo('O teu caminho'.tr),
+                      CheckinCaminho(
+                        key: const Key('premios_caminho'),
+                        dias: diasDoCaminho(
+                          e,
+                          feitoAte: e.diasSeguidos > 0 ? e.diaMarco : 0,
+                          hoje: e.hojeFeito ? -1 : e.diaDeHoje,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     if (e.escadaAtiva) ...[
                       _EscadaCartao(estado: e, aLevantar: _aLevantar, onLevantar: _levantar),
                       const SizedBox(height: 12),
                     ],
                     if (e.porUsar.isEmpty && e.historico.isEmpty)
-                      _vazio('Ainda não tens prémios. Faz o check-in todos os dias: aos 10 dias seguidos ganhas o primeiro.'.tr),
+                      _vazio(e.marcos.any(ehPremio)
+                          // 10/11/2026: o primeiro prémio já não é ao dia 10 (escada de 04/11).
+                          ? 'Ainda não tens prémios. Faz o check-in todos os dias: no dia {0} ganhas o primeiro.'
+                              .trArgs([(e.marcos.where(ehPremio).map((m) => m.dia).toList()..sort()).first])
+                          : 'Ainda não tens prémios. Faz o check-in todos os dias: aos 10 dias seguidos ganhas o primeiro.'.tr),
                     if (e.porUsar.isNotEmpty) ...[
                       _titulo('Por usar'.tr),
                       for (final v in e.porUsar) _ValeCartao(vale: v, aUsar: _aUsar == v.id, onUsar: () => _usar(v)),
@@ -363,6 +387,59 @@ class _DegrauLinha extends StatelessWidget {
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primaryDark),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// R4: a melhor sugestão — um prémio só, o mais valioso a que já chegaste.
+class _SugestaoCartao extends StatelessWidget {
+  const _SugestaoCartao({required this.marco, required this.precisaPedido});
+
+  final CheckinMarco marco;
+  final bool precisaPedido;
+
+  @override
+  Widget build(BuildContext context) {
+    final valor = valorEmEuros(marco.valorCents);
+    return Container(
+      key: const Key('premios_sugestao'),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary, width: 1.5),
+        boxShadow: AppColors.shadowCard,
+      ),
+      child: Row(
+        children: [
+          PremioFoto(url: marco.fotoUrl ?? marco.lojaFotoUrl, tipo: marco.tipo, tamanho: 64, redonda: false),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('A melhor sugestão para ti'.tr,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
+                const SizedBox(height: 2),
+                Text(marco.titulo.tr,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                if (marco.lojaNome != null || valor.isNotEmpty)
+                  Text(
+                    [if (marco.lojaNome != null) marco.lojaNome!, if (valor.isNotEmpty) 'vale {0}'.trArgs([valor])]
+                        .join(' · '),
+                    style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                  ),
+                if (precisaPedido) ...[
+                  const SizedBox(height: 4),
+                  Text('Falta 1 pedido para desbloquear o prémio'.tr,
+                      key: const Key('premios_falta_pedido'),
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF92400E))),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );

@@ -19,6 +19,15 @@
 //  - escada de prémios: ao chegar a um degrau há festa (confete, som curto e
 //    vibração, uma vez por degrau) e a escolha "Levantar agora" / "Continuar";
 //    com um prémio guardado sem escolha pendente, uma linha "Tens guardado".
+//
+// Bloco G (10/11/2026, "faça uma coisa bem bonita"):
+//  - o mês abre num CAMINHO de 30 dias (chama nos feitos, gelo no dia perdoado,
+//    hoje a brilhar, foto real e valor em euros em cada prémio);
+//  - barra "Faltam X dias para o açaí" com a foto do próximo prémio;
+//  - confete pequeno a cada check-in e festa grande ao chegar a um degrau, com o
+//    prémio em grande e "Quero este" / "Continuar para o próximo" (R3);
+//  - "Falta 1 pedido para desbloquear" (R2), aviso do perdão do mês (R5) e o
+//    botão do lembrete diário (R8).
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -36,6 +45,10 @@ import '../../services/checkin_premios_service.dart';
 import '../../services/checkin_service.dart';
 import '../../services/sound_service.dart';
 import '../../services/wallet_service.dart';
+import '../../utils/checkin_regras.dart';
+import '../checkin/checkin_barra_proximo.dart';
+import '../checkin/checkin_caminho.dart';
+import '../checkin/checkin_festa_premio.dart';
 import '../checkin/confete.dart';
 
 /// Festa de chegar a um degrau da escada: vibração forte e o som curto da Bora.
@@ -70,6 +83,8 @@ class CheckinDiarioCard extends StatefulWidget {
     this.levantarEscada,
     this.continuarEscada,
     this.festaEscada,
+    this.marcarPerdaoVisto,
+    this.definirLembrete,
   });
 
   /// Lê o estado de hoje. Por omissão, `CheckinService.instance.estado`.
@@ -100,6 +115,12 @@ class CheckinDiarioCard extends StatefulWidget {
 
   /// Som e vibração da festa do degrau. Por omissão, [festaDoDegrau].
   final Future<void> Function()? festaEscada;
+
+  /// R5: o aviso do perdão já se viu. Por omissão, o servidor.
+  final Future<void> Function()? marcarPerdaoVisto;
+
+  /// R8: liga/desliga o lembrete diário. Por omissão, o servidor.
+  final Future<bool> Function(bool ligado)? definirLembrete;
 
   @override
   State<CheckinDiarioCard> createState() => _CheckinDiarioCardState();
@@ -133,6 +154,14 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
   bool _aDecidir = false;
   String? _erroEscada;
   String? _festaEscadaFeita;
+
+  // Bloco G: tamanho do confete (pequeno no check-in, grande no degrau), uma
+  // série por festa (chave nova = confete novo), o aviso do perdão e o lembrete.
+  int _quantosConfetes = 38;
+  int _serieConfete = 0;
+  bool _perdaoVisto = false;
+  bool? _lembreteLigado;
+  bool _aGravarLembrete = false;
 
   // Criado no initState, nunca "à preguiça": com o cartão escondido o
   // controlador nunca era lido e nascia dentro do dispose(), a procurar o
@@ -205,6 +234,8 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
       if (novo != null) {
         _premioNovo = novo;
         _confete = true;
+        _quantosConfetes = 38;
+        _serieConfete++;
       }
     });
     if (novo != null && p != null) {
@@ -230,7 +261,11 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
       debugPrint('[CheckinDiarioCard] festa do degrau (preferências): $e');
     }
     if (!mounted) return;
-    setState(() => _confete = true);
+    setState(() {
+      _confete = true;
+      _quantosConfetes = 90;
+      _serieConfete++;
+    });
     unawaited((widget.festaEscada ?? festaDoDegrau)());
   }
 
@@ -323,6 +358,14 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
         _saldo = r.balance ?? _saldo;
       });
       if (ganhos > 0) unawaited(_entrada.forward(from: 0));
+      // Confete pequeno a cada check-in (a festa grande fica para os degraus).
+      if (ganhos > 0 && mounted) {
+        setState(() {
+          _confete = true;
+          _quantosConfetes = 16;
+          _serieConfete++;
+        });
+      }
       // O gatilho do servidor pode ter dado o prémio de um marco agora mesmo.
       unawaited(_lerPremios());
       // O saldo mostrado noutros ecrãs (perfil) volta a ser lido. Também quando
@@ -401,6 +444,7 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
                 ),
                 const SizedBox(height: 10),
                 _dias(e),
+                ..._barraEPerdao(e),
                 AnimatedSize(
                   duration: const Duration(milliseconds: 250),
                   curve: Curves.easeInOut,
@@ -416,7 +460,15 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
                 _rodape(e),
                 if (escolha) ...[
                   const SizedBox(height: 10),
-                  _escolhaEscada(esc),
+                  CheckinFestaPremio(
+                    guardado: esc.guardado!,
+                    proximo: esc.proximoMaior,
+                    aDecidir: _aDecidir,
+                    onQueroEste: _levantar,
+                    onContinuar: _continuar,
+                    texto: esc.texto,
+                    precisaPedido: p?.precisaPedido ?? false,
+                  ),
                 ] else if (guardado) ...[
                   const SizedBox(height: 10),
                   _linhaGuardado(esc),
@@ -443,6 +495,8 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
             if (_confete)
               Positioned.fill(
                 child: Confete(
+                  key: ValueKey('confete_$_serieConfete'),
+                  quantidade: _quantosConfetes,
                   onFim: () {
                     if (mounted) setState(() => _confete = false);
                   },
@@ -631,8 +685,6 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
     final ciclo = p.cicloDias <= 0 ? 30 : p.cicloDias;
     final hojeSeq = p.diaDeHoje;
     final feitoAte = _feitoAte(e, p);
-    final marcos = {for (final m in p.marcos) m.dia: m};
-    final linhas = (ciclo + 6) ~/ 7;
     final esc = p.escada;
     return Container(
       key: const Key('checkin_mes_calendario'),
@@ -659,29 +711,12 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
               style: const TextStyle(fontSize: 12, height: 1.3, color: AppColors.textSecondary),
             ),
           ],
-          const SizedBox(height: 8),
-          for (var l = 0; l < linhas; l++)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                children: [
-                  for (var c = 0; c < 7; c++)
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: (l * 7 + c + 1) <= ciclo
-                            ? _celulaMes(
-                                dia: l * 7 + c + 1,
-                                feito: (l * 7 + c + 1) <= feitoAte,
-                                hoje: (l * 7 + c + 1) == hojeSeq,
-                                marco: marcos[l * 7 + c + 1],
-                              )
-                            : const SizedBox(height: 38),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+          const SizedBox(height: 10),
+          CheckinCaminho(
+            dias: diasDoCaminho(p, feitoAte: feitoAte, hoje: hojeSeq),
+            chaveDia: 'checkin_mes_dia_',
+            chaveMarco: 'checkin_mes_marco_',
+          ),
           const SizedBox(height: 4),
           for (final m in p.marcos)
             Padding(
@@ -701,6 +736,13 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
                       style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                     ),
                   ),
+                  if (valorEmEuros(m.valorCents).isNotEmpty)
+                    Text(
+                      valorEmEuros(m.valorCents),
+                      key: Key('checkin_mes_valor_${m.dia}'),
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
+                    ),
                 ],
               ),
             ),
@@ -715,123 +757,105 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
                   : 'Os meus prémios'.tr),
             ),
           ),
+          if (p.lembrete != null) _linhaLembrete(p.lembrete!),
         ],
       ),
     );
   }
 
-  Widget _celulaMes({
-    required int dia,
-    required bool feito,
-    required bool hoje,
-    CheckinMarco? marco,
-  }) {
-    final Color fundo = feito ? AppColors.primary : (hoje ? _verdeClaro : Colors.white);
-    final Color texto = feito
-        ? Colors.white
-        : (hoje ? AppColors.primaryDark : AppColors.textSecondary);
-    return Container(
-      key: Key('checkin_mes_dia_$dia'),
-      height: 38,
-      decoration: BoxDecoration(
-        color: fundo,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: hoje && !feito
-              ? AppColors.primary
-              : (marco != null && !feito ? AppColors.primary.withValues(alpha: 0.4) : _borda),
-          width: hoje && !feito ? 2 : 1,
-        ),
-      ),
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '$dia',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: texto),
-            ),
-            if (marco != null)
-              Icon(
-                _iconeMarco(marco),
-                key: Key('checkin_mes_marco_$dia'),
-                size: 12,
-                color: feito ? Colors.white : AppColors.primaryDark,
-              ),
-          ],
-        ),
+  /// R8: o lembrete diário, à hora a que costuma fazer o check-in; desliga-se aqui.
+  Widget _linhaLembrete(CheckinLembrete l) {
+    final ligado = _lembreteLigado ?? l.ligado;
+    final hora = l.hora;
+    return SwitchListTile(
+      key: const Key('checkin_lembrete_switch'),
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      value: ligado,
+      activeThumbColor: AppColors.primary,
+      onChanged: _aGravarLembrete ? null : _mudarLembrete,
+      title: Text('Lembrete diário'.tr,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+      subtitle: Text(
+        hora == null
+            ? 'Um aviso por dia, só enquanto vens fazer o check-in.'.tr
+            : 'Um aviso por dia, por volta das {0}h, só enquanto vens fazer o check-in.'.trArgs([hora]),
+        style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
       ),
     );
   }
 
-  /// Chegou a um degrau: "Levantar agora" ou "Continuar".
-  Widget _escolhaEscada(CheckinEscada esc) {
-    final g = esc.guardado!;
-    final prox = esc.proximoMaior;
+  Future<void> _mudarLembrete(bool ligado) async {
+    final antes = _lembreteLigado;
+    setState(() {
+      _lembreteLigado = ligado;
+      _aGravarLembrete = true;
+    });
+    final ok = await (widget.definirLembrete ?? CheckinPremiosService.instance.definirLembrete)(ligado);
+    if (!mounted) return;
+    setState(() {
+      _aGravarLembrete = false;
+      if (!ok) _lembreteLigado = antes;
+    });
+  }
+
+  /// A barra do próximo prémio e os avisos do perdão (R5), por baixo da semana.
+  List<Widget> _barraEPerdao(CheckinEstado e) {
+    final p = _premios;
+    if (p == null) return const [];
+    final prox = proximoPremio(p);
+    final perdao = p.perdao;
+    return [
+      if (prox != null) ...[
+        const SizedBox(height: 10),
+        CheckinBarraProximo(
+          marco: prox.marco,
+          faltam: prox.faltam,
+          progresso: prox.progresso,
+          precisaPedido: p.precisaPedido,
+        ),
+      ],
+      if (perdao != null && perdao.pendente && !e.alreadyDone) ...[
+        const SizedBox(height: 8),
+        _aviso(
+          const Key('checkin_perdao_pendente'),
+          'Ontem não deu, mas o teu perdão deste mês guarda a sequência. Faz o check-in de hoje!'.tr,
+        ),
+      ] else if (perdao != null && perdao.temAviso && !_perdaoVisto) ...[
+        const SizedBox(height: 8),
+        _aviso(
+          const Key('checkin_perdao_aviso'),
+          'Usámos o teu perdão deste mês: a tua sequência continua.'.tr,
+          fechar: () {
+            setState(() => _perdaoVisto = true);
+            unawaited((widget.marcarPerdaoVisto ?? CheckinPremiosService.instance.marcarPerdaoVisto)());
+          },
+        ),
+      ],
+    ];
+  }
+
+  Widget _aviso(Key chave, String texto, {VoidCallback? fechar}) {
     return Container(
-      key: const Key('checkin_escada_escolha'),
-      padding: const EdgeInsets.all(12),
+      key: chave,
+      padding: const EdgeInsets.fromLTRB(10, 6, 4, 6),
       decoration: BoxDecoration(
-        color: _verdeFundo,
+        color: const Color(0xFFE0F2FE),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Row(
         children: [
-          Row(
-            children: [
-              const Icon(Icons.emoji_events_outlined, color: AppColors.primary, size: 22),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Chegaste ao dia {0}: ganhaste {1}!'.trArgs([g.dia, g.titulo.tr]),
-                  style: const TextStyle(
-                      fontSize: 13.5, fontWeight: FontWeight.w800, color: AppColors.primaryDark),
-                ),
-              ),
-            ],
+          const Icon(Icons.ac_unit_rounded, color: Color(0xFF0284C7), size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(texto, style: const TextStyle(fontSize: 12.5, color: Color(0xFF075985))),
           ),
-          const SizedBox(height: 10),
-          FilledButton(
-            key: const Key('btn_escada_levantar'),
-            onPressed: _aDecidir ? null : _levantar,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+          if (fechar != null)
+            TextButton(
+              key: const Key('btn_perdao_ok'),
+              onPressed: fechar,
+              child: Text('OK'.tr),
             ),
-            child: Text(
-              'Levantar agora: {0} (a tua sequência volta ao dia 1)'.trArgs([g.titulo.tr]),
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-            ),
-          ),
-          if (prox != null) ...[
-            const SizedBox(height: 8),
-            OutlinedButton(
-              key: const Key('btn_escada_continuar'),
-              onPressed: _aDecidir ? null : _continuar,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primaryDark,
-                side: const BorderSide(color: AppColors.primary),
-                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-              ),
-              child: Text(
-                'Continuar: no dia {0} trocas por {1}'.trArgs([prox.dia, prox.titulo.tr]),
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-              ),
-            ),
-          ],
-          if (esc.texto.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              esc.texto.tr,
-              key: const Key('checkin_escada_texto'),
-              style: const TextStyle(fontSize: 12, height: 1.3, color: AppColors.textSecondary),
-            ),
-          ],
         ],
       ),
     );

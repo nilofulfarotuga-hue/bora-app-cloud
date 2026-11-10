@@ -390,8 +390,14 @@ void main() {
       await t.pump();
       await t.pump();
       expect(find.byKey(const Key('checkin_escada_escolha')), findsOneWidget);
-      expect(find.text('Levantar agora: 2 salgados da Keli (a tua sequência volta ao dia 1)'), findsOneWidget);
-      expect(find.text('Continuar: no dia 15 trocas por um açaí do Goola'), findsOneWidget);
+      // R3 (fechar-tudo 10/11/2026): os botões passam a "Quero este" (a escada dos
+      // prémios volta ao dia 1; os tokens não) e "Continuar para o próximo" (com o
+      // próximo prémio e quantos dias faltam).
+      expect(find.text('Quero este'), findsOneWidget);
+      expect(find.text('A escada dos prémios volta ao dia 1'), findsOneWidget);
+      expect(find.text('Continuar para o próximo'), findsOneWidget);
+      expect(find.text('um açaí do Goola daqui a 5 dias'), findsOneWidget);
+      expect(find.text('Chegaste ao dia 10: ganhaste 2 salgados da Keli!'), findsOneWidget);
       expect(find.text(_textoEscada), findsOneWidget, reason: 'o texto da escada por baixo');
       expect(find.byKey(const Key('checkin_confete')), findsOneWidget);
       expect(festas, 1);

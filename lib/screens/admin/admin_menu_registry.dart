@@ -39,6 +39,7 @@ import 'admin_opcoes_produto_screen.dart';
 import 'admin_maiores_18_screen.dart';
 import 'admin_reativacao_screen.dart';
 import 'admin_checkin_premios_screen.dart';
+import 'admin_checkin_regras_screen.dart';
 import 'admin_checkin_screen.dart';
 import 'admin_receitas_screen.dart';
 import 'admin_restaurante_do_dia_screen.dart';
@@ -1199,6 +1200,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: AppColors.primary,
       builder: () => const AdminCheckinPremiosScreen(),
       keywords: const ['premio', 'premios', 'marco', 'marcos', 'vale', 'vales', 'checkin', 'keli', 'goola', 'salgados', 'acai', 'limpeza', 'lavagem'],
+    ),
+    AdminMenuItem(
+      id: 'clientes_checkin_regras',
+      title: 'Regras do check-in (R2 a R8)',
+      subtitle: 'Custo do mês × teto (aviso aos 80%), pedido pago, perdão, sugestão, lembrete à hora habitual, quem está em que dia e a escada com foto, valor e custo',
+      icon: Icons.rule_rounded,
+      color: AppColors.primary,
+      builder: () => const AdminCheckinRegrasScreen(),
+      keywords: const ['checkin', 'check-in', 'regras', 'teto', 'custo', 'perdao', 'lembrete', 'escada', 'sugestao', 'pedido pago', 'premios'],
     ),
     AdminMenuItem(
       id: 'clientes_receita_do_dia',

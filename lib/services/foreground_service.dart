@@ -11,6 +11,49 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'notification_service.dart' show postWakeActivityNotification;
 
+/// [GPS parado · 10/11/2026] Marca desta versão do código da posição em fundo.
+/// Vai em `driver_posicao_segredo(p_app_build)` e fica em
+/// `driver_locations.app_build`: é por ela que a tarefa da ronda sabe que um
+/// estafeta já tem a app nova antes de apertar a janela do GPS para 900 s.
+const int kGpsParadoVersao = 20261110;
+
+/// O que fazer com a resposta de `driver_posicao_segredo`.
+enum ResultadoPosicaoSegredo {
+  /// Posição gravada.
+  enviada,
+
+  /// O estafeta já não está online no servidor: não insistir.
+  desligado,
+
+  /// O servidor recusou o segredo: largá-lo e seguir pelo token, se houver.
+  largarSegredo,
+
+  /// Função ainda não publicada, erro de rede ou resposta estranha: tentar o
+  /// caminho antigo (token), sem largar o segredo.
+  tentarToken,
+}
+
+/// Decide pela resposta HTTP de `driver_posicao_segredo` (pura, testada em
+/// `test/gps_parado_fundo_test.dart`).
+ResultadoPosicaoSegredo resultadoPosicaoComSegredo(int status, String corpo) {
+  if (status != 200) return ResultadoPosicaoSegredo.tentarToken;
+  try {
+    final j = jsonDecode(corpo);
+    if (j is! Map) return ResultadoPosicaoSegredo.tentarToken;
+    if (j['ok'] == true) return ResultadoPosicaoSegredo.enviada;
+    switch (j['error']) {
+      case 'offline':
+        return ResultadoPosicaoSegredo.desligado;
+      case 'forbidden':
+        return ResultadoPosicaoSegredo.largarSegredo;
+      default:
+        return ResultadoPosicaoSegredo.tentarToken;
+    }
+  } catch (_) {
+    return ResultadoPosicaoSegredo.tentarToken;
+  }
+}
+
 /// Foreground service wrapper para manter driver/parceiro sempre activos
 /// em background com notificação persistente (padrão Glovo/Uber Eats).
 ///
@@ -397,7 +440,7 @@ class _BoraTaskHandler extends TaskHandler {
         // [ronda 04/10 · #8] posição a cada ~60 s (8 ticks de 7,5 s) mesmo
         // parado — só se ninguém a tiver mandado no último minuto.
         if (_heartbeatTickCount % 8 == 0) {
-          unawaited(_posicaoDeReserva(url, apiKey));
+          unawaited(_posicaoDeReserva(url, apiKey, driverId));
         }
         // [ronda 04/10 · despacho A6] com segredo guardado bate-se pelo
         // caminho que só aceita o próprio estafeta; sem ele, ou se o servidor
@@ -518,7 +561,15 @@ class _BoraTaskHandler extends TaskHandler {
   /// continuava "online" com a posição a envelhecer até sair do matching.
   /// Precisa da localização "Permitir sempre" (pedida uma vez ao ficar
   /// online); sem ela o Android não dá posição e isto sai calado.
-  Future<void> _posicaoDeReserva(String url, String apiKey) async {
+  ///
+  /// [GPS parado · 10/11/2026] O token de sessão guardado dura 1 hora: com a
+  /// app em fundo mais do que isso, a posição ia por 401 e parava (Valdemir,
+  /// 10/11: batimento de agora, posição de há 4 h 23 min). Agora vai PRIMEIRO
+  /// pelo segredo do batimento (`driver_posicao_segredo`, que não caduca e
+  /// passa pela mesma `driver_update_location`); o token fica só de reserva
+  /// para quem ainda não tem segredo guardado.
+  Future<void> _posicaoDeReserva(
+      String url, String apiKey, String driverId) async {
     if (_posicaoEmVoo) return;
     _posicaoEmVoo = true;
     try {
@@ -534,9 +585,13 @@ class _BoraTaskHandler extends TaskHandler {
       final ultima = prefs.getInt('bora_ultima_posicao_ts') ?? 0;
       final idade = DateTime.now().millisecondsSinceEpoch - ultima;
       if (idade < 55000) return;
+      final segredo = await FlutterForegroundTask.getData<String>(
+          key: BoraForegroundService._kSegredoBatimento);
       final token =
           await FlutterForegroundTask.getData<String>(key: 'fgs_access_token');
-      if (token == null || token.isEmpty) return;
+      final temSegredo = segredo != null && segredo.isNotEmpty;
+      final temToken = token != null && token.isNotEmpty;
+      if (!temSegredo && !temToken) return;
       final perm = await Geolocator.checkPermission();
       if (perm != LocationPermission.always) return;
       // Bateria: a última posição conhecida serve se tiver < 2 min (o
@@ -555,6 +610,43 @@ class _BoraTaskHandler extends TaskHandler {
         locationSettings:
             const LocationSettings(accuracy: LocationAccuracy.medium),
       ).timeout(const Duration(seconds: 6));
+      final corpoPosicao = <String, dynamic>{
+        'p_latitude': pos.latitude,
+        'p_longitude': pos.longitude,
+        if (pos.heading.isFinite) 'p_heading': pos.heading,
+        if (pos.speed.isFinite) 'p_speed_kmh': pos.speed * 3.6,
+      };
+      if (temSegredo) {
+        final r = await http.post(
+          Uri.parse('$url/rest/v1/rpc/driver_posicao_segredo'),
+          headers: {
+            'apikey': apiKey,
+            'Authorization': 'Bearer $apiKey',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({
+            ...corpoPosicao,
+            'p_driver_id': driverId,
+            'p_segredo': segredo,
+            'p_app_build': kGpsParadoVersao,
+            'p_permissao': perm.name,
+          }),
+        ).timeout(const Duration(seconds: 5));
+        final caminho = resultadoPosicaoComSegredo(r.statusCode, r.body);
+        debugPrint('[FGS_POLL] posição com segredo → ${r.statusCode} $caminho');
+        if (caminho == ResultadoPosicaoSegredo.enviada) {
+          await prefs.setInt(
+              'bora_ultima_posicao_ts', DateTime.now().millisecondsSinceEpoch);
+          return;
+        }
+        if (caminho == ResultadoPosicaoSegredo.desligado) return;
+        if (caminho == ResultadoPosicaoSegredo.largarSegredo) {
+          await FlutterForegroundTask.removeData(
+              key: BoraForegroundService._kSegredoBatimento);
+        }
+        // tentarToken / largarSegredo: segue pelo caminho antigo, se houver.
+      }
+      if (!temToken) return;
       final res = await http.post(
         Uri.parse('$url/rest/v1/rpc/driver_update_location'),
         headers: {

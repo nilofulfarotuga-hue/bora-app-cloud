@@ -75,6 +75,7 @@ const Map<String, String> kStringsEn = <String, String>{
   'Hum… deixa-me ver.': 'Hmm… let me see.',
   'Ligar o som': 'Turn sound on',
   'Olá! Sou o Amigo. Fala comigo: estou aqui para o que precisares.': "Hi! I'm Amigo. Talk to me: I'm here for whatever you need.",
+  'Sou uma inteligência artificial (IA) do Bora, não uma pessoa.': "I'm an artificial intelligence (AI) from Bora, not a person.",
   'Parar de ouvir e enviar': 'Stop listening and send',
   'Sou o Amigo. Fala comigo': "I'm Amigo. Talk to me",
   'Tu: {0}': 'You: {0}',
@@ -2409,6 +2410,10 @@ const Map<String, String> kStringsEn = <String, String>{
       'Confirm · pay cash',
   'Confirme para fechar o pedido.':
       'Confirm to close the order.',
+  'Alergénios: contacta a loja antes de pagar.':
+      'Allergens: contact the store before paying.',
+  'Há pratos sem a lista dos 14 alergénios. Se tens alergias ou intolerâncias, confirma com a loja antes de pagar.':
+      'Some dishes do not list the 14 allergens. If you have allergies or intolerances, check with the store before paying.',
   'Consulte o estabelecimento para informações sobre alergénios.':
       'Ask the establishment for allergen information.',
   'Conta apagada.':

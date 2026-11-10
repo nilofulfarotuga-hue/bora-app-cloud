@@ -188,6 +188,26 @@ class FaturasBoraSemana {
     return out;
   }
 
+  /// Colunas do PDF para o contabilista (fechar-tudo-2026-11-10, E5): as do
+  /// CSV sem "Regime" nem "Descrição", para caber numa folha A4.
+  static const cabecalhoPdf = <String>[
+    'Data',
+    'Pedido',
+    'Cliente',
+    'NIF',
+    'Valor (EUR)',
+    'Base (EUR)',
+    'IVA 23% (EUR)',
+    'Estado',
+  ];
+
+  /// As linhas do PDF: as mesmas do CSV ([linhasCsv]), com as colunas de
+  /// [cabecalhoPdf].
+  static List<List<String>> linhasPdf(Iterable<Map<String, dynamic>> linhas) => [
+        for (final r in linhasCsv(linhas))
+          [r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[9]],
+      ];
+
   /// O CSV inteiro (sem a marca BOM: o `exportCsvText` põe-na).
   static String csv(Iterable<Map<String, dynamic>> linhas) => [
         AdminExportService.linhaCsv(cabecalho),

@@ -19,6 +19,7 @@ import '../widgets/bora/bora.dart';
 import '../widgets/bora/maior_18.dart';
 import '../widgets/bora/peso_variavel_nota.dart';
 import '../widgets/agendar_pedido_seletor.dart';
+import '../widgets/aviso_alergenios.dart';
 import '../widgets/takeaway/curbside_inputs.dart';
 import '../widgets/tip_selector.dart';
 import '../widgets/valor_com_risco.dart';
@@ -52,6 +53,22 @@ class CartScreen extends StatelessWidget {
     // "Total a pagar", porque vai no mesmo pagamento da compra.
     final totalToPay = resumo.total;
 
+    // E6 (10/11/2026): carrinho de loja parceira (comida) com algum prato sem
+    // os 14 alergénios preenchidos → "contacta a loja antes de pagar".
+    final lojaId = cartStore.vendorRestaurantId;
+    final avisoAlergenios = cartStore.isPartnerStore &&
+        cartStore.items.isNotEmpty &&
+        carrinhoComAlergeniosEmFalta(
+          cartStore.items.map((i) => i.productId),
+          {
+            if (lojaId != null)
+              for (final p in Provider.of<RestaurantStore>(context,
+                      listen: false)
+                  .partnerProductsForRestaurant(lojaId))
+                p.id: p.allergens,
+          },
+        );
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: BoraScreenAppBar(title: 'Carrinho'.tr),
@@ -62,6 +79,11 @@ class CartScreen extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.fromLTRB(Spacing.lg, Spacing.md, Spacing.lg, 0),
               child: PremioCarrinhoBanner(),
+            ),
+          if (avisoAlergenios)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(Spacing.lg, Spacing.md, Spacing.lg, 0),
+              child: AvisoAlergenios(noCarrinho: true),
             ),
           Expanded(
             child: cartStore.items.isEmpty

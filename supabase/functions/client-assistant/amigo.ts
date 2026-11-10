@@ -404,3 +404,40 @@ export function vencedor(totalOutraCents: number | null, totalBoraCents: number 
   if (totalOutraCents < totalBoraCents) return 'outra';
   return 'empate';
 }
+
+// ── Lei (missão fechar-tudo-2026-11-10, bloco E6) ─────────────────────────────────────────────────
+// Regulamento (UE) 2024/1689 (IA), art. 50.º/1: quem fala com uma IA tem de o saber logo. RGPD,
+// art. 9.º/2 a): alergias, intolerâncias e dietas são dados de saúde — só se guardam com
+// consentimento explícito. Funções puras, testadas em aviso_ia_test.ts.
+
+/** O aviso que abre a primeira fala de cada conversa. */
+export const AVISO_IA = 'Sou uma inteligência artificial (IA) do Bora, não uma pessoa.';
+
+/** O texto já diz que é uma IA ("IA" em maiúsculas, ou "inteligência artificial"). */
+export function jaDizQueEIA(texto: string): boolean {
+  const t = texto ?? '';
+  return /(^|[^\p{L}])IA([^\p{L}]|$)/u.test(t) || /intelig[eê]ncia artificial/i.test(t);
+}
+
+/** A primeira fala de cada conversa diz que é uma IA (se o texto ainda não o disser). */
+export function comAvisoIA(texto: string, primeiraFala: boolean): string {
+  const t = (texto ?? '').trim();
+  if (!primeiraFala || jaDizQueEIA(t)) return t;
+  return t ? `${AVISO_IA} ${t}` : AVISO_IA;
+}
+
+const SAUDE_ALIMENTAR =
+  /alerg|intoler|cel[ií]ac|gl[uú]ten|lactose|dieta|vegan|vegetarian|diab[eé]t|halal|kosher|marisco|amendoi|frutos? secos|casca rija/i;
+
+/** É uma alergia, intolerância ou dieta (dado de saúde): só se guarda com o "sim" do cliente. */
+export function eDadoDeSaude(kind: string, key: string, value: string): boolean {
+  return kind === 'restricao_alimentar' || SAUDE_ALIMENTAR.test(`${key ?? ''} ${value ?? ''}`);
+}
+
+/** A mensagem do cliente é um "sim" claro a guardar — nunca uma frase com "não". */
+export function consentimentoExplicito(mensagem: string): boolean {
+  const m = (mensagem ?? '').trim().toLowerCase();
+  if (!m || /(^|[^\p{L}])(n[aã]o|nunca|nem)([^\p{L}]|$)/u.test(m)) return false;
+  return /^(sim|pode|podes|guarda|guarde|ok|okay|claro|autorizo|aceito|est[aá] bem|t[aá] bem|yes)([^\p{L}]|$)/u.test(m) ||
+    /(podes guardar|pode guardar|guarda isso|guarda isto|autorizo|aceito que guardes)/.test(m);
+}

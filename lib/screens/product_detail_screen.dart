@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/allergens.dart';
+import '../widgets/aviso_alergenios.dart';
 import '../config/app_colors.dart';
 import '../models/cart_item.dart';
 import '../models/partner_product.dart';
@@ -449,14 +450,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             ],
                           ),
                         ] else
-                          Text(
-                            'Consulte o estabelecimento para informações sobre alergénios.'.tr,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade500,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
+                          // E6 (10/11/2026): sem os 14 alergénios preenchidos,
+                          // contactar a loja antes de pagar (Reg. UE 1169/2011).
+                          const AvisoAlergenios(),
                       ],
                     ),
                   ),

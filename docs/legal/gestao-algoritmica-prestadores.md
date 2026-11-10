@@ -4,6 +4,13 @@ Versão 2026-11-01 · Para estafetas, profissionais de limpeza, lavadores, profi
 Base legal: Diretiva (UE) 2024/2831, artigos 7.º a 11.º (gestão algorítmica), e Código do Trabalho, artigos 24.º/3 e 106.º/3 s).
 Escrito em linguagem simples, como a lei manda. Este texto fica na app (Sobre / Informação legal) e é entregue a cada prestador no primeiro dia e sempre que mudar.
 
+> Como é entregue (desde 10/11/2026, missão fechar-tudo, E4): a app mostra este texto, com o resumo da
+> Política de suspensão e revisão humana, a cada prestador com papel aprovado (estafeta, limpeza, lavagem,
+> Casa), uma vez por versão (versão de ecrã `2026-11-10`, `ComoOBoraDecide.versaoId`). O botão
+> "Li e percebi" fica registado (quem, quando, versão) em `prestador_avisos_lidos`; o painel admin mostra
+> quem já leu e quem falta ("Como o Bora decide — leituras"). Quando este texto mudar, muda-se também o
+> ecrã (`lib/screens/prestador/como_o_bora_decide_screen.dart`) e a versão, e todos voltam a ler.
+
 ## 1. Quem somos e como falar com uma pessoa
 
 A Bora é gerida por uma sociedade unipessoal com sede na Guarda (NIPC 519686233, o mesmo dos recibos). Os dados completos estão no ecrã Sobre / Informação legal.

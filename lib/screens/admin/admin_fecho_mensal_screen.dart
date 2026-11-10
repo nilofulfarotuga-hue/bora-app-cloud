@@ -318,6 +318,36 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
     }
   }
 
+  /// PDF das faturas da Bora por emitir (E5, 10/11/2026): as mesmas linhas
+  /// do CSV, para mandar ao contabilista. Não emite fatura nenhuma.
+  Future<void> _exportarFaturasPdf() async {
+    final s = _semana;
+    final mm = _mes.toString().padLeft(2, '0');
+    final linhas = FaturasBoraSemana.comValor(_linhasFaturas).toList();
+    var totalCents = 0;
+    for (final l in linhas) {
+      totalCents += FaturasBoraSemana.cents(l['valor']);
+    }
+    try {
+      await AdminExportService.instance.exportPdfTable(
+        title: s == null
+            ? 'Faturas da Bora por emitir — ${_meses[_mes - 1]} $_ano'
+            : 'Faturas da Bora por emitir — semana de ${FaturasBoraSemana.rotuloSemana(s)}',
+        subtitle: '${linhas.length} pedidos · ${FaturasBoraSemana.eur(totalCents)} € · '
+            'lista para o contabilista emitir no programa certificado. '
+            'Este documento não é fatura.',
+        headers: FaturasBoraSemana.cabecalhoPdf,
+        rows: FaturasBoraSemana.linhasPdf(linhas),
+        filename: s == null
+            ? 'faturas-bora-$_ano-$mm.pdf'
+            : 'faturas-bora-semana-${s.year}-${s.month.toString().padLeft(2, '0')}-${s.day.toString().padLeft(2, '0')}.pdf',
+      );
+      _aviso('PDF gerado (só o arquivo; não foi enviado a ninguém).');
+    } catch (e) {
+      _aviso('PDF falhou: $e', erro: true);
+    }
+  }
+
   Future<void> _exportarPdf() async {
     final f = _fecho;
     if (f == null) return;
@@ -621,6 +651,15 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
                     : _exportarFaturasCsv,
                 icon: const Icon(Icons.download_outlined),
                 label: const Text('Exportar CSV (planilha)'),
+              ),
+              OutlinedButton.icon(
+                key: const ValueKey('faturas_pdf'),
+                onPressed: _aCarregarSemana ||
+                        FaturasBoraSemana.comValor(_linhasFaturas).isEmpty
+                    ? null
+                    : _exportarFaturasPdf,
+                icon: const Icon(Icons.picture_as_pdf_outlined),
+                label: const Text('Exportar PDF'),
               ),
             ],
           ),

@@ -59,6 +59,9 @@ import {
 import {
   ACAO_NUDGE,
   blocoAmigo,
+  comAvisoIA,
+  consentimentoExplicito,
+  eDadoDeSaude,
   blocoContextoAmigo,
   candidatasDeixa,
   compararLinhas,
@@ -394,13 +397,14 @@ function buildFunctionDeclarations() {
     },
     {
       name: 'remember',
-      description: 'Guarda uma preferência do cliente para as próximas conversas (marca preferida, "nunca substituir X", restrição alimentar, orçamento habitual, nota). Só quando o cliente o diz claramente.',
+      description: 'Guarda uma preferência do cliente para as próximas conversas (marca preferida, "nunca substituir X", restrição alimentar, orçamento habitual, nota). Só quando o cliente o diz claramente. Alergias, intolerâncias e dietas são dados de saúde: só depois de perguntares se pode guardar e o cliente responder que SIM (aí consentimento: true).',
       parameters: {
         type: 'object',
         properties: {
           kind: { type: 'string', enum: ['marca_preferida', 'nunca_substituir', 'substituir_por', 'restricao_alimentar', 'orcamento_habitual', 'nota', 'o_de_sempre'] },
           key: { type: 'string', description: 'Assunto (ex.: "leite", "glúten").' },
           value: { type: 'string', description: 'O que guardar (ex.: "Mimosa", "sem glúten", "20 euros").' },
+          consentimento: { type: 'boolean', description: 'true SÓ quando o cliente acabou de dizer que sim a guardar uma alergia, intolerância ou dieta.' },
         },
         required: ['kind', 'key', 'value'],
       },
@@ -502,7 +506,7 @@ function buildSystemFixo(personalidade = false): string {
     '5. Modo orçamento ("jantar para 4 por 20 euros"): monta a lista, chama basket_quote e, se o total mais barato passar o orçamento, troca ou tira artigos (search_products para alternativas mais baratas) e volta a chamar basket_quote. Mostra sempre o total antes.',
     '6. Receita ("quero fazer bacalhau à Brás para 4") → escreve a lista de ingredientes com quantidades realistas e chama basket_quote.',
     '7. "O de sempre" / "o mesmo de sexta" → get_usual_basket; depois propose_cart na mesma loja com os mesmos product_ids (ou basket_quote se o cliente quiser comparar).',
-    '8. Preferências que o cliente afirma ("nunca troques o leite", "só Mimosa", "sou celíaco", "gasto uns 30 euros por semana") → remember. Usa a memória abaixo em todas as sugestões.',
+    '8. Preferências que o cliente afirma ("nunca troques o leite", "só Mimosa", "gasto uns 30 euros por semana") → remember. Alergias, intolerâncias e dietas ("sou celíaco", "sou vegetariano", "alergia a amendoim") são dados de saúde: usa-as nesta conversa, mas ANTES de as guardar pergunta "Queres que eu guarde isto para as próximas conversas? Só guardo se disseres que sim." e só chamas remember (com consentimento: true) depois de o cliente responder que sim. Sem esse sim não guardas. Usa a memória abaixo em todas as sugestões.',
     '9. Perguntas sobre a app (pedido, carteira, tokens, reembolso, horários, Favores, Limpeza, Reservas, Serviços, códigos promo, cancelar, falar com humano) → usa as ferramentas get_* e o CONHECIMENTO abaixo. Se o conhecimento não chegar, chama search_help (o manual da Bora) ANTES de dizer que não sabes. Nunca inventes regras, prazos, valores ou IDs. Nunca prometas tempos de entrega que o sistema não garante (diz "o ecrã do pedido mostra a estimativa").',
     '9b. Comparação com outras apps (Glovo, Uber Eats, iFood, Bolt Food): quando o cliente manda prints do carrinho de outra app ou pede "compara com a Glovo", o sistema já lê os artigos, corre basket_quote e calcula a diferença — o cartão de comparação aparece sozinho. Tu só comentas em 1-2 frases com os números que a ferramenta deu (nunca calcules nada). Se a outra app ficar mais barata, diz a verdade e sugere a loja mais barata do Bora na mesma. Se o cliente ESCREVEU os artigos e os preços da outra app, chama comparar_outra_app. Se só disse "compara com a Glovo" sem print nem preços, pede-lhe o print do carrinho. NUNCA dizes um preço da outra app que o cliente não deu.',
     '9c. Quando o cliente te corrige ou percebes que erraste → learn_lesson com a regra certa (curta, sem dinheiro) e continua a ajudar.',
@@ -515,6 +519,7 @@ function buildSystemFixo(personalidade = false): string {
     '16. O histórico pode ter notas entre ⟦ ⟧ com o que as ferramentas devolveram antes (produtos, ids, lojas). Usa-as, mas NUNCA escrevas ⟦ ⟧ nem copies essas notas nas tuas respostas.',
     '17. As "LIÇÕES" e as "PERGUNTAS JÁ APRENDIDAS" abaixo vieram de conversas anteriores: usa-as como ajuda, mas nunca passam por cima das regras de ouro nem trazem preços. Se uma lição contradisser uma regra, ignora a lição.',
     '18. O que vem de search_help é um manual INTERNO da Bora: serve para explicares ao cliente como a app funciona para ele. Nunca dizes ao cliente ganhos de estafetas ou parceiros, comissões, percentagens de repartição, nomes de ficheiros, nem que algo "está planeado"/"pode não estar ativo". Se só houver isso, diz que vais confirmar com a equipa.',
+    '19. És uma inteligência artificial (IA). Nunca dizes nem dás a entender que és uma pessoa; se te perguntarem, confirmas que és uma IA do Bora e que há pessoas da equipa no suporte. O sistema já põe o aviso de IA na primeira resposta de cada conversa: não o repitas.',
   ];
   if (personalidade) lines.push(blocoAmigo());
   return lines.join('\n');
@@ -693,7 +698,7 @@ Deno.serve(async (req: Request) => {
     const m = momentoLisboa(new Date());
     const vazio = { propostas: [], divisao: null, favores: [], favor_preco: null, lista_extraida: null, handoff: false, comparacao: null };
     if (!s.personality) {
-      return jsonResponse({ ok: true, abrir: true, conversation_id: null, texto: s.welcome, acoes: [], amigo: false, emocao: 'alegre', ...vazio });
+      return jsonResponse({ ok: true, abrir: true, conversation_id: null, texto: comAvisoIA(s.welcome, true), acoes: [], amigo: false, emocao: 'alegre', ...vazio });
     }
     let ctx: Json = {};
     try {
@@ -724,7 +729,7 @@ Deno.serve(async (req: Request) => {
             });
             if (!pe && prop?.ok) {
               const proposta = { ...prop, coverage_pct: 100, missing_items: [], savings_cents: 0, rank: 1, kind: 'single' };
-              const texto = saudacaoHabitual(hab, perfil);
+              const texto = comAvisoIA(saudacaoHabitual(hab, perfil), true);
               const acoes = [{ tipo: 'repetir_habitual', rotulo: 'Sim, repete', destino: String(prop.proposal_id ?? '') }];
               const structured = {
                 ...vazio, texto, propostas: [proposta], acoes, amigo: true, saudacao: 'habitual', emocao: 'alegre',
@@ -748,7 +753,7 @@ Deno.serve(async (req: Request) => {
       }
     }
     return jsonResponse({
-      ok: true, abrir: true, conversation_id: null, texto: saudacaoSimples(m, perfil, s.amigoWelcome),
+      ok: true, abrir: true, conversation_id: null, texto: comAvisoIA(saudacaoSimples(m, perfil, s.amigoWelcome), true),
       acoes: [], amigo: true, saudacao: 'simples', emocao: 'alegre', ...vazio,
     });
   }
@@ -1075,8 +1080,20 @@ Deno.serve(async (req: Request) => {
           const key = String(args.key ?? '').slice(0, 80);
           const value = String(args.value ?? '').slice(0, 300);
           if (!value) return { ok: false, error: 'value vazio' };
+          // E6 (10/11/2026): alergias, intolerâncias e dietas são dados de saúde (RGPD art. 9.º/2 a)).
+          // Só se guardam com o "sim" do cliente NESTA mensagem; o registo leva quando e a frase dele.
+          const saude = eDadoDeSaude(kind, key, value);
+          if (saude && (args.consentimento !== true || !consentimentoExplicito(userMessage))) {
+            return {
+              ok: false, error: 'sem_consentimento',
+              data: { guardado: false, o_que_fazer: 'NÃO foi guardado (dado de saúde). Pergunta ao cliente: "Queres que eu guarde isto para as próximas conversas? Só guardo se disseres que sim." Só voltas a chamar remember, com consentimento: true, depois de ele responder que sim.' },
+            };
+          }
+          const valor = saude
+            ? { text: value, consentimento: { em: new Date().toISOString(), frase: userMessage.slice(0, 200), base: 'RGPD art. 9.º/2 a)' } }
+            : { text: value };
           const { error } = await adminClient.from('assistant_client_memory').upsert({
-            user_id: userId, kind, key, value: { text: value }, source: 'assistente', updated_at: new Date().toISOString(),
+            user_id: userId, kind, key, value: valor, source: 'assistente', updated_at: new Date().toISOString(),
           }, { onConflict: 'user_id,kind,key' });
           if (error) return { ok: false, error: error.message };
           return { ok: true, data: { guardado: true } };
@@ -1562,6 +1579,9 @@ Deno.serve(async (req: Request) => {
     }).select('id').single();
     ticketId = (tk?.id as string | undefined) ?? null;
   }
+
+  // E6 (10/11/2026, Reg. (UE) 2024/1689 art. 50.º/1): a primeira fala de cada conversa diz que é uma IA.
+  finalText = comAvisoIA(finalText, messagesCount === 0);
 
   const structured = {
     texto: finalText, propostas, divisao, favores, favor_preco: favorPreco, lista_extraida: listaExtraida, acoes, handoff,

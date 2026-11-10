@@ -6,6 +6,7 @@ import '../../config/app_colors.dart';
 import '../../main.dart' show routeObserver;
 import '../../services/admin_push_service.dart';
 import '../../services/auth_admin_service.dart';
+import '../../widgets/admin/alerta_livro_reclamacoes_card.dart';
 import '../../widgets/admin_closed_partners_card.dart';
 import '../../widgets/admin_realtime_metrics_card.dart';
 import '../../widgets/bora/bora_primary_button.dart';
@@ -270,6 +271,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                // [fechar-tudo-2026-11-10 · E2e] prazo de 15 dias úteis.
+                const AlertaLivroReclamacoesCard(),
                 const AdminRealtimeMetricsCard(),
                 const AdminClosedPartnersCard(),
                 const SizedBox(height: 8),

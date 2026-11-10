@@ -22,6 +22,7 @@ import '../widgets/chamada_reforco_tile.dart';
 import '../widgets/bora/bora_bottom_action_bar.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import '../widgets/livro_reclamacoes_entrada.dart';
 import '../widgets/profile_switcher_button.dart';
 import '../models/driver_model.dart';
 import '../services/auth_admin_service.dart';
@@ -1087,6 +1088,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     MaterialPageRoute(builder: (_) => const LegalInfoScreen()),
                   ),
                 ),
+                // [fechar-tudo-2026-11-10 · E2b] DL 156/2005, art. 5.º-B.
+                const LivroReclamacoesEntrada(),
               ],
             ),
 

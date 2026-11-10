@@ -10,6 +10,7 @@ import '../config/app_colors.dart';
 import '../providers/support_settings_provider.dart';
 import '../screens/support_chat_screen.dart';
 import '../screens/support_email_form_screen.dart';
+import 'livro_reclamacoes_entrada.dart';
 
 import '../l10n/tr.dart';
 
@@ -112,6 +113,10 @@ class BoraSupportSheet extends StatelessWidget {
                 );
               },
             ),
+            // [fechar-tudo-2026-11-10 · E2b] Livro de Reclamações Eletrónico
+            // na Ajuda das três apps (DL 156/2005, art. 5.º-B).
+            const SizedBox(height: 12),
+            const LivroReclamacoesEntrada(cartao: true),
           ],
         ),
       ),

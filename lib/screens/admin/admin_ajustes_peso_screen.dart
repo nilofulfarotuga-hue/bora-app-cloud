@@ -22,6 +22,7 @@ import '../../widgets/admin/admin_csv_button.dart';
 import '../../widgets/bora/bora_empty_placeholder.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_rpc_errors.dart';
+import 'admin_ensaio_cartao_peso_section.dart';
 import 'admin_order_detail_screen.dart';
 
 /// Cêntimos → "1,40 €" (vírgula decimal). Com [comSinal], "+0,17 €" / "-0,20 €".
@@ -77,6 +78,19 @@ String resumoCobrancasCartaoPeso(Iterable<Map<String, dynamic>> linhas) {
   final (nAssume, assume) = parte('bora_assume');
   return 'Cartão: $nCobrado pedido(s) cobrado(s) $cobrado · '
       '$nPendente a cobrar $pendente · Bora assumiu $assume ($nAssume)';
+}
+
+/// Quanto a Bora assumiu neste pedido (10/11/2026, fechar-tudo C): a soma das
+/// diferenças das linhas acertadas como `bora_assume`, só se for a mais.
+/// 0 = nada por cobrar. É a "dívida" que o painel do pedido mostra em destaque.
+int centimosBoraAssumiuPeso(Iterable<Map<String, dynamic>> linhas) {
+  var soma = 0;
+  for (final r in linhas) {
+    if (r['settled_via']?.toString() == 'bora_assume') {
+      soma += _inteiro(r['delta_client_cents']) ?? 0;
+    }
+  }
+  return soma > 0 ? soma : 0;
 }
 
 /// `settled_via` em PT-BR; `null` = o pedido ainda não fechou a compra.
@@ -249,6 +263,10 @@ class _AdminAjustesPesoScreenState extends State<AdminAjustesPesoScreen> {
                 padding: const EdgeInsets.all(Spacing.md),
                 children: [
                   _cartaoExplicacao(),
+                  const SizedBox(height: Spacing.sm),
+                  // 10/11/2026 (fechar-tudo, Bloco C): provar a cobrança no cartão em
+                  // modo de teste antes de ligar weight_adjust_card_charge_enabled.
+                  const EnsaioCartaoPesoSection(),
                   const SizedBox(height: Spacing.sm),
                   _filtroDias(),
                   const SizedBox(height: Spacing.sm),
@@ -508,6 +526,7 @@ class _AdminAjustesPesoSectionState extends State<AdminAjustesPesoSection> {
     for (final r in _linhas) {
       total += _inteiro(r['delta_client_cents']) ?? 0;
     }
+    final boraAssumiu = centimosBoraAssumiuPeso(_linhas);
     const pequeno = TextStyle(fontSize: 12, color: AppColors.textSecondary);
     return Padding(
       padding: const EdgeInsets.only(top: Spacing.md),
@@ -561,6 +580,41 @@ class _AdminAjustesPesoSectionState extends State<AdminAjustesPesoSection> {
                   color: _corDiferenca(total),
                 ),
               ),
+              // 10/11/2026 (fechar-tudo C): a diferença que não foi cobrada fica
+              // à vista — o pedido seguiu, a Bora pagou do bolso dela.
+              if (boraAssumiu > 0) ...[
+                const SizedBox(height: Spacing.sm),
+                Container(
+                  key: const Key('admin_ajustes_peso_bora_assumiu'),
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(Spacing.sm),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(Radii.sm),
+                    border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Ficou por cobrar: ${eurosAjustePeso(boraAssumiu)} — a Bora assumiu',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.error,
+                        ),
+                      ),
+                      const Text(
+                        'O cliente não pagou esta diferença de peso e o pedido seguiu '
+                        'normalmente. Acontece quando o cartão recusa ou o banco pede '
+                        'autenticação (chega um aviso URGENTE no porteiro), quando o '
+                        'pagamento foi MB Way, ou com a cobrança no cartão desligada.',
+                        style: pequeno,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),

@@ -23,6 +23,14 @@
 //   sem cartão reutilizável / o banco pede autenticação / recusado → settled_via = 'bora_assume'
 //             e aviso URGENTE ao Danilo pelo porteiro (porteiro_entrada).
 // Como ligar e vigiar: ver o relatório fecho-pendentes-2026-10-31 (secção ISTO MEXE EM DINHEIRO).
+//
+// 10/11/2026 (missão fechar-tudo-2026-11-10, Bloco C): a leitura do cartão e a cobrança passaram
+// para _shared/peso_cartao.ts (o MESMO código serve o pedido real e o ensaio, e tem testes Deno).
+// MODO ENSAIO: POST { ensaio:true, caso:'a_mais'|'a_menos'|'recusado'|'pede_autenticacao' } com a
+// chave de servidor (RPC admin_ensaio_peso_cartao) → corre o caso na Stripe da EMPRESA em MODO DE
+// TESTE (só STRIPE_TEST_SECRET_KEY_EMPRESA), grava em ensaio_peso_cartao, não toca em orders nem em
+// dinheiro, e funciona com o interruptor desligado. Ver ensaio.ts e
+// docs/propostas/fechar-tudo-2026-11-10/C_LEIA-ME.md.
 // ============================================================================
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
@@ -30,6 +38,19 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { secretKey } from '../_shared/keys.ts';
 import { exigirServidor, respostaAoPing } from '../_shared/chaves.ts';
 import { stripeDaLinha } from '../_shared/stripe_contas.ts';
+import { cobrarDiferencaNoCartao, MAX_CENTS_PESO, type StripePeso } from '../_shared/peso_cartao.ts';
+import {
+  type CasoEnsaio,
+  correrEnsaio,
+  estadoChaveDeTeste,
+  lerPedidoDeEnsaio,
+  linhaDeErro,
+  type LinhaEnsaio,
+  MENSAGEM_FALTA_CHAVE,
+  MENSAGEM_NAO_E_TESTE,
+  NOME_CHAVE_TESTE,
+  type StripeEnsaio,
+} from './ensaio.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,7 +61,7 @@ const corsHeaders = {
 // onde o pedido foi pago (orders.stripe_account) — o cartão guardado só existe lá.
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-const MAX_CENTS = 5000;
+const MAX_CENTS = MAX_CENTS_PESO;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -76,6 +97,35 @@ async function boraAssume(admin: Admin, orderId: string, motivo: string, amountC
   });
 }
 
+/** Grava o resultado do ensaio (tabela própria, nunca orders) e o passo no e2e_log. */
+async function gravarEnsaio(admin: Admin, linha: LinhaEnsaio, pedidoPor: string | null) {
+  const { error } = await admin.from('ensaio_peso_cartao').insert({ ...linha, pedido_por: pedidoPor });
+  if (error) console.error('[cobrar-diferenca-peso] ensaio_peso_cartao insert:', error.message);
+  await admin.from('e2e_log').insert({
+    fluxo: 'cobrar-diferenca-peso', passo: `ensaio_${linha.caso}`, estado: linha.estado,
+    detalhe: `ensaio (modo de teste) ${linha.caso}: esperado ${linha.esperado}, deu ${linha.resultado ?? '—'}` +
+      (linha.erro ? ` · ${linha.erro}` : '') + (error ? ` · NAO GRAVOU: ${error.message}` : ''),
+    device: 'edge',
+  });
+}
+
+/** MODO ENSAIO: só a chave de TESTE da empresa; nunca orders, nunca a chave real. */
+async function ensaio(admin: Admin, caso: CasoEnsaio | null, pedidoPor: string | null): Promise<Response> {
+  if (!caso) return json({ ok: false, error: 'caso_invalido' }, 400);
+  const chave = (Deno.env.get(NOME_CHAVE_TESTE) ?? '').trim();
+  const estado = estadoChaveDeTeste(chave);
+  if (estado !== 'ok') {
+    const erro = estado === 'falta' ? 'falta_chave_teste' : 'chave_nao_e_de_teste';
+    const mensagem = estado === 'falta' ? MENSAGEM_FALTA_CHAVE : MENSAGEM_NAO_E_TESTE;
+    await gravarEnsaio(admin, linhaDeErro(caso, erro, { mensagem }), pedidoPor);
+    return json({ ok: false, error: erro, mensagem });
+  }
+  const stripeTeste = new Stripe(chave, { apiVersion: '2023-10-16', httpClient: Stripe.createFetchHttpClient() });
+  const linha = await correrEnsaio(stripeTeste as unknown as StripeEnsaio, caso, crypto.randomUUID());
+  await gravarEnsaio(admin, linha, pedidoPor);
+  return json({ ok: linha.estado === 'ok', ...linha });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ ok: false, error: 'method_not_allowed' }, 405);
@@ -90,6 +140,11 @@ Deno.serve(async (req) => {
   // deno-lint-ignore no-explicit-any
   let body: any = null;
   try { body = await req.json(); } catch { /* corpo inválido */ }
+
+  // MODO ENSAIO (10/11/2026): antes do interruptor — prova-se com ele desligado.
+  const pedidoEnsaio = lerPedidoDeEnsaio(body);
+  if (pedidoEnsaio.ensaio) return await ensaio(admin, pedidoEnsaio.caso, pedidoEnsaio.pedidoPor);
+
   const orderId = typeof body?.order_id === 'string' ? body.order_id : '';
   const amountCents = Number.isInteger(body?.amount_cents) ? body.amount_cents as number : -1;
   if (!orderId || amountCents < 1 || amountCents > MAX_CENTS) {
@@ -124,39 +179,21 @@ Deno.serve(async (req) => {
     await boraAssume(admin, orderId, `sem chave Stripe da conta ${o.stripe_account ?? 'pessoal'}: ${String(e)}`, amountCents);
     return json({ ok: false, error: 'sem_chave_stripe', settled_via: 'bora_assume' });
   }
-  // Cartão e Customer do pagamento original.
-  let pmId: string | null = null;
-  let customerId: string | null = null;
-  if (o.payment_intent_id && String(o.payment_intent_id).startsWith('pi_')) {
-    try {
-      const orig = await stripe.paymentIntents.retrieve(String(o.payment_intent_id));
-      pmId = typeof orig.payment_method === 'string' ? orig.payment_method : orig.payment_method?.id ?? null;
-      customerId = typeof orig.customer === 'string' ? orig.customer : orig.customer?.id ?? null;
-    } catch (_) { /* sem pagamento original legível */ }
-  }
-  if (!pmId || !customerId) {
-    await boraAssume(admin, orderId, 'sem cartão guardado do pagamento original', amountCents);
-    return json({ ok: false, error: 'sem_cartao_guardado', settled_via: 'bora_assume' });
+  // Cartão e Customer do pagamento original + cobrança off_session: _shared/peso_cartao.ts
+  // (o mesmo código que o ensaio prova). Sem cartão / não confirmado / recusado → a Bora assume.
+  const r = await cobrarDiferencaNoCartao(stripe as unknown as StripePeso, {
+    piOriginal: o.payment_intent_id ? String(o.payment_intent_id) : null,
+    amountCents, orderId, conta,
+  });
+  if (!r.ok) {
+    await boraAssume(admin, orderId, r.motivo, amountCents);
+    return json({ ok: false, error: r.erro, ...(r.status ? { status: r.status } : {}), settled_via: 'bora_assume' });
   }
 
+  // Cobrado (a Stripe disse succeeded). Daqui para baixo nada pode virar "a Bora assume": se o
+  // banco falhar, fica registado para o admin acertar e a cobrança não se repete (idempotência).
   try {
-    const pi = await stripe.paymentIntents.create({
-      amount: amountCents,
-      currency: 'eur',
-      customer: customerId,
-      payment_method: pmId,
-      confirm: true,
-      off_session: true,
-      automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
-      description: `Bora — diferença de peso do pedido ${orderId.slice(0, 8)}`,
-      metadata: { kind: 'peso_variavel', order_id: orderId, bora_conta: conta },
-    }, { idempotencyKey: `peso_${orderId}` });
-
-    if (pi.status !== 'succeeded') {
-      await boraAssume(admin, orderId, `Stripe ficou em ${pi.status}`, amountCents);
-      return json({ ok: false, error: 'nao_confirmado', status: pi.status, settled_via: 'bora_assume' });
-    }
-
+    const pi = { id: r.piId };
     const novoTotal = Math.round((Number(o.final_total ?? 0) * 100) + amountCents) / 100;
     const agora = new Date().toISOString();
     const { error: ue } = await admin.from('orders').update({
@@ -188,7 +225,12 @@ Deno.serve(async (req) => {
     return json({ ok: true, payment_intent_id: pi.id, amount_cents: amountCents });
   } catch (e) {
     const m = e instanceof Error ? e.message : String(e);
-    await boraAssume(admin, orderId, `cartão recusado ou pede autenticação: ${m.slice(0, 120)}`, amountCents);
-    return json({ ok: false, error: 'cobranca_falhou', settled_via: 'bora_assume' });
+    try {
+      await admin.from('e2e_log').insert({
+        fluxo: 'cobrar-diferenca-peso', passo: 'gravar_pedido', estado: 'erro',
+        detalhe: `pedido ${orderId} cobrado ${r.piId} mas a gravação falhou: ${m.slice(0, 300)}`, device: 'edge',
+      });
+    } catch (_) { /* nada a fazer */ }
+    return json({ ok: true, payment_intent_id: r.piId, amount_cents: amountCents, aviso: 'cobrado_mas_gravacao_falhou' });
   }
 });

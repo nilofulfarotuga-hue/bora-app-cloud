@@ -520,3 +520,4 @@ envio git passou nas sessões novas (a orquestradora, aberta antes, continuou co
   versão; os md5 acima são do texto em LF (`git show HEAD:<caminho>`) e batem com o `md5(statements[1])` da base. As
   restantes de hoje (20261110171159, 20261110171238, 20261110173749, 20261110174156, 20261110174403, 20261110174604)
   estão em `supabase/migrations` com o nome da versão aplicada.
+- 10/11 ~22:10 (pagar-na-loja-2026-11-10, Bloco 0.5): bora-tranca barrou Write de supabase/migrations/20261110221000_pagar_na_loja_bloco0_fecho_loja.sql ('migration que toca tokens/wallet/pagamentos/ledger' - o corpo da funcao compute_partner_weekly_settlement le ledger_entries). Nao contornado. A alteracao (autorizada pelo Danilo a 10/11 21:33 'Pode.') foi aplicada pelo MCP do Supabase; o texto exato esta em supabase_migrations.schema_migrations versao 20261110221000 (coluna statements). Fica por fazer: copiar esse texto para o repo quando o Danilo abrir a tranca. e2e_log da missao.

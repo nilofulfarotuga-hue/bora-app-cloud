@@ -200,7 +200,9 @@ void main() {
         'faixa laranja: RECEBER 3,31 € e a conta curta por baixo '
         '(total 14,35, saldo 10,31, tokens 0,73)', (tester) async {
       await tester.pumpWidget(_app(CashCollectBanner(order: _mercado())));
-      expect(find.text('RECEBER 3,31 € EM DINHEIRO'), findsOneWidget);
+      // 10/11/2026 pagar-na-loja: o texto da faixa passou a "COBRA X € AO
+      // CLIENTE" (o mesmo número, totalToCollectCash).
+      expect(find.text('COBRA 3,31 € AO CLIENTE'), findsOneWidget);
       expect(find.byKey(const Key('conta_curta_dinheiro')), findsOneWidget);
       expect(
         find.text(
@@ -213,7 +215,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
           _app(CashCollectBanner(order: _mercado(saldo: 0, tokens: 0))));
-      expect(find.text('RECEBER 14,35 € EM DINHEIRO'), findsOneWidget);
+      expect(find.text('COBRA 14,35 € AO CLIENTE'), findsOneWidget);
       expect(find.byKey(const Key('conta_curta_dinheiro')), findsNothing);
     });
 

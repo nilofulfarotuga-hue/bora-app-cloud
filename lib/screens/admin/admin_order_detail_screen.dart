@@ -12,6 +12,7 @@ import '../../widgets/admin/admin_favor_passos_section.dart';
 import '../../widgets/admin/admin_entregue_sem_codigo_button.dart';
 import '../../widgets/admin/admin_recibo_cliente_section.dart';
 import '../../widgets/admin/admin_talao_pedido_section.dart';
+import '../../widgets/admin/admin_pago_loja_section.dart';
 import '../../widgets/admin/admin_ofertas_do_pedido_section.dart';
 import '../../utils/conta_do_dinheiro_admin.dart';
 import '../../utils/deposito_volta_admin.dart'
@@ -100,7 +101,9 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
               // 13/10: dívida anterior do cliente cobrada neste pedido
               'debt_collected_cents, '
               // 28/10 (C4): crédito de menu, para a conta do dinheiro
-              'menu_credit_applied_cents')
+              'menu_credit_applied_cents, '
+              // 10/11 pagar-na-loja: o que o entregador faz na loja
+              'loja_pagamento_estado, loja_pagar_valor')
           .eq('id', widget.orderId)
           .maybeSingle();
 
@@ -243,7 +246,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen>
                       onReassigned: _refresh,
                     ),
                     _ItemsTab(order: _order!),
-                    _PaymentTab(order: _order!),
+                    _PaymentTab(order: _order!, onRefresh: _refresh),
                     _TimelineTab(orderId: widget.orderId),
                     // 2026-09-22: acrescentar/em falta feitos pela loja parceira.
                     AdminOrderEditsPanel(orderId: widget.orderId),
@@ -785,8 +788,9 @@ class _ItemsTab extends StatelessWidget {
 // ── TAB 3 — Pagamento ───────────────────────────────────────────────────────
 
 class _PaymentTab extends StatelessWidget {
-  const _PaymentTab({required this.order});
+  const _PaymentTab({required this.order, this.onRefresh});
   final Map<String, dynamic> order;
+  final VoidCallback? onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -854,6 +858,9 @@ class _PaymentTab extends StatelessWidget {
             ]),
           ),
         ),
+        // 10/11/2026 pagar-na-loja: situação da loja + correção do valor pago.
+        const SizedBox(height: 12),
+        AdminPagoLojaSection(order: order, onSalvo: onRefresh),
         if (volta != null && !volta.vazio) ...[
           const SizedBox(height: 12),
           Card(

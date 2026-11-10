@@ -19,7 +19,7 @@ import '../widgets/background_location_disclosure.dart';
 import '../widgets/cliente_nome_destaque.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/cancel_blocked_pickup_sheet.dart';
-import '../widgets/payments/collect_badge.dart';
+import '../widgets/payments/loja_pagamento.dart';
 import '../widgets/payments/conta_curta_dinheiro_texto.dart';
 import '../utils/favor_passos.dart';
 import '../widgets/favor_passos_card.dart';
@@ -1964,12 +1964,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   ],
                 ),
                 const SizedBox(height: 10),
-                CollectBadge(
-                  state: order.paymentMethod == PaymentMethod.cash
-                      ? CollectState.collectCash
-                      : CollectState.paidOnline,
-                  amountCents: (order.totalToCollectCash * 100).round(),
-                ),
+                // pagar-na-loja (10/11): quanto paga à loja e quanto cobra.
+                LojaDinheiroResumo(order: order),
                 // 28/10/2026 (C3): parte já paga com saldo/tokens.
                 ContaCurtaDinheiroTexto(order: order),
                 // 2026-09-22: a loja parceira acrescentou/tirou produtos.
@@ -2077,9 +2073,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            order.finalTotal != null
-                                ? 'Compra realizada · Valor: ${eur(order.finalTotal!)}'
-                                : 'Compra realizada',
+                            // pagar-na-loja (10/11): na loja parceira o que
+                            // ficou registado é o preço de balcão pago à loja.
+                            order.lojaPagamento == LojaPagamento.pagarLoja
+                                ? 'Pagaste {0} à loja na recolha'.trArgs(
+                                    [eur(order.finalPurchaseValue ?? order.lojaPagarValor)])
+                                : order.finalTotal != null
+                                    ? 'Compra realizada · Valor: ${eur(order.finalTotal!)}'
+                                    : 'Compra realizada',
                             style: TextStyle(
                               color: Colors.green.shade700,
                               fontWeight: FontWeight.w600,
@@ -2764,7 +2765,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         : (order.vendorName ?? order.serviceType.label);
     final dropoffText = order.dropoffAddress ?? order.dropoffStreet ?? '';
     final paymentLabel = order.paymentMethod.label;
-    final isCash = order.paymentMethod == PaymentMethod.cash;
     final driverLoc = context.read<DriverStore>().currentDriver?.location;
 
     // Auto-dismiss so the offer doesn't block the UI indefinitely. [ronda
@@ -2961,14 +2961,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   ],
                 ),
                 const SizedBox(height: 8),
-                CollectBadge(
-                  state: isCash
-                      ? CollectState.collectCash
-                      : CollectState.paidOnline,
-                  amountCents: (order.totalToCollectCash * 100).round(),
-                  approx: true,
-                  dense: true,
-                ),
+                // pagar-na-loja (10/11): na oferta, antes de aceitar —
+                // "Pagas X na loja · Cobras Y" / "Já pago" / "Fazes a compra".
+                LojaDinheiroResumo(order: order, approx: true, dense: true),
                 // 25/10/2026: na oferta só o primeiro nome (ainda não é dele).
                 if (ClienteNomeDestaque.limpo(order.customerName) != null) ...[
                   const SizedBox(height: 8),
@@ -3509,12 +3504,7 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                       ],
                     ),
                     const SizedBox(height: 8),
-                    CollectBadge(
-                      state: order.paymentMethod == PaymentMethod.cash
-                          ? CollectState.collectCash
-                          : CollectState.paidOnline,
-                      amountCents: (order.totalToCollectCash * 100).round(),
-                    ),
+                    LojaDinheiroResumo(order: order),
                     // 28/10/2026 (C3): parte já paga com saldo/tokens.
                     ContaCurtaDinheiroTexto(order: order),
                     // [Bloco 6 · 04/10] Loja não-parceira (ex.: encomendada por
@@ -3765,12 +3755,7 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerLeft,
-              child: CollectBadge(
-                state: order.paymentMethod == PaymentMethod.cash
-                    ? CollectState.collectCash
-                    : CollectState.paidOnline,
-                amountCents: (order.totalToCollectCash * 100).round(),
-              ),
+              child: LojaDinheiroResumo(order: order),
             ),
             // 28/10/2026 (C3): parte já paga com saldo/tokens.
             ContaCurtaDinheiroTexto(order: order),

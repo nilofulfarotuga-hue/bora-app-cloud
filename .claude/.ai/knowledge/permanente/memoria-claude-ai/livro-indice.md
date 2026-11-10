@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-10T16:37:04.164391+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-10T17:37:03.527333+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-10 16:09 UTC. Páginas listadas: 590.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-10 17:19 UTC. Páginas listadas: 592.
 
 ## O que é o Bora
 
@@ -368,8 +368,8 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-mercadona-reabrir-loja — Plano do Danilo de reabrir a loja Mercadona no Bora só com perfumaria/cosmética/higiene — o que ele mandou guardar e onde estão os preços l… (2026-11-01)
 - livro-areas-metodo-sites — Método obrigatório para construir QUALQUER site (referência → design system → prompt → build → prémio) + agente classificador por nicho, pú… (2026-10-23)
 - livro-areas-mini-site-business — Parallel mini-site web-dev business for local clients using a cinematic HTML/Cloudflare Pages workflow (2026-10-23)
-- livro-areas-missao-domingo-noite — Missão grande de domingo à noite (08/11/2026) para terminar o que falta no Bora — lista de pendências que o Danilo vai ditando; ler antes d… (2026-11-09)
-- livro-areas-missao-domingo-noite-parte2 — Missão grande de domingo à noite (08/11/2026) para terminar o que falta no Bora — lista de pendências que o Danilo vai ditando; ler antes d… (2026-11-09)
+- livro-areas-missao-domingo-noite — Missão grande de domingo à noite (08/11/2026) para terminar o que falta no Bora — lista de pendências que o Danilo vai ditando; ler antes d… (2026-11-10)
+- livro-areas-missao-domingo-noite-parte2 — Missão grande de domingo à noite (08/11/2026) para terminar o que falta no Bora — lista de pendências que o Danilo vai ditando; ler antes d… (2026-11-10)
 - livro-areas-missao-fable-13-09 — Auditoria de 13/09 depois de 3-4 dias sem Claude (limite esgotado) — o que se achou (Apple aprovou, 2 pedidos com problema, 6 migrações do… (2026-10-23)
 - livro-areas-missao-voar — Missão grande pós-PC-novo (prompt-missao-voar.md, 30/08) — fases, decisões do Danilo e estado; ler antes de retomar qualquer fase (2026-10-23)
 - livro-areas-mister-kebab — Mr Kebab & Restaurant (Guarda) — novo parceiro de Restaurantes fechado por Danilo; montar loja no app (catálogo via Glovo/Uber) + mini-site… (2026-10-23)
@@ -434,7 +434,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - relatorio-semanal-reels-2026-11-02 — Relatório semanal dos reels - 2026-11-02 (2026-11-02)
 - relatorio-semanal-reels-2026-11-09 — Relatório semanal dos reels - 2026-11-09 (2026-11-09)
 
-## prompt (40)
+## prompt (41)
 
 - prompt-auditoria-3-plataformas-2026-10-06 — Prompt de missão: auditoria das 3 plataformas (06/10) (2026-10-06)
 - prompt-boom-burger-2026-10-27 — PROMPT Boom! Burger — loja parceira + site premium (27/10/2026) (2026-10-27)
@@ -450,6 +450,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - prompt-connect-empresa-2026-11-04 — Prompt — Connect na Stripe da empresa e repasse automático às lojas (04/11/2026) (2026-11-04)
 - prompt-dipsy-melhor-2026-10-31 — Missão Dipsy "melhor que o Claude Code" (31/10/2026) — decisões do Danilo 06:31 (2026-10-31)
 - prompt-favor-diferenca-mbway-2026-11-03 — Prompt Favor com compra a mais: MB Way da diferença (03/11 13:35) (2026-11-03)
+- prompt-fechar-tudo-2026-11-10 — Prompt da missão fechar-tudo 10/11/2026 (2026-11-10)
 - prompt-fecho-pendentes-2026-10-31 — Prompt "fecho-pendentes" (31/10 22:10) — peso ao quilo, suporte com Claude, 4 pagamentos, 3 commits antigos, limpeza 5 min, painel do porte… (2026-10-31)
 - prompt-final-app-2026-10-29 — Prompt missao final-app-2026-10-29 (2026-10-29)
 - prompt-fuku-anuncio-2026-11-03 — Prompt missão anúncio Fuku Sushi na Meta (03/11/2026 20:30) (2026-11-03)
@@ -477,9 +478,10 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - prompt-talao-confirmar-loja-saldo-2026-10-28-bloco-d — Adenda 18:30 ao prompt de 28/10 (talão Auchan/Divan): Bloco D novo — reembolso no cancelamento (2026-10-28)
 - prompt-zerar-2026-11-02 — Prompt "zerar" (02/11 15:10): chaves antigas, série de limpeza devolve, peso cobra no cartão + arrumações (2026-11-02)
 
-## pesquisa (2)
+## pesquisa (3)
 
 - pesquisa-assistente-cliente-2026-10-07 — Pesquisa mundial para o assistente de compras IA do cliente (base da missão que vem depois do +18) (2026-10-07)
+- pesquisa-checkin-2026-11-10 — Pesquisa do check-in diário — como fazem os melhores (10/11/2026) (2026-11-10)
 - pesquisa-fatura-nif-2026-10-28 — Fatura com NIF, produto em falta e entrega grátis nos parceiros — pesquisa e decisões (28/10/2026) (2026-10-28)
 
 ## decisao (2)

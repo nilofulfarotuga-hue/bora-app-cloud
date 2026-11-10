@@ -489,9 +489,12 @@ class _AdminCheckinRegrasScreenState extends State<AdminCheckinRegrasScreen> {
       if (cents(custo) != null) 'custo_cents': cents(custo),
       if (!desconto) 'ativo': ativo,
     };
-    for (final c in [dia, titulo, loja, produto, foto, valor, custo]) {
-      c.dispose();
-    }
+    // O diálogo ainda está a sair do ecrã: os campos largam-se depois da animação.
+    Future<void>.delayed(const Duration(seconds: 1), () {
+      for (final c in [dia, titulo, loja, produto, foto, valor, custo]) {
+        c.dispose();
+      }
+    });
     if (ok != true || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     try {

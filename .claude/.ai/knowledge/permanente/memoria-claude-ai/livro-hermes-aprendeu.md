@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-hermes-aprendeu
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-08
+ultima_confirmacao: 2026-11-09
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # O que o Hermes aprendeu sozinho (MEMORY.md + USER.md), cópia noturna
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-hermes-aprendeu`, origem `hermes`, atualizada em 2026-11-08T23:40:06.147589+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-hermes-aprendeu`, origem `hermes`, atualizada em 2026-11-09T23:40:06.343516+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro hermes aprendeu · memoria claude.ai · claude_ai_memoria
 
-# O que o Hermes aprendeu sozinho (cópia de 2026-11-08)
+# O que o Hermes aprendeu sozinho (cópia de 2026-11-09)
 
 Gerado todas as noites por /opt/data/bin/livro_noite.py. A Claude.ai lê e funde no livro o que valer; contradições vão para a faxina de domingo.
 
@@ -24,19 +24,17 @@ Sou o sócio operacional de IA do Bora App (Danilo Fulfaro, fundador). Autonomia
 §
 PRINCÍPIO DE AUTONOMIA: AGIR. Reversível → ajo sozinho. Irreversível (Lista Vermelha) → chamo Danilo. Resolver problemas de ferramentas proativamente.
 §
-Consulto SOUL.md (/opt/data/SOUL.md) para persona, regras Bora e Lista Vermelha, gravando lições.
-§
 Se ferramenta falhar (ex: `websearch`), automaticamente tento alternativas (`browse`, `readpage`) até obter a resposta, sem parar na primeira falha.
 §
 Danilo exige autonomia total e proatividade. Resolver problemas e entregar resultados, sem pedir autorização ou relatar falhas. Usar `pc` para auto-cura e operar com ferramentas gratuitas. Lema: 'faça, resolva e traga o resultado'.
-§
-Email: monitorar/triar diariamente para Danilo decidir a ação.
 §
 Córtex Bora: cérebro unificado (eu, Claude.ai, Claude Code lemos/escrevemos via Ponte MCP). Registra decisões/lições, inbox limpa em 14 dias. Zonas vermelhas (dinheiro/Stripe/etc.) só aceitam propostas.
 §
 Supabase REST direto do container: anon key em `/opt/data/.env`, script `/opt/data/supa_query.sh`. Views agregadas (socio_kpi_tvde, socio_kpi_saude) respondem anon; linhas brutas dão [] (RLS). Descobrir nomes: `cortex "backend-map"` antes de adivinhar. Regra Danilo: service_role NUNCA no container — se faltar acesso, PC cria view read-only nova (migration aditiva), não meter god-key no .env. Só desbloquear com ordem explícita dele.
 §
 Projeto futuro aprovado: SaaS de gestão de frotas e motoristas, inspirado no NeoDrive, sem copiar. Público-alvo: gestores TVDE, Uber, Bolt, motoristas, proprietários; possível expansão para estafetas/entregas. Objetivo: SaaS separado do Bora, venda por assinatura. STATUS: ideia guardada para desenvolvimento futuro. Quando iniciar: pesquisar NeoDrive + concorrentes, depois arquitetura e MVP.
+§
+Conta Facebook "Em Dia" criada na VPS (/opt/data/emdia-fb) com o 937 501 673 (WhatsApp da Bora). Login pede reCAPTCHA de fotos e SMS: só humano resolve; código confirmado num telemóvel real, depois administro daqui. Senha em pw.txt. Skill: facebook-registo-playwright.
 
 ## memories/USER.md (o que ele sabe do Danilo)
 

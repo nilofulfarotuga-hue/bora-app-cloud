@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-resumo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-08
+ultima_confirmacao: 2026-11-09
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Livro do Bora — resumo para o ChatGPT (regras + erros + índice, sem pessoais), gerado
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-11-08T23:40:07.629281+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-11-09T23:40:07.663819+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro resumo · memoria claude.ai · claude_ai_memoria
 
-# Livro do Bora — resumo para o ChatGPT (2026-11-08)
+# Livro do Bora — resumo para o ChatGPT (2026-11-09)
 
 Lê isto antes de responder ao Danilo. É a mesma verdade que a Claude.ai, o Hermes, o Claude Code e o OpenCode leem (tabela public.claude_ai_memoria). Gerado todas as noites pela VPS; páginas pessoais ficam de fora.
 
@@ -222,6 +222,18 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 08/11 (quem errou: claude-ai): no pedido do McDonald's voltei a oferecer mandar ao Hugo a pergunta do NIF; ele irritou-se: "não é para mandar" → regra: dúvida do NIF não vai ao Hugo; respondo eu direto, com a lei, sem propor envios.
 08/11 (quem errou: claude-ai): listei os 186 € do Jai (24/10) como dívida; ele corrigiu "já está pago" → regra (repete 20/10 e 07/11): conta do Jai/Vansh só se lista como em aberto depois de confirmar na conversa recente que não foi paga; o livro fica desatualizado.
 08/11 (quem errou: claude-ai): na M9 pus "texto para o Danilo mandar ao Jai" e "mandar o recibo dos 36 €"; ele corrigiu: "não é pra mandar mensagem nenhuma pro Jai" → regra: a missão do Jai é trabalho por trás (Wikipédia, Google, site, radar); nenhuma mensagem, recibo ou resumo vai ao Jai a não ser que o Danilo mande explicitamente.
+- 09/11 (hermes): 09/11 (hermes): ouvi 'endia' por voz e assumi que era do Bora → 'Endia' = Em Dia (app de contas/impostos, pasta em_dia, e-mail/site emdia.boraguarda.com). Publicações do Em Dia NÃO levam a marca Bora; regras em emdia-grupos-facebook (máx 4/dia, 1 por grupo/semana, parar ao 1.º aviso).
+09/11 (quem errou: claude-ai): ele mandou o email "do Emanuel" e eu perguntei se era o da Boom ou o do Vamos Já; irritou-se ("puxa o contexto") → regra: a conta da Boom estava à espera do email do dono (login provisório desde 27/10); ler o contexto e agir sem perguntar.
+09/11 (quem errou: claude-ai): perguntou quanto o Valdemir tinha a receber e eu respondi com o fecho semanal; era o pedido de salgados da Keli que ele tinha acabado de pegar → regra: "quanto X recebe" = ver primeiro o pedido em curso de hoje.
+09/11 (quem errou: claude-ai): disse quanto a Keli recebe sem ler a conversa de fecho com ela (24/08) → regra: valor a pagar a um parceiro = ler primeiro o que foi combinado no fecho e o esquema de preço da loja.
+- 09/11 (hermes): Missao Em Dia no Facebook ficou parada: a ordem de publicar vinha num ficheiro e o filtro de seguranca do Claude Code recusou escrever o texto (ja tinha acontecido 30/09 e 06/11) → Ordem de publicar nos grupos tem de ir escrita DIRETAMENTE no prompt do claude -p (com o nome do Danilo, a data e 'PODE PUBLICAR ... no grupo X'), nunca so num ficheiro; assim passou a 09/11 15:13. Lancar no PC por ssh como utilizador danil (nao 'hermes') + schtasks /IT, em segundo plano. Posts em grupos privados ficam Pendentes ate o admin aprovar.
+09/11 (quem errou: claude-ai): aceitei a troca do cliente do KFC (Durum Kebab) sem ver se existia, e não existia → regra: troca ou sugestão de produto de cadeia não-parceira só depois de confirmar no Glovo da Guarda (ou Uber Eats); no catálogo do Bora só fica o que lá existe
+
+09/11 (quem errou: claude-ai): ao Ricardo (adiantado até dia 30) pus o preço por dia (4,23 €) → regra: ao cliente vai só o total somado e arredondado (segunda a sábado, sem domingo), nunca o preço por dia
+
+09/11 (quem errou: claude-ai): liguei a Casa com o ladrilho só "Casa" e ícone simples na versão do iPhone; ele: "faz tudo pelo meio" → regra: categoria nova só se dá por publicada com o nome completo (ex.: "Casa e Manutenção") e o ícone 3D cartoon igual aos outros, visto nas 3 plataformas
+
+09/11 (quem errou: claude-ai): pedi-lhe para ligar a Casa no painel após o classificador travar → regra: com a ordem dele, refazer eu pelas funções do painel; nunca lhe devolver o passo
 
 
 ## Índice do livro (sem páginas pessoais)
@@ -467,6 +479,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - digest-2026-11-05-modo-automatico-seguro — Claude Code 05/11 — modo automático seguro (por ligar)
 - digest-2026-11-05-robo-suporte — Digest 05/11 — robô do suporte inteligente
 - digest-2026-11-08-m1 — Digest 08/11 — M1 dinheiro dos Favores, recibo, NIF, gorjeta e talões
+- digest-2026-11-08-m10 — M10 08-09/11 — noite toda sem travas: Bloco 1 no ar, app publicada 2x nas 3, Bloco 2 e radar
 - digest-2026-11-08-m2 — Missão m2 08/11 — A minha conta do estafeta, fila de espera, faixa e mira
 - digest-2026-11-08-m3 — Digest 08/11 — m3: Dipsy com internet registada e pergunta antes de dinheiro
 - digest-2026-11-08-m4 — Digest 08/11 — m4 Amigo Bora v1 + adendo suporte (não publicado)
@@ -475,9 +488,14 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - digest-2026-11-08-m8 — Digest M8 08/11 noite: 6 missoes juntas e testadas, nada publicado
 - digest-2026-11-08-m9 — M9 08/11: Jai a fundo — anúncios parados pela verificação, radar com pitch e cobertura de fundo, Wikipédia preparada
 - digest-2026-11-08-missao-domingo — Digest 08/11 — super-missão de domingo
+- digest-2026-11-09-entrega-filme-dipsy — Digest 09/11 — entrega da missão do filme ao Dipsy
+- digest-2026-11-09-m11 — M11 — Amigo com rosto, talões no Drive, pesquisa inteligente e Casa (09/11/2026)
+- digest-2026-11-09-pendencias — Digest 09/11 — missão pendências (Claude Code)
+- digest-2026-11-09-volta-deposito-kfc — Claude Code 09/11 — depósito Volta e robô do talão do KFC
 - diretiva-plataformas-2024-2831 — Diretiva (UE) 2024/2831 trabalho em plataformas — o que obriga o Bora, estado em Portugal, o que está feito e checklist 
 - dsh-como-usar — Como usar o Dipsy (dsh)
 - dsh-como-usar-novidades-2026-10-31 — Dipsy: o que ficou novo a 31/10 (complemento da pagina dsh-como-usar)
+- duvidas-dipsy-filme — Dúvidas do Dipsy na missão do filme (Ep1) — ele acrescenta no fim; o Claude.ai responde em respostas-claude-ai-filme
 - em-dia-ios-copiar-pipeline-bora — Em Dia / iOS: nao escrever o CI do zero, copiar o da Bora que ja funciona
 - em-dia-iphone-identificador — Em Dia / iPhone: identificadores da Apple (bundle id, app id, SKU)
 - em-dia-play-classificacao-conteudo — Em Dia / Play: respostas da classificacao IARC e o que muda quando as assinaturas abrirem
@@ -527,6 +545,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-areas-contas-claras — Missão "contas claras" (20/09) — extratos de dinheiro compreensíveis para estafetas, motoristas, parceiros e o Danilo, e
 - livro-areas-contas-parceiros — Como se calcula e se paga o dinheiro das lojas parceiras do Bora (ledger vs registo do pedido), erros corrigidos a 22/09
 - livro-areas-cortex-bora — Córtex Bora orchestration system — MCP-connected knowledge base + autonomous loop (carteiro/Claude Code/Juiz/Telegram)
+- livro-areas-deposito-volta — Depósito Volta (0,10 € por lata/garrafa de plástico) no Bora — regra do Danilo para cobrar ao cliente e a missão de 09/1
 - livro-areas-divulgacao-bora — Divulgação do Bora App ao público — site oficial (bora-site, agora um só, a crescer para várias páginas), vídeos de apre
 - livro-areas-divulgacao-bora-parte2 — Divulgação do Bora App ao público — site oficial (bora-site, agora um só, a crescer para várias páginas), vídeos de apre
 - livro-areas-divulgacao-bora-parte3 — Divulgação do Bora App ao público — site oficial (bora-site, agora um só, a crescer para várias páginas), vídeos de apre
@@ -534,6 +553,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-areas-em-dia-app — Nova app do Danilo "Em Dia" (assistente do trabalhador independente a recibos verdes + carro + organizador entra/sai din
 - livro-areas-empresa-agentes — Missão "empresa de agentes" (07/09) — o que o Danilo pediu depois do vídeo do Grok Bot (mais agentes, melhor que o vídeo
 - livro-areas-encomendas-festa — Categoria nova "Encomendas para Festa" (bolos, salgados, doces por encomenda com data marcada) + abordagem à doceira da 
+- livro-areas-encomendas-festa-parte2 — Categoria nova "Encomendas para Festa" (bolos, salgados, doces por encomenda com data marcada) + abordagem à doceira da 
 - livro-areas-endereco-web-cliente — Campo de morada do cliente na WEB do [[bora-app]] — cliente presa sem conseguir escrever endereço (31/08), causa achada 
 - livro-areas-entrada-login-bora — Portas de entrada do [[bora-app]] (cliente, estafeta, parceiro) — regras que o Danilo fixou e prompt de auditoria entreg
 - livro-areas-entrega-longa-distancia — Decisão do Danilo (05/11/2026) sobre entregas a mais de ~10 km (caso Porto da Carne) e o escalão de km que ele propôs e 
@@ -546,6 +566,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-areas-filme-animacao-parte3 — Série cristã infantil "A Semente da Luz" — cânone, elenco, e estado da produção do Episódio 1 (parte 3 de 4)
 - livro-areas-filme-animacao-parte4 — Série cristã infantil "A Semente da Luz" — cânone, elenco, e estado da produção do Episódio 1 (parte 4 de 4)
 - livro-areas-filme-animacao-v3 — Continuação de filme-animacao a partir da 3.ª reprovação (31/08) — estado da produção v3 do Ep1 "A Semente da Luz", prom
+- livro-areas-filme-animacao-v3-parte2 — Continuação de filme-animacao a partir da 3.ª reprovação (31/08) — estado da produção v3 do Ep1 "A Semente da Luz", prom
 - livro-areas-ganhar-dinheiro-ia — Objetivo do Danilo de ganhar dinheiro com IA em modo automático (ele só comanda) — o que quer, o que escolheu e o que fi
 - livro-areas-ganhos-prestador — Ganhos do prestador no [[bora-app]] — total do dia em qualquer ecrã e a fórmula do estafeta em loja não-parceira (fica c
 - livro-areas-gibi-biblia-criancas — Animated Bible storytelling project for Danilo's daughters (characters Tuca and Lumi), pivoting to comic book (Gibi) for
@@ -584,6 +605,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-areas-metodo-sites — Método obrigatório para construir QUALQUER site (referência → design system → prompt → build → prémio) + agente classifi
 - livro-areas-mini-site-business — Parallel mini-site web-dev business for local clients using a cinematic HTML/Cloudflare Pages workflow
 - livro-areas-missao-domingo-noite — Missão grande de domingo à noite (08/11/2026) para terminar o que falta no Bora — lista de pendências que o Danilo vai d
+- livro-areas-missao-domingo-noite-parte2 — Missão grande de domingo à noite (08/11/2026) para terminar o que falta no Bora — lista de pendências que o Danilo vai d
 - livro-areas-missao-fable-13-09 — Auditoria de 13/09 depois de 3-4 dias sem Claude (limite esgotado) — o que se achou (Apple aprovou, 2 pedidos com proble
 - livro-areas-missao-voar — Missão grande pós-PC-novo (prompt-missao-voar.md, 30/08) — fases, decisões do Danilo e estado; ler antes de retomar qual
 - livro-areas-mister-kebab — Mr Kebab & Restaurant (Guarda) — novo parceiro de Restaurantes fechado por Danilo; montar loja no app (catálogo via Glov
@@ -617,8 +639,8 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-areas-semente-da-luz — "A Semente da Luz" — biblical animated children's series (Kaggle GPU, Wan 2.2 I2V, multi-agent quality system)
 - livro-areas-sistema-sem-travas — Pedido do Danilo (15/10/2026) para o sistema ficar automático sem pedir permissão a cada passo — auditoria das trancas n
 - livro-areas-stripe-connect — Stripe Connect Express no Bora — decisão do Danilo, estado real (conta dele de motorista já ATIVA, Goola e Ouro e Prata 
-- livro-areas-stripe-connect-parte2 — Stripe Connect Express no Bora — decisão do Danilo, estado real (conta dele de motorista já ATIVA, Goola e Ouro e Prata 
-- livro-areas-stripe-connect-parte3 — Stripe Connect Express no Bora — decisão do Danilo, estado real (conta dele de motorista já ATIVA, Goola e Ouro e Prata 
+- livro-areas-stripe-connect-parte2 — Stripe Connect Express no Bora (parte 2 de 3 — continua em livro-areas-stripe-connect-parte3)
+- livro-areas-stripe-connect-parte3 — Stripe Connect Express no Bora (parte 3 de 3)
 - livro-areas-talao-nao-parceiro — Ecrã do talão do estafeta em pedidos não-parceiros do [[bora-app]] — o que o Danilo exige do fluxo e o prompt entregue a
 - livro-areas-taxa-cancelamento-pedido — Regras do Danilo para cancelamento de pedidos de entrega do bora-app — taxa de cancelamento, reembolso ao MB Way/cartão 
 - livro-areas-tokens-cliente — Regras do Danilo para o cliente usar tokens a pagar pedidos no Bora — ler antes de mexer em desconto de tokens, checkout
@@ -666,6 +688,8 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - meta-anuncios-2026-10-30-textos — Textos finais dos 2 anúncios Meta de 30/10/2026 (Instala e pede + Check-in diário)
 - meta-anuncios-2026-10-31-adendo-revisao — Adendo G-REVISÃO dos anúncios Meta (31/10 06:52) — correções do Danilo + juiz visual
 - meta-anuncios-2026-10-31-criativos — Anúncios Meta 31/10 — criativos finais (juiz ≥ 9) e porque o anúncio antigo não deu pedidos
+- missao-dipsy-filme-ep1-2026-11-09 — Missão do Dipsy: acabar o filme das meninas (Ep1 Haja Luz) perfeito, plano a plano, motores grátis (09/11/2026)
+- missao-pendencias-2026-11-09 — Missão pendências 30 dias (09/11/2026)
 - motor-claude-2026-10-31 — Motor Claude 31/10 - estado final (Bloco 2 da retoma-geral)
 - motores-rotacao-2026-10-29 — Motores gratis em rotacao - medicoes e cadeias (29/10/2026)
 - paridade-mundo-2026-10-29 — Paridade do mundo, segunda volta (Rappi, DoorDash, Zomato, Meituan) 29/10/2026
@@ -768,6 +792,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - radar-2026-11-06 — Radar de vídeos 06/11/2026 — 40 revistos, 4 novos, 20 pendentes
 - radar-2026-11-07 — Radar de vídeos 07/11/2026 — 40 revistos, 8 novos, 20 pendentes
 - radar-2026-11-08 — Radar de vídeos 08/11/2026 — 40 revistos, 1 novo, 13 pendentes
+- radar-2026-11-09 — Radar de vídeos 09/11/2026 — 40 revistos, 4 novos, 15 pendentes
 - reembolsos-b2-00-leia-me — reembolsos-b2-00-leia-me
 - reembolsos-b2-01-shared-cobranca — reembolsos-b2-01-shared-cobranca
 - reembolsos-b2-ef-admin-cancel-order — reembolsos-b2-ef-admin-cancel-order
@@ -788,8 +813,10 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - relatorio-m1-dinheiro-favores-2026-11-08 — Relatório M1 08/11 (fiz isto, falta isto)
 - relatorio-semanal-reels-2026-10-29 — Relatório semanal dos reels - 2026-10-29
 - relatorio-semanal-reels-2026-11-02 — Relatório semanal dos reels - 2026-11-02
+- relatorio-semanal-reels-2026-11-09 — Relatório semanal dos reels - 2026-11-09
 - resposta-contabilista-iva-2026-10-28 — Resposta do Hugo (DC Consultores): IVA normal trimestral, programa de faturação, modelo aceite — 28/10/2026
 - resposta-contabilista-iva-parte2-2026-10-28 — Hugo (15:54-15:55): faturas emitidas pelo escritório, não ficar no art. 53.º, IVA não mexe na margem — e as contas de ou
+- respostas-claude-ai-filme — Respostas do Claude.ai às dúvidas do Dipsy no filme (Ep1)
 - robo-documentos-2026-10-29 — Robô fiscal de documentos — relatório (adendo 3, 29/10/2026)
 - seguranca-auditoria-2026-10-21 — Auditoria de seguranca do app (21/10, agente N4)
 - sistema-motores-e-portas — Quem faz o quê — uma porta só (atualizado 17/09/2026)

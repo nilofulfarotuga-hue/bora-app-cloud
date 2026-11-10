@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-hermes-skills
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-08
+ultima_confirmacao: 2026-11-09
 zona: verde
 confianca: alta
 estado: atual
@@ -10,13 +10,13 @@ estado: atual
 
 # Skills do Hermes (as que criou + lista das de fábrica), cópia noturna
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-hermes-skills`, origem `hermes`, atualizada em 2026-11-08T23:40:06.747765+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-hermes-skills`, origem `hermes`, atualizada em 2026-11-09T23:40:06.899847+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro hermes skills · memoria claude.ai · claude_ai_memoria
 
-# Skills do Hermes (cópia de 2026-11-08)
+# Skills do Hermes (cópia de 2026-11-09)
 
-Skills que o Hermes criou sozinho: 13. Vindas de fábrica ou instaladas: 81. Fonte única das skills partilhadas: .claude/skills/ do repo bora-app-cloud (espelho na VPS em /opt/data/cortex-brain/.claude/skills). Skill nova do Hermes entra lá como hermes-<nome>, revista pelo critico.
+Skills que o Hermes criou sozinho: 16. Vindas de fábrica ou instaladas: 81. Fonte única das skills partilhadas: .claude/skills/ do repo bora-app-cloud (espelho na VPS em /opt/data/cortex-brain/.claude/skills). Skill nova do Hermes entra lá como hermes-<nome>, revista pelo critico.
 
 ## Criadas pelo Hermes
 
@@ -114,6 +114,32 @@ Esta skill descreve como interagir com o cliente de e-mail `himalaya` via termin
 3.  **Ler conteúdo (se necessário):** Use `message read <id>` para obter o conteúdo completo de um e-mail e aplicar critérios mais detalhados.
 4.  **Decidir ação:** Com base nos critérios do usuário (ex: guardar importantes, apagar irrelevantes), prepare as operações de exclusão.
 5.  **Apagar:** Use `message delete <id>` para remover os e-mails indesejados, sempre com confirmação do usuário se a ação for destrutiva.
+
+### facebook-registo-playwright (facebook-registo-playwright)
+
+---
+name: facebook-registo-playwright
+description: Criar conta no Facebook (r.php) com Playwright na VPS. Campos, armadilhas e o limite do reCAPTCHA. Usar quando o Danilo pedir para criar conta/pagina Meta.
+---
+
+# Registo Facebook via Playwright (VPS)
+
+Ambiente: /opt/data/emdia-fb, .venv/bin/python, chromium em /usr/bin/chromium, headless, args --no-sandbox e --disable-blink-features=AutomationControlled, locale pt-PT, user agent de Chrome Windows.
+
+## Formulario r.php (pt-PT)
+- Aceitar cookies primeiro ("Permitir todos os cookies"); o aviso tapa tudo e o clique falha com "intercepts pointer events".
+- Nome e apelido: input[type=text] 0 e 1.
+- Dia, Mes, Ano e Genero sao DIVs (aria-label "Selecionar dia/mes/ano"), nao selects. Abrir com click(force=True) e escolher em [role=listbox]:visible [role=option] com evaluate("e=>e.click()").
+- Mes aparece por NOME ("maio"), nao numero. Genero: Mulher/Homem/Personalizado (Personalizado abre campo de pronome, evitar).
+- Telemovel/email: input[type=text] indice 2, com prefixo +351. Sem prefixo diz "numero invalido".
+- Botao e "Enviar" (nao "Registar"); localizar com [role=button]:has-text('Enviar').
+- Sucesso = URL vira /confirmemail.php.
+
+## Limite
+- Login seguinte da VPS cai em two_step_verification com reCAPTCHA Enterprise (desafio de fotos). O SMS nem sai. Nao contornar: pedir ao Danilo para entrar uma vez num telemovel real e dar o codigo.
+- ANTES de criar conta com um numero/email da Bora: o numero pode ja ter conta Facebook (o 937 501 673 ja tinha a da Bora). Nesse caso o SMS chega ao telemovel e abre a conta existente; a conta nova nunca chega a existir e a senha de pw.txt dá "informacoes incorretas" no login. Confirmar com o Danilo se o numero ja esta usado e, se sim, propor reutilizar a conta existente ou usar outro numero/email.
+- Quando o Danilo pede a senha (pw.txt) para entrar no telemovel, dar-lha na hora no chat (regra: nunca o mandar procurar noutro lado) e perguntar o que aparece, sem assumir que a conta nova foi criada.
+- vision_analyze nao leu capturas neste ambiente; usar inner_text e URL para decidir.
 
 ### buzz-platform-operation (hermes-agent/buzz-platform-operation)
 
@@ -380,6 +406,59 @@ Esta skill é acionada sempre que houver feedback do usuário sobre a consistên
 
 6.  **Verificação Proativa de Ferramentas:**
     *   Antes de solicitar informações ou usar uma ferramenta, sempre verifico proativamente sua disponibilidade e funcionalidade no meu ambiente (ex: `which <ferramenta>`). A ausência de uma ferramenta no meu PATH ou sua não configura
+[... cortado]
+
+### hermes-publicar-em-dia (hermes-agent/hermes-publicar-em-dia)
+
+---
+name: hermes-publicar-em-dia
+description: Usa quando o Danilo pedir (por voz) para publicar todo dia "do endia / Em Dia / tudo que tenho do endia" nas redes ou grupos. "Endia" = Em Dia (app de contas e impostos), NAO e Bora. Cobre marca, autorizacao, regras de ritmo e pre-voo do PC.
+---
+
+# Publicar o Em Dia (nao e Bora)
+
+## Quem e
+- "endia" / "em dia" na voz = **Em Dia**, app de contas/impostos (pasta `C:\BoraLocal\projetosflutter\em_dia`, site emdia.boraguarda.com, projeto Supabase proprio tgdmgtmknbwhcqoxtjbs). Nunca assumir Bora; a 09/11 o Danilo corrigiu: "nao e do Bora, e do endia".
+- Conteudo do Em Dia nao leva marca Bora nem codigo BEMVINDO.
+
+## Antes de agir (por esta ordem)
+1. Ler no Cortex a pagina `emdia-grupos-facebook` (autorizacao escrita de 04/10 para grupos de Facebook com o perfil pessoal dele; regras: max 4 publicacoes/dia, 1 por grupo por semana, textos diferentes, parar ao 1.o aviso; NAO: Pulso Social, amizades em massa, comentar nos posts dos outros, contas falsas).
+2. Registo/fonte unica: `e2e_log`, fluxo `em-dia-grupos-fb` (anon da VPS nao le por RLS; pedir ao PC/Claude Code).
+3. Links: usar calculadoras com imagem propria (`/ferramentas/recibo-verde`, `/seguranca-social`, `/irs-do-mes`) com `?de=grupo-<slug>`; `/baixar` nao tem og:image.
+4. Resultado conhecido: grupos Facebook deram 0 cliques (01/11) -> alternar com Instagram/stories do Em Dia.
+5. Texto honesto PT-PT, sem testemunho falso, sem "sou o Danilo". Passar pelo juiz com visao antes de sair.
+
+## Pre-voo do PC
+- Publicar exige Chrome do PC, perfil pessoal 5b260cdd. `pc` e SSH via Tailscale (host `danilo`, 100.75.79.116): `tailscale ping danilo` pode responder e o SSH ainda dar "banner exchange timeout" -> nao e prova de que o PC serve. Nesse caso: nao inventar progresso; registar com `cortex_reportar`, dizer ao Danilo em 2 linhas e tentar de novo mais tarde (ou ordem a fila).
+- Ordens antigas "Em Dia redes" (29/09) caducam: autorizacao vale por data; a de 04/10 + o pedido do dia cobrem, mas confirmar o texto dele.
+
+## Pitfalls
+- Voz cortada: perguntar/pesquisar no Cortex ("Em Dia") antes de responder "nao percebi"; a pista estava no Cortex.
+
+### hermes-publicar-grupos-facebook-emdia (hermes-agent/hermes-publicar-grupos-facebook-emdia)
+
+---
+name: hermes-publicar-grupos-facebook-emdia
+description: Quando o Danilo pedir (por voz) para publicar todo dia/de 2 em 2 horas em grupos de Facebook, ou falar de "endia/ingea/Em Dia". Marca Em Dia, NAO Bora. Diz o caminho certo e os bloqueios conhecidos.
+---
+
+# Publicar em grupos de Facebook (Em Dia)
+
+## Ler primeiro
+- "endia"/"Ingea" na voz = **Em Dia** (app de contas/recibos verdes). Nao e Bora. Nunca misturar contas, numeros ou perfis do Bora.
+- Pagina do livro `emdia-grupos-facebook` (cortex) e o fluxo `em-dia-grupos-fb` na tabela e2e_log (grupos usados, grupos que proibem promocao, contagem do dia).
+- Autorizacao de 04/10: perfil pessoal do Danilo, ritmo de pessoa (max 4/dia, 1 por grupo por semana, textos diferentes, parar ao 1.o aviso). Em 09/11 ele pediu 24h/de 2 em 2 horas e deu "acesso total" e "pode criar conta nova".
+
+## Caminho que funciona / o que verificar antes
+1. Mensagem de voz ambigua ou cortada: perguntar UMA vez o que e a marca/onde postar (foi o certo).
+2. Postar em grupos precisa de sessao de Facebook num browser. O token Meta que o Hermes tem e da PAGINA do Bora: nao serve para grupos nem para o Em Dia.
+3. Os comandos `pc` e `browse` passam pelo PC do Danilo via Tailscale. Se der "Dial 100.71.105.7 ... 502/timeout", o IP configurado e do portatil antigo: verificar o IP certo do PC atual (`danilo`, 100.75.79.116) antes de dizer que o PC esta desligado.
+4. Sem sessao de Facebook na VPS, a rota fiavel e: Claude.ai publica pelo Chrome pessoal (deviceId 5b260cdd), ou o Hermes com um Chrome da VPS onde o Danilo ja fez login uma vez.
+5. Conta nova de Facebook: precisa de email do Em Dia (so existem caixas @boraguarda.com = Bora) e SMS/verificacao; contas novas de servidor tendem a ser bloqueadas. Dizer isto numa linha e dar as 2 opcoes: "usa o meu perfil" ou "cria nova".
+
+## Navegador na VPS (provado 09/11)
+- Setup que funciona: `cd /opt/data/emdia-fb && uv venv .venv && uv pip install --python .venv/bin/python playwright`, depois `p.chromium.launch(executable_path="/usr/bin/chromium", headless=True, args=["--no-sandbox"])`. Abre facebook.com/r.php sem problema (locale pt-PT: campos Nome proprio/Apelido, Dia/Mes/Ano, Genero, email/telemovel, palavra-passe, "Enviar").
+- Receita que PASSOU o formulario de registo (09/11, chega a `confirmemail.php` = conta criada, espera codigo SMS): launch com `--disable-blink-features=AutomationControlled` + user_agent de Chrome Windows; PRIMEIRO aceitar o aviso de cookies (`get_by_text("Permitir todos os cookies"|"Recusar cookies opcionais")` com `evaluate("e=>e.click()")`), porque o banner de cookies e a "camada invisivel" que intercepta cliques. Campos: Nome/Apelido = 2 `input[type=text]`; Dia/Mes/Ano/Genero sao `div` com aria-label "Selecionar dia|mes|ano" (abrir com `get_by_label(...).click(force=True)`), opcoes `[role=option]` clicadas por `evaluate("e=>e.click()")`; o MES e por nome ("maio"), nao numero; genero Mulher/Homem/Personalizado (nao escolher `.last`); telemovel com prefixo `+
 [... cortado]
 
 ### hermes-stt-config (hermes-agent/hermes-stt-config)

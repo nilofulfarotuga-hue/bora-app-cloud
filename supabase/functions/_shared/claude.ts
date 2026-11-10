@@ -68,6 +68,13 @@ export interface PedidoClaude {
   maxTokens?: number;
   /** Força o modelo (troca no painel, ou a volta seguinte do mesmo ciclo de ferramentas). */
   modelo?: ModeloClaude;
+  /**
+   * Opcional (10/11/2026, _shared/ia_visao.ts): quando claudePrimeiro devolve null, fica aqui o porquê
+   * (sem chave, porteiro, http e texto curto do erro). Quem não o passa não muda nada.
+   */
+  diagnostico?: { erro: string | null; http: number | null; modelo: string | null };
+  /** Opcional (10/11/2026): tempo máximo da chamada à API (por defeito 20 s; para respostas longas). */
+  timeoutMs?: number;
 }
 
 export interface RespostaClaude {
@@ -158,7 +165,8 @@ async function perguntarPorteiro(prioridade: number, robo: string): Promise<Port
 }
 
 // ── Livro de gastos ─────────────────────────────────────────────────────────
-async function registarGasto(linha: {
+// Exportada a 10/11/2026: a reserva grátis (_shared/ia_visao.ts) regista aqui também (custo 0).
+export async function registarGasto(linha: {
   robo: string; prioridade: number; modelo: string; uso: UsoClaude; custo: number;
   ms: number; ok: boolean; erro?: string | null;
 }): Promise<void> {
@@ -229,25 +237,32 @@ export function corpoPedido(p: PedidoClaude, modelo: ModeloClaude): Record<strin
 
 // ── A chamada ───────────────────────────────────────────────────────────────
 export async function claudePrimeiro(p: PedidoClaude): Promise<RespostaClaude | null> {
+  const diag = (erro: string, http: number | null = null, modelo: string | null = null) => {
+    if (p.diagnostico) { p.diagnostico.erro = erro; p.diagnostico.http = http; p.diagnostico.modelo = modelo; }
+  };
   const chaveApi = Deno.env.get('ANTHROPIC_API_KEY');
-  if (!chaveApi) return null;
+  if (!chaveApi) { diag('sem ANTHROPIC_API_KEY'); return null; }
 
   const msgs = p.messages.filter((m) => !mensagemVazia(m));
   if (msgs.length === 0 || msgs[0].role !== 'user' || msgs[msgs.length - 1].role !== 'user') {
     // A API não aceita prefill nem conversa que comece pelo assistente: segue o Gemini.
     console.log(`[claude] robo=${p.robo} conversa mal formada (1.a/ultima mensagem nao e do user): reserva`);
+    diag('conversa mal formada (1.a ou ultima mensagem nao e do utilizador)');
     return null;
   }
 
   const porteiro = await perguntarPorteiro(p.prioridade, p.robo);
   if (!porteiro.pode) {
     console.log(`[claude] robo=${p.robo} P${p.prioridade} porteiro diz nao: ${porteiro.motivo}`);
+    diag(`porteiro diz nao: ${porteiro.motivo}`);
     return null;
   }
   const modelo: ModeloClaude = p.modelo && ehModeloClaude(p.modelo) ? p.modelo : porteiro.modelo;
+  let httpFalha: number | null = null;
 
   const ctrl = new AbortController();
-  const relogio = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  const limiteMs = Math.max(5_000, Math.round(p.timeoutMs ?? TIMEOUT_MS));
+  const relogio = setTimeout(() => ctrl.abort(), limiteMs);
   const t0 = Date.now();
   let erro: string | null = null;
   let uso: UsoClaude = USO_ZERO;
@@ -266,6 +281,7 @@ export async function claudePrimeiro(p: PedidoClaude): Promise<RespostaClaude | 
       const txt = (await resp.text().catch(() => '')).slice(0, 300);
       const semCredito = resp.status === 400 && /credit balance/i.test(txt);
       erro = `http ${resp.status}${semCredito ? ' (sem credito)' : ''}: ${txt}`;
+      httpFalha = resp.status;
       return null;
     }
     // deno-lint-ignore no-explicit-any
@@ -299,11 +315,12 @@ export async function claudePrimeiro(p: PedidoClaude): Promise<RespostaClaude | 
     return { texto, toolUses, stopReason, modelo, usage: uso, custoUsd, ms, conteudo };
   } catch (e) {
     const nome = (e as Error)?.name ?? '';
-    erro = nome === 'AbortError' ? `timeout ${TIMEOUT_MS / 1000} s` : `fetch: ${(e as Error)?.message ?? e}`;
+    erro = nome === 'AbortError' ? `timeout ${Math.round(limiteMs / 1000)} s` : `fetch: ${(e as Error)?.message ?? e}`;
     return null;
   } finally {
     clearTimeout(relogio);
     if (erro) {
+      diag(erro.slice(0, 300), httpFalha, modelo);
       console.log(`[claude] robo=${p.robo} modelo=${modelo} falhou, reserva Gemini: ${erro.slice(0, 200)}`);
       await registarGasto({
         robo: p.robo, prioridade: p.prioridade, modelo, uso, custo: custoClaudeUsd(modelo, uso),

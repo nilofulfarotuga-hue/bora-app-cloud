@@ -18,8 +18,10 @@
 //   receipt_ocr_enabled            — kill-switch (default true)
 //   receipt_divergence_alert_cents — threshold |digitado-parsed| (default 100)
 //
-// Armadilha gemini flash: thinkingBudget=0 obrigatorio (memoria do projecto).
-// Secrets: GEMINI_API_KEY (se em falta → no-op gracioso).
+// v14 (10/11/2026, fechar-tudo bloco H): sem Gemini (projeto bora-juiz com a conta de pagamento vencida).
+// Leitura pelo _shared/ia_visao.ts: Claude primeiro (ANTHROPIC_API_KEY, porteiro ia_claude_pode, livro
+// ia_gastos, robo 'edge-ocr-talao'); dados privados (NIF do cliente) → nenhum motor gratis ve o talao.
+// Sem resposta: ocr_raw_response = { error: 'ia_<http>' } e { ok:false, reason:'ia_error' }.
 //
 // v12 (M10 b2-nif, 09/11/2026): o modelo le tambem o NIF do ADQUIRENTE impresso no talao
 // (buyer_nif) e compara-se com o NIF que o estafeta tinha de dar na caixa (_nif_caixa_regra,
@@ -38,6 +40,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { exigirCallerOk, secretKey } from '../_shared/keys.ts'
 import { respostaAoPing } from '../_shared/chaves.ts'
 import { avisarNifDoTalao, escolherNifCliente, limparNif, verificarNifDoTalao } from './nif_talao.ts'
+import { httpDasTentativas, pedirIa } from '../_shared/ia_visao.ts'
+import { detetarMime } from '../_shared/documentos_robo.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,7 +63,6 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const serviceKey = secretKey()!
-  const geminiKey = Deno.env.get('GEMINI_API_KEY')
 
   let orderId: string
   try {
@@ -88,10 +91,7 @@ Deno.serve(async (req) => {
     return json({ ok: false, reason: 'no_receipt' })
   }
 
-  if (!geminiKey) {
-    console.warn('[ocr-receipt] GEMINI_API_KEY not set — skipping (shadow no-op)')
-    return json({ ok: false, reason: 'gemini_not_configured' })
-  }
+  // v14 (10/11/2026): já não se exige a chave do Gemini — sem Claude, a leitura falha com erro claro.
 
   // Download receipt photo from Storage
   let photoBytes: Uint8Array
@@ -113,32 +113,36 @@ Deno.serve(async (req) => {
     return json({ ok: false, reason: 'storage_download_error' })
   }
 
-  // Chamada Gemini — v11: lite primeiro; vazio -> retry 1x com o flash forte.
+  // v14 (10/11/2026, fechar-tudo bloco H): o Gemini do projeto bora-juiz saiu (conta de pagamento
+  // vencida, 402). Leitura pelo _shared/ia_visao.ts: Claude primeiro (Haiku; vazio -> 1x Sonnet, como o
+  // retry do v11), privado=true (o talão traz o NIF do cliente: nenhum motor grátis o vê).
   const b64 = base64Encode(photoBytes)
+  const mimeFoto = detetarMime(photoBytes) ?? 'image/jpeg'
   let parsed: ParsedReceipt | null = null
   let rawResponse: unknown = null
-  let modelUsed = 'gemini-3.1-flash-lite'
+  let modelUsed: string = MODELO_TALAO_LEVE
   try {
-    const first = await callGemini(geminiKey, 'gemini-3.1-flash-lite', b64)
+    const first = await lerTalao(b64, mimeFoto, MODELO_TALAO_LEVE)
     parsed = first.parsed
     rawResponse = first.raw
-    if (first.httpError) {
-      await markFailed(supabase, receipt.id, `gemini_${first.httpError}`)
-      return json({ ok: false, reason: 'gemini_error', detail: first.raw })
+    modelUsed = first.modelo
+    if (first.erro) {
+      await markFailed(supabase, receipt.id, `ia_${first.http ?? 'sem_motor'}`)
+      return json({ ok: false, reason: 'ia_error', detail: first.raw })
     }
     if (isEmptyParse(parsed)) {
-      console.log('[ocr-receipt] lite devolveu vazio — retry com gemini-3.1-flash')
-      const second = await callGemini(geminiKey, 'gemini-3.1-flash', b64)
-      if (!second.httpError && !isEmptyParse(second.parsed)) {
+      console.log(`[ocr-receipt] ${MODELO_TALAO_LEVE} devolveu vazio — retry com ${MODELO_TALAO_FORTE}`)
+      const second = await lerTalao(b64, mimeFoto, MODELO_TALAO_FORTE)
+      if (!second.erro && !isEmptyParse(second.parsed)) {
         parsed = second.parsed
         rawResponse = second.raw
-        modelUsed = 'gemini-3.1-flash'
+        modelUsed = second.modelo
       }
     }
   } catch (e) {
-    console.error('[ocr-receipt] gemini call error:', e)
-    await markFailed(supabase, receipt.id, 'gemini_exception')
-    return json({ ok: false, reason: 'gemini_exception' })
+    console.error('[ocr-receipt] ia call error:', e)
+    await markFailed(supabase, receipt.id, 'ia_exception')
+    return json({ ok: false, reason: 'ia_exception' })
   }
 
   // v11: nada extraido = provavelmente NAO e um talao (caso real: foto do saco).
@@ -223,10 +227,13 @@ function isEmptyParse(p: ParsedReceipt | null): boolean {
   return !p || (p.total_cents == null && (!p.lines || p.lines.length === 0) && !p.store)
 }
 
-async function callGemini(key: string, model: string, b64: string):
-  Promise<{ parsed: ParsedReceipt | null; raw: unknown; httpError: number | null }> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`
-  const prompt =
+const MODELO_TALAO_LEVE = 'claude-haiku-5-5'
+const MODELO_TALAO_FORTE = 'claude-sonnet-5-5'
+
+/** Uma leitura do talão pelo _shared/ia_visao.ts (Claude primeiro; dados privados). */
+async function lerTalao(b64: string, mime: string, modeloClaude: 'claude-haiku-5-5' | 'claude-sonnet-5-5'):
+  Promise<{ parsed: ParsedReceipt | null; raw: unknown; erro: string | null; http: number | null; modelo: string }> {
+  const sistema =
     'Lê este talão de compra e devolve JSON ESTRITO (sem markdown, sem prosa). ' +
     'Schema: {"store": string|null, "total_cents": integer|null, ' +
     '"lines": [{"name": string, "qty": number, "unit_price_cents": integer}], ' +
@@ -249,31 +256,31 @@ async function callGemini(key: string, model: string, b64: string):
     'cliente. Se diz "Consumidor final" ou não há NIF do cliente, null. ' +
     'Se não conseguires ler o talão, devolve {"store":null,"total_cents":null,"lines":[],"datetime":null,' +
     '"buyer_nif":null,"seller_nif":null,"nifs":[]}.'
-  const payload = {
-    contents: [{
-      parts: [
-        { text: prompt },
-        { inline_data: { mime_type: 'image/jpeg', data: b64 } },
-      ],
-    }],
-    generationConfig: {
-      temperature: 0,
-      response_mime_type: 'application/json',
-      maxOutputTokens: 2048,
-      thinkingConfig: { thinkingBudget: 0 },
-    },
-  }
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+  const r = await pedirIa({
+    robo: 'edge-ocr-talao',
+    prioridade: 3,
+    sistema,
+    texto: 'O talão vai em anexo. Responde só com o objeto JSON.',
+    anexos: [{ mime, base64: b64 }],
+    json: true,
+    privado: true,
+    maxTokens: 2048,
+    modeloClaude,
+    timeoutClaudeMs: 45_000,
+    prazoMs: 60_000,
   })
-  const raw = await r.json().catch(() => ({}))
-  if (!r.ok) return { parsed: null, raw, httpError: r.status }
-  const text = (raw as any)?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
+  if (!r.ok) {
+    return { parsed: null, raw: { erro: r.erro, tentativas: r.tentativas }, erro: r.erro, http: httpDasTentativas(r.tentativas), modelo: modeloClaude }
+  }
   let parsed: ParsedReceipt | null = null
-  try { parsed = sanitizeParsed(JSON.parse(text)) } catch { parsed = null }
-  return { parsed, raw, httpError: null }
+  try { parsed = sanitizeParsed(r.json) } catch { parsed = null }
+  return {
+    parsed,
+    raw: { motor: r.motor, modelo: r.modelo, texto: r.texto.slice(0, 8000), tentativas: r.tentativas },
+    erro: null,
+    http: 200,
+    modelo: r.modelo,
+  }
 }
 
 function sanitizeParsed(raw: any): ParsedReceipt {

@@ -6,10 +6,16 @@
 // Se não sabe resolver -> escala para support_escalations + notify-admin-urgent
 // (push in-system imediato) + fica pendente para a ponte Telegram do Hermes.
 // verify_jwt: true. POST { session_id?, message, order_id? }.
+//
+// 10/11/2026 (fechar-tudo bloco H): sem Gemini do projeto bora-juiz (conta de pagamento vencida, 402).
+// A resposta vai pelo _shared/ia_visao.ts: Claude primeiro (robo 'edge-suporte-humano', P1); conversa de
+// cliente -> privado=true (de reserva so motores que nao treinam com os dados: Groq). Sem motor, escala
+// para o responsavel, como ja fazia quando o Gemini falhava.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { secretKey } from '../_shared/keys.ts';
 import { chamarFuncao } from '../_shared/chamadas.ts';
+import { pedirIa } from '../_shared/ia_visao.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,7 +26,6 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SUPABASE_SERVICE_ROLE_KEY = secretKey()!;
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
 
 const PERSONAS = ['Thayline', 'Thabyta'];
 const ESCALATE_MARKER = '[ESCALATE_DANILO]';
@@ -48,47 +53,18 @@ function buildPersonaSystemPrompt(persona: string, userRole: string): string {
   ].join('\n');
 }
 
-async function callGemini(
-  apiKey: string,
-  model: string,
+async function responderComIa(
   systemPrompt: string,
-  contents: unknown[],
+  conversa: Array<{ role: 'user' | 'assistant'; texto: string }>,
 ): Promise<{ ok: boolean; text?: string; error?: string }> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-  try {
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents,
-        generationConfig: { maxOutputTokens: 400, temperature: 0.6 },
-      }),
-    });
-    if (!resp.ok) {
-      const text = await resp.text();
-      return { ok: false, error: `gemini http ${resp.status}: ${text.slice(0, 300)}` };
-    }
-    const j = await resp.json();
-    const parts = j?.candidates?.[0]?.content?.parts ?? [];
-    const text = parts.map((p: any) => p.text ?? '').join('').trim();
-    return { ok: true, text };
-  } catch (e) {
-    return { ok: false, error: `gemini fetch fail: ${(e as Error).message}` };
-  }
+  const r = await pedirIa({ robo: 'edge-suporte-humano', prioridade: 1, sistema: systemPrompt, conversa, privado: true, maxTokens: 1024 });
+  if (!r.ok) return { ok: false, error: r.erro.slice(0, 400) };
+  return { ok: true, text: r.texto.trim() };
 }
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return jsonResponse({ error: 'method not allowed' }, 405);
-
-  if (!GEMINI_API_KEY) {
-    return jsonResponse({
-      error: 'GEMINI_API_KEY missing',
-      reply: 'Estou com um problema técnico agora. Contacta-nos por WhatsApp ou email, por favor.',
-      escalated: false,
-    }, 503);
-  }
 
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) return jsonResponse({ error: 'no jwt' }, 401);
@@ -114,10 +90,6 @@ Deno.serve(async (req: Request) => {
   if (!userMessage) return jsonResponse({ error: 'message empty' }, 400);
 
   const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-  const { data: settingsRow } = await adminClient
-    .from('support_settings').select('gemini_model').eq('id', 1).single();
-  const geminiModel = (settingsRow?.gemini_model as string | undefined) ?? 'gemini-1.5-flash';
 
   let sessionId = payload.session_id;
   let persona: string;
@@ -167,15 +139,12 @@ Deno.serve(async (req: Request) => {
     .limit(10);
   const history = (histRows ?? []).reverse();
 
-  const contents = history
+  const conversa = history
     .filter((m: any) => m.role === 'user' || m.role === 'assistant')
-    .map((m: any) => ({
-      role: m.role === 'user' ? 'user' : 'model',
-      parts: [{ text: m.content }],
-    }));
+    .map((m: any) => ({ role: m.role as 'user' | 'assistant', texto: String(m.content ?? '') }));
 
   const systemPrompt = buildPersonaSystemPrompt(persona, userRole);
-  const gemRes = await callGemini(GEMINI_API_KEY, geminiModel, systemPrompt, contents);
+  const gemRes = await responderComIa(systemPrompt, conversa);
 
   let finalText = gemRes.ok && gemRes.text
     ? gemRes.text

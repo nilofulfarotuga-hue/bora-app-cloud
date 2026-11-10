@@ -11,7 +11,8 @@
 // Falha sempre "aberta": se algo correr mal, a app deixa a pessoa seguir.
 // Limites: 12 análises por pessoa por dia e o limite global robo_documentos_limite_dia.
 //
-// Chave: GEMINI_API_KEY (paga, a do Bora Assistente). Nunca a de reserva. Ver _shared/documentos_robo.ts.
+// 10/11/2026 (fechar-tudo bloco H): sem Gemini do bora-juiz. Claude primeiro pelo _shared/ia_visao.ts,
+// privado (nenhum motor grátis vê o documento). Ver _shared/documentos_robo.ts. Sem resposta → falha aberta.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { chaveSecreta, exigirServidorOuUtilizador } from '../_shared/chaves.ts'
@@ -69,8 +70,6 @@ Deno.serve(async (req) => {
   const esperado = tipoEsperadoDe(alvo.tipo)
   if (!esperado) return json({ ok: false, error: 'tipo_invalido' }, 400)
 
-  const chave = Deno.env.get('GEMINI_API_KEY')
-  if (!chave) return json({ ok: true, ativo: false, motivo: 'sem_chave' })
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, chaveSecreta(), { auth: { persistSession: false } })
 
   try {
@@ -102,8 +101,11 @@ Deno.serve(async (req) => {
 
     const { data: info } = await admin.rpc('_robo_documentos_alvos', { p_user_id: uid })
     const nifDigitado = typeof corpo?.nif === 'string' ? corpo.nif : null
-    const a = await analisar(chave, mime, paraBase64(bytes), esperado, confMin)
-    if (!a.leitura) return json({ ok: true, ativo: false, motivo: 'sem_resposta' })
+    const a = await analisar(mime, paraBase64(bytes), esperado, confMin, 'edge-documentos-previa')
+    if (!a.leitura) {
+      console.log(`[verificar-documento-previa] sem leitura: ${(a.erro ?? '').slice(0, 300)}`)
+      return json({ ok: true, ativo: false, motivo: 'sem_resposta' })
+    }
     const v = decidir({
       esperado, leitura: a.leitura, nomeConta: info?.nome_conta ?? null,
       nifConta: nifDigitado ?? info?.nif_conta ?? null, confiancaMin: confMin, hoje: hojeEmLisboa(),

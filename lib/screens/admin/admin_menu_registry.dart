@@ -142,6 +142,7 @@ import 'admin_pendencias_operacao_screen.dart';
 import 'admin_conformidade_legal_screen.dart';
 import 'admin_revisoes_screen.dart';
 import 'admin_avisos_prestadores_screen.dart';
+import 'admin_livro_reclamacoes_screen.dart';
 import 'admin_comprovativo_atividade_screen.dart';
 import 'admin_robo_documentos_screen.dart';
 import 'admin_estafetas_fila_screen.dart';
@@ -1110,6 +1111,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.redAccent,
       builder: () => const AdminComplaintsScreen(),
       keywords: const ['reclamacoes', 'queixas', 'problema', 'pedido', 'foto', 'reportar'],
+    ),
+    // [10/11/2026 · fechar-tudo E2e] DL 156/2005: resposta em 15 dias úteis.
+    AdminMenuItem(
+      id: 'clientes_livro_reclamacoes',
+      title: 'Livro de Reclamações',
+      subtitle: 'Reclamações oficiais recebidas (Livro eletrônico ou físico, DGC/ASAE): registrar, contar os 15 dias úteis, marcar respondida e exportar CSV',
+      icon: Icons.menu_book,
+      color: Colors.red,
+      builder: () => const AdminLivroReclamacoesScreen(),
+      keywords: const ['livro', 'reclamacoes', 'livro de reclamacoes', 'lre', 'dgc', 'asae', 'consumidor', 'prazo', '15 dias', 'dias uteis', 'responder'],
     ),
     AdminMenuItem(
       id: 'clientes_bloqueios',

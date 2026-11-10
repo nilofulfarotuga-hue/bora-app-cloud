@@ -16,8 +16,11 @@ Uso:
   python .claude/juiz/vision_judge.py                      # fotos golden
   python .claude/juiz/vision_judge.py --dir X --source robo # artefactos Robo
 
-Chaves (por ordem): env GEMINI_API_KEY → scripts/scraper/.env → backend/.env.
-Sem chave Gemini: sai 0 com aviso claro (não inventa vereditos).
+Olhos (10/11/2026, missão fechar-tudo bloco H): o Gemini do projeto Google bora-juiz saiu (conta de
+pagamento vencida, HTTP 402; sem pagamento novo no Google). Agora .claude/juiz/ia_visao.py: Claude
+primeiro (claude-haiku-5-5; direto só com CLAUDE_ROBOS_API_KEY, senão pelo porteiro do Motor Bora na
+VPS) → rotação grátis de visão do Motor Bora → erro claro. Sem nenhum motor configurado: sai 0 com
+aviso claro (não inventa vereditos).
 Escrita na BD: SERVICE_ROLE_KEY/SUPABASE_SERVICE_ROLE_KEY de backend/.env.
 Sem service key: só o JSON local (avisa).
 
@@ -26,24 +29,18 @@ Alerta admin: cada 🔴 dispara a Edge Fn `notify-admin-urgent` (modo generic).
 from __future__ import annotations
 
 import argparse
-import base64
 import json
 import os
 import re
 import sys
 import time
-import urllib.error
 import urllib.request
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import ia_visao  # noqa: E402 — Claude primeiro, rotação grátis, erro claro
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SUPABASE_URL = "https://ojykpzwqrtusfeakzrna.supabase.co"
-# gemini-flash-lite-latest: modelo lite (rápido + cap free-tier DIÁRIO maior),
-# suficiente para classificar telas verde/amarelo/vermelho. O 'gemini-3.6-flash'
-# fixo e mesmo o 'gemini-flash-latest' esgotavam o cap ao correr os 13 goldens
-# várias vezes no mesmo dia (429). A lite aguentou a corrida inteira 2026-08-17.
-# Override por env GEMINI_MODEL (ex.: um flash "cheio" para análise mais fina).
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-lite-latest")
-
 PROMPT = (
     "És o juiz de visão do Bora App (delivery/TVDE na Guarda, Portugal). "
     "Olha para esta captura de ecrã da app e responde SÓ com JSON: "
@@ -69,15 +66,13 @@ def _le_env(caminho: str) -> dict:
     return out
 
 
-def _chaves() -> tuple[str | None, str | None]:
-    gem = os.environ.get("GEMINI_API_KEY")
+def _chave_servico() -> str | None:
     svc = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SERVICE_ROLE_KEY")
     for env_file in (os.path.join(RAIZ, "scripts", "scraper", ".env"),
                      os.path.join(RAIZ, "backend", ".env")):
         vals = _le_env(env_file)
-        gem = gem or vals.get("GEMINI_API_KEY")
         svc = svc or vals.get("SUPABASE_SERVICE_ROLE_KEY") or vals.get("SERVICE_ROLE_KEY")
-    return gem, svc
+    return svc
 
 
 def _post_json(url: str, payload: dict, headers: dict, timeout: int = 60) -> dict:
@@ -89,65 +84,35 @@ def _post_json(url: str, payload: dict, headers: dict, timeout: int = 60) -> dic
     return json.loads(corpo) if corpo.strip() else {}
 
 
-def _post_json_retry(url, payload, headers, tentativas=5):
-    """Post com backoff em 429 E erros transitórios (5xx, timeout de leitura).
-    O gemini-flash-latest às vezes devolve 503/timeout sob carga — retentar
-    para não marcar a tela como falso-amarelo por um soluço de infra."""
-    ultimo = None
-    for i in range(tentativas):
-        try:
-            return _post_json(url, payload, headers, timeout=120)
-        except urllib.error.HTTPError as e:  # type: ignore[attr-defined]
-            ultimo = e
-            if e.code in (429, 500, 502, 503, 504) and i < tentativas - 1:
-                time.sleep(5 * (i + 1))
-                continue
-            raise
-        except (urllib.error.URLError, TimeoutError) as e:  # timeout/rede
-            ultimo = e
-            if i < tentativas - 1:
-                time.sleep(5 * (i + 1))
-                continue
-            raise
-    if ultimo:
-        raise ultimo
-    return {}
-
-
-def julga_foto(gem_key: str, png_path: str) -> dict:
+def julga_foto(png_path: str, svc_key: str | None = None) -> dict:
     with open(png_path, "rb") as f:
-        b64 = base64.b64encode(f.read()).decode("ascii")
-    url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-           f"{GEMINI_MODEL}:generateContent?key={gem_key}")
-    payload = {
-        "contents": [{"parts": [
-            {"text": PROMPT},
-            {"inline_data": {"mime_type": "image/png", "data": b64}},
-        ]}],
-        # maxOutputTokens alto: o gemini-3.6-flash "pensa" antes de responder e
-        # com pouco teto devolvia texto vazio. (thinkingConfig dá 400 no 3.6.)
-        "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2000},
-    }
-    data = _post_json_retry(url, payload, {})
-    texto = ""
-    try:
-        texto = data["candidates"][0]["content"]["parts"][0]["text"]
-    except (KeyError, IndexError, TypeError):
-        pass
-    # O gemini-3.6-flash envolve o JSON em ```json ... ``` e às vezes com
-    # texto antes; apanha o objeto JSON mesmo assim (o {...} mais interno).
+        dados = f.read()
+
+    def livro(linha: dict) -> None:  # só quando o Claude é chamado direto (o porteiro regista sozinho)
+        if svc_key:
+            _post_json(f"{SUPABASE_URL}/rest/v1/ia_gastos", linha,
+                       {"apikey": svc_key, "Authorization": f"Bearer {svc_key}", "Prefer": "return=minimal"})
+
+    r = ia_visao.pedir(PROMPT, "Captura de ecrã em anexo. Responde só com o JSON.",
+                       [("image/png", dados)], robo="juiz-visao", livro=livro)
+    if not r["ok"]:
+        return {"severity": "amarelo", "finding": f"juiz sem olhos: {r['erro'][:300]}", "motor": None}
+    texto = r["texto"]
+    # O modelo pode envolver o JSON em ```json ... ``` ou pôr texto antes;
+    # apanha o objeto JSON mesmo assim (o {...} mais interno).
     m = re.search(r"\{[^{}]*\"severity\"[^{}]*\}", texto, re.S) \
         or re.search(r"\{.*\}", texto, re.S)
+    motor = f"{r['motor']}:{r['modelo']}"
     if not m:
-        return {"severity": "amarelo", "finding": f"juiz sem veredito legível: {texto[:120]}"}
+        return {"severity": "amarelo", "finding": f"juiz sem veredito legível: {texto[:120]}", "motor": motor}
     try:
         v = json.loads(m.group(0))
         sev = v.get("severity", "amarelo")
         if sev not in ("verde", "amarelo", "vermelho"):
             sev = "amarelo"
-        return {"severity": sev, "finding": str(v.get("finding", ""))[:400]}
+        return {"severity": sev, "finding": str(v.get("finding", ""))[:400], "motor": motor}
     except json.JSONDecodeError:
-        return {"severity": "amarelo", "finding": f"JSON inválido do juiz: {texto[:120]}"}
+        return {"severity": "amarelo", "finding": f"JSON inválido do juiz: {texto[:120]}", "motor": motor}
 
 
 def grava_bd(svc_key: str, rows: list[dict]) -> bool:
@@ -201,29 +166,29 @@ def main() -> int:
               f"`flutter test test/golden` (golden) ou aponta --dir (robo).")
         return 0
 
-    gem, svc = _chaves()
+    svc = _chave_servico()
     ts = time.strftime("%Y%m%dT%H%M%S")
     relatorio = {"ts": ts, "source": args.source, "dir": args.dir, "findings": []}
 
-    if not gem:
-        print("[vision_judge] SEM GEMINI_API_KEY (env, scripts/scraper/.env ou "
-              "backend/.env). O juiz NÃO corre sem olhos — adiciona a chave "
-              "(https://aistudio.google.com/apikey) e volta a correr. "
-              f"{len(pngs)} fotos ficam por julgar.")
-        relatorio["skipped"] = "sem GEMINI_API_KEY"
+    motores = ia_visao.motores_configurados()
+    if not motores:
+        print("[vision_judge] SEM OLHOS: nem CLAUDE_ROBOS_API_KEY nem a senha do porteiro do Motor Bora "
+              f"({ia_visao.FICHEIRO_SENHA_PADRAO}). O juiz NÃO corre sem olhos e não inventa "
+              f"vereditos. {len(pngs)} fotos ficam por julgar.")
+        relatorio["skipped"] = "sem motor de visão (nem Claude direto nem porteiro)"
     else:
         rows = []
         for n_i, png in enumerate(pngs):
             if n_i > 0:
-                time.sleep(8)  # gemini-3.6-flash free tier ~10-15 RPM
+                time.sleep(2)  # a reserva grátis tem limites por minuto
             nome = os.path.splitext(os.path.basename(png))[0]
             try:
-                v = julga_foto(gem, png)
+                v = julga_foto(png, svc)
             except Exception as e:  # noqa: BLE001
-                v = {"severity": "amarelo", "finding": f"erro do juiz: {e}"}
+                v = {"severity": "amarelo", "finding": f"erro do juiz: {e}", "motor": None}
             v["screen_name"] = nome
             relatorio["findings"].append(v)
-            print(f"[vision_judge] {v['severity'].upper():8s} {nome}: {v['finding']}")
+            print(f"[vision_judge] {v['severity'].upper():8s} {nome}: {v['finding']} [{v.get('motor') or 'sem motor'}]")
             rows.append({
                 "source": args.source, "screen_name": nome,
                 "severity": v["severity"], "finding": v["finding"],

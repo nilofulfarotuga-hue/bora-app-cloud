@@ -46,7 +46,7 @@ const Map<String, String> kStringsEn = <String, String>{
   'Um aviso por dia, só enquanto vens fazer o check-in.':
       'One reminder a day, only while you keep checking in.',
   'Um aviso por dia, por volta das {0}h, só enquanto vens fazer o check-in.':
-      'One reminder a day, around {0}:00, only while you keep checking in.',
+      'One reminder a day, around {0}h, only while you keep checking in.',
   'Ontem não deu, mas o teu perdão deste mês guarda a sequência. Faz o check-in de hoje!':
       "You missed yesterday, but this month's pardon keeps your streak. Check in today!",
   'Usámos o teu perdão deste mês: a tua sequência continua.':

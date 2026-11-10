@@ -5,6 +5,11 @@
 //
 // Recibo por email ao cliente em TODO o pedido entregue (entrega, mercado, Favor). NÃO é a
 // fatura: a fatura do estabelecimento, quando pedida, é emitida pela loja.
+//
+// 10/11/2026 (missão fechar-tudo, E5 + E1): o título passa a "Resumo do pedido — este documento
+// não serve de fatura" (CIVA art. 36.º: só a fatura certificada é fatura; até haver programa
+// certificado ligado, a Bora não chama "recibo" a isto) e o rodapé identifica a sociedade
+// (DL 24/2014, art. 4.º) e o Livro de Reclamações Eletrónico.
 // Os números vêm TODOS de public._recibo_pedido (SQL). Esta função só desenha, guarda uma cópia
 // em storage (recibos-clientes/AAAA/MM/<order_id>.html) e envia pelo Resend, como o
 // tvde-recibo-viagem (mesmo remetente).
@@ -18,6 +23,11 @@ import { chamadaDoServidor } from '../_shared/chaves.ts'
 import { secretKey } from '../_shared/keys.ts'
 
 const EMAIL_FROM = 'Bora <recibos@boraguarda.com>'
+// Título do email ao cliente (E5, 10/11/2026). Igual no assunto e no corpo.
+export const TITULO_RESUMO = 'Resumo do pedido — este documento não serve de fatura'
+// Quem opera a Bora (E1). A mesma identidade de lib/config/legal_identity.dart.
+export const IDENTIDADE_BORA =
+  'Danilo Fulfaro da Silva - Unipessoal Lda, NIPC 519686233, sede Rua do Torreão 14, 6300-610 Guarda'
 const VERDE = '#16A34A'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -83,7 +93,7 @@ Deno.serve(async (req) => {
     headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: EMAIL_FROM, to: [destino],
-      subject: `Recibo do teu pedido Bora #${recibo.numero} · ${dataPt(recibo.data)}`,
+      subject: `${TITULO_RESUMO} (#${recibo.numero} · ${dataPt(recibo.data)})`,
       html,
     }),
   })
@@ -135,7 +145,7 @@ export function htmlRecibo(r: any): string {
   const nif = r.nif
     ? `<p style="margin:16px 0 0;font-size:13px;color:#374151">Pediste fatura com o NIF <b>${esc(r.nif)}</b>${r.nome_fatura ? ` (${esc(r.nome_fatura)})` : ''}.</p>`
     : ''
-  return `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Recibo Bora #${esc(r.numero)}</title></head>
+  return `<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Resumo do pedido Bora #${esc(r.numero)}</title></head>
 <body style="margin:0;background:#F3F4F6;font-family:Inter,Arial,sans-serif;color:#111827">
 <div style="max-width:520px;margin:0 auto;padding:24px 16px">
   <div style="background:#fff;border-radius:16px;padding:24px">
@@ -143,7 +153,8 @@ export function htmlRecibo(r: any): string {
       <div style="width:40px;height:40px;border-radius:10px;background:${VERDE};color:#fff;font-weight:800;font-size:24px;line-height:40px;text-align:center">B</div>
       <div style="font-size:22px;font-weight:800;color:${VERDE}">Bora</div>
     </div>
-    <h1 style="font-size:18px;margin:12px 0 4px">Recibo do pedido #${esc(r.numero)}</h1>
+    <h1 style="font-size:18px;margin:12px 0 4px">Resumo do pedido #${esc(r.numero)}</h1>
+    <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#B91C1C">Este documento não serve de fatura.</p>
     <p style="margin:0;color:#6B7280;font-size:13px">${esc(r.loja)} · ${dataPt(r.data)}</p>
     <table style="width:100%;border-collapse:collapse;margin-top:16px;font-size:14px">
       ${itens}
@@ -157,7 +168,7 @@ export function htmlRecibo(r: any): string {
       ${linha('Pagamento', esc(metodoPt(r.metodo)))}
     </table>
     ${nif}
-    <p style="margin:24px 0 0;font-size:11px;color:#6B7280;line-height:1.5">Recibo emitido pela Bora (Danilo Fulfaro da Silva - Unipessoal Lda, NIF 519686233). A fatura do estabelecimento, quando pedida, é emitida pela loja.</p>
+    <p style="margin:24px 0 0;font-size:11px;color:#6B7280;line-height:1.5">${TITULO_RESUMO}. Resumo enviado pela Bora (${IDENTIDADE_BORA}). A fatura do estabelecimento, quando pedida, é emitida pela loja. Livro de Reclamações Eletrónico: <a href="https://www.livroreclamacoes.pt/Inicio/" style="color:#6B7280">www.livroreclamacoes.pt</a>.</p>
   </div>
 </div></body></html>`
 }

@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-10T22:37:03.641311+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-10T23:07:03.161567+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-10 22:18 UTC. Páginas listadas: 596.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-10 22:38 UTC. Páginas listadas: 597.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-11-10).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-31).
-3. Estado vivo: `digest-2026-11-10-fecho-contabilista` (2026-11-10).
+3. Estado vivo: `digest-2026-11-10-pagar-na-loja` (2026-11-10).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -51,8 +51,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-11-10)
 
-## digest (224)
+## digest (225)
 
+- digest-2026-11-10-pagar-na-loja — Digest 10/11/2026 — missão pagar-na-loja (estafeta paga a loja parceira na recolha) (2026-11-10)
 - digest-2026-11-10-fecho-contabilista — Digest 10/11/2026 — fecho ao contabilista com as regras do Hugo (Claude Code) (2026-11-10)
 - digest-2026-11-09-entrega-filme-dipsy — Digest 09/11 — entrega da missão do filme ao Dipsy (2026-11-09)
 - digest-2026-11-09-pendencias — Digest 09/11 — missão pendências (Claude Code) (2026-11-09)
@@ -656,7 +657,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - regra-gmail-links-embrulhados — REGRA para todos os agentes: emails com links NUNCA pelo conector Gmail (embrulha os links em google.com/url) (2026-11-01)
 - resposta-contabilista-iva-2026-10-28 — Resposta do Hugo (DC Consultores): IVA normal trimestral, programa de faturação, modelo aceite — 28/10/2026 (2026-10-28)
 - resposta-contabilista-iva-parte2-2026-10-28 — Hugo (15:54-15:55): faturas emitidas pelo escritório, não ficar no art. 53.º, IVA não mexe na margem — e as contas de outubro com IVA (2026-10-28)
-- respostas-claude-ai-filme — Respostas do Claude.ai às dúvidas do Dipsy no filme (Ep1) (2026-11-09)
+- respostas-claude-ai-filme — Respostas do Claude.ai às dúvidas do Dipsy no filme (Ep1) (2026-11-10)
 - robo-documentos-2026-10-29 — Robô fiscal de documentos — relatório (adendo 3, 29/10/2026) (2026-10-29)
 - seguranca-auditoria-2026-10-21 — Auditoria de seguranca do app (21/10, agente N4) (2026-10-21)
 - sistema-motores-e-portas — Quem faz o quê — uma porta só (atualizado 17/09/2026) (2026-09-17)

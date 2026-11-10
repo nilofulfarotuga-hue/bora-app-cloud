@@ -144,14 +144,14 @@ class RestaurantStore extends ChangeNotifier {
       final seen = <String>{for (final e in list) e.id};
       int offset = list.length;
       while (true) {
-        final List<dynamic> page = await supabase
+        final List<dynamic> page = await _lerProdutos((projecao) => supabase
             .from('products')
-            .select(_productProjection)
+            .select(projecao)
             .eq('restaurant_id', restaurantId)
             .eq('is_available', true)
             .order('sort_order', ascending: true, nullsFirst: false)
             .order('id', ascending: true)
-            .range(offset, offset + _storePageSize - 1);
+            .range(offset, offset + _storePageSize - 1));
         for (final record in page) {
           final product = _productFromRow(record as Map<String, dynamic>);
           if (product == null) continue;
@@ -180,17 +180,37 @@ class RestaurantStore extends ChangeNotifier {
       'discount_price,allergens,sold_by_weight,shelf_price_per_kg,diet_tags,'
       'variable_weight';
 
+  /// Depósito Volta (09/11/2026): `products.deposit_units` só existe depois
+  /// da migração do servidor, e pedir uma coluna que não existe faz o
+  /// PostgREST recusar a consulta INTEIRA — o catálogo ficava vazio. Por isso
+  /// pede-se com a coluna e, se o servidor responder que ela não existe,
+  /// repete-se sem ela e não se volta a pedir nesta sessão (o produto fica
+  /// com `depositUnits` 0; o servidor é que cobra na mesma).
+  static bool _pedirDepositoVolta = true;
+
+  Future<T> _lerProdutos<T>(
+      Future<T> Function(String projecao) consulta) async {
+    if (!_pedirDepositoVolta) return consulta(_productProjection);
+    try {
+      return await consulta('$_productProjection,deposit_units');
+    } catch (e) {
+      if (!faltaColunaDeposito(e)) rethrow;
+      _pedirDepositoVolta = false;
+      return consulta(_productProjection);
+    }
+  }
+
   /// Um produto pelo id, com a mesma projecção e o mesmo parse do catálogo.
   /// Usado pelas faixas da home e pela pesquisa global (05/10) para abrir a
   /// loja já com o produto aberto. Null se não existir ou falhar a rede.
   Future<PartnerProduct?> fetchProductById(String productId) async {
     if (productId.isEmpty) return null;
     try {
-      final row = await supabase
+      final row = await _lerProdutos((projecao) => supabase
           .from('products')
-          .select(_productProjection)
+          .select(projecao)
           .eq('id', productId)
-          .maybeSingle();
+          .maybeSingle());
       if (row == null) return null;
       return _productFromRow(row);
     } catch (e) {
@@ -245,6 +265,7 @@ class RestaurantStore extends ChangeNotifier {
       dietTags: etiquetasDeLinha(data['diet_tags']),
       // 31/10/2026: produto ao quilo de mercado não-parceiro (preço aproximado).
       variableWeight: pesoVariavelDaLinha(data),
+      depositUnits: unidadesDepositoDaLinha(data),
     );
   }
 
@@ -504,16 +525,16 @@ class RestaurantStore extends ChangeNotifier {
       }
 
       while (true) {
-        final List<dynamic> page = await supabase
+        final List<dynamic> page = await _lerProdutos((projecao) => supabase
             .from('products')
-            .select(_productProjection)
+            .select(projecao)
             .inFilter('restaurant_id', includeIds)
             // Ordem de exibição: mercados usam sort_order (sequência da fonte,
             // ex. Glovo); parceiros têm sort_order NULL -> caem no desempate por
             // id (determinístico, paginação estável). 2026-06-06.
             .order('sort_order', ascending: true, nullsFirst: false)
             .order('id', ascending: true)
-            .range(offset, offset + pageSize - 1);
+            .range(offset, offset + pageSize - 1));
         allRecords.addAll(page);
         if (page.length < pageSize) break;
         offset += pageSize;
@@ -676,6 +697,7 @@ class RestaurantStore extends ChangeNotifier {
             ageRestricted: (data['age_restricted'] as bool?) ?? false,
             dietTags: etiquetasDeLinha(data['diet_tags']),
             variableWeight: pesoVariavelDaLinha(data),
+            depositUnits: unidadesDepositoDaLinha(data),
           );
           final list = _productsByRestaurant.putIfAbsent(
               restaurantId, () => <PartnerProduct>[]);
@@ -728,6 +750,9 @@ class RestaurantStore extends ChangeNotifier {
             variableWeight: data.containsKey('variable_weight')
                 ? pesoVariavelDaLinha(data)
                 : list[index].variableWeight,
+            depositUnits: data.containsKey('deposit_units')
+                ? unidadesDepositoDaLinha(data)
+                : list[index].depositUnits,
           );
           notifyListeners();
         },
@@ -1024,6 +1049,7 @@ class RestaurantStore extends ChangeNotifier {
       ageRestricted: current.ageRestricted,
       dietTags: current.dietTags,
       variableWeight: current.variableWeight,
+      depositUnits: current.depositUnits,
     );
     if (soldByWeight) _requiredOptionProductIds.add(productId);
     notifyListeners();

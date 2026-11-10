@@ -501,3 +501,9 @@ envio git passou nas sessões novas (a orquestradora, aberta antes, continuou co
   em `docs/propostas/fecho-contabilista-2026-11-10/` (01 fecho, 02 segurança URGENTE, 03 NIF), provado no PGlite com
   dados reais (42 verificações), e a publicação está em `LEIA-ME_PUBLICAR.md` para a Claude.ai. Também recusou um
   `rm -rf build/unit_test_assets 2>/dev/null` (leu o `2>/dev/null` como caminho fora de `build/`); não foi preciso repetir.
+- **09/11/2026 ~21:00, missão `volta-deposito-kfc-2026-11-09` (depósito Volta)** — a bora-tranca recusou o `Write` de
+  `supabase/migrations/20261109220000_volta_deposito.sql` ("migration que toca tokens/wallet/pagamentos/ledger") e trata
+  SQL/DDL, deploy de Edge e push de produção como publicar (Claude.ai). Não contornado: a parte sem dinheiro ficou em
+  `supabase/migrations/20261109220000_volta_catalogo_e_talao.sql`, a de dinheiro como proposta em
+  `.claude/.ai/missoes/volta-deposito-kfc-2026-11-09/PARTE2-dinheiro-proposta.md`, tudo provado no PGlite (52/52);
+  enviado só o ramo `ai/2026-11-09-volta-deposito-kfc`, pedido de revisão bora-app-cloud#8 para o Claude.ai aplicar e publicar.

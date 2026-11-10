@@ -2,7 +2,7 @@
 // M10 b2-nif (09/11/2026): o NIF impresso no talão contra o NIF que o estafeta tinha de dar na
 // caixa. Banco de brincar (nada sai do PC).
 import {
-  avisarNifDoTalao, compararNifTalao, limparNif, resumoAvisoNif, verificarNifDoTalao,
+  avisarNifDoTalao, compararNifTalao, escolherNifCliente, limparNif, resumoAvisoNif, verificarNifDoTalao,
 } from './nif_talao.ts'
 
 function igual(a: unknown, b: unknown, msg: string) {
@@ -101,11 +101,42 @@ Deno.test('index.ts liga tudo: pede buyer_nif, marca o talão e avisa', () => {
   for (const k of [
     '"buyer_nif": string|null',
     "NUNCA o NIF/NIPC da loja",
-    'verificarNifDoTalao(supabase, orderId, parsed?.buyer_nif ?? null, looksLikeReceipt)',
+    'verificarNifDoTalao(supabase, orderId, parsed?.buyer_nif ?? null, looksLikeReceipt,',
+    "{ seller: parsed?.seller_nif ?? null, nifs: parsed?.nifs ?? [] })",
+    '"seller_nif": string|null, "nifs": [string]',
+    'buyer_nif: buyerNifFinal, nif_check: nifCheck',
+    'de depósito de embalagens (DEPOSITO, VALOR DE DEPOSITO, VASILHAME, SDR, VOLTA)',
     'ocr_flagged: legacyFlagged || !looksLikeReceipt || nifFlagged',
     'avisarNifDoTalao(supabase, orderId, nifCheck)',
     'buyer_nif: buyerNif',
   ]) {
     if (!src.includes(k)) throw new Error(`falta em index.ts: ${k}`)
   }
+})
+
+// v13 (09/11/2026) — talão do KFC 2190210d: "N. Contrib. 502604735" (loja) e "NIF:123456789"
+// (cliente) logo a seguir aos dados da empresa; o modelo devolveu buyer_nif=null.
+Deno.test('escolherNifCliente: o NIF esperado impresso no talão ganha, nunca o da loja', () => {
+  igual(escolherNifCliente(null, '502604735', ['502604735', '123456789'], '123456789'), '123456789', 'KFC 09/11')
+  igual(escolherNifCliente('502604735', '502604735', ['502604735', '123456789'], null), '123456789', 'buyer = loja → o outro')
+  igual(escolherNifCliente('123456789', '502604735', [], null), '123456789', 'buyer lido')
+  igual(escolherNifCliente(null, '502604735', ['502604735'], '123456789'), null, 'só o da loja → em falta')
+  igual(escolherNifCliente(null, null, [], '123456789'), null, 'nada impresso')
+  igual(escolherNifCliente('PT 123 456 789', null, null, null), '123456789', 'limpa espaços e PT')
+  igual(escolherNifCliente('111111111', '502604735', ['111111111', '123456789'], '123456789'), '123456789', 'esperado ganha a um lido diferente')
+})
+
+Deno.test('verificarNifDoTalao com os NIF impressos: o caso do KFC fica ok', async () => {
+  const { sb, avisos } = banco({ regra: { aplica: true, tipo: 'cliente', nif: '123456789' } })
+  const v = await verificarNifDoTalao(sb, 'p1', null, true, { seller: '502604735', nifs: ['502604735', '123456789'] })
+  igual(v.aplica && v.ok, true, 'ok')
+  igual((v as { talao?: string }).talao, '123456789', 'NIF do cliente')
+  igual(await avisarNifDoTalao(sb, 'p1', v), false, 'sem aviso')
+  igual(avisos.length, 0, 'nenhum aviso')
+})
+
+Deno.test('verificarNifDoTalao: talão só com o NIF da loja continua em falta (sem acusar a loja)', async () => {
+  const { sb } = banco({ regra: { aplica: true, tipo: 'cliente', nif: '123456789' } })
+  const v = await verificarNifDoTalao(sb, 'p1', '502604735', true, { seller: '502604735', nifs: ['502604735'] })
+  igual(v.aplica && !v.ok && (v as { motivo?: string }).motivo, 'nif_em_falta', 'em falta, não "diferente"')
 })

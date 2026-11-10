@@ -17,6 +17,27 @@ export function limparNif(v: unknown): string | null {
   return d.length === 9 ? d : null
 }
 
+/**
+ * v13 (09/11/2026, talão do KFC 2190210d): o modelo devolveu buyer_nif=null num talão que tinha
+ * "N. Contrib. 502604735" (a loja) e, logo a seguir, "NIF:123456789" (o cliente). Agora o modelo
+ * devolve também o NIF da loja (seller_nif) e todos os NIF impressos (nifs), e escolhe-se aqui:
+ * 1) o NIF esperado (o que o estafeta tinha de dar), se aparece no talão e não é o da loja;
+ * 2) senão o buyer_nif lido, se não for o da loja;
+ * 3) senão o primeiro NIF impresso que não seja o da loja; 4) senão null.
+ */
+export function escolherNifCliente(
+  buyer: unknown, seller: unknown, nifs: unknown, esperado: unknown,
+): string | null {
+  const loja = limparNif(seller)
+  const lidos = (Array.isArray(nifs) ? nifs : []).map(limparNif).filter((n): n is string => !!n)
+  const comprador = limparNif(buyer)
+  const candidatos = [...new Set([...(comprador ? [comprador] : []), ...lidos])].filter((n) => n !== loja)
+  const esp = limparNif(esperado)
+  if (esp && candidatos.includes(esp)) return esp
+  if (comprador && comprador !== loja) return comprador
+  return candidatos[0] ?? null
+}
+
 export type ComparacaoNif =
   | { aplica: false }
   | { aplica: true; ok: true; esperado: string; talao: string }
@@ -47,6 +68,7 @@ type Cliente = any
  */
 export async function verificarNifDoTalao(
   sb: Cliente, orderId: string, nifLido: unknown, pareceTalao: boolean,
+  impressos?: { seller?: unknown; nifs?: unknown },
 ): Promise<VerificacaoNif> {
   try {
     const { data: regra, error } = await sb.rpc('_nif_caixa_regra', { p_order_id: orderId })
@@ -58,7 +80,10 @@ export async function verificarNifDoTalao(
     } catch (_e) { caixa = null }
     const base = (regra && typeof regra === 'object') ? regra as Record<string, unknown> : null
     const regraFinal = base && caixa?.nif ? { ...base, nif: caixa.nif } : base
-    const res = compararNifTalao(regraFinal, limparNif(nifLido), pareceTalao)
+    const nifCliente = impressos
+      ? escolherNifCliente(nifLido, impressos.seller, impressos.nifs, (regraFinal as { nif?: unknown } | null)?.nif)
+      : limparNif(nifLido)
+    const res = compararNifTalao(regraFinal, nifCliente, pareceTalao)
     return { ...res, estafeta_disse: caixa ? (caixa.dado ?? null) : null }
   } catch (e) {
     return { aplica: false, erro: String(e) }

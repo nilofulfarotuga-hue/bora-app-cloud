@@ -23,6 +23,7 @@ import '../widgets/takeaway/curbside_inputs.dart';
 import '../widgets/tip_selector.dart';
 import '../widgets/valor_com_risco.dart';
 import '../widgets/customer_note_field.dart';
+import '../widgets/deposito_volta_nota.dart';
 import '../widgets/juntar_mais_tira.dart';
 import 'complete_profile_screen.dart' show garantirContactoDoCliente;
 import 'festas_quando_screen.dart';
@@ -98,6 +99,7 @@ class CartScreen extends StatelessWidget {
                         onIncrease: () => cartStore.increaseQuantity(item),
                         onRemove: () => cartStore.removeItem(item),
                         variableWeight: item.variableWeight,
+                        depositUnits: item.depositUnits,
                       );
                     },
                   ),
@@ -161,6 +163,7 @@ class _CartItemTile extends StatelessWidget {
     required this.onIncrease,
     required this.onRemove,
     this.variableWeight = false,
+    this.depositUnits = 0,
   });
 
   final String name;
@@ -173,6 +176,9 @@ class _CartItemTile extends StatelessWidget {
 
   /// 31/10/2026: produto ao quilo — nota "Preço aproximado · …".
   final bool variableWeight;
+
+  /// 09/11/2026: embalagens com depósito Volta por unidade — nota à parte.
+  final int depositUnits;
 
   @override
   Widget build(BuildContext context) {
@@ -220,6 +226,10 @@ class _CartItemTile extends StatelessWidget {
                 ),
                 PesoVariavelNota(
                   variableWeight: variableWeight,
+                  margem: const EdgeInsets.only(top: 2),
+                ),
+                DepositoVoltaNota(
+                  unidades: depositUnits,
                   margem: const EdgeInsets.only(top: 2),
                 ),
               ],
@@ -580,6 +590,15 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                       _SummaryRow(
                         label: 'Taxa de pedido pequeno'.tr,
                         value: cartStore.smallOrderFee,
+                      ),
+                    // Depósito Volta (09/11/2026): linha à parte por lei, fora
+                    // do subtotal. O total do servidor já o traz incluído.
+                    if (resumo.depositoCents > 0)
+                      _SummaryRow(
+                        key: const Key('linha_deposito_volta'),
+                        label:
+                            DepositoVoltaNota.rotulo(resumo.depositoUnidades),
+                        value: resumo.depositoCents / 100,
                       ),
                     // 04/11/2026: prémio do check-in tipo desconto — o total
                     // do servidor já vem sem ele; a linha mostra de onde vem.

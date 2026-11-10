@@ -54,7 +54,8 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
             rotulosVitrineCliente[s.key] ??
             rotulosGorjetas[s.key] ??
             rotulosPesoVariavel[s.key] ??
-            rotulosFavoresRecibos[s.key];
+            rotulosFavoresRecibos[s.key] ??
+            kRotulosDepositoVolta[s.key];
         by.putIfAbsent(s.category ?? 'other', () => []).add(rotulo == null
             ? s
             : _Setting(
@@ -219,6 +220,10 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     // m1-dinheiro-favores 08/11: Favor com teto + recibo por e-mail (paridade
     // admin). As de dinheiro seguem pelo caminho auditado (_isMoneyKey).
     if (rotulosFavoresRecibos.containsKey(key)) return true;
+    // Depósito Volta (09/11/2026): valor e interruptor. Os dois vão pelo
+    // caminho com motivo e auditoria (_isMoneyKey: "cents" e a lista
+    // kChavesDinheiroSemMarca) — mudam o que o cliente paga.
+    if (kRotulosDepositoVolta.containsKey(key)) return true;
     if (key.startsWith('robot_b_')) return true; // kill switches Robot B v4
     if (key.startsWith('dispatch_')) return true;
     // [fable-13-09] Minutos que o pedido de parceiro espera em 'preparing'
@@ -724,7 +729,8 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       // TAXA DE PEDIDO PEQUENO — validação antes de gravar. Um valor absurdo
       // aqui muda o que TODO cliente paga, por isso não passa sem verificação.
       final erro = _validaTaxaPedidoPequeno(s.key, parsed) ??
-          _validaFavoresRecibos(s.key, parsed);
+          _validaFavoresRecibos(s.key, parsed) ??
+          erroDepositoVolta(s.key, parsed);
       if (erro != null) {
         if (mounted) {
           ScaffoldMessenger.of(context)
@@ -850,7 +856,8 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
 
     // TAXA DE SERVIÇO DO NÃO-PARCEIRO — validação antes de gravar.
     final erroTaxa = _validaTaxaServicoNaoParceiro(s.key, novo) ??
-        _validaFavoresRecibos(s.key, novo);
+        _validaFavoresRecibos(s.key, novo) ??
+        erroDepositoVolta(s.key, novo);
     if (erroTaxa != null) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -1112,7 +1119,44 @@ const String kNotaSessaoConvidadoDesligada =
 /// diálogo com motivo obrigatório e rasto no admin_audit_log.
 const Set<String> kChavesDinheiroSemMarca = <String>{
   'errand_cash_ceiling_multiplier',
+  // Depósito Volta (09/11/2026): ligar/desligar cobra ou deixa de cobrar o
+  // depósito a todos os clientes — vai com motivo e fica auditado.
+  'volta_deposit_enabled',
 };
+
+/// [Depósito Volta · 09/11/2026] Latas e garrafas de plástico (até 3 L) com
+/// depósito, cobrado ao cliente numa linha à parte (fora do subtotal, sem
+/// margem, taxas nem tokens). Etiqueta PT-BR; estar aqui TORNA a chave
+/// editável. As duas vão pelo diálogo com motivo e auditoria (_isMoneyKey).
+/// Lista por produto e relatório: menu "Depósito Volta".
+const Map<String, String> kRotulosDepositoVolta = <String, String>{
+  'volta_deposit_cents':
+      'Depósito Volta (valor por embalagem de lata/garrafa de plástico, em '
+          'cêntimos; 10 = 0,10 €). Linha à parte na conta do cliente, sem '
+          'margem, taxas nem tokens.',
+  'volta_deposit_enabled':
+      'Depósito Volta ligado (cobra o depósito ao cliente). Desligado = os '
+          'pedidos novos deixam de levar a linha do depósito.',
+};
+
+/// Validação das chaves do Depósito Volta. O servidor lê-as com `::int` e
+/// `::boolean`. Devolve a mensagem de erro (PT-BR) ou `null`.
+String? erroDepositoVolta(String key, Object? valor) {
+  switch (key) {
+    case 'volta_deposit_cents':
+      if (valor is! num ||
+          valor != valor.roundToDouble() ||
+          valor < 0 ||
+          valor > 100) {
+        return 'Use cêntimos INTEIROS entre 0 e 100 (10 = 0,10 € por embalagem).';
+      }
+      return null;
+    case 'volta_deposit_enabled':
+      return valor is bool ? null : 'Use true (liga) ou false (desliga).';
+    default:
+      return null;
+  }
+}
 
 /// [adendo 4 · 29/10/2026] Interruptores das funções novas das apps (talheres,
 /// troco, barra do pedido ativo, foto de entrega, habituais, etiquetas do menu,

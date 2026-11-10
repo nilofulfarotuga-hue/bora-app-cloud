@@ -8,6 +8,7 @@ import '../../stores/cart_store.dart';
 import 'coming_soon.dart';
 import 'maior_18.dart';
 import 'peso_variavel_nota.dart';
+import '../deposito_volta_nota.dart';
 import 'weight_price_text.dart';
 
 import '../../l10n/tr.dart';
@@ -177,21 +178,25 @@ class BoraProductCard extends StatelessWidget {
                       children: [
                         Flexible(
                           // Ao peso: "desde €1,14" + "€5,70/kg" em pequeno.
-                          child: WeightPriceText(
-                            displayPrice: hasPrice
-                                ? (displayPrice ?? product.price)
-                                : 0,
-                            soldByWeight: product.soldByWeight,
-                            unavailableLabel: 'Indisponível',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures(),
-                              ],
-                              color: hasPrice
-                                  ? AppColors.primary
-                                  : Colors.grey.shade500,
+                          // Depósito Volta (09/11/2026): nota curta por baixo.
+                          child: DepositoVoltaNota.porBaixoDoPreco(
+                            unidades: product.depositUnits,
+                            preco: WeightPriceText(
+                              displayPrice: hasPrice
+                                  ? (displayPrice ?? product.price)
+                                  : 0,
+                              soldByWeight: product.soldByWeight,
+                              unavailableLabel: 'Indisponível',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                                color: hasPrice
+                                    ? AppColors.primary
+                                    : Colors.grey.shade500,
+                              ),
                             ),
                           ),
                         ),

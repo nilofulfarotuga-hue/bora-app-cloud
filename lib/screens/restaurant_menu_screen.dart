@@ -34,6 +34,7 @@ import '../widgets/bora/loja_fechada.dart';
 import '../widgets/bora/weight_price_text.dart';
 import '../widgets/etiquetas_dieta_chips.dart';
 import '../widgets/bora_assistant_fab.dart';
+import '../widgets/deposito_volta_nota.dart';
 import '../widgets/entrega_gratis_da_loja.dart';
 import '../widgets/modo_ocupado_ligado.dart';
 import '../widgets/preco_com_promocao.dart';
@@ -336,6 +337,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
           price: PricingService.applyMarkup(catalogo, widget.restaurant.isPartner),
           basePrice: catalogo,
           ageRestricted: product.ageRestricted,
+          depositUnits: product.depositUnits,
         ));
     showAddedToCartSnack(context, '{0} no carrinho'.trArgs([product.name]));
   }
@@ -1238,27 +1240,31 @@ class _GlovoProductCard extends StatelessWidget {
                           const Spacer(),
                           Row(
                             children: [
+                              // Depósito Volta (09/11/2026): nota curta.
                               Expanded(
-                                child: PrecoComPromocao(
-                                  restaurantId: product.restaurantId,
-                                  productId: product.id,
-                                  isPartnerStore: isPartnerStore,
-                                  estiloPreco: const TextStyle(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
-                                  ),
-                                  semPromocao: WeightPriceText(
-                                    displayPrice:
-                                        product.price > 0 ? displayPrice : 0,
-                                    soldByWeight: product.soldByWeight,
-                                    unavailableLabel: 'Sem preço',
-                                    style: TextStyle(
+                                child: DepositoVoltaNota.porBaixoDoPreco(
+                                  unidades: product.depositUnits,
+                                  preco: PrecoComPromocao(
+                                    restaurantId: product.restaurantId,
+                                    productId: product.id,
+                                    isPartnerStore: isPartnerStore,
+                                    estiloPreco: const TextStyle(
                                       fontSize: 13.5,
                                       fontWeight: FontWeight.w700,
-                                      color: product.price > 0
-                                          ? AppColors.primary
-                                          : Colors.grey,
+                                      color: AppColors.primary,
+                                    ),
+                                    semPromocao: WeightPriceText(
+                                      displayPrice:
+                                          product.price > 0 ? displayPrice : 0,
+                                      soldByWeight: product.soldByWeight,
+                                      unavailableLabel: 'Sem preço',
+                                      style: TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: product.price > 0
+                                            ? AppColors.primary
+                                            : Colors.grey,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -1356,6 +1362,7 @@ class _SectionProductsScreen extends StatelessWidget {
             price: PricingService.applyMarkup(catalogo, restaurant.isPartner),
             basePrice: catalogo,
             ageRestricted: product.ageRestricted,
+            depositUnits: product.depositUnits,
           ));
       showAddedToCartSnack(context, '{0} no carrinho'.trArgs([product.name]));
     }
@@ -1531,6 +1538,11 @@ class _SectionProductCard extends StatelessWidget {
                                 product.price > 0 ? primaryColor : Colors.grey,
                           ),
                         ),
+                      ),
+                      // Depósito Volta (09/11/2026): à parte do preço, por lei.
+                      DepositoVoltaNota(
+                        unidades: product.depositUnits,
+                        margem: const EdgeInsets.only(top: 2),
                       ),
                     ],
                   ),

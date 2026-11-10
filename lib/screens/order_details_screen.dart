@@ -21,6 +21,7 @@ import '../widgets/bora_support_fab.dart';
 import '../widgets/errand_budget_banner.dart';
 import '../widgets/favor_diferenca_banner.dart';
 import '../widgets/foto_prova_entrega.dart';
+import '../widgets/deposito_volta_nota.dart';
 import '../widgets/fatura_nif_pedido.dart';
 import '../widgets/private_bucket_image.dart';
 import '../widgets/refund_choice_dialog.dart';
@@ -1273,6 +1274,38 @@ class _ItemsCard extends StatelessWidget {
                   ),
                   Text(
                     eur(order.smallOrderFee),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          // Depósito Volta (09/11/2026): linha à parte por lei. O valor é o
+          // do servidor, já com os acertos (produtos em falta, talão).
+          if (order.depositoVoltaTotal > 0) ...[
+            const Divider(height: 16),
+            Padding(
+              key: const Key('pedido_deposito_volta'),
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      // Com acertos o número de embalagens já não bate certo.
+                      DepositoVoltaNota.rotulo(order.depositAjusteCents == 0
+                          ? order.depositUnits
+                          : 0),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    eur(order.depositoVoltaTotal),
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,

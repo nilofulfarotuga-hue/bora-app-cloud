@@ -22,6 +22,7 @@ import '../widgets/bora/coming_soon.dart';
 import '../widgets/bora/maior_18.dart';
 import '../widgets/bora/peso_variavel_nota.dart';
 import '../widgets/bora/weight_price_text.dart';
+import '../widgets/deposito_volta_nota.dart';
 import '../widgets/etiquetas_dieta_chips.dart';
 import '../widgets/preco_com_promocao.dart';
 import 'cart_screen.dart';
@@ -84,14 +85,31 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     PratoVisitasService.registarAbertura(widget.product.id);
   }
 
+  // Depósito Volta (09/11/2026): `product_option_items.deposit_units` só
+  // existe depois da migração do servidor; pedir a coluna antes disso faz a
+  // consulta inteira falhar (sem opções não se pode pedir o menu). Pede-se
+  // com ela e, se não existir, repete-se sem ela e não se volta a pedir.
+  static bool _pedirDepositoVolta = true;
+
+  Future<dynamic> _lerGrupos(bool comDeposito) => Supabase.instance.client
+      .from('product_option_groups')
+      .select(
+          'id,product_id,name,description,is_required,min_choices,max_choices,sort_order,product_option_items(id,name,price_add,is_available,sort_order${comDeposito ? ',deposit_units' : ''})')
+      .eq('product_id', widget.product.id)
+      .order('sort_order');
+
   Future<void> _loadGroups() async {
     try {
-      final res = await Supabase.instance.client
-          .from('product_option_groups')
-          .select(
-              'id,product_id,name,description,is_required,min_choices,max_choices,sort_order,product_option_items(id,name,price_add,is_available,sort_order)')
-          .eq('product_id', widget.product.id)
-          .order('sort_order');
+      dynamic res;
+      if (_pedirDepositoVolta) {
+        try {
+          res = await _lerGrupos(true);
+        } catch (e) {
+          if (!faltaColunaDeposito(e)) rethrow;
+          _pedirDepositoVolta = false;
+        }
+      }
+      res ??= await _lerGrupos(false);
       final list = (res as List)
           .map((e) => ProductOptionGroup.fromMap(e as Map<String, dynamic>))
           .toList()
@@ -115,6 +133,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       }
     }
     return sum;
+  }
+
+  /// Embalagens com depósito Volta numa unidade: as do produto mais as das
+  /// opções escolhidas (ex.: a lata do menu).
+  int get _depositoUnidades {
+    var soma = widget.product.depositUnits;
+    for (final g in _groups) {
+      final ids = _sel[g.id];
+      if (ids == null) continue;
+      for (final it in g.items) {
+        if (ids.contains(it.id)) soma += it.depositUnits;
+      }
+    }
+    return soma;
   }
 
   void _toggleOption(ProductOptionGroup g, ProductOptionItem it) {
@@ -183,6 +215,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           quantity: _quantity,
           ageRestricted: widget.product.ageRestricted,
           variableWeight: widget.product.variableWeight,
+          depositUnits: widget.product.depositUnits,
         ));
     _snackEFecha('{0} × {1} adicionado ao carrinho'.trArgs([v.brandName, _quantity]));
   }
@@ -198,6 +231,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           quantity: _quantity,
           ageRestricted: widget.product.ageRestricted,
           variableWeight: widget.product.variableWeight,
+          depositUnits: widget.product.depositUnits,
         ));
     _snackEFecha('{0} × {1} adicionado ao carrinho'.trArgs([widget.product.name, _quantity]));
   }
@@ -228,6 +262,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           selectedOptions: selected,
           ageRestricted: widget.product.ageRestricted,
           variableWeight: widget.product.variableWeight,
+          depositUnits: _depositoUnidades,
         ));
     _snackEFecha('{0} × {1} adicionado ao carrinho'.trArgs([widget.product.name, _quantity]));
   }
@@ -354,6 +389,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         PesoVariavelNota(
                           variableWeight: widget.product.variableWeight,
                           margem: const EdgeInsets.only(top: 8),
+                        ),
+                        // Depósito Volta (09/11/2026): à parte do preço, por lei.
+                        DepositoVoltaNota(
+                          unidades: _depositoUnidades,
+                          margem: const EdgeInsets.only(top: 4),
                         ),
                         if (widget.product.description.isNotEmpty) ...[
                           const SizedBox(height: 8),

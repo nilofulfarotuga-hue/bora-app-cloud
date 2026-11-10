@@ -1,3 +1,4 @@
+import 'partner_product.dart' show unidadesDepositoDaLinha;
 import 'product_option.dart';
 import '../utils/euros.dart';
 
@@ -52,6 +53,14 @@ class CartItem {
   /// opcional `variable_weight` (só quando true); sem a chave → false.
   final bool variableWeight;
 
+  /// Depósito Volta (09/11/2026): embalagens com depósito (0,10 € cada) em
+  /// UMA unidade desta linha — as do produto mais as das opções escolhidas.
+  /// Serve só para a nota no carrinho e para o cálculo provisório antes do
+  /// quote; quem calcula e cobra é o servidor. Vai SEMPRE no `toJson` como
+  /// `deposit_units`: é o sinal ao `create_order` de que esta versão da app
+  /// mostra a linha do depósito (sem a chave, o servidor não o cobra).
+  final int depositUnits;
+
   // Sessão 4C (2026-05-04): defesa run-time em release.
   // Asserts (4B5) STRIP em release → asserts são detectores dev. Validação
   // crítica usa `if-throw` no body do constructor (executa também em release).
@@ -70,6 +79,7 @@ class CartItem {
     this.selectedOptionsPriced = const [],
     this.ageRestricted = false,
     this.variableWeight = false,
+    this.depositUnits = 0,
   })  : assert(productId.isNotEmpty, 'CartItem.productId vazio'),
         assert(!productId.contains(' '),
             'CartItem.productId com espaço — parece nome ($productId)'),
@@ -104,6 +114,7 @@ class CartItem {
     this.selectedOptionsPriced = const [],
     this.ageRestricted = false,
     this.variableWeight = false,
+    this.depositUnits = 0,
   });
 
   /// Cart dedup key. Two lines with different option selections are distinct.
@@ -123,6 +134,8 @@ class CartItem {
         if (basePrice != null) 'basePrice': basePrice,
         if (ageRestricted) 'age_restricted': true,
         if (variableWeight) 'variable_weight': true,
+        // Sempre presente, mesmo a 0: é o sinal ao servidor (ver [depositUnits]).
+        'deposit_units': depositUnits,
         if (selectedOptions.isNotEmpty)
           'selected_options':
               selectedOptions.map((o) => o.toJson()).toList(),
@@ -143,6 +156,7 @@ class CartItem {
       basePrice: (json['basePrice'] as num?)?.toDouble(),
       ageRestricted: json['age_restricted'] == true,
       variableWeight: json['variable_weight'] == true,
+      depositUnits: unidadesDepositoDaLinha(json),
       selectedOptions: rawOpts == null
           ? const []
           : rawOpts

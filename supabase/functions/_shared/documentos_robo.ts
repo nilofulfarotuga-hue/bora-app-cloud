@@ -1,15 +1,19 @@
 // _shared/documentos_robo.ts — o cérebro do robô "fiscal de documentos" (missão final-app-2026-10-29,
-// adendo 3). Peças puras (testadas em documentos_robo_test.ts) e a chamada ao Gemini.
+// adendo 3). Peças puras (testadas em documentos_robo_test.ts) e a chamada à IA.
 //
 // Regras da casa deste robô:
 //   • NUNCA aprova nada. Só diz "ok", "errado" ou "dúvida"; a aprovação é só do Danilo.
 //   • NUNCA guarda o nome nem o NIF lidos: o servidor compara e deita fora (só ficam os "bate/não bate").
-//   • Chave PAGA: usa só GEMINI_API_KEY (a do Bora Assistente, projeto bora-juiz, nível 1). Nunca a
-//     GEMINI_API_KEY_FALLBACK, que pode ser grátis — com a grátis a Google pode usar o conteúdo e
-//     estes são documentos de identificação.
+//   • 10/11/2026 (fechar-tudo, bloco H): o Gemini do projeto bora-juiz saiu (conta de pagamento vencida,
+//     402; o Danilo não põe pagamento novo no Google). A leitura vai pelo _shared/ia_visao.ts: Claude
+//     primeiro (Haiku; pouca certeza → Sonnet), com privado=true — nenhum motor grátis vê estes
+//     documentos de identificação (com os grátis o fornecedor pode usar o conteúdo). Sem Claude, a
+//     linha fica "falhou" e vê-se à mão, como já acontecia quando o Gemini falhava.
 //   • Selfie: só se vê se é um rosto nítido de frente. SEM comparação facial, SEM biometria.
 //   • A mensagem para o candidato sai de modelos de texto daqui (PT-PT, "tu"), nunca do que o modelo
 //     escreve, para não vazar dados pessoais nem inventar.
+import type { ModeloClaude } from './claude.ts';
+import { httpDasTentativas, pedirIa } from './ia_visao.ts';
 
 export const TIPOS = [
   'comprovativo_atividade_AT',
@@ -34,8 +38,10 @@ export type TipoEsperado =
   | 'foto_veiculo'
   | 'selfie';
 
-export const MODELO_LEVE = 'gemini-3.1-flash-lite';
-export const MODELO_FORTE = 'gemini-3.1-flash';
+/** Nome do robô em ia_gastos e no painel (platform_settings.claude_robos). */
+export const ROBO_DOCUMENTOS = 'edge-documentos';
+export const MODELO_LEVE: ModeloClaude = 'claude-haiku-5-5';
+export const MODELO_FORTE: ModeloClaude = 'claude-sonnet-5-5';
 export const MAX_BYTES = 14 * 1024 * 1024;
 
 export interface Leitura {
@@ -259,21 +265,7 @@ function maiuscula(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-// ── Gemini ──────────────────────────────────────────────────────────────────────
-
-const SCHEMA = {
-  type: 'OBJECT',
-  properties: {
-    tipo_detectado: { type: 'STRING', enum: [...TIPOS] },
-    legivel: { type: 'BOOLEAN' },
-    nome_lido: { type: 'STRING', nullable: true },
-    nif_lido: { type: 'STRING', nullable: true },
-    validade: { type: 'STRING', nullable: true },
-    cara_nitida: { type: 'BOOLEAN', nullable: true },
-    confianca: { type: 'NUMBER' },
-  },
-  required: ['tipo_detectado', 'legivel', 'confianca'],
-};
+// ── IA (Claude primeiro, pelo _shared/ia_visao.ts) ─────────────────────────────
 
 export function promptDoDocumento(esperado: TipoEsperado): string {
   return [
@@ -295,80 +287,90 @@ export function promptDoDocumento(esperado: TipoEsperado): string {
   ].join(' ');
 }
 
-export interface ResultadoGemini {
+export interface ResultadoAnalise {
   leitura: Leitura | null;
+  /** motor:modelo que respondeu (ex.: claude:claude-haiku-5-5) ou o que se tentou */
+  modelo: string;
+  /** 200 quando houve resposta; senão o último http visto (429/5xx deixam quem chama repetir) */
   httpStatus: number | null;
+  /** quando não houve leitura: o erro claro do módulo ia_visao (cada motor e o que respondeu) */
+  erro?: string | null;
 }
 
+/** Valida o objeto lido (vindo de qualquer motor) e devolve a Leitura, ou null se não servir. */
+export function lerLeitura(o: unknown): Leitura | null {
+  // deno-lint-ignore no-explicit-any
+  const x = o as any;
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return null;
+  const tipo = (TIPOS as readonly string[]).includes(x.tipo_detectado) ? x.tipo_detectado : null;
+  if (!tipo || typeof x.legivel !== 'boolean') return null;
+  return {
+    tipo_detectado: tipo,
+    legivel: x.legivel,
+    nome_lido: typeof x.nome_lido === 'string' && x.nome_lido.trim() ? x.nome_lido.trim().slice(0, 200) : null,
+    nif_lido: typeof x.nif_lido === 'string' && x.nif_lido.trim() ? x.nif_lido.trim().slice(0, 40) : null,
+    validade: typeof x.validade === 'string' ? x.validade.trim().slice(0, 12) : null,
+    cara_nitida: typeof x.cara_nitida === 'boolean' ? x.cara_nitida : null,
+    confianca: limitar01(x.confianca),
+  };
+}
+
+/** Resposta no formato antigo do Gemini (candidates[0].content.parts[0].text) → Leitura. */
 export function lerResposta(raw: unknown): Leitura | null {
   // deno-lint-ignore no-explicit-any
   const texto = (raw as any)?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (typeof texto !== 'string') return null;
   try {
-    const o = JSON.parse(texto);
-    if (!o || typeof o !== 'object') return null;
-    const tipo = (TIPOS as readonly string[]).includes(o.tipo_detectado) ? o.tipo_detectado : null;
-    if (!tipo || typeof o.legivel !== 'boolean') return null;
-    return {
-      tipo_detectado: tipo,
-      legivel: o.legivel,
-      nome_lido: typeof o.nome_lido === 'string' && o.nome_lido.trim() ? o.nome_lido.trim().slice(0, 200) : null,
-      nif_lido: typeof o.nif_lido === 'string' && o.nif_lido.trim() ? o.nif_lido.trim().slice(0, 40) : null,
-      validade: typeof o.validade === 'string' ? o.validade.trim().slice(0, 12) : null,
-      cara_nitida: typeof o.cara_nitida === 'boolean' ? o.cara_nitida : null,
-      confianca: limitar01(o.confianca),
-    };
+    return lerLeitura(JSON.parse(texto));
   } catch {
     return null;
   }
 }
 
-/** Uma chamada ao Gemini (chave paga em cabeçalho, nunca no URL). */
-export async function chamarGemini(
-  chave: string,
-  modelo: string,
+/** O formato da resposta, dito por palavras (o Claude não usa o responseSchema do Gemini). */
+const FORMATO_JSON = [
+  'Responde SÓ com um objeto JSON, sem texto antes nem depois, com estas chaves:',
+  `tipo_detectado (um de: ${TIPOS.join(', ')}), legivel (true/false), nome_lido (texto ou null),`,
+  'nif_lido (texto ou null), validade (AAAA-MM-DD ou null), cara_nitida (true/false/null), confianca (número de 0 a 1).',
+].join(' ');
+
+/** Uma análise: Claude primeiro (dados privados: nenhum motor grátis vê o documento). */
+export async function analisarCom(
   mime: string,
   base64: string,
   esperado: TipoEsperado,
-): Promise<ResultadoGemini> {
-  const corpo = {
-    contents: [{
-      parts: [
-        { text: promptDoDocumento(esperado) },
-        { inline_data: { mime_type: mime, data: base64 } },
-      ],
-    }],
-    generationConfig: {
-      temperature: 0,
-      responseMimeType: 'application/json',
-      responseSchema: SCHEMA,
-      maxOutputTokens: 512,
-      thinkingConfig: { thinkingBudget: 0 },
-    },
-  };
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': chave },
-    body: JSON.stringify(corpo),
+  modeloClaude: ModeloClaude,
+  robo = ROBO_DOCUMENTOS,
+): Promise<ResultadoAnalise> {
+  const r = await pedirIa({
+    robo,
+    prioridade: 3,
+    sistema: `${promptDoDocumento(esperado)} ${FORMATO_JSON}`,
+    texto: 'O ficheiro vai em anexo. Responde só com o objeto JSON.',
+    anexos: [{ mime, base64 }],
+    json: true,
+    privado: true,
+    maxTokens: 1024,
+    modeloClaude,
   });
-  const raw = await r.json().catch(() => ({}));
-  if (!r.ok) return { leitura: null, httpStatus: r.status };
-  return { leitura: lerResposta(raw), httpStatus: r.status };
+  if (!r.ok) return { leitura: null, modelo: modeloClaude, httpStatus: httpDasTentativas(r.tentativas), erro: r.erro };
+  return { leitura: lerLeitura(r.json), modelo: `${r.motor}:${r.modelo}`, httpStatus: 200, erro: null };
 }
 
-/** Leve primeiro; vazio ou pouco seguro → repete com o modelo forte. */
+/** Leve primeiro (Haiku); vazio ou pouco seguro → repete com o forte (Sonnet). Sem resposta → não repete. */
 export async function analisar(
-  chave: string,
   mime: string,
   base64: string,
   esperado: TipoEsperado,
   confiancaMin: number,
-): Promise<{ leitura: Leitura | null; modelo: string; httpStatus: number | null }> {
-  const a = await chamarGemini(chave, MODELO_LEVE, mime, base64, esperado);
-  if (a.leitura && a.leitura.confianca >= confiancaMin) return { leitura: a.leitura, modelo: MODELO_LEVE, httpStatus: a.httpStatus };
-  const b = await chamarGemini(chave, MODELO_FORTE, mime, base64, esperado);
-  if (b.leitura) return { leitura: b.leitura, modelo: MODELO_FORTE, httpStatus: b.httpStatus };
-  return { leitura: a.leitura, modelo: MODELO_LEVE, httpStatus: a.httpStatus ?? b.httpStatus };
+  robo = ROBO_DOCUMENTOS,
+): Promise<ResultadoAnalise> {
+  const a = await analisarCom(mime, base64, esperado, MODELO_LEVE, robo);
+  if (a.leitura && a.leitura.confianca >= confiancaMin) return a;
+  if (!a.leitura && a.httpStatus !== 200) return a; // nenhum motor respondeu: o forte falharia igual
+  const b = await analisarCom(mime, base64, esperado, MODELO_FORTE, robo);
+  if (b.leitura) return b;
+  return a.leitura ? a : { ...a, erro: a.erro ?? b.erro ?? 'resposta sem leitura valida' };
 }
 
 export function hojeEmLisboa(): string {

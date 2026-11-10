@@ -10,12 +10,16 @@
 //
 // Corpo: { restaurant_id, forcar? }
 //
-// Gemini: chave PAGA (GEMINI_API_KEY, projeto bora-juiz, nível 1). NUNCA a GEMINI_API_KEY_FALLBACK.
+// IA (10/11/2026, fechar-tudo bloco H): o Gemini do projeto bora-juiz saiu (conta de pagamento vencida,
+// 402). Agora _shared/ia_visao.ts: Claude primeiro (robo 'edge-resumo-avaliacoes', Haiku); comentários de
+// clientes → privado=true: de reserva só motores que não treinam com os dados (Groq). Sem motor:
+// { ok:false, reason:'gemini_erro', detalhe:<erro claro> } (o nome do motivo fica, a app já o conhece).
 // O resumo é guardado em restaurant_review_summary (só o dono e o admin leem). Faz-se no máximo
 // uma vez por dia por loja, e só se houver pelo menos 3 comentários; os nomes dos clientes nunca
 // entram (a consulta nem os lê).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { pedirIa } from '../_shared/ia_visao.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,7 +27,6 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-const MODELO = 'gemini-3.1-flash-lite'
 const MIN_COMENTARIOS = 3
 const MAX_COMENTARIOS = 60
 const UM_DIA_MS = 24 * 60 * 60 * 1000
@@ -42,32 +45,20 @@ const PROMPT =
   'cites nomes de pessoas nem dados pessoais; não prometas nada; sem listas, sem emojis, sem markdown. ' +
   'Devolve JSON ESTRITO: {"resumo": "..."}.'
 
-async function pedirAoGemini(chave: string, linhas: string[]) {
-  const r = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': chave },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: PROMPT }, { text: linhas.join('\n') }] }],
-        generationConfig: {
-          temperature: 0.2,
-          response_mime_type: 'application/json',
-          maxOutputTokens: 500,
-          thinkingConfig: { thinkingBudget: 0 },
-        },
-      }),
-    },
-  )
-  if (!r.ok) return { erro: String(r.status), resumo: null as string | null }
-  const raw = await r.json().catch(() => ({}))
-  const texto = raw?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
-  try {
-    const resumo = String(JSON.parse(texto)?.resumo ?? '').trim().slice(0, 900)
-    return { erro: resumo ? null : 'vazio', resumo: resumo || null }
-  } catch {
-    return { erro: 'json_invalido', resumo: null as string | null }
-  }
+async function pedirResumo(linhas: string[]) {
+  const r = await pedirIa({
+    robo: 'edge-resumo-avaliacoes',
+    prioridade: 3,
+    sistema: PROMPT,
+    texto: linhas.join('\n'),
+    json: true,
+    privado: true,
+    maxTokens: 1024,
+  })
+  if (!r.ok) return { erro: r.erro.slice(0, 300), resumo: null as string | null }
+  // deno-lint-ignore no-explicit-any
+  const resumo = String((r.json as any)?.resumo ?? '').trim().slice(0, 900)
+  return { erro: resumo ? null : 'vazio', resumo: resumo || null }
 }
 
 Deno.serve(async (req) => {
@@ -77,7 +68,6 @@ Deno.serve(async (req) => {
   const url = Deno.env.get('SUPABASE_URL')!
   const anon = Deno.env.get('SUPABASE_ANON_KEY')!
   const servico = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_SECRET_KEY')
-  const chaveGemini = Deno.env.get('GEMINI_API_KEY')
   if (!url || !anon || !servico) return json({ ok: false, error: 'env_em_falta' }, 500)
 
   const auth = req.headers.get('Authorization') ?? ''
@@ -133,13 +123,11 @@ Deno.serve(async (req) => {
     }
   }
 
-  if (!chaveGemini) return json({ ok: false, reason: 'gemini_nao_configurado' })
-
   const linhas = comTexto.map((a) => {
     const estrelas = Number(a.stars ?? a.rating ?? 0)
     return `${estrelas > 0 ? estrelas + ' estrelas' : 'sem estrelas'}: ${String(a.comment).trim().slice(0, 400)}`
   })
-  const r = await pedirAoGemini(chaveGemini, linhas)
+  const r = await pedirResumo(linhas)
   if (r.erro || !r.resumo) return json({ ok: false, reason: 'gemini_erro', detalhe: r.erro })
 
   const { error: erroGravar } = await bd.from('restaurant_review_summary').upsert({

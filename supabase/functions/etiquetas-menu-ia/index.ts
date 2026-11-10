@@ -12,14 +12,16 @@
 // Corpo: { product_id }                       -> um prato (botão "Sugerir com IA")
 //        { restaurant_id, limite? (<=20) }    -> os pratos dessa loja ainda sem etiquetas
 //
-// Gemini: chave PAGA (GEMINI_API_KEY, a do projeto bora-juiz, nível 1). NUNCA a
-// GEMINI_API_KEY_FALLBACK, que pode ser grátis. Sem a chave: ok:false, gemini_nao_configurado.
-// Modelo gemini-3.1-flash-lite com thinkingBudget 0 (armadilha conhecida do flash), temperatura 0.
+// IA (10/11/2026, fechar-tudo bloco H): o Gemini do projeto bora-juiz saiu (conta de pagamento vencida,
+// 402). Agora _shared/ia_visao.ts: Claude primeiro (robo 'edge-etiquetas-menu', Haiku) e, se falhar, a
+// rotação grátis (Groq, Gemini grátis, OpenRouter, Kilo). Nome e descrição de pratos são públicos:
+// privado=false. Sem nenhum motor: o prato fica com erro claro (nunca etiquetas inventadas).
 //
 // Escreve em products.diet_tags / diet_tags_source = 'ia' / diet_tags_at, e só em pratos cuja
 // origem das etiquetas é nula ou 'ia'. Não toca em preços, nem em alergénios.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { pedirIa } from '../_shared/ia_visao.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,7 +30,6 @@ const corsHeaders = {
 }
 
 const PERMITIDAS = ['vegetariano', 'picante', 'sem_gluten']
-const MODELO = 'gemini-3.1-flash-lite'
 const LIMITE_MAXIMO = 20
 
 const json = (body: unknown, status = 200) =>
@@ -57,36 +58,20 @@ const PROMPT =
   'nunca deduzas sem glúten pelos ingredientes (é segurança alimentar). ' +
   'Na dúvida, não ponhas a etiqueta. Se não houver nenhuma, devolve {"tags": []}.'
 
-async function pedirAoGemini(chave: string, nome: string, descricao: string) {
-  const r = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': chave },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: PROMPT },
-            { text: `Nome: ${nome.slice(0, 200)}\nDescrição: ${descricao.slice(0, 800)}` },
-          ],
-        }],
-        generationConfig: {
-          temperature: 0,
-          response_mime_type: 'application/json',
-          maxOutputTokens: 200,
-          thinkingConfig: { thinkingBudget: 0 },
-        },
-      }),
-    },
-  )
-  if (!r.ok) return { erro: r.status, tags: [] as string[] }
-  const raw = await r.json().catch(() => ({}))
-  const texto = raw?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
-  try {
-    return { erro: null, tags: limparEtiquetas(JSON.parse(texto)?.tags) }
-  } catch {
-    return { erro: 'json_invalido', tags: [] as string[] }
-  }
+async function pedirEtiquetas(nome: string, descricao: string) {
+  const r = await pedirIa({
+    robo: 'edge-etiquetas-menu',
+    prioridade: 3,
+    sistema: PROMPT,
+    texto: `Nome: ${nome.slice(0, 200)}\nDescrição: ${descricao.slice(0, 800)}`,
+    json: true,
+    privado: false,
+    maxTokens: 1024,
+    prazoMs: 30_000,
+  })
+  if (!r.ok) return { erro: r.erro.slice(0, 300), tags: [] as string[], motor: null as string | null }
+  // deno-lint-ignore no-explicit-any
+  return { erro: null, tags: limparEtiquetas((r.json as any)?.tags), motor: `${r.motor}:${r.modelo}` }
 }
 
 Deno.serve(async (req) => {
@@ -96,7 +81,6 @@ Deno.serve(async (req) => {
   const url = Deno.env.get('SUPABASE_URL')!
   const anon = Deno.env.get('SUPABASE_ANON_KEY')!
   const servico = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_SECRET_KEY')
-  const chaveGemini = Deno.env.get('GEMINI_API_KEY')
   if (!url || !anon || !servico) return json({ ok: false, error: 'env_em_falta' }, 500)
 
   // 1) Quem é: sessão obrigatória.
@@ -155,9 +139,7 @@ Deno.serve(async (req) => {
     if (!lojas.every((l) => meus.has(l))) return json({ ok: false, error: 'nao_e_a_tua_loja' }, 403)
   }
 
-  if (!chaveGemini) return json({ ok: false, reason: 'gemini_nao_configurado' })
-
-  // 5) Pergunta ao Gemini e grava (nunca por cima do que o parceiro escolheu).
+  // 5) Pergunta à IA (Claude primeiro) e grava (nunca por cima do que o parceiro escolheu).
   const resultados: any[] = []
   let atualizados = 0
   for (const p of pratos) {
@@ -170,7 +152,7 @@ Deno.serve(async (req) => {
       resultados.push({ product_id: p.id, tags: [], saltado: 'sem_descricao' })
       continue
     }
-    const r = await pedirAoGemini(chaveGemini, String(p.name ?? ''), descricao)
+    const r = await pedirEtiquetas(String(p.name ?? ''), descricao)
     if (r.erro) {
       resultados.push({ product_id: p.id, tags: null, erro: r.erro })
       continue

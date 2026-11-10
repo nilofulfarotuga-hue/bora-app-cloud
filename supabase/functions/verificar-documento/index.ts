@@ -17,9 +17,10 @@
 //   5. só no modo ativo (robo_documentos_ativo=true E robo_documentos_modo='ativo') chama
 //      robo_documentos_aplicar, que recusa/avisa. O robô NUNCA aprova nada.
 //
-// Chave: GEMINI_API_KEY (a do Bora Assistente — projeto bora-juiz, nível 1 pago). Nunca a
-// GEMINI_API_KEY_FALLBACK, que pode ser grátis; com a grátis a Google pode usar o conteúdo.
-// Sem a chave: no-op gracioso (ok:false, gemini_nao_configurado).
+// v3 (10/11/2026, fechar-tudo bloco H): o Gemini do projeto bora-juiz saiu (conta de pagamento vencida,
+// 402). A leitura vai pelo _shared/documentos_robo.ts → _shared/ia_visao.ts: Claude primeiro
+// (claude-haiku-5-5; pouca certeza → claude-sonnet-5-5), privado=true (nenhum motor grátis vê documentos
+// de identificação). Sem Claude, cada documento fica "ia_falhou" e vê-se à mão (como antes com o Gemini).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { chaveSecreta, exigirServidor } from '../_shared/chaves.ts'
@@ -62,12 +63,7 @@ Deno.serve(async (req) => {
   const reverificar = corpo?.reverificar === true
   const filtroCampo = typeof corpo?.campo === 'string' ? corpo.campo : null
 
-  const chave = Deno.env.get('GEMINI_API_KEY')
-  if (!chave) {
-    console.warn('[verificar-documento] GEMINI_API_KEY em falta — nada a fazer')
-    return json({ ok: false, reason: 'gemini_nao_configurado' })
-  }
-
+  // 10/11/2026: já não se exige a chave do Gemini; sem Claude, o ia_visao devolve o erro claro por documento.
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, chaveSecreta(), { auth: { persistSession: false } })
 
   const { data: cfg, error: erroCfg } = await admin.rpc('_robo_documentos_cfg')
@@ -154,20 +150,21 @@ Deno.serve(async (req) => {
       break
     }
     const b64 = paraBase64(bytes)
-    let a = await analisar(chave, mime, b64, esperado, confMin)
-    // 429/5xx do Gemini (sobrecarga) costumam passar à segunda: espera um pouco e repete, até 2 vezes.
+    let a = await analisar(mime, b64, esperado, confMin)
+    // 429/5xx (sobrecarga) costumam passar à segunda: espera um pouco e repete, até 2 vezes.
     for (const espera of [2000, 5000]) {
       if (a.leitura || ![429, 500, 502, 503, 504].includes(a.httpStatus ?? 0)) break
       await new Promise((r) => setTimeout(r, espera))
-      a = await analisar(chave, mime, b64, esperado, confMin)
+      a = await analisar(mime, b64, esperado, confMin)
     }
     usadas++
     if (!a.leitura) {
       await admin.from('e2e_log').insert({
-        fluxo: 'robo-documentos', passo: 'gemini', estado: 'falhou',
-        detalhe: `u=${userId.slice(0, 8)} campo=${alvo.campo} http=${a.httpStatus ?? 'sem'}`, device: 'edge-verificar-documento',
+        fluxo: 'robo-documentos', passo: 'ia', estado: 'falhou',
+        detalhe: `u=${userId.slice(0, 8)} campo=${alvo.campo} http=${a.httpStatus ?? 'sem'} ${(a.erro ?? '').slice(0, 400)}`,
+        device: 'edge-verificar-documento',
       })
-      resultados.push({ campo: alvo.campo, estado: 'gemini_falhou', http: a.httpStatus })
+      resultados.push({ campo: alvo.campo, estado: 'ia_falhou', http: a.httpStatus })
       continue
     }
 

@@ -3,7 +3,12 @@
 //        Resolve falha 401 quando vault.service_role_key != env.SUPABASE_SERVICE_ROLE_KEY.
 // v3 fix: verify_jwt agora false (autenticacao feita internamente).
 //
-// Analisa support_chatbot_messages 7 dias e propoe 3 tipos via Gemini:
+// v5 (10/11/2026, fechar-tudo bloco H): sem Gemini do projeto bora-juiz (conta de pagamento vencida,
+// 402). A analise vai pelo _shared/ia_visao.ts: Claude primeiro (robo 'edge-analise-suporte', Haiku);
+// mensagens de clientes -> privado=true (de reserva so motores que nao treinam com os dados: Groq).
+// Os campos da resposta ficam iguais (gemini_error, gemini_model = motor:modelo que respondeu).
+//
+// Analisa support_chatbot_messages 7 dias e propoe 3 tipos via IA:
 //   1. new_skill
 //   2. playbook_update
 //   3. settings_update
@@ -12,6 +17,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { chamadaDoServidor, respostaAoPing, utilizadorDoPedido } from '../_shared/chaves.ts';
 import { secretKey } from '../_shared/keys.ts';
+import { pedirIa } from '../_shared/ia_visao.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,7 +28,6 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SUPABASE_SERVICE_ROLE_KEY = secretKey()!;
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
 
 const SAFE_SETTING_KEYS = [
   'chatbot_welcome_text',
@@ -138,14 +143,6 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  if (!GEMINI_API_KEY) {
-    return jsonResponse({
-      error: 'gemini_key_missing',
-      analyzed_messages: 0,
-      suggestions_created: 0,
-    }, 503);
-  }
-
   const windowEnd   = new Date();
   const windowStart = new Date(windowEnd.getTime() - daysBack * 24 * 60 * 60 * 1000);
 
@@ -207,7 +204,8 @@ Deno.serve(async (req: Request) => {
     .from('skill_suggestions').select('pattern_summary').eq('status', 'pending');
   const pendingSummaries = (pendingRows ?? []).map((r: any) => r.pattern_summary as string);
 
-  const geminiModel = (settingsRow?.gemini_model as string) ?? 'gemini-2.5-flash';
+  // gemini_model nas sugestões = o motor:modelo que respondeu (preenchido depois da chamada).
+  let geminiModel = 'claude-haiku-5-5';
 
   const systemPrompt =
     'Es um analista de suporte da Bora App. Identifica padroes em mensagens de clientes.\n' +
@@ -251,36 +249,24 @@ Deno.serve(async (req: Request) => {
   let suggestions: any[] = [];
   let geminiError: string | null = null;
 
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`;
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-        generationConfig: { maxOutputTokens: 8192, temperature: 0.3 },
-      }),
-    });
-    if (!resp.ok) {
-      const txt = await resp.text();
-      geminiError = `gemini http ${resp.status}: ${txt.slice(0, 300)}`;
-    } else {
-      const j = await resp.json();
-      const cand = j?.candidates?.[0];
-      let raw = (cand?.content?.parts ?? [])
-        .map((p: any) => p.text ?? '').join('').trim();
-      raw = raw.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-      try {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) suggestions = parsed;
-        else geminiError = 'gemini_returned_non_array';
-      } catch (e) {
-        geminiError = 'gemini_parse_fail: ' + (e as Error).message + ' raw: ' + raw.slice(0, 200);
-      }
-    }
-  } catch (e) {
-    geminiError = 'gemini_fetch_fail: ' + (e as Error).message;
+  const ia = await pedirIa({
+    robo: 'edge-analise-suporte',
+    prioridade: 3,
+    sistema: systemPrompt,
+    texto: userPrompt,
+    json: true,
+    privado: true,
+    maxTokens: 8192,
+    prazoMs: 120_000,
+    timeoutClaudeMs: 90_000,
+  });
+  if (!ia.ok) {
+    geminiError = ia.erro;
+  } else if (Array.isArray(ia.json)) {
+    suggestions = ia.json as any[];
+    geminiModel = `${ia.motor}:${ia.modelo}`;
+  } else {
+    geminiError = `${ia.motor}_returned_non_array`;
   }
 
   await admin.from('support_settings')

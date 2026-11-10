@@ -31,6 +31,7 @@ import '../../widgets/guia_limpeza.dart';
 import '../../widgets/ganho_de_hoje_card.dart';
 import '../../widgets/selo_serie_limpeza.dart';
 import '../../utils/hora_lisboa.dart';
+import '../../widgets/aviso_dados_fiscais_em_falta.dart';
 import 'cleaner_history_screen.dart';
 
 /// LIMPEZA — painel da profissional. Router por estado da candidatura:
@@ -310,6 +311,10 @@ class _PanelView extends StatelessWidget {
           ),
           // [20/10/2026] Falta o comprovativo de atividade — aviso, não bloqueia.
           const AvisoAtividadeBanner(margem: EdgeInsets.only(bottom: Spacing.md)),
+          // [10/11/2026] Faltam dados para as Finanças (DAC7) — aviso, não bloqueia.
+          const AvisoDadosFiscaisEmFalta(
+              papel: 'limpeza', semComprovativo: true,
+              margem: EdgeInsets.only(bottom: Spacing.md)),
           // Missão m2 (08/11/2026): limpeza aceite para outro dia — cartão
           // pequeno aqui, nunca na faixa "a decorrer".
           const ProximoTrabalhoCard(

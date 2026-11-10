@@ -203,7 +203,7 @@ class _PrestadorDocumentosEmFaltaState
     final linha = _estado?.linha;
     if (_aEnviar != null || linha == null) return;
     final gravou = await Navigator.of(context).push<bool>(MaterialPageRoute(
-      builder: (_) => _DadosFiscaisScreen(papel: widget.papel, linha: linha),
+      builder: (_) => PrestadorDadosFiscaisScreen(papel: widget.papel, linha: linha),
     ));
     if (!mounted) return;
     if (gravou == true) _msg(_enviado, ok: true);
@@ -373,16 +373,17 @@ class _PrestadorDocumentosEmFaltaState
 
 /// Os dados legais e fiscais com o MESMO formulário e a mesma RPC do cadastro
 /// (`provider_update_legal_fields`), já preenchidos com o que a pessoa deu.
-class _DadosFiscaisScreen extends StatefulWidget {
-  const _DadosFiscaisScreen({required this.papel, required this.linha});
+class PrestadorDadosFiscaisScreen extends StatefulWidget {
+  const PrestadorDadosFiscaisScreen(
+      {super.key, required this.papel, required this.linha});
   final String papel;
   final Map<String, dynamic> linha;
 
   @override
-  State<_DadosFiscaisScreen> createState() => _DadosFiscaisScreenState();
+  State<PrestadorDadosFiscaisScreen> createState() => _PrestadorDadosFiscaisScreenState();
 }
 
-class _DadosFiscaisScreenState extends State<_DadosFiscaisScreen> {
+class _PrestadorDadosFiscaisScreenState extends State<PrestadorDadosFiscaisScreen> {
   late final LegalFieldsController _legal;
   bool _aGravar = false;
 

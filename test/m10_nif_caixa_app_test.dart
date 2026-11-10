@@ -29,13 +29,14 @@ Map<String, dynamic> _bora({Map<String, dynamic>? confirmado}) => {
       'confirmado': confirmado,
     };
 
-Map<String, dynamic> _cliente() => {
+Map<String, dynamic> _cliente({Map<String, dynamic>? confirmado}) => {
       'ok': true,
       'mostrar': true,
       'pediu_fatura': true,
       'tipo': 'cliente',
       'nif': '265148502',
       'nome': 'Ana Teste',
+      'confirmado': confirmado,
     };
 
 NifRpc _responde(Object? r) => (f, p) async {
@@ -62,16 +63,29 @@ void main() {
   });
 
   group('Cartão "NIF PARA A FATURA"', () {
-    testWidgets('sem pedido de fatura: NIF da Bora em grande, nunca consumidor final',
+    // Regra de 10/11/2026 (Danilo, fechada com o contabilista): sem NIF do
+    // cliente o talão é consumidor final e o NIF da Bora nunca vai na caixa.
+    // Mesmo que um servidor antigo devolva o da Bora, o cartão não aparece e a
+    // caixa não obriga a responder.
+    testWidgets('servidor antigo com o NIF da Bora: nem cartão nem caixa obrigatória',
         (t) async {
-      await t.pumpWidget(_cartao(_responde(_bora())));
+      final caixa = NifCaixaController();
+      await t.pumpWidget(_cartao(_responde(_bora()), caixa: caixa));
+      await t.pumpAndSettle();
+      expect(find.byKey(const Key('driver_invoice_nif_card')), findsNothing);
+      expect(find.text('519 686 233'), findsNothing);
+      expect(find.textContaining('Da Bora'), findsNothing);
+      expect(find.byKey(const Key('nif_caixa_dei')), findsNothing);
+      expect(caixa.aplica, isFalse);
+      expect(caixa.porResponder, isFalse);
+    });
+
+    testWidgets('cartão do cliente: laranja Bora, só informação sem controlador',
+        (t) async {
+      await t.pumpWidget(_cartao(_responde(_cliente())));
       await t.pumpAndSettle();
       expect(find.text('NIF PARA A FATURA'), findsOneWidget);
-      expect(find.text('519 686 233'), findsOneWidget);
-      expect(find.text('Da Bora — o cliente não pediu fatura'), findsOneWidget);
       expect(find.text('Diz este NIF na caixa ANTES de pagar.'), findsOneWidget);
-      expect(find.textContaining('onsumidor final'), findsNothing);
-      // Sem controlador (lista de compras): só informação, sem caixa.
       expect(find.byKey(const Key('nif_caixa_dei')), findsNothing);
       final caixa = t.widget<Container>(
           find.byKey(const Key('driver_invoice_nif_card')));
@@ -139,7 +153,7 @@ void main() {
     testWidgets('marcar "Dei este NIF" responde; "Não consegui" pede o motivo',
         (t) async {
       final caixa = NifCaixaController();
-      await t.pumpWidget(_cartao(_responde(_bora()), caixa: caixa));
+      await t.pumpWidget(_cartao(_responde(_cliente()), caixa: caixa));
       await t.pumpAndSettle();
       expect(caixa.aplica, isTrue);
       expect(caixa.porResponder, isTrue);
@@ -177,7 +191,7 @@ void main() {
         (t) async {
       final dado = NifCaixaController();
       await t.pumpWidget(_cartao(
-          _responde(_bora(confirmado: {'dado': true, 'motivo': null})),
+          _responde(_cliente(confirmado: {'dado': true, 'motivo': null})),
           caixa: dado));
       await t.pumpAndSettle();
       expect(dado.resposta, const NifCaixaResposta.dado());
@@ -185,7 +199,7 @@ void main() {
       await t.pumpWidget(const SizedBox());
       final naoDado = NifCaixaController();
       await t.pumpWidget(_cartao(
-          _responde(_bora(confirmado: {'dado': false, 'motivo': 'Esqueci-me'})),
+          _responde(_cliente(confirmado: {'dado': false, 'motivo': 'Esqueci-me'})),
           caixa: naoDado));
       await t.pumpAndSettle();
       expect(naoDado.resposta, const NifCaixaResposta.naoDado('Esqueci-me'));
@@ -210,7 +224,7 @@ void main() {
             child: DriverInvoiceNifCard(
               orderId: pedido,
               caixa: caixa,
-              rpc: (f, p) async => _bora(),
+              rpc: (f, p) async => _cliente(),
             ),
           );
         }),
@@ -342,7 +356,7 @@ void main() {
         return {'ok': true};
       };
       var fechou = false;
-      await abrir(t, _responde(_bora()), aoFechar: () => fechou = true);
+      await abrir(t, _responde(_cliente()), aoFechar: () => fechou = true);
 
       expect(find.text('NIF PARA A FATURA'), findsOneWidget);
       expect(botaoConfirmar(t), isNull, reason: 'foto e valor não chegam');
@@ -395,7 +409,7 @@ void main() {
         throw Exception('sem rede');
       };
       var fechou = false;
-      await abrir(t, _responde(_bora()), aoFechar: () => fechou = true);
+      await abrir(t, _responde(_cliente()), aoFechar: () => fechou = true);
       await t.ensureVisible(find.byKey(const Key('nif_caixa_dei')));
       await t.tap(find.byKey(const Key('nif_caixa_dei')));
       await t.pumpAndSettle();

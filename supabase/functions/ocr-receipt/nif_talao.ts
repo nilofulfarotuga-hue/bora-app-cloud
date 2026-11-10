@@ -1,10 +1,11 @@
 // supabase/functions/ocr-receipt/nif_talao.ts
 //
 // v12 (M10 b2-nif, 09/11/2026) — o NIF do ADQUIRENTE impresso no talão contra o NIF que o
-// estafeta tinha de dar na caixa. Regra (Danilo 04/11 e 08/11): em loja NÃO-parceira e Favor
-// com compra o talão leva SEMPRE um NIF — o do cliente se pediu fatura, senão o da Bora
-// (setting nif_compras_nao_parceiro). Quem decide é o servidor (`_nif_caixa_regra`, migração
-// 20261109010000_m10_nif_na_caixa.sql); aqui só se compara.
+// estafeta tinha de dar na caixa. Regra em vigor (Danilo, 10/11/2026, fechada com o contabilista):
+// em loja NÃO-parceira e Favor com compra, o talão só leva NIF quando o CLIENTE pediu fatura com
+// NIF; sem NIF do cliente o talão é consumidor final. O NIF da Bora NUNCA vai na caixa (foi tirado
+// do sistema a 10/11). Quem decide é o servidor (`_nif_caixa_regra`: sem NIF do cliente devolve
+// aplica=false / motivo 'cliente_sem_nif'); aqui só se compara quando aplica.
 // Em falta ou diferente → o talão fica marcado para revisão (ocr_flagged) e o admin recebe o
 // aviso `nif_talao_diferente` com os dois números — exceto quando o estafeta já disse
 // "Não consegui" (o admin já recebeu `nif_nao_dado_na_caixa`). Não mexe em dinheiro.

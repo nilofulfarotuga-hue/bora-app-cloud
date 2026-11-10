@@ -19,24 +19,22 @@ import '../private_bucket_image.dart';
 
 const String kTalaoFuncaoNaoPublicada = 'Função ainda não publicada no servidor';
 
-/// NIF da Bora (vai no talão quando o cliente não pediu fatura com NIF).
-const String kNifBora = '519686233';
-
 /// "29,95 €" a partir de centavos; "—" quando não há valor.
 String eurosDoTalao(Object? cents) {
   if (cents is! num) return '—';
   return '${(cents / 100).toStringAsFixed(2).replaceAll('.', ',')} €';
 }
 
-/// Linha do NIF usado no talão, a partir de `{nif, origem}` do servidor.
+/// Linha do NIF usado no talão, a partir de `{nif, origem}` do servidor
+/// (`_talao_nif_usado`). Regra de 10/11/2026: sem NIF do cliente o talão é
+/// consumidor final — o NIF da Bora nunca vai no talão.
 String textoNifUsado(Object? nif) {
   final m = nif is Map ? nif : const <String, dynamic>{};
   final numero = '${m['nif'] ?? ''}'.trim();
   return switch (m['origem']) {
     'loja_parceira' => 'Loja parceira: fatura da loja',
     'cliente' => 'NIF usado: ${numero.isEmpty ? '—' : numero} (pedido pelo cliente)',
-    'bora' =>
-      'NIF usado: ${numero.isEmpty ? kNifBora : numero} (NIF da Bora — cliente não pediu fatura)',
+    'consumidor_final' => 'Sem NIF: consumidor final (o cliente não pediu fatura com NIF)',
     _ => 'NIF usado: ${numero.isEmpty ? '—' : numero}',
   };
 }

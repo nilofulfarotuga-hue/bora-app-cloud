@@ -46,12 +46,15 @@ const _fotoAntiga = {
 
 void main() {
   group('textos', () {
-    test('NIF usado: cliente, Bora e loja parceira', () {
+    // Regra de 10/11/2026: sem NIF do cliente o talão é consumidor final; o
+    // NIF da Bora nunca vai no talão (o servidor devolve origem 'consumidor_final').
+    test('NIF usado: cliente, consumidor final e loja parceira (nunca o da Bora)', () {
       expect(textoNifUsado({'nif': '292811111', 'origem': 'cliente'}),
           'NIF usado: 292811111 (pedido pelo cliente)');
-      expect(textoNifUsado({'nif': '519686233', 'origem': 'bora'}),
-          'NIF usado: 519686233 (NIF da Bora — cliente não pediu fatura)');
-      expect(textoNifUsado({'nif': null, 'origem': 'bora'}), contains(kNifBora));
+      expect(textoNifUsado({'nif': null, 'origem': 'consumidor_final'}),
+          'Sem NIF: consumidor final (o cliente não pediu fatura com NIF)');
+      expect(textoNifUsado({'nif': null, 'origem': 'consumidor_final'}), isNot(contains('519686233')));
+      expect(textoNifUsado({'nif': null, 'origem': 'consumidor_final'}), isNot(contains('NIF da Bora')));
       expect(textoNifUsado({'nif': null, 'origem': 'loja_parceira'}), 'Loja parceira: fatura da loja');
       expect(textoNifUsado(null), 'NIF usado: —');
     });
@@ -97,19 +100,20 @@ void main() {
       expect(find.byKey(const Key('talao_sem_talao')), findsNothing);
     });
 
-    testWidgets('NIF da Bora e foto antiga com selo "antigo"', (t) async {
+    testWidgets('consumidor final e foto antiga com selo "antigo"', (t) async {
       await t.pumpWidget(_app(AdminTalaoPedidoSection(
         orderId: 'b72c4f2c-0000',
         status: 'delivered',
         serviceType: 'restaurant',
         carregar: (_) async => _talao(
-          nif: const {'nif': '519686233', 'origem': 'bora'},
+          nif: const {'nif': null, 'origem': 'consumidor_final'},
           fotos: [Map<String, dynamic>.from(_fotoNova), Map<String, dynamic>.from(_fotoAntiga)],
         ),
       )));
       await t.pump();
       await t.pump();
-      expect(find.text('NIF usado: 519686233 (NIF da Bora — cliente não pediu fatura)'), findsOneWidget);
+      expect(find.text('Sem NIF: consumidor final (o cliente não pediu fatura com NIF)'), findsOneWidget);
+      expect(find.textContaining('NIF da Bora'), findsNothing);
       expect(find.byKey(const Key('talao_foto_1')), findsOneWidget);
       expect(find.text('antigo'), findsOneWidget);
       expect(find.textContaining('2 fotos'), findsOneWidget);
@@ -120,7 +124,7 @@ void main() {
         orderId: 'b72c4f2c-0000',
         status: 'delivered',
         serviceType: 'storeShopping',
-        carregar: (_) async => _talao(valor: null, nif: const {'nif': '519686233', 'origem': 'bora'}),
+        carregar: (_) async => _talao(valor: null, nif: const {'nif': null, 'origem': 'consumidor_final'}),
       )));
       await t.pump();
       await t.pump();
@@ -160,7 +164,7 @@ void main() {
         orderId: 'b72c4f2c-0000',
         status: 'delivered',
         serviceType: 'errand',
-        carregar: (_) async => _talao(valor: null, nif: const {'nif': '519686233', 'origem': 'bora'}),
+        carregar: (_) async => _talao(valor: null, nif: const {'nif': null, 'origem': 'consumidor_final'}),
       )));
       await t.pump();
       await t.pump();

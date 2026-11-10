@@ -1,15 +1,16 @@
 // Painel admin (PT-BR) — "NIF nas compras" (M10 b2-nif, 09/11/2026).
 //
-// Ordem do Danilo (04/11, caso do Auchan: o entregador nunca viu o NIF que o
-// cliente pediu): nas compras em loja NÃO parceira e nos Favores com compra, o
-// entregador dá SEMPRE um NIF no caixa — o do cliente, se pediu fatura; senão o
-// da Bora. Nunca "consumidor final". Aqui o admin vê, pedido a pedido, qual
-// NIF devia ser dado e se o entregador confirmou que deu ("Dei este NIF") ou
-// disse "Não consegui" com o motivo; filtra 7/30 dias e "só os não dados";
-// exporta CSV; e muda o NIF da Bora (setting `nif_compras_nao_parceiro`).
+// Regra em vigor (Danilo, 10/11/2026, fechada com o contabilista; substitui a
+// de 04/11 e 08/11): nas compras em loja NÃO parceira e nos Favores com compra,
+// o entregador só dá NIF no caixa quando o CLIENTE pediu fatura com NIF. Sem NIF
+// do cliente o talão é consumidor final. O NIF da Bora nunca vai no caixa (foi
+// tirado do sistema a 10/11; o cartão e o editor dele saíram deste ecrã).
+// Aqui o admin vê, pedido a pedido, o NIF do cliente que devia ser dado e se o
+// entregador confirmou que deu ("Dei este NIF") ou disse "Não consegui" com o
+// motivo; filtra 7/30 dias e "só os não dados"; exporta CSV.
 //
-// Servidor: RPC admin_nif_caixa_listar e admin_nif_bora_definir (migração
-// 20261109005413_m10_nif_na_caixa.sql). Sem ela: aviso "ainda não publicada".
+// Servidor: RPC admin_nif_caixa_listar (só lista pedidos em que o cliente pediu
+// NIF). Sem ela: aviso "ainda não publicada".
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -65,7 +66,8 @@ class NifCompraLinha {
   /// "Não dado" ou ainda sem resposta do entregador.
   bool get problema => dado != true;
 
-  String get tipoTexto => tipo == 'cliente' ? 'do cliente' : 'da Bora';
+  /// Só o NIF do cliente vai no caixa (regra de 10/11/2026).
+  String get tipoTexto => tipo == 'cliente' ? 'do cliente' : 'outro (rever)';
 
   String get respostaTexto {
     if (dado == true) return 'Dado ✓';
@@ -90,17 +92,10 @@ class NifCompraLinha {
 }
 
 class AdminNifComprasScreen extends StatefulWidget {
-  const AdminNifComprasScreen({
-    super.key,
-    this.listar,
-    this.lerNifBora,
-    this.definirNifBora,
-  });
+  const AdminNifComprasScreen({super.key, this.listar});
 
   /// Testes: em vez do Supabase.
   final Future<List<Map<String, dynamic>>> Function(int dias)? listar;
-  final Future<String?> Function()? lerNifBora;
-  final Future<void> Function(String nif)? definirNifBora;
 
   static const List<(String, String)> colunasCsv = [
     ('order_id', 'Pedido'),
@@ -124,13 +119,11 @@ class _AdminNifComprasScreenState extends State<AdminNifComprasScreen> {
   bool _aCarregar = true;
   String? _erro;
   List<NifCompraLinha> _linhas = const [];
-  String? _nifBora;
 
   @override
   void initState() {
     super.initState();
     _carregar();
-    _lerNifBora();
   }
 
   Future<List<Map<String, dynamic>>> _listar(int dias) async {
@@ -167,103 +160,6 @@ class _AdminNifComprasScreenState extends State<AdminNifComprasScreen> {
     }
   }
 
-  Future<void> _lerNifBora() async {
-    try {
-      final f = widget.lerNifBora;
-      final String? v;
-      if (f != null) {
-        v = await f();
-      } else {
-        final row = await Supabase.instance.client
-            .from('platform_settings')
-            .select('value')
-            .eq('key', 'nif_compras_nao_parceiro')
-            .maybeSingle();
-        v = row == null ? null : '${row['value']}';
-      }
-      if (mounted) setState(() => _nifBora = soDigitosNif(v));
-    } catch (e) {
-      debugPrint('[AdminNifCompras] NIF da Bora: $e');
-    }
-  }
-
-  Future<void> _editarNifBora() async {
-    final ctrl = TextEditingController(text: _nifBora ?? '');
-    String? erro;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setD) => AlertDialog(
-          title: const Text('NIF da Bora nas compras'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'É o NIF que o entregador dá no caixa quando o cliente NÃO pediu '
-                'fatura com NIF (lojas não parceiras e Favores com compra).',
-                style: TextStyle(fontSize: 13),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                key: const Key('admin_nif_bora_campo'),
-                controller: ctrl,
-                keyboardType: TextInputType.number,
-                maxLength: 11,
-                decoration: InputDecoration(
-                  labelText: 'NIF (9 dígitos)',
-                  errorText: erro,
-                  counterText: '',
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              key: const Key('admin_nif_bora_salvar'),
-              onPressed: () {
-                if (!nifPtValido(soDigitosNif(ctrl.text))) {
-                  setD(() => erro =
-                      'NIF inválido (o dígito de controle não bate).');
-                  return;
-                }
-                Navigator.pop(ctx, true);
-              },
-              child: const Text('Salvar'),
-            ),
-          ],
-        ),
-      ),
-    );
-    final nif = soDigitosNif(ctrl.text);
-    if (ok != true || !mounted) return;
-    try {
-      final f = widget.definirNifBora;
-      if (f != null) {
-        await f(nif);
-      } else {
-        await Supabase.instance.client
-            .rpc('admin_nif_bora_definir', params: {'p_nif': nif});
-      }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('NIF da Bora salvo: ${formatarNif(nif)}.')));
-      await _lerNifBora();
-      await _carregar();
-    } catch (e) {
-      debugPrint('[AdminNifCompras] salvar NIF da Bora: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(servidorAindaSemIsto(e)
-              ? kNifComprasNaoPublicada
-              : 'Erro ao salvar: $e')));
-    }
-  }
-
   List<NifCompraLinha> get _visiveis =>
       _soNaoDados ? _linhas.where((l) => l.problema).toList() : _linhas;
 
@@ -293,27 +189,12 @@ class _AdminNifComprasScreenState extends State<AdminNifComprasScreen> {
         padding: const EdgeInsets.all(12),
         children: [
           const Text(
-            'Compras em loja não parceira e Favores com compra: o NIF que o '
-            'entregador tinha de dar no caixa (do cliente, se pediu fatura; '
-            'senão o da Bora — nunca "consumidor final") e se ele deu.',
+            'Compras em loja não parceira e Favores com compra em que o cliente '
+            'pediu fatura com NIF: o NIF que o entregador tinha de dar no caixa '
+            'e se ele deu. Sem NIF do cliente o talão é consumidor final (o NIF '
+            'da Bora não vai no caixa) e o pedido não aparece aqui.',
+            key: Key('admin_nif_regra'),
             style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: ListTile(
-              key: const Key('admin_nif_bora_cartao'),
-              leading: const Icon(Icons.badge_outlined, color: AppColors.primary),
-              title: Text(
-                  'NIF da Bora: ${_nifBora == null || _nifBora!.isEmpty ? '—' : formatarNif(_nifBora)}'),
-              subtitle: const Text(
-                  'Usado quando o cliente não pede fatura com NIF.'),
-              trailing: TextButton.icon(
-                key: const Key('admin_nif_bora_editar'),
-                onPressed: _editarNifBora,
-                icon: const Icon(Icons.edit_outlined, size: 16),
-                label: const Text('Editar'),
-              ),
-            ),
           ),
           const SizedBox(height: 8),
           Wrap(

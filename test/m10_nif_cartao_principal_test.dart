@@ -114,7 +114,9 @@ void main() {
   });
 
   group('Cartão principal', () {
-    testWidgets('mercado não-parceiro: NIF da Bora em grande, sem caixa',
+    // Regra de 10/11/2026: sem NIF do cliente não há cartão (consumidor final);
+    // mesmo que um servidor antigo devolva o NIF da Bora, ele não aparece.
+    testWidgets('mercado não-parceiro sem NIF do cliente (servidor antigo com o da Bora): nada aparece',
         (t) async {
       final servidor = _Servidor(_bora);
       await t.pumpWidget(_app(_pedido(), servidor.call));
@@ -123,10 +125,22 @@ void main() {
       expect(servidor.chamadas, [
         {'p_order_id': 'teste-nif-cartao-0911'}
       ]);
+      expect(find.byKey(const Key('driver_invoice_nif_card')), findsNothing);
+      expect(find.text('519 686 233'), findsNothing);
+      expect(find.textContaining('Da Bora'), findsNothing);
+      expect(find.byKey(const Key('nif_caixa_dei')), findsNothing);
+      expect(find.byKey(const Key('nif_caixa_nao_consegui')), findsNothing);
+    });
+
+    testWidgets('mercado não-parceiro com NIF do cliente: em grande, sem caixa',
+        (t) async {
+      final servidor = _Servidor(_cliente);
+      await t.pumpWidget(_app(_pedido(), servidor.call));
+      await t.pumpAndSettle();
       expect(find.byKey(const Key('driver_invoice_nif_card')), findsOneWidget);
       expect(find.text('NIF PARA A FATURA'), findsOneWidget);
-      expect(find.text('519 686 233'), findsOneWidget);
-      expect(find.text('Da Bora — o cliente não pediu fatura'), findsOneWidget);
+      expect(find.text('265 148 502'), findsOneWidget);
+      expect(find.text('Do cliente — pediu fatura'), findsOneWidget);
       expect(find.text('Diz este NIF na caixa ANTES de pagar.'), findsOneWidget);
       // A caixa obrigatória fica na folha do talão, não aqui.
       expect(find.byKey(const Key('nif_caixa_dei')), findsNothing);
@@ -185,7 +199,7 @@ void main() {
     testWidgets('fecha o talão: o NIF sai do cartão principal', (t) async {
       final o = _pedido();
       late StateSetter mudar;
-      final servidor = _Servidor(_bora);
+      final servidor = _Servidor(_cliente);
       await t.pumpWidget(MaterialApp(
         home: Scaffold(
           body: StatefulBuilder(builder: (ctx, setState) {
@@ -195,7 +209,7 @@ void main() {
         ),
       ));
       await t.pumpAndSettle();
-      expect(find.text('519 686 233'), findsOneWidget);
+      expect(find.text('265 148 502'), findsOneWidget);
 
       // Como no ecrã: o estado local muda e o realtime confirma a seguir.
       mudar(() => o.isPurchaseFinalized = true);

@@ -49,6 +49,7 @@ import 'partner_earnings_screen.dart';
 import 'partner_hours_screen.dart';
 import 'partner_products_screen.dart';
 import 'profile_screen.dart';
+import '../widgets/aviso_dados_fiscais_em_falta.dart';
 
 class PartnerDashboardScreen extends StatefulWidget {
   const PartnerDashboardScreen({super.key, required this.restaurant});
@@ -1202,6 +1203,19 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
+                // 10/11/2026 (missão fecho-contabilista, C3): barra vermelha
+                // quando faltam dados para as Finanças (DAC7); toque abre o
+                // mesmo ecrã "Dados fiscais" de baixo.
+                AvisoDadosFiscaisEmFalta(
+                  papel: 'loja_parceira',
+                  aoCompletar: (ctx) => Navigator.of(ctx).push(
+                    MaterialPageRoute(
+                      builder: (_) => PartnerDadosFiscaisScreen(
+                        restaurantId: widget.restaurant.id,
+                      ),
+                    ),
+                  ),
+                ),
                 // DAC7 (missão boom-burger 27/10): o que falta para a loja
                 // abrir ao público e o formulário para o completar.
                 SizedBox(

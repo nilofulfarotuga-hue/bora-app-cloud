@@ -91,13 +91,18 @@ class AdminFaturaNifSection extends StatefulWidget {
   static String? textoNifNaCaixa(Object? r) {
     if (r is! Map || r['ok'] != true) return null;
     if (r['mostrar'] != true) {
-      return r['loja_parceira'] == true
-          ? 'NIF na caixa: não se aplica (loja parceira — quem emite a fatura é a loja).'
+      if (r['loja_parceira'] == true) {
+        return 'NIF na caixa: não se aplica (loja parceira — quem emite a fatura é a loja).';
+      }
+      // 10/11/2026: sem NIF do cliente o talão é consumidor final (o NIF da Bora nunca vai na caixa).
+      return r['motivo'] == 'cliente_sem_nif'
+          ? 'NIF na caixa: o cliente não pediu fatura com NIF — talão consumidor final.'
           : null;
     }
     final nif = formatarNif(r['nif']?.toString());
-    if (nif.isEmpty) return null;
+    // Só o NIF do cliente vai na caixa; outro (servidor antigo) não se mostra.
     final doCliente = r['tipo'] == 'cliente' || r['pediu_fatura'] == true;
+    if (nif.isEmpty || !doCliente) return null;
     final c = r['confirmado'];
     final String estado;
     if (c is Map && c['dado'] == true) {
@@ -109,7 +114,7 @@ class AdminFaturaNifSection extends StatefulWidget {
       estado = 'ainda não confirmado';
     }
     return 'NIF na caixa (o que o entregador deu no caixa): $nif — '
-        '${doCliente ? 'do cliente' : 'da Bora'} — $estado';
+        'do cliente — $estado';
   }
 
   @override

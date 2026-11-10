@@ -141,6 +141,7 @@ import 'admin_agentes_email_screen.dart';
 import 'admin_pendencias_operacao_screen.dart';
 import 'admin_conformidade_legal_screen.dart';
 import 'admin_revisoes_screen.dart';
+import 'admin_avisos_prestadores_screen.dart';
 import 'admin_comprovativo_atividade_screen.dart';
 import 'admin_robo_documentos_screen.dart';
 import 'admin_estafetas_fila_screen.dart';
@@ -1402,6 +1403,17 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.deepPurple,
       builder: () => const AdminRevisoesScreen(),
       keywords: const ['revisao', 'revisoes', 'suspensao', 'suspenso', 'suspender', 'banido', 'banir', 'recurso', 'contestar', 'diretiva', 'gestao algoritmica', 'prestador', 'estafeta', 'limpeza', 'lavagem', 'casa', 'parceiro', 'whatsapp', 'prazo'],
+    ),
+    // [10/11/2026 · fechar-tudo E4] Diretiva (UE) 2024/2831, art. 9.º (prazo
+    // 02/12/2026): quem já leu "Como o Bora decide" e quem falta, por papel.
+    AdminMenuItem(
+      id: 'sistema_como_o_bora_decide_leituras',
+      title: 'Como o Bora decide — leituras',
+      subtitle: 'Quem dos entregadores, limpeza, lavagem e Casa já carregou em "Li e percebi" na versão em vigor e quem falta, por papel; CSV',
+      icon: Icons.policy_outlined,
+      color: Colors.deepPurple,
+      builder: () => const AdminAvisosPrestadoresScreen(),
+      keywords: const ['como o bora decide', 'diretiva', 'gestao algoritmica', 'aviso', 'leu', 'lido', 'li e percebi', 'prestador', 'estafeta', 'entregador', 'limpeza', 'lavagem', 'casa', 'versao', 'csv', 'transparencia'],
     ),
     // [20/10/2026 · Bloco C] Comprovativo de atividade nas Finanças dos prestadores.
     AdminMenuItem(

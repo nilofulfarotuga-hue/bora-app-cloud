@@ -8,6 +8,7 @@ import '../screens/washer/washer_home_screen.dart';
 import '../services/role_switch_helper.dart';
 import '../services/roles_service.dart';
 import '../stores/session_store.dart';
+import 'como_o_bora_decide_gate.dart';
 import 'profile_switcher_button.dart';
 
 /// PORTÃO POR PAPEL — a entrada de quem trabalha no Bora.
@@ -162,15 +163,37 @@ class _PortaoDoPrestadorState extends State<PortaoDoPrestador>
     }
   }
 
+  /// A pessoa já tem algum papel de prestador aprovado (é a quem a Diretiva
+  /// manda entregar "Como o Bora decide").
+  bool get _algumPapelAprovado {
+    final r = _resumo;
+    return widget.estafetaAprovado ||
+        (r != null &&
+            (r.driverApproved ||
+                r.cleanerApproved ||
+                r.washerApproved ||
+                r.handymanApproved));
+  }
+
   @override
   Widget build(BuildContext context) {
-    return switch (_entrada) {
-      null => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      EntradaDoPrestador.limpeza => const CleanerHomeScreen(comoEntrada: true),
-      EntradaDoPrestador.lavagem => const WasherHomeScreen(comoEntrada: true),
-      EntradaDoPrestador.casa => const HandymanHomeScreen(comoEntrada: true),
-      _ => widget.semOutroPapel,
-    };
+    final entrada = _entrada;
+    if (entrada == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    // [fechar-tudo-2026-11-10 · E4] "Como o Bora decide" com "Li e percebi",
+    // uma vez por versão, a quem já trabalha (papel aprovado).
+    return ComoOBoraDecideGate(
+      ativo: _algumPapelAprovado,
+      papel: modoDaEntrada(entrada),
+      child: switch (entrada) {
+        EntradaDoPrestador.limpeza =>
+          const CleanerHomeScreen(comoEntrada: true),
+        EntradaDoPrestador.lavagem => const WasherHomeScreen(comoEntrada: true),
+        EntradaDoPrestador.casa => const HandymanHomeScreen(comoEntrada: true),
+        _ => widget.semOutroPapel,
+      },
+    );
   }
 }
 

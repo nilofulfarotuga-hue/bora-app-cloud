@@ -2,7 +2,7 @@
 id: memoria-claude-ai-fecho-outubro-2026
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-01
+ultima_confirmacao: 2026-11-10
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Fecho de outubro/2026 (em nome individual) — por prestador, o que cada um faz, email corrigido
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `fecho-outubro-2026`, origem `claude-ai`, atualizada em 2026-11-01T21:05:31.004675+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `fecho-outubro-2026`, origem `claude-ai`, atualizada em 2026-11-10T14:51:43.594015+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: fecho outubro 2026 · memoria claude.ai · claude_ai_memoria
 
@@ -57,3 +57,6 @@ Prazo: a fatura-recibo passa-se até ao 5.º dia útil depois de receber o dinhe
 
 ## Reenvio corrigido do fecho de outubro (correr só depois de publicar a monthly-partner-statement v3)
 select net.http_post(url := (select decrypted_secret from vault.decrypted_secrets where name='project_url')||'/functions/v1/monthly-partner-statement', headers := jsonb_build_object('apikey',(select decrypted_secret from vault.decrypted_secrets where name='sb_secret_backend'),'Authorization','Bearer '||(select decrypted_secret from vault.decrypted_secrets where name='sb_secret_backend'),'Content-Type','application/json'), body := jsonb_build_object('year',2026,'month',10,'force',true), timeout_milliseconds := 90000);
+
+## CONFERÊNCIA 10/11/2026 (Claude.ai, pedido a pedido)
+Números finais de outubro: entregas 20, clientes pagaram 368,92 (já sem 3,29 de tokens), mercadoria 239,36, parte da Bora 129,56 (entrega 76,94; serviço 12,44; sacos 2,90; pedido pequeno 5,56; margem nos produtos 35,01; tokens -3,29), estafetas 103,64, sobra 25,92. Limpeza 29,61. TOTAL BORA 159,17 (antes dizia 159,95: os tokens do Auchan e do Continente não estavam descontados; _fecho_pedidos corrigida a 10/11). Regras de 10/11: o Hugo emite as faturas (50 EUR) e trata de tudo; fecho vai 1x por mês no grupo de WhatsApp; a parte da Bora nas lojas parceiras fatura-se aos clientes, não às lojas; sem NIF do cliente = consumidor final.

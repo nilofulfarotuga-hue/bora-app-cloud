@@ -75,6 +75,7 @@ const Map<String, String> kStringsEn = <String, String>{
   'Hum… deixa-me ver.': 'Hmm… let me see.',
   'Ligar o som': 'Turn sound on',
   'Olá! Sou o Amigo. Fala comigo: estou aqui para o que precisares.': "Hi! I'm Amigo. Talk to me: I'm here for whatever you need.",
+  'Sou uma inteligência artificial (IA) do Bora, não uma pessoa.': "I'm an artificial intelligence (AI) from Bora, not a person.",
   'Parar de ouvir e enviar': 'Stop listening and send',
   'Sou o Amigo. Fala comigo': "I'm Amigo. Talk to me",
   'Tu: {0}': 'You: {0}',

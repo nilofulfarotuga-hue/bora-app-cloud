@@ -28,6 +28,7 @@ import '../../../config/app_colors.dart';
 import '../../../l10n/tr.dart';
 import '../../../services/amigo_voz.dart';
 import '../../../services/assistant_service.dart';
+import '../../../services/aviso_ia.dart';
 import '../../../stores/cart_store.dart';
 import '../../../widgets/amigo/amigo_rosto.dart';
 import 'assistant_acoes.dart';
@@ -276,9 +277,11 @@ class _AmigoScreenState extends State<AmigoScreen>
     if (passou < 700) await Future<void>.delayed(Duration(milliseconds: 700 - passou));
     if (!mounted || turno != _turno) return;
     final boasVindas = AssistantFlags.boasVindasAmigo.value;
-    r ??= AssistantReply.texto(
+    // E6 (10/11/2026): a saudação de reserva (sem servidor) também diz que é
+    // uma IA — Reg. (UE) 2024/1689, art. 50.º/1.
+    r ??= AssistantReply.texto(comAvisoIA(
       boasVindas.isEmpty ? 'Olá! Sou o Amigo. Fala comigo: estou aqui para o que precisares.'.tr : boasVindas,
-    );
+    ));
     if (r.conversationId != null) {
       _conversationId = r.conversationId;
       unawaited(widget.cerebro.guardarConversa(_conversationId));

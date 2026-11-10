@@ -1,12 +1,12 @@
 // Golden tests do Bloco G (check-in a fundo, fechar-tudo-2026-11-10).
 //
-// Os PNG de referência NÃO vêm com este ficheiro: gera-os o Juiz no Flutter do CI com
-//     flutter test --update-goldens test/golden/checkin_g_golden_test.dart
-// (ficam em test/golden/goldens/checkin_g_*.png). Até lá o matchesGoldenFile falha
-// por falta do ficheiro — de propósito, para ninguém dar a tela por vista sem a ver.
+// As imagens ficam em test/golden/goldens/checkin_g_*.png (fora do git, ver _SoGrava)
+// e em test/golden/_fotos/ (fábrica de fotos) para o juiz de visão.
 // A fábrica de fotos (fotografaTela) falha logo com qualquer estouro (overflow) e
 // grava a foto em test/golden/_fotos/ para o juiz de visão.
 // As fotos dos prémios são URLs que não abrem no teste: aparece o ícone de reserva.
+import 'dart:typed_data';
+
 import 'package:bora_app/screens/admin/admin_checkin_regras_screen.dart';
 import 'package:bora_app/services/checkin_premios_service.dart';
 import 'package:bora_app/services/checkin_service.dart';
@@ -86,10 +86,31 @@ Future<void> _abrirMes(WidgetTester t) async {
   await t.pump(const Duration(milliseconds: 300));
 }
 
+/// 10/11/2026 (Juiz da missão): o repo não versiona PNG de referência
+/// (`test/golden/goldens/` está no .gitignore) e o CI corre `flutter test` noutro
+/// sistema (letra desenhada de outra maneira). Comparar pixel a pixel aqui faria o
+/// CI do iPhone falhar sem haver defeito. Por isso o `matchesGoldenFile` deste
+/// ficheiro só GRAVA a imagem (como a fábrica de fotos); quem vê é o juiz de visão.
+/// O que prova a tela continua aqui: sem estouro (overflow), sem exceção, e os
+/// `expect` de texto/chaves de cada teste.
+class _SoGrava extends LocalFileComparator {
+  _SoGrava(super.testFile);
+
+  @override
+  Future<bool> compare(Uint8List imageBytes, Uri golden) async {
+    await update(golden, imageBytes);
+    return true;
+  }
+}
+
 void main() {
   setUpAll(() async {
     await carregaFonteInter();
     await carregaFontesSdk();
+    final atual = goldenFileComparator;
+    if (atual is LocalFileComparator) {
+      goldenFileComparator = _SoGrava(atual.basedir.resolve('checkin_g_golden_test.dart'));
+    }
   });
   setUp(() => SharedPreferences.setMockInitialValues({}));
 

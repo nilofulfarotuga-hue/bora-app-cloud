@@ -7,7 +7,7 @@
 --  admin_checkin_degrau_editar(chave, campos) → edita um degrau (dia, prêmio, loja, foto, valor, custo);
 --  checkin_premios_manutencao()            → além do que já fazia, avisa o Danilo no painel
 --                                            (admin_notifications) quando o custo do mês chega aos 80%.
--- Guarda: public.is_admin() (lê auth.uid(); nunca current_user).
+-- Guarda: public.is_admin() (lê auth.uid(); nunca o papel da ligação, que em SECURITY DEFINER é sempre o dono).
 
 CREATE OR REPLACE FUNCTION public._checkin_euros(p_cents integer)
  RETURNS text

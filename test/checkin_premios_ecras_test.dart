@@ -405,6 +405,10 @@ void main() {
       expect(prefs.getString('checkin_escada_festa_vista'), 'salgados|2026-10-29T10:00:00+00:00');
       await t.pumpAndSettle();
 
+      // 10/11/2026 (bloco G): a festa ficou mais alta (foto do prémio e do próximo),
+      // por isso o botão tem de ser trazido à vista antes do toque, como no telemóvel.
+      await t.ensureVisible(find.byKey(const Key('btn_escada_continuar')));
+      await t.pumpAndSettle();
       await t.tap(find.byKey(const Key('btn_escada_continuar')));
       await t.pumpAndSettle();
       expect(continuou, 1);

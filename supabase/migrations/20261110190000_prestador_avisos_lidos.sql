@@ -16,7 +16,7 @@
 --   · RLS: cada um lê e insere o seu; admin (public.is_admin()) lê tudo.
 --     Sem UPDATE nem DELETE para ninguém da app: é um registo de prova.
 --   · Funções novas nascem fechadas a anon (revoke de public E de anon).
---   · Guarda de admin com public.is_admin() (auth.uid()), NUNCA current_user.
+--   · Guarda de admin com public.is_admin() (auth.uid()), NUNCA o papel da ligação (em SECURITY DEFINER é sempre o dono).
 --   · Sem FK para auth.users de propósito: apagar uma conta não pode falhar
 --     por causa deste registo (cicatriz "FKs ao encerrar conta").
 -- ═══════════════════════════════════════════════════════════════════════════

@@ -108,7 +108,7 @@ import 'screens/washer/washer_home_screen.dart';
 import 'screens/client/assistant/assistant_chat_screen.dart';
 import 'screens/client_login_screen.dart';
 import 'screens/client_main_screen.dart';
-import 'screens/driver_home_screen.dart';
+import 'screens/driver_main_screen.dart';
 import 'screens/driver/tvde/tvde_driver_home_screen.dart';
 import 'screens/driver_login_screen.dart';
 import 'screens/driver_signup_screen.dart';
@@ -1469,11 +1469,14 @@ class _RootNavigator extends StatelessWidget {
               builder: (_, aberto, __) => aberto
                   ? const TvdeDriverHomeScreen()
                   : const TermsGate(
-                      audience: 'estafeta', child: DriverHomeScreen()),
+                      audience: 'estafeta', child: DriverMainScreen()),
             );
           } else {
+            // Bloco F (10/11/2026): a casa do estafeta tem barra de baixo
+            // (Início · Ganhos · Pedidos · Conta). O Início é o
+            // DriverHomeScreen de sempre, montado dentro do DriverMainScreen.
             estafeta =
-                const TermsGate(audience: 'estafeta', child: DriverHomeScreen());
+                const TermsGate(audience: 'estafeta', child: DriverMainScreen());
           }
           // PORTÃO POR PAPEL (02/10/2026): perfil de estafeta por aprovar não
           // prende quem já tem a limpeza ou a lavagem aprovada.

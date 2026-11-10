@@ -277,6 +277,28 @@ Future<bool> _sair(WidgetTester t) async {
     }
   }
 
+  // Bloco F (10/11/2026): o estafeta aprovado tem barra de baixo e o
+  // Perfil vive no separador "Conta" (linha "Perfil"); o parceiro tem
+  // "A minha conta" no separador "Loja". Abre-se o separador primeiro.
+  if (find.text('Perfil').evaluate().isEmpty) {
+    for (final separador in ['Conta', 'Loja']) {
+      final s = find.text(separador);
+      if (s.evaluate().isNotEmpty) {
+        await _tocar(t, s.last);
+        await _bombear(t, segundos: 2);
+        if (separador == 'Loja') {
+          final conta = find.text('A minha conta');
+          await _rolarAte(t, conta, vezes: 6);
+          if (conta.evaluate().isNotEmpty) {
+            await _tocar(t, conta.last);
+            await _bombear(t, segundos: 3);
+          }
+        }
+        break;
+      }
+    }
+  }
+
   // Cliente: separador "Perfil" (texto). Estafeta aprovado: ícone com
   // tooltip "Perfil" — CICATRIZ (corrida 93): o ícone de sair só existe no
   // ecrã de estafeta PENDENTE; no ecrã com mapa a saída vive no Perfil.
@@ -455,13 +477,23 @@ void main() {
       } on TestFailure catch (e) {
         falhados.add('estafeta: ${e.message}');
       }
-      // Os ecrãs do estafeta alcançam-se por ícone com tooltip (Ganhos,
-      // Perfil) ou por rótulo (Definições). Lido de `driver_home_screen.dart`.
-      for (final tip in ['Ganhos', 'Perfil']) {
-        final r = await _abrirEProvar(t, 'estafeta-$tip',
-            alvoTooltip: tip, minimoDeTextos: 2);
+      // Bloco F (10/11/2026): os ecrãs do estafeta alcançam-se pelos
+      // separadores da barra de baixo (`driver_main_screen.dart`); o Perfil
+      // é a 1.ª linha do separador Conta. Volta-se sempre ao Início.
+      for (final separador in ['Ganhos', 'Pedidos', 'Conta']) {
+        final r = await _abrirEProvar(t, 'estafeta-$separador',
+            alvoTexto: separador, minimoDeTextos: 2);
         if (r != null) falhados.add(r);
         await _voltarAoInicio(t);
+      }
+      final rPerfil = await _abrirEProvar(t, 'estafeta-Perfil',
+          alvoTexto: 'Perfil', minimoDeTextos: 2);
+      if (rPerfil != null) falhados.add(rPerfil);
+      await _voltarAoInicio(t);
+      final inicio = find.text('Início');
+      if (inicio.evaluate().isNotEmpty) {
+        await _tocar(t, inicio.last);
+        await _bombear(t, segundos: 2);
       }
       final r2 = await _abrirEProvar(t, 'estafeta-Definições',
           alvoTexto: 'Definições', minimoDeTextos: 2);
@@ -487,15 +519,25 @@ void main() {
       } on TestFailure catch (e) {
         falhados.add('parceiro: ${e.message}');
       }
-      // Rótulos lidos de `partner_dashboard_screen.dart`.
-      for (final e in [
-        'Gerir produtos',
-        'Horários de funcionamento',
-        'Ver detalhe de ganhos',
-        'Extrato',
-        'Reservas Pro',
-        'Chamar estafeta',
+      // Rótulos lidos de `partner_dashboard_screen.dart`. Bloco F
+      // (10/11/2026): cada entrada vive num separador da barra de baixo —
+      // abre-se o separador antes; "Gerir produtos" passou a ser o Menu.
+      final menu = await _abrirEProvar(t, 'parceiro-Menu',
+          alvoTexto: 'Menu', minimoDeTextos: 2);
+      if (menu != null) falhados.add(menu);
+      await _voltarAoInicio(t);
+      for (final (separador, e) in const [
+        ('Loja', 'Horários de funcionamento'),
+        ('Ganhos', 'Ver detalhe de ganhos'),
+        ('Ganhos', 'Extrato'),
+        ('Loja', 'Reservas Pro'),
+        ('Pedidos', 'Chamar estafeta'),
       ]) {
+        final s = find.text(separador);
+        if (s.evaluate().isNotEmpty) {
+          await _tocar(t, s.last);
+          await _bombear(t, segundos: 2);
+        }
         final r = await _abrirEProvar(t, 'parceiro-$e',
             alvoTexto: e, minimoDeTextos: 2);
         if (r != null) falhados.add(r);

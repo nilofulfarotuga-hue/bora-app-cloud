@@ -50,17 +50,159 @@ import 'partner_hours_screen.dart';
 import 'partner_products_screen.dart';
 import 'profile_screen.dart';
 import '../widgets/aviso_dados_fiscais_em_falta.dart';
+import '../widgets/bora/bora_barra_separadores.dart';
 
 class PartnerDashboardScreen extends StatefulWidget {
   const PartnerDashboardScreen({super.key, required this.restaurant});
 
   final RestaurantModel restaurant;
 
+  /// Bloco F (10/11/2026, pedido do Danilo: "igual ao padrão Uber/Glovo"):
+  /// a página única comprida passou a 4 separadores na barra de baixo.
+  /// Pedidos (o de todos os dias), Menu (os produtos), Ganhos e Loja (o
+  /// resto, em lista simples com ícone e texto). Lidos também pelos testes.
+  static const List<BoraSeparador> separadores = [
+    BoraSeparador(
+      rotulo: 'Pedidos',
+      icone: Icons.receipt_long_outlined,
+      iconeAtivo: Icons.receipt_long,
+    ),
+    BoraSeparador(
+      rotulo: 'Menu',
+      icone: Icons.restaurant_menu_outlined,
+      iconeAtivo: Icons.restaurant_menu,
+    ),
+    BoraSeparador(
+      rotulo: 'Ganhos',
+      icone: Icons.bar_chart_outlined,
+      iconeAtivo: Icons.bar_chart,
+    ),
+    BoraSeparador(
+      rotulo: 'Loja',
+      icone: Icons.storefront_outlined,
+      iconeAtivo: Icons.storefront,
+    ),
+  ];
+
+  static const int pedidos = 0;
+  static const int menu = 1;
+  static const int ganhos = 2;
+  static const int loja = 3;
+
   @override
   State<PartnerDashboardScreen> createState() => _PartnerDashboardScreenState();
 }
 
+/// As linhas do separador "Ganhos" do parceiro (eram botões soltos na
+/// página única).
+List<BoraLigacao> ligacoesDosGanhosParceiro({
+  required VoidCallback aoVerDetalhe,
+  required VoidCallback aoReceberPagamentos,
+  required VoidCallback aoVerExtrato,
+  required VoidCallback aoDadosFiscais,
+}) =>
+    [
+      BoraLigacao(
+        chave: 'detalhe_ganhos',
+        icone: Icons.bar_chart,
+        titulo: 'Ver detalhe de ganhos',
+        subtitulo: 'Já transferido, por transferir e a entregar à Bora',
+        aoTocar: aoVerDetalhe,
+      ),
+      BoraLigacao(
+        chave: 'receber_pagamentos',
+        icone: Icons.account_balance_outlined,
+        titulo: 'Receber pagamentos',
+        subtitulo: 'Configura como recebes pelo Bora',
+        aoTocar: aoReceberPagamentos,
+      ),
+      BoraLigacao(
+        chave: 'extrato',
+        icone: Icons.receipt_long_outlined,
+        titulo: 'Extrato',
+        subtitulo: 'Movimentos, comissões e pagamentos',
+        aoTocar: aoVerExtrato,
+      ),
+      BoraLigacao(
+        chave: 'dados_fiscais',
+        icone: Icons.verified_user_outlined,
+        titulo: 'Dados fiscais',
+        subtitulo: 'O que falta para a loja abrir ao público',
+        aoTocar: aoDadosFiscais,
+      ),
+    ];
+
+/// As linhas do separador "Loja" do parceiro. Aqui vive o que antes estava
+/// em ícones sem texto no topo ("Mudar modo", "A minha conta") e os botões
+/// soltos da página única que não são pedidos, menu nem ganhos.
+List<BoraLigacao> ligacoesDaLojaParceiro({
+  required bool reservasPro,
+  required bool agendaMarcacoes,
+  required VoidCallback aoAbrirHorarios,
+  required VoidCallback aoAbrirReservasPro,
+  required VoidCallback aoAbrirAgenda,
+  required VoidCallback aoAbrirConta,
+  required VoidCallback aoMudarModo,
+}) =>
+    [
+      BoraLigacao(
+        chave: 'horarios',
+        icone: Icons.schedule,
+        titulo: 'Horários de funcionamento',
+        subtitulo: 'Quando a loja abre e fecha',
+        aoTocar: aoAbrirHorarios,
+      ),
+      if (reservasPro)
+        BoraLigacao(
+          chave: 'reservas_pro',
+          icone: Icons.event_seat,
+          titulo: 'Reservas Pro',
+          subtitulo: 'Mesas e reservas dos clientes',
+          aoTocar: aoAbrirReservasPro,
+        ),
+      if (agendaMarcacoes)
+        BoraLigacao(
+          chave: 'agenda_marcacoes',
+          icone: Icons.calendar_month,
+          titulo: 'Agenda de Marcações',
+          subtitulo: 'Marcações, serviços, profissionais e financeiro',
+          aoTocar: aoAbrirAgenda,
+        ),
+      BoraLigacao(
+        chave: 'minha_conta',
+        icone: Icons.account_circle_outlined,
+        titulo: 'A minha conta',
+        subtitulo: 'Perfil, dados da conta e terminar sessão',
+        aoTocar: aoAbrirConta,
+      ),
+      BoraLigacao(
+        chave: 'mudar_modo',
+        icone: Icons.swap_horiz,
+        titulo: 'Mudar modo',
+        subtitulo: 'Voltar a escolher: cliente, estafeta ou parceiro',
+        aoTocar: aoMudarModo,
+      ),
+    ];
+
 class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
+  // Bloco F (10/11/2026): separador da barra de baixo. O Menu só se monta na
+  // 1.ª visita e volta a ler os produtos de cada vez que se abre — como
+  // quando "Gerir produtos" empurrava o ecrã por cima.
+  int _separador = PartnerDashboardScreen.pedidos;
+  bool _menuAberto = false;
+  int _aberturasMenu = 0;
+
+  void _mudarSeparador(int i) {
+    if (i == _separador) return;
+    setState(() {
+      _separador = i;
+      if (i == PartnerDashboardScreen.menu) {
+        _menuAberto = true;
+        _aberturasMenu++;
+      }
+    });
+  }
+
   final Set<String> _knownCreatedOrderIds = <String>{};
   final SoundService _soundService = SoundService();
   Timer? _vibrationTimer;
@@ -724,6 +866,11 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
       final hasNewOrders =
           createdIds.any((id) => !_knownCreatedOrderIds.contains(id));
       if (hasNewOrders) {
+        // Bloco F (10/11/2026): pedido novo com a loja noutro separador →
+        // volta a "Pedidos", onde estão os botões Aceitar/Recusar.
+        if (mounted && _separador != PartnerDashboardScreen.pedidos) {
+          setState(() => _separador = PartnerDashboardScreen.pedidos);
+        }
         unawaited(_startSoundAndVibration());
         // Parte 1 (rodada 2) — alerta insistente full-screen (canal urgente) por
         // cada pedido NOVO; tocar abre a app (type 'new_order' já roteado pelo
@@ -985,10 +1132,15 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
     final subtitleColor = appBarForeground.withValues(alpha: 0.7);
 
     NotificationService.setupBroadcastDeepLink(context);
+    // Bloco F (10/11/2026): no separador Menu o ecrã dos produtos traz a sua
+    // barra de título e o seu botão "+" — sem duas barras nem dois botões.
+    final noMenu = _separador == PartnerDashboardScreen.menu;
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: const BoraSupportFab(),
-      appBar: AppBar(
+      floatingActionButton: noMenu ? null : const BoraSupportFab(),
+      appBar: noMenu
+          ? null
+          : AppBar(
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -1069,46 +1221,41 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
             ),
           ],
         ),
+        // A forma `actions: [` fica assim de propósito: o teste
+        // m10_consertos_m8 procura-a depois do Aberta/Fechada do título.
+        // ignore: prefer_const_literals_to_create_immutables
         actions: [
           const NotificationBell(),
           // MULTI-PAPEL (2026-08-06) — só aparece com 2+ papéis; troca para
           // Cliente sem sair da sessão (ver `ProfileSwitcherButton`).
           const ProfileSwitcherButton(),
-          // Troca de papel — mesmo padrão do cliente/estafeta (era "Teste"
-          // com ícone de bug, confuso em produção).
-          IconButton(
-            onPressed: _handleTestMode,
-            tooltip: 'Mudar modo',
-            icon: const Icon(Icons.swap_horiz),
-          ),
-          // A conta do parceiro (2026-09-07, missão ios-lancamento).
-          // O parceiro era o único papel sem caminho nenhum para o perfil, e
-          // portanto sem forma de apagar a conta dentro da app — reprovação
-          // certa na App Store (5.1.1(v)) e falha de RGPD. O cliente chega ao
-          // ProfileScreen pelo separador e o estafeta pelo menu; faltava aqui.
-          IconButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ProfileScreen()),
-            ),
-            tooltip: 'A minha conta',
-            icon: const Icon(Icons.account_circle_outlined),
-          ),
+          // Bloco F (10/11/2026): "Mudar modo" e "A minha conta" (só ícones)
+          // passaram para linhas com texto no separador Loja. "A minha conta"
+          // (2026-09-07, App Store 5.1.1(v) e RGPD: apagar a conta dentro da
+          // app) continua a abrir o ProfileScreen, agora com o nome à vista.
         ],
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+      body: IndexedStack(
+        index: _separador,
+        children: [
+          // ── Separador "Pedidos" ────────────────────────────────────────
+          _paginaDoSeparador([
                 // [Web 07/10/2026] Só no navegador e só até a permissão
                 // estar dada: regista o token em partner_push_tokens.
                 const WebPushCard(role: 'partner'),
-                // [29/10/2026 · adendo 4, item 8] resumo das avaliações e funil dos
-                // pratos (interruptores feature_resumo_avaliacoes_ia / feature_funil_pratos).
-                ResumoAvaliacoesCard(restaurantId: currentRestaurant.id),
-                FunilPratosCard(restaurantId: currentRestaurant.id),
+                // 10/11/2026 (missão fecho-contabilista, C3): barra vermelha
+                // quando faltam dados para as Finanças (DAC7); toque abre o
+                // ecrã "Dados fiscais". Bloco F: no 1.º separador, à vista.
+                AvisoDadosFiscaisEmFalta(
+                  papel: 'loja_parceira',
+                  aoCompletar: (ctx) => Navigator.of(ctx).push(
+                    MaterialPageRoute(
+                      builder: (_) => PartnerDadosFiscaisScreen(
+                        restaurantId: widget.restaurant.id,
+                      ),
+                    ),
+                  ),
+                ),
                 if (currentRestaurant.reservationsEnabled &&
                     _pendingReservationsCount > 0) ...[
                   _PendingReservationsBadge(
@@ -1149,159 +1296,10 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                       ate: currentRestaurant.busyUntil,
                     ),
                   ),
+                // Bloco F (10/11/2026): os ganhos, os botões de dinheiro, os
+                // horários, os produtos e as definições da loja saíram daqui
+                // para os separadores Ganhos, Menu e Loja (mais abaixo).
                 const SizedBox(height: 16),
-                _EarningsSummary(
-                  todayAmount: todayEarnings,
-                  weekAmount: weekEarnings,
-                  totalAmount: totalEarnings,
-                  todayLabel: _ordersLabel(todayCount),
-                  weekLabel: _ordersLabel(weekCount),
-                  totalLabel: _ordersLabel(totalCount),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => PartnerEarningsScreen(
-                          restaurant: widget.restaurant,
-                        ),
-                      ),
-                    ),
-                    icon: const Icon(Icons.bar_chart),
-                    label: const Text('Ver detalhe de ganhos'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                // Stripe Connect Fase 1 (2026-08-06) — para o parceiro isto é
-                // "receber pelo Bora"; o onboarding abre no browser externo.
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const ConnectPaymentsScreen(
-                            connectRole: 'partner'),
-                      ),
-                    ),
-                    icon: const Icon(Icons.account_balance_outlined),
-                    label: const Text('Receber pagamentos'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const ConnectStatementScreen(),
-                      ),
-                    ),
-                    icon: const Icon(Icons.receipt_long_outlined),
-                    label: const Text('Extrato'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                // 10/11/2026 (missão fecho-contabilista, C3): barra vermelha
-                // quando faltam dados para as Finanças (DAC7); toque abre o
-                // mesmo ecrã "Dados fiscais" de baixo.
-                AvisoDadosFiscaisEmFalta(
-                  papel: 'loja_parceira',
-                  aoCompletar: (ctx) => Navigator.of(ctx).push(
-                    MaterialPageRoute(
-                      builder: (_) => PartnerDadosFiscaisScreen(
-                        restaurantId: widget.restaurant.id,
-                      ),
-                    ),
-                  ),
-                ),
-                // DAC7 (missão boom-burger 27/10): o que falta para a loja
-                // abrir ao público e o formulário para o completar.
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => PartnerDadosFiscaisScreen(
-                          restaurantId: widget.restaurant.id,
-                        ),
-                      ),
-                    ),
-                    icon: const Icon(Icons.verified_user_outlined),
-                    label: const Text('Dados fiscais'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                // M2 (2026-06-12) — fecho semanal read-only (transparência).
-                PartnerWeeklyCloseoutCard(restaurantId: widget.restaurant.id),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => PartnerHoursScreen(
-                          restaurant: currentRestaurant,
-                        ),
-                      ),
-                    ),
-                    icon: const Icon(Icons.schedule),
-                    label: const Text('Horários de funcionamento'),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                _OverviewCard(
-                  totalProducts: products.length,
-                  availableProducts: availableProducts,
-                ),
-                const SizedBox(height: 16),
-                _ReservationsToggleCard(
-                  enabled: currentRestaurant.reservationsEnabled,
-                  onChanged: (value) => restaurantStore
-                      .toggleReservationsEnabled(currentRestaurant.id, value),
-                ),
-                const SizedBox(height: 8),
-                _TakeawayToggleCard(
-                  restaurant: currentRestaurant,
-                  onToggleTakeaway: (value) => restaurantStore
-                      .toggleTakeawayEnabled(currentRestaurant.id, value),
-                  onToggleCurbside: (value) => restaurantStore
-                      .toggleCurbsideEnabled(currentRestaurant.id, value),
-                  onPrepMinutesChanged: (minutes) =>
-                      restaurantStore.setTakeawayDefaultPrepMinutes(
-                          currentRestaurant.id, minutes),
-                ),
-                const SizedBox(height: 8),
-                // L3 — login com biometria (esconde-se sem biometria).
-                const BiometricLoginTile(
-                  role: 'partner',
-                  margin: EdgeInsets.zero,
-                ),
-                if (currentRestaurant.reservationsEnabled) ...[
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.of(context)
-                          .push(
-                            MaterialPageRoute(
-                              builder: (_) => PartnerReservationsHomeScreen(
-                                restaurantId: currentRestaurant.id,
-                                restaurantName: currentRestaurant.name,
-                              ),
-                            ),
-                          )
-                          // BUG A — refresh ao voltar de Reservas Pro.
-                          .then((_) {
-                        if (mounted) _loadPendingReservationsCount();
-                      }),
-                      icon: const Icon(Icons.event_seat),
-                      label: const Text('Reservas Pro'),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 24),
                 if (historicalPartnerOrders.isNotEmpty)
                   Align(
                     alignment: Alignment.centerRight,
@@ -1387,22 +1385,8 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 12),
-                _ActionButton(
-                  icon: Icons.inventory_2_outlined,
-                  label: 'Gerir produtos',
-                  description:
-                      'Atualiza o catálogo, marca produtos esgotados e mantém os itens organizados.',
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => PartnerProductsScreen(
-                          restaurant: widget.restaurant,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 12),
+                // Bloco F: "Gerir produtos" deixou de ser botão — é o
+                // separador "Menu" da barra de baixo.
                 _ActionButton(
                   icon: Icons.local_shipping_outlined,
                   label: 'Chamar estafeta',
@@ -1420,31 +1404,161 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                 ),
                 // Agendar pedidos (C5, 29/10/2026): só aparece com o interruptor ligado.
                 PartnerAgendadosAtalho(restaurant: widget.restaurant),
-                // Vertical Serviços / Barbearias — atalho aditivo, só visível
-                // quando esta conta tem um service_provider associado.
-                if (_hasServiceProvider) ...[
-                  const SizedBox(height: 12),
-                  _ActionButton(
-                    icon: Icons.calendar_month,
-                    label: 'Agenda de Marcações',
-                    description:
-                        'Gerir marcações, serviços, profissionais e financeiro do teu negócio de serviços.',
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const PartnerServicesHubScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ],
+          ]),
+          // ── Separador "Menu" ───────────────────────────────────────────
+          // O antigo "Gerir produtos": o ecrã dos produtos inteiro, com a sua
+          // barra de título e o seu botão "+". Só se monta na 1.ª visita.
+          _menuAberto
+              ? PartnerProductsScreen(
+                  key: ValueKey('menu_$_aberturasMenu'),
+                  restaurant: widget.restaurant,
+                )
+              : const SizedBox.shrink(),
+          // ── Separador "Ganhos" ─────────────────────────────────────────
+          _paginaDoSeparador([
+            _EarningsSummary(
+              todayAmount: todayEarnings,
+              weekAmount: weekEarnings,
+              totalAmount: totalEarnings,
+              todayLabel: _ordersLabel(todayCount),
+              weekLabel: _ordersLabel(weekCount),
+              totalLabel: _ordersLabel(totalCount),
             ),
-          ),
-        ),
+            const SizedBox(height: 12),
+            BoraListaLigacoes(
+              ligacoes: ligacoesDosGanhosParceiro(
+                aoVerDetalhe: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => PartnerEarningsScreen(
+                      restaurant: widget.restaurant,
+                    ),
+                  ),
+                ),
+                // Stripe Connect Fase 1 (2026-08-06) — para o parceiro isto é
+                // "receber pelo Bora"; o onboarding abre no browser externo.
+                aoReceberPagamentos: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        const ConnectPaymentsScreen(connectRole: 'partner'),
+                  ),
+                ),
+                aoVerExtrato: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ConnectStatementScreen(),
+                  ),
+                ),
+                // DAC7 (missão boom-burger 27/10): o que falta para a loja
+                // abrir ao público e o formulário para o completar.
+                aoDadosFiscais: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => PartnerDadosFiscaisScreen(
+                      restaurantId: widget.restaurant.id,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // M2 (2026-06-12) — fecho semanal read-only (transparência).
+            PartnerWeeklyCloseoutCard(restaurantId: widget.restaurant.id),
+          ]),
+          // ── Separador "Loja" ───────────────────────────────────────────
+          _paginaDoSeparador([
+            // [29/10/2026 · adendo 4, item 8] resumo das avaliações e funil dos
+            // pratos (interruptores feature_resumo_avaliacoes_ia / feature_funil_pratos).
+            ResumoAvaliacoesCard(restaurantId: currentRestaurant.id),
+            FunilPratosCard(restaurantId: currentRestaurant.id),
+            _OverviewCard(
+              totalProducts: products.length,
+              availableProducts: availableProducts,
+            ),
+            const SizedBox(height: 16),
+            BoraListaLigacoes(
+              ligacoes: ligacoesDaLojaParceiro(
+                reservasPro: currentRestaurant.reservationsEnabled,
+                // Vertical Serviços / Barbearias — só com um
+                // service_provider associado a esta conta.
+                agendaMarcacoes: _hasServiceProvider,
+                aoAbrirHorarios: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => PartnerHoursScreen(
+                      restaurant: currentRestaurant,
+                    ),
+                  ),
+                ),
+                aoAbrirReservasPro: () => Navigator.of(context)
+                    .push(
+                      MaterialPageRoute(
+                        builder: (_) => PartnerReservationsHomeScreen(
+                          restaurantId: currentRestaurant.id,
+                          restaurantName: currentRestaurant.name,
+                        ),
+                      ),
+                    )
+                    // BUG A — refresh ao voltar de Reservas Pro.
+                    .then((_) {
+                  if (mounted) _loadPendingReservationsCount();
+                }),
+                aoAbrirAgenda: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const PartnerServicesHubScreen(),
+                  ),
+                ),
+                // A conta do parceiro (2026-09-07): perfil e apagar a conta
+                // dentro da app (App Store 5.1.1(v), RGPD).
+                aoAbrirConta: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                ),
+                aoMudarModo: _handleTestMode,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _ReservationsToggleCard(
+              enabled: currentRestaurant.reservationsEnabled,
+              onChanged: (value) => restaurantStore
+                  .toggleReservationsEnabled(currentRestaurant.id, value),
+            ),
+            const SizedBox(height: 8),
+            _TakeawayToggleCard(
+              restaurant: currentRestaurant,
+              onToggleTakeaway: (value) => restaurantStore
+                  .toggleTakeawayEnabled(currentRestaurant.id, value),
+              onToggleCurbside: (value) => restaurantStore
+                  .toggleCurbsideEnabled(currentRestaurant.id, value),
+              onPrepMinutesChanged: (minutes) =>
+                  restaurantStore.setTakeawayDefaultPrepMinutes(
+                      currentRestaurant.id, minutes),
+            ),
+            const SizedBox(height: 8),
+            // L3 — login com biometria (esconde-se sem biometria).
+            const BiometricLoginTile(
+              role: 'partner',
+              margin: EdgeInsets.zero,
+            ),
+          ]),
+        ],
+      ),
+      bottomNavigationBar: BoraBarraSeparadores(
+        separadores: PartnerDashboardScreen.separadores,
+        atual: _separador,
+        aoMudar: _mudarSeparador,
       ),
     );
   }
+
+  /// Bloco F (10/11/2026): a moldura de cada separador — a mesma da página
+  /// única de antes (margem de 16 e a rolar).
+  Widget _paginaDoSeparador(List<Widget> filhos) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: filhos,
+            ),
+          ),
+        ),
+      );
 
   /// BUG-UI-04 (2026-05-20) — Bottom sheet com pedidos finalizados
   /// (delivered / cancelled / rejected). Lista vem já ordenada

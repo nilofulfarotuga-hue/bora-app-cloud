@@ -55,7 +55,6 @@ import '../stores/order_store.dart';
 import '../stores/session_store.dart';
 import '../widgets/chat_bubble_button.dart';
 import 'chat_screen.dart';
-import 'ganhos_screen.dart';
 import '../widgets/ganho_de_hoje_card.dart';
 import '../widgets/oferta_resumo_estafeta.dart';
 import '../widgets/entrega_marcada_estafeta.dart';
@@ -70,7 +69,6 @@ import '../widgets/bora/maior_18.dart';
 import '../widgets/verificacao_idade_sheet.dart';
 import '../l10n/tr.dart';
 import 'prestador/conta_suspensa_screen.dart';
-import 'profile_screen.dart';
 import '../services/minha_conta_service.dart';
 import '../widgets/barra_falta_conta.dart';
 import '../widgets/atalho_trabalho_em_curso.dart';
@@ -80,7 +78,12 @@ import '../utils/pedido_agendado.dart';
 import '../utils/euros.dart';
 
 class DriverHomeScreen extends StatefulWidget {
-  const DriverHomeScreen({super.key});
+  const DriverHomeScreen({super.key, this.dentroDaBarra = false});
+
+  /// Bloco F (10/11/2026): `true` quando é o separador "Início" do
+  /// [DriverMainScreen]. A barra de baixo já sobe a altura da faixa do
+  /// trabalho em curso, por isso o cartão do Online não a soma outra vez.
+  final bool dentroDaBarra;
 
   @override
   State<DriverHomeScreen> createState() => _DriverHomeScreenState();
@@ -929,22 +932,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
     _startIdleLocationTracking();
   }
 
-  Future<void> _handleTestMode() async {
-    final authStore = context.read<AuthStore>();
-    final sessionStore = context.read<SessionStore>();
-    // TROCA DE MODO NAO E SAIR (2026-08-29). Aqui fazia-se `logout()` antes
-    // de ir ao ecra de escolha — e por isso a escolha seguinte pedia sempre a
-    // palavra-passe outra vez, mesmo a quem so queria mudar de perfil na
-    // mesma conta. A sessao FICA; e o ecra de escolha que decide: com sessao
-    // aberta troca por dentro, sem sessao e que manda entrar.
-    //
-    // `authStore` continua a ser lido acima porque limpamos as contas locais
-    // em memoria — o que sai e a conta ACTIVA, nao a sessao.
-    authStore.clearActiveAccountsKeepingSession();
-    await sessionStore.clearRole();
-    if (!mounted) return;
-    Navigator.of(context).popUntil((route) => route.isFirst);
-  }
+  // Bloco F (10/11/2026): o "Mudar modo" (TROCA DE MODO NAO E SAIR,
+  // 2026-08-29) saiu daqui com os botões só com ícone — vive agora em
+  // Conta > "Mudar modo", no DriverMainScreen, com a mesma lógica.
 
   @override
   Widget build(BuildContext context) {
@@ -956,9 +946,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       return _buildPendingScreen(context, driverStatus);
     }
 
-    final theme = Theme.of(context);
-    final switchModeColor =
-        theme.appBarTheme.foregroundColor ?? theme.colorScheme.onPrimary;
     final orderStore = context.watch<OrderStore>();
     // PERFORMANCE: read DriverStore (no full subscription) and use scoped
     // selectors below. The unscoped watch was rebuilding the entire screen
@@ -1040,13 +1027,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
         ),
         actions: [
           const NotificationBell(),
-          // Troca de papel (cliente/estafeta/parceiro) — mesmo padrão do home
-          // do cliente. Era "Teste" com ícone de bug — confuso em produção.
-          IconButton(
-            onPressed: _handleTestMode,
-            tooltip: 'Mudar modo',
-            icon: Icon(Icons.swap_horiz, color: switchModeColor),
-          ),
+          // Bloco F (10/11/2026): "Mudar modo" e "Ganhos" (só ícones) saíram
+          // daqui — Ganhos é separador da barra de baixo e "Mudar modo" é uma
+          // linha com texto no separador Conta (DriverMainScreen).
           Row(
             children: [
               Text(
@@ -1067,18 +1050,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
           ),
           // Token balance chip — uses scoped selector value (no full watch).
           _TokenChip(balance: tokenBalance),
-          IconButton(
-            tooltip: "Ganhos",
-            icon: const Icon(Icons.bar_chart),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const GanhosScreen(),
-                ),
-              );
-            },
-          ),
         ],
       ),
       body: Padding(
@@ -1443,52 +1414,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   const Spacer(),
                   // Token balance chip — uses scoped selector value.
                   _TokenChip(balance: tokenBalance),
-                  const SizedBox(width: 8),
-                  // Profile shortcut — between Token and Earnings
-                  // (matches Uber/Glovo: profile next to wallet/balance).
-                  _FloatingIconButton(
-                    icon: Icons.person_outline,
-                    tooltip: 'Perfil',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const ProfileScreen()),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Earnings shortcut
-                  _FloatingIconButton(
-                    icon: Icons.bar_chart,
-                    tooltip: 'Ganhos',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const GanhosScreen()),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // TRABALHAR NOUTRA COISA (2026-08-29). Estava so na AppBar
-                  // do outro scaffold — o que aparece quando ha pedidos. Ou
-                  // seja: invisivel no dia-a-dia, porque o ecra normal do
-                  // estafeta e ESTE, o mapa ocioso. Apanhado ao provar pela
-                  // web, que foi a primeira vez que alguem abriu o ecra.
-                  //
-                  // Icone diferente do 'Mudar modo' de proposito: dois botoes
-                  // com a mesma seta dupla, um para trocar de papel na app e
-                  // outro para ir trabalhar noutra coisa, leem-se como o
-                  // mesmo botao.
-                  _FloatingIconButton(
-                    icon: Icons.work_outline,
-                    tooltip: 'Trabalhar noutra coisa',
-                    onTap: () => abrirTrocaDePapel(context),
-                  ),
-                  const SizedBox(width: 8),
-                  // Troca de papel (mesmo padrão do home do cliente).
-                  _FloatingIconButton(
-                    icon: Icons.swap_horiz,
-                    tooltip: 'Mudar modo',
-                    onTap: _handleTestMode,
-                  ),
+                  // Bloco F (10/11/2026, pedido do Danilo: barra de baixo
+                  // igual à Uber/Glovo): os quatro botões redondos só com
+                  // ícone que viviam aqui (Perfil, Ganhos, Trabalhar noutra
+                  // coisa, Mudar modo) passaram para a barra de baixo do
+                  // DriverMainScreen — Ganhos é separador; os outros três são
+                  // linhas com texto no separador Conta.
                 ],
               ),
             ),
@@ -1546,7 +1477,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
             builder: (context, faixa, cartao) => Positioned(
               left: 16,
               right: 16,
-              bottom: MediaQuery.of(context).viewPadding.bottom + 16 + faixa,
+              // Bloco F: dentro da barra de baixo, quem sobe a faixa é a barra.
+              bottom: MediaQuery.of(context).viewPadding.bottom +
+                  16 +
+                  (widget.dentroDaBarra ? 0 : faixa),
               child: cartao!,
             ),
             child: Column(
@@ -3051,8 +2985,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   }
 }
 
-// ── Floating icon button used in idle map overlay ─────────────────────────────
-
 // ─── Offer distance helpers ──────────────────────────────────────────────────
 /// Returns (driver→restaurante, restaurante→cliente) in km. Each leg is null
 /// when the required coords are missing.
@@ -3154,44 +3086,6 @@ class _TokenChip extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _FloatingIconButton extends StatelessWidget {
-  const _FloatingIconButton({
-    required this.icon,
-    required this.onTap,
-    this.tooltip,
-  });
-
-  final IconData icon;
-  final VoidCallback onTap;
-  final String? tooltip;
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip ?? '',
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 40,
-          height: 40,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Color(0x33000000),
-                blurRadius: 8,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Icon(icon, size: 20, color: Colors.black87),
-        ),
       ),
     );
   }

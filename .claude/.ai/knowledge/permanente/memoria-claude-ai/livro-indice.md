@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-10T17:37:03.527333+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-10T18:07:05.791893+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-10 17:19 UTC. Páginas listadas: 592.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-10 17:46 UTC. Páginas listadas: 596.
 
 ## O que é o Bora
 
@@ -493,7 +493,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (166)
+## outras (170)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -524,6 +524,10 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - casa-manutencao-pesquisa-2026-10-29 — Casa & Manutencao — pesquisa das 10 apps do mundo e burocracia em Portugal (29/10/2026) (2026-10-29)
 - casa-manutencao-proposta — Casa & Manutenção — proposta para o Danilo decidir (29/10/2026) (2026-10-29)
 - comparativo-concorrencia-2026-11 — Bora contra Glovo, Uber Eats, Bolt Food e iFood (novembro 2026) (2026-11-08)
+- dipsy-j1-em-dia-semana-2026-11-10 — Missão do Dipsy dipsy-j1-em-dia-semana-2026-11-10 (2026-11-10)
+- dipsy-j2-em-dia-calculadoras-2026-11-10 — Missão do Dipsy dipsy-j2-em-dia-calculadoras-2026-11-10 (2026-11-10)
+- dipsy-j3-animacao-estudio-2026-11-10 — Missão do Dipsy dipsy-j3-animacao-estudio-2026-11-10 (2026-11-10)
+- dipsy-j4-crm-whatsapp-2026-11-10 — Missão do Dipsy dipsy-j4-crm-whatsapp-2026-11-10 (2026-11-10)
 - diretiva-plataformas-2024-2831 — Diretiva (UE) 2024/2831 trabalho em plataformas — o que obriga o Bora, estado em Portugal, o que está feito e checklist para 02/12/2026 (2026-11-01)
 - dsh-como-usar — Como usar o Dipsy (dsh) (2026-11-08)
 - dsh-como-usar-novidades-2026-10-31 — Dipsy: o que ficou novo a 31/10 (complemento da pagina dsh-como-usar) (2026-10-31)

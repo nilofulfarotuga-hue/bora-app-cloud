@@ -16,6 +16,49 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 10/11/2026 (fechar-tudo, bloco G): check-in a fundo — caminho, festa, perdão e lembrete. À mão.
+  'Prémio':
+      'Prize',
+  'Hoje chegas a {0}!':
+      'Today you reach {0}!',
+  'Falta 1 dia para {0}':
+      '1 day to go for {0}',
+  'Faltam {0} dias para {1}':
+      '{0} days to go for {1}',
+  'Vale {0}':
+      'Worth {0}',
+  'vale {0}':
+      'worth {0}',
+  'Falta 1 pedido para desbloquear. O prémio fica guardado e abre sozinho quando fizeres um pedido.':
+      '1 order left to unlock. The prize stays saved and unlocks by itself when you place an order.',
+  'Quero este':
+      'I want this one',
+  'A escada dos prémios volta ao dia 1':
+      'The prize ladder goes back to day 1',
+  'Continuar para o próximo':
+      'Go for the next one',
+  '{0} amanhã':
+      '{0} tomorrow',
+  '{0} daqui a {1} dias':
+      '{0} in {1} days',
+  'Lembrete diário':
+      'Daily reminder',
+  'Um aviso por dia, só enquanto vens fazer o check-in.':
+      'One reminder a day, only while you keep checking in.',
+  'Um aviso por dia, por volta das {0}h, só enquanto vens fazer o check-in.':
+      'One reminder a day, around {0}h, only while you keep checking in.',
+  'Ontem não deu, mas o teu perdão deste mês guarda a sequência. Faz o check-in de hoje!':
+      "You missed yesterday, but this month's pardon keeps your streak. Check in today!",
+  'Usámos o teu perdão deste mês: a tua sequência continua.':
+      "We used this month's pardon: your streak continues.",
+  'OK':
+      'OK',
+  'O teu caminho':
+      'Your path',
+  'A melhor sugestão para ti':
+      'Best pick for you',
+  'Ainda não tens prémios. Faz o check-in todos os dias: no dia {0} ganhas o primeiro.':
+      "No prizes yet. Check in every day: on day {0} you win the first one.",
   // 09/11/2026: depósito Volta (latas e garrafas). Acrescentado à mão.
   '+{0} depósito Volta': '+{0} Volta deposit',
   '+{0} depósito Volta ({1} embalagens)': '+{0} Volta deposit ({1} containers)',

@@ -1,0 +1,70 @@
+Prova PGlite do Bloco G (fechar-tudo-2026-11-10), corrida a 2026-11-10T17:57:59Z.
+Comando: bun G_prova_pglite.mjs <funções de produção .sql> <settings.json> supabase/migrations
+
+OK (63):
+  6 migrações encontradas → ["20261110200000_checkin_g_1_definicoes_e_tabelas.sql","20261110200100_checkin_g_2_regras.sql","20261110200200_checkin_g_3_estado_e_cliente.sql","20261110200300_checkin_g_4_lembretes.sql","20261110200400_checkin_g_5_painel.sql","20261110200500_checkin_g_6_dados_espera_pedido.sql"]
+  DADOS: vale por usar sem pedido passa a esperar pelo pedido → {"estado":"a_espera_pedido","longo":true}
+  DADOS: prazo da espera nunca menor que o que tinha
+  DADOS: vale com pedido fica por usar → {"estado":"por_usar"}
+  DADOS: backups criados
+  R2: chega ao dia 8 com a barra guardada → {"dia":8,"tipo":"produto","chave":"leonidas_barra","titulo":"uma barra de chocolate Leonidas","foto_url":"https://f/loja-leo.jpg","descricao":"Na Leonidas: uma barra de 50 g de chocolate de leite com caramelo. Pagas só a entrega e as taxas.","loja_nome":"Leonidas","guardado_em":"2026-11-10T17:56:39.515+00:00","valor_cents":280,"garantido_ate":"2026-12-10T17:56:39.515+00:00"}
+  R2: estado diz que precisa de pedido
+  R2: "Quero este" sem pedido dá vale à espera → "a_espera_pedido"
+  R2: corrida TVDE não desbloqueia (interruptor desligado)
+  R2: com o interruptor TVDE ligado a corrida conta
+  R2: depois de comprar, desbloqueia sozinho → {"ok":true,"ativados":1,"expirados":0,"aviso_teto":false,"espera_expirada":0,"reservas_libertadas":0}
+  R3: "Quero este" com pedido dá vale por usar
+  R3: a escada volta ao início (0 hoje, amanhã dia 1) → 0
+  R3: a semana de tokens NÃO recomeça (amanhã é o dia 1 da semana só se hoje foi o 7) → {"today":"2026-11-10","reason":null,"enabled":true,"rewards":[5,5,10,10,15,15,40],"eligible":true,"next_day":1,"streak_day":7,"next_reward":5,"already_done":true,"tokens_today":40,"require_phone":true,"streak_running":true}
+  R3: com o interruptor ligado, a semana também volta ao Dia 1 → 1
+  R3: dias seguidos de check-in continuam a contar (sequência real intacta)
+  R4: no dia 19 sugere o mais valioso (açaí 9,22) → "acai"
+  R4: no dia 14 sugere os salgados (6,30) → "salgados"
+  R4: entre iguais, a loja onde mais pediu (Goola, 2 pedidos) → "acai"
+  R4: com mais pedidos na Keli, entre iguais passa aos salgados → "salgados"
+  R4: o serviço do dia 30 (sem valor) conta como o maior
+  R4: o estado traz uma sugestão só, com foto e valor → {"dia":14,"tipo":"produto","chave":"salgados","titulo":"2 salgados da Keli","loja_id":"sabores-brasil-guarda","foto_url":"https://f/salgados.jpg","descricao":"Na Sabores do Brasil: 2 salgados grandes à escolha (coxinha, quibe, rissóis de carne, enroladinho de salsicha ou bolinha de queijo). Pagas só a entrega e as taxas.","loja_nome":"Sabores do Brasil","valor_cents":630}
+  R4: marcos trazem valor em euros e foto real (produto; loja quando não há)
+  R5: antes do check-in, o perdão aparece pendente e a sequência segura → {"p":{"dias":[7],"ativo":true,"por_mes":1,"pendente":true,"aviso_dia":null,"disponivel":true,"usados_mes":0},"d":7}
+  R5: com pedido, o dia falhado é perdoado sozinho
+  R5: a sequência continua (dia 8, com o dia 7 perdoado) → {"dia":8,"dias":[7]}
+  R5: a escada não perde o degrau por causa do perdão (barra guardada no dia 8)
+  R5: aviso "Usámos o teu perdão" por ver
+  R5: depois de visto, o aviso some
+  R5: só 1 por mês
+  R5: segundo dia falhado no mesmo mês não é perdoado → {"mesmoMes":true}
+  R5: sem compra não há perdão
+  R5: sem compra a sequência recomeça
+  R6: passando o teto, o prémio fica guardado para o mês seguinte → {"custoAgora":1026,"ef":{"estado":"guardado","ativar_em":"2026-12-01T00:00:00.000Z"}}
+  R6: aviso no painel aos 80% (uma vez por mês) → {"custo2":1026,"avisos":1}
+  R6: o aviso não se repete no mesmo mês
+  R6: o resumo do painel traz custo, teto, % e aviso → {"c":1026,"p":85,"a":true}
+  PAINEL: interruptores R2-R8 com explicação
+  PAINEL: escada com foto, valor e custo
+  PAINEL: quem está em que dia → [{"dia":1,"pessoas":2},{"dia":8,"pessoas":1},{"dia":15,"pessoas":1}]
+  PAINEL: muda uma regra
+  PAINEL: não deixa mudar o que não é regra do check-in (tokens da semana) → "chave_nao_e_regra_do_checkin: checkin_rewards"
+  PAINEL/R7: degrau de desconto não se liga → "desconto_fica_desligado_ate_entrar_no_pagamento"
+  PAINEL: edita custo e foto do degrau → {"dia":19,"tipo":"produto","ativo":true,"chave":"acai","titulo":"um açaí do Goola","loja_id":"goola-acai-guarda","foto_url":"https://f/acai2.jpg","descricao":"No Goola Açaí: um Goola Bowl com 3 acompanhamentos à escolha. Pagas só a entrega e as taxas.","loja_nome":"Goola Açaí","custo_cents":800,"valor_cents":922}
+  PAINEL: sem ser admin, recusa → "admin_required"
+  R8: envia a quem fez ontem → {"ok":true,"dia":"2026-11-10","turno":"habitual","pessoas":2,"hora_lisboa":17,"pedidos_http":2}
+  R8: envia a quem falhou 2 dias
+  R8: pára depois de falhar 3 dias seguidos
+  R8: quem desligou não recebe
+  R8: quem já fez hoje não recebe
+  R8: no máximo 1 por dia → {"ok":true,"dia":"2026-11-10","turno":"habitual","pessoas":0,"hora_lisboa":17,"pedidos_http":0}
+  R8: textos sem culpa nem urgência → ["Falta 1 pedido para desbloquear o prémio. Faz um pedido nos próximos 30 dias.","Ganhaste uma barra de chocolate Leonidas. Vê em Os meus prémios. Vale até 10/12.","Fizeste 14 dias seguidos de check-in. Vê em Os meus prémios. Vale até 10/12.","Este mês já não há mais prémios de 19 dias. O teu fica guardado e fica disponível a 1 de dezembro.","O check-in de hoje vale 5 tokens. Começa hoje uma sequência nova.","Ontem fizeste o dia 1 do check-in. O de hoje vale 5 tokens!"]
+  R8: com 1 falha máxima é a regra de 18/10 (falhou ontem → não recebe)
+  anon não executa _checkin_sugestao(uuid,integer)
+  anon não executa _checkin_perdao_pode(uuid,date)
+  anon não executa _checkin_custo_mes_cents(uuid)
+  anon não executa admin_checkin_regras_resumo()
+  anon não executa admin_checkin_regra_definir(text,jsonb)
+  anon não executa admin_checkin_degrau_editar(text,jsonb)
+  anon não executa client_checkin_perdao_visto()
+  anon não executa client_checkin_lembrete_definir(boolean)
+  anon não executa _checkin_estado_marcos(uuid)
+  authenticated executa client_checkin_lembrete_definir
+
+FALHAS (0):
+  

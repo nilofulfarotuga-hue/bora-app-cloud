@@ -53,7 +53,18 @@ class CheckinMarco {
     this.tokens,
     this.fotoUrl,
     this.lojaNome,
+    this.valorCents,
+    this.lojaId,
+    this.lojaFotoUrl,
   });
+
+  /// 10/11/2026 (Bloco G): valor do prémio em euros (preço na app), à vista no
+  /// caminho; `null` quando o painel não o tem (o serviço do dia 30).
+  final int? valorCents;
+  final String? lojaId;
+
+  /// Foto da loja (o prémio da loja usa a foto da loja; nunca se altera).
+  final String? lojaFotoUrl;
 
   final String chave;
   final int dia;
@@ -85,7 +96,77 @@ class CheckinMarco {
         tokens: m['tokens'] == null ? null : _int(m['tokens']),
         fotoUrl: (m['foto_url'] ?? '').toString().trim().isEmpty ? null : '${m['foto_url']}',
         lojaNome: (m['loja_nome'] ?? '').toString().trim().isEmpty ? null : '${m['loja_nome']}',
+        valorCents: m['valor_cents'] == null ? null : _int(m['valor_cents']),
+        lojaId: (m['loja_id'] ?? '').toString().trim().isEmpty ? null : '${m['loja_id']}',
+        lojaFotoUrl:
+            (m['loja_foto_url'] ?? '').toString().trim().isEmpty ? null : '${m['loja_foto_url']}',
       );
+
+  static CheckinMarco? talvez(dynamic v) =>
+      v is Map ? CheckinMarco.fromJson(v.cast<String, dynamic>()) : null;
+}
+
+/// R5 (10/11/2026): o perdão do mês — 1 dia falhado perdoado sozinho, só a quem
+/// tem um pedido pago nos últimos 30 dias. `dias` = dias da escada com gelo.
+class CheckinPerdao {
+  const CheckinPerdao({
+    this.ativo = false,
+    this.porMes = 1,
+    this.usadosMes = 0,
+    this.disponivel = false,
+    this.pendente = false,
+    this.avisoDia,
+    this.dias = const [],
+  });
+
+  final bool ativo;
+  final int porMes;
+  final int usadosMes;
+
+  /// Ainda tem perdão este mês (e tem compra).
+  final bool disponivel;
+
+  /// Falhou ontem: o perdão segura a sequência quando fizer o check-in de hoje.
+  final bool pendente;
+
+  /// Dia perdoado cujo aviso "Usámos o teu perdão deste mês" ainda não se viu.
+  final DateTime? avisoDia;
+  final List<int> dias;
+
+  bool get temAviso => avisoDia != null;
+
+  static CheckinPerdao? fromJson(dynamic v) {
+    if (v is! Map) return null;
+    final m = v.cast<String, dynamic>();
+    return CheckinPerdao(
+      ativo: m['ativo'] == true,
+      porMes: _int(m['por_mes'], 1),
+      usadosMes: _int(m['usados_mes']),
+      disponivel: m['disponivel'] == true,
+      pendente: m['pendente'] == true,
+      avisoDia: _data(m['aviso_dia']),
+      dias: (m['dias'] is List) ? (m['dias'] as List).map((e) => _int(e)).toList() : const [],
+    );
+  }
+}
+
+/// R8 (10/11/2026): o lembrete diário do check-in desta pessoa.
+class CheckinLembrete {
+  const CheckinLembrete({this.ligado = true, this.hora});
+
+  final bool ligado;
+
+  /// Hora (Lisboa) a que costuma fazer o check-in — o lembrete vai a essa hora.
+  final int? hora;
+
+  static CheckinLembrete? fromJson(dynamic v) {
+    if (v is! Map) return null;
+    final m = v.cast<String, dynamic>();
+    return CheckinLembrete(
+      ligado: m['ligado'] != false,
+      hora: m['hora'] == null ? null : _int(m['hora']),
+    );
+  }
 }
 
 /// Um vale (prémio) da pessoa.
@@ -191,7 +272,15 @@ class CheckinDegrau {
     this.guardadoEm,
     this.guardadoEmTexto = '',
     this.garantidoAte,
+    this.valorCents,
+    this.fotoUrl,
+    this.lojaNome,
   });
+
+  /// 10/11/2026 (Bloco G): valor em euros, foto real e loja do prémio.
+  final int? valorCents;
+  final String? fotoUrl;
+  final String? lojaNome;
 
   final String chave;
   final int dia;
@@ -224,6 +313,9 @@ class CheckinDegrau {
       guardadoEm: _data(m['guardado_em']),
       guardadoEmTexto: '${m['guardado_em'] ?? ''}',
       garantidoAte: _data(m['garantido_ate']),
+      valorCents: m['valor_cents'] == null ? null : _int(m['valor_cents']),
+      fotoUrl: (m['foto_url'] ?? '').toString().trim().isEmpty ? null : '${m['foto_url']}',
+      lojaNome: (m['loja_nome'] ?? '').toString().trim().isEmpty ? null : '${m['loja_nome']}',
     );
   }
 }
@@ -371,7 +463,24 @@ class CheckinPremiosEstado {
     this.cicloInicio,
     this.escada,
     this.tokensPorDia = const [],
+    this.sugestao,
+    this.precisaPedido = false,
+    this.perdao,
+    this.lembrete,
   });
+
+  /// R4 (10/11/2026): UMA sugestão — o prémio mais valioso a que já chegou.
+  final CheckinMarco? sugestao;
+
+  /// R2 (10/11/2026): sem pedido pago nos últimos 30 dias o prémio fica
+  /// guardado ("Falta 1 pedido para desbloquear") e abre sozinho ao comprar.
+  final bool precisaPedido;
+
+  /// R5: o perdão do mês. `null` = servidor antigo.
+  final CheckinPerdao? perdao;
+
+  /// R8: o lembrete diário. `null` = servidor antigo.
+  final CheckinLembrete? lembrete;
 
   /// 04/11/2026: tokens de cada dia da semana de check-in (5,5,10,10,15,15,40),
   /// para os dias do calendário sem prémio novo.
@@ -432,6 +541,10 @@ class CheckinPremiosEstado {
         cicloInicio: parcial.cicloInicio,
         escada: parcial.escada ?? escada,
         tokensPorDia: parcial.tokensPorDia.isEmpty ? tokensPorDia : parcial.tokensPorDia,
+        sugestao: parcial.sugestao,
+        precisaPedido: parcial.precisaPedido,
+        perdao: parcial.perdao ?? perdao,
+        lembrete: parcial.lembrete ?? lembrete,
       );
 
   List<CheckinVale> get porUsar => vales.where((v) => v.ativo).toList();
@@ -500,6 +613,10 @@ class CheckinPremiosEstado {
       tokensPorDia: (m['tokens_por_dia'] is List)
           ? (m['tokens_por_dia'] as List).map((e) => _int(e)).toList()
           : const [],
+      sugestao: CheckinMarco.talvez(m['sugestao']),
+      precisaPedido: m['precisa_pedido'] == true,
+      perdao: CheckinPerdao.fromJson(m['perdao']),
+      lembrete: CheckinLembrete.fromJson(m['lembrete']),
     );
   }
 }
@@ -621,6 +738,27 @@ class CheckinPremiosService {
       await _db.rpc('client_checkin_premio_visto', params: {'p_ids': ids}).timeout(_limite);
     } catch (e) {
       debugPrint('[CheckinPremios] visto: $e');
+    }
+  }
+
+  /// R5: o aviso "Usámos o teu perdão deste mês" já se mostrou. Nunca rebenta.
+  Future<void> marcarPerdaoVisto() async {
+    try {
+      await _db.rpc('client_checkin_perdao_visto').timeout(_limite);
+    } catch (e) {
+      debugPrint('[CheckinPremios] perdão visto: $e');
+    }
+  }
+
+  /// R8: liga/desliga o lembrete diário do check-in. Devolve se ficou gravado.
+  Future<bool> definirLembrete(bool ligado) async {
+    try {
+      final res = await _db
+          .rpc('client_checkin_lembrete_definir', params: {'p_ligado': ligado}).timeout(_limite);
+      return res is Map && res['ok'] == true;
+    } catch (e) {
+      debugPrint('[CheckinPremios] lembrete: $e');
+      return false;
     }
   }
 

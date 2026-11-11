@@ -891,7 +891,9 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                         context,
                         MaterialPageRoute(
                           builder: (_) => PaymentMethodScreen(
-                              gorjetaJuntoCents: gorjetaMarcada),
+                              gorjetaJuntoCents: gorjetaMarcada,
+                              // A nota já se escreve aqui no carrinho.
+                              notaNoCarrinho: true),
                         ),
                       );
                       // 26/10 (item 5): o que se escreveu na nota no ecrã de

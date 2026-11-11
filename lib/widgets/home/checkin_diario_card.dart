@@ -414,11 +414,16 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
     final escolha = esc != null && esc.ativa && esc.pendenteDecisao && esc.guardado != null;
     final guardado = esc != null && esc.temGuardadoSemEscolha;
 
+    // 11/11/2026 (Danilo: "estreitar o check-in"): margens mais curtas e a
+    // frase das regras só no Dia 1 de hoje por fazer (é aí que interessa);
+    // as regras completas continuam no mês (seta).
+    final mostrarRegra =
+        e.semTelemovel || (e.streakDay <= 1 && !e.alreadyDone);
     return Padding(
-      padding: const EdgeInsets.only(bottom: Spacing.xl),
+      padding: const EdgeInsets.only(bottom: Spacing.md),
       child: Container(
         key: const Key('checkin_diario_card'),
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -433,16 +438,20 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
               mainAxisSize: MainAxisSize.min,
               children: [
                 _cabecalho(),
-                const SizedBox(height: 4),
-                Text(
-                  e.semTelemovel
-                      ? 'Confirma o teu telemóvel para ganhar tokens'.tr
-                      : 'Entra todos os dias e ganha mais tokens. Se falhares um dia, voltas ao Dia 1.'
-                          .tr,
-                  style: const TextStyle(
-                      fontSize: 12.5, color: AppColors.textSubtle, height: 1.3),
-                ),
-                const SizedBox(height: 10),
+                if (mostrarRegra) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    e.semTelemovel
+                        ? 'Confirma o teu telemóvel para ganhar tokens'.tr
+                        : 'Entra todos os dias e ganha mais tokens. Se falhares um dia, voltas ao Dia 1.'
+                            .tr,
+                    style: const TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.textSubtle,
+                        height: 1.3),
+                  ),
+                ],
+                const SizedBox(height: 6),
                 _dias(e),
                 ..._barraEPerdao(e),
                 AnimatedSize(
@@ -456,7 +465,7 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
                         )
                       : const SizedBox(width: double.infinity),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 _rodape(e),
                 if (escolha) ...[
                   const SizedBox(height: 10),
@@ -955,7 +964,7 @@ class _CheckinDiarioCardState extends State<CheckinDiarioCard>
           onPressed: _aFazer ? null : _fazer,
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.primary,
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            padding: const EdgeInsets.symmetric(vertical: 10),
           ),
           // Estilo no Text (herda a Inter do tema); no textStyle do botão
           // substituía a fonte inteira.

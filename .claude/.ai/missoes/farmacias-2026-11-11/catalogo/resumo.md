@@ -10,7 +10,8 @@ Nada foi inserido na base. As fotos estão no bucket público `product-images`, 
 - Produtos distintos na Glovo (por id): 872.
 - Duplicados por nome normalizado retirados: 0. Secções de promoções/mais vendidos: não existem no menu desta loja (só `elementsWithoutMenu` = [{"slugSuffix": "pb"}, {"slugSuffix": "bc"}, {"slugSuffix": "isbc"}], ignorados).
 - Produtos finais: **872**; com preço promocional: 0; marcados como medicamento: 115; parafarmácia: 757; esgotados na Glovo no momento: 0 (vão como is_available true, como pedido).
-- Sem descrição na ficha da Glovo: 416.
+- Sem descrição: 375 (a Glovo não tem texto 'Descrição' na ficha; 41 suplementos ficaram com a lista de ingredientes ativos que vinha colada ao nome).
+- Nomes limpos: 155 (tirado o código CNP '-1234567' do fim e a lista '[PA]' de ativos; o original fica em `name_glovo` no JSON).
 - Fotos: com foto real, subida e provada (200 no URL público, mesmo tamanho, mesmos primeiros bytes e mesmo md5) 867; sem foto real 5. Tipos: image/jpeg 812, image/png 55 (nenhuma AVIF).
 - SQL: 867 linhas em 5 INSERT (`insert_farmacia-se-guarda.sql`).
 
@@ -47,21 +48,21 @@ Amostra ao acaso de 20 produtos para conferir à mão:
 | 1 | CAUDALIE RESVER-LIFT FIRM INST SER 30ML | 53,65 € | Dermocosmética | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581483670.jpg |
 | 2 | Zovirax Duo, 50/10 mg/g-2g x 1 creme bisnaga | 14,34 € | Saúde oral | sim | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581470266.jpg |
 | 3 | SENSIBIO BIODERMA DS CR 40 ML | 27,33 € | Dermocosmética | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581474709.jpg |
-| 4 | WIN FIT MELATONINA COMP MAST X60 MELATONINA [PA] LAVANDA (LAVANDULA OFFICINALIS) (EXTRATO) [PA] GRIFFONIA (GRIFFONIA SIMPLICIFOLIA) (EXTRATO) [PA] ALECRIM (ROSMARINUS OFFICINALIS) (FOLHA) [PA] 5-HIDROXITRIPTOFANO [PA] | 20,61 € | Suplementos e vitaminas | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581472017.jpg |
+| 4 | WIN FIT MELATONINA COMP MAST X60 | 20,61 € | Suplementos e vitaminas | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581472017.jpg |
 | 5 | VICHY MINERAL 89 CONCENTRADO ROSTO 50ML | 35,50 € | Dermocosmética | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581481548.jpg |
 | 6 | CONTROL PLEASURE VIBES ANEL VIBRATORIO | 14,11 € | Saúde sexual e íntima | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581471166.jpg |
 | 7 | RENE FURTERER SOL OL PROT VERAO 100ML | 23,91 € | Solares | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581472522.jpg |
 | 8 | KLORANE CAPILAR FIGO INDIA CH 400ML | 19,38 € | Cabelo | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581483559.png |
 | 9 | MYCOSANA UNHAS SOL 5ML + 10LIMAS | 27,44 € | Higiene e cuidado pessoal | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581475379.jpg |
 | 10 | Mebocaína Forte 4 mg + 1 mg + 0.2 mg Pastilha - X 24 Und(s) | 11,20 € | Constipação, gripe e alergias | sim | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581470088.png |
-| 11 | EASYSLIM LIPO3 COMP X60 L-CARNITINA [PA] CROMIO (CLORETO) [PA] PECTINA DE MACA [PA] LEVOCARNITINA [PA] GARCINIA (GARCINIA CAMBOGIA) (EXTRATO) [PA] LECITINA SOJA [PA] CROMIO [PA] | 31,92 € | Nutrição e controlo de peso | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581472313.jpg |
+| 11 | EASYSLIM LIPO3 COMP X60 | 31,92 € | Nutrição e controlo de peso | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581472313.jpg |
 | 12 | ISDIN FOTOPROT FWATER BRONZ SPF50 50ML | 31,02 € | Solares | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581472670.png |
 | 13 | Cegrinaso MG, 200 mg + 30 mg Blister 24 Unidade(s) Comp revest | 11,14 € | Constipação, gripe e alergias | sim | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581470364.jpg |
 | 14 | ISDIN ACNIBEN BODY SPRAY 150ML | 31,86 € | Medicamentos sem receita | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581472599.jpg |
 | 15 | A-DERMA DERMAT BIO AG MICELAR 400ML | 21,22 € | Dermocosmética | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581478507.jpg |
 | 16 | VICHY PUR THERMAL DESMAQ INTEG 300ML | 21,56 € | Dermocosmética | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581474533.jpg |
 | 17 | PARODONTAX COMPL PROT BRANQ PASTA DENT 75 | 9,07 € | Saúde oral | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581472133.jpg |
-| 18 | ARKOREAL GELEIA REAL IMUNID AMP 15ML X20 MEL [PA] PROPOLIS (BACCHARIS DRACUNCULIFOLIA) [PA] PROPOLIS (PROPOLIS CERA) [PA] POLEN [PA] GELEIA REAL [PA] EQUINACEA (ECHINACEA PURPUREA) (EXTRATO) [PA] | 34,33 € | Suplementos e vitaminas | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581471858.jpg |
+| 18 | ARKOREAL GELEIA REAL IMUNID AMP 15ML X20 | 34,33 € | Suplementos e vitaminas | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581471858.jpg |
 | 19 | DUREX SENSITIVO SUAVE PRESERVATIVO X12 | 13,38 € | Saúde sexual e íntima | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581470825.png |
 | 20 | CERAVE CORE MOIST LOCAO FACIAL PM 52G | 18,59 € | Dermocosmética | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-se-guarda/fse-4611686018581478354.jpg |
 
@@ -72,7 +73,8 @@ Amostra ao acaso de 20 produtos para conferir à mão:
 - Produtos distintos na Glovo (por id): 515.
 - Duplicados por nome normalizado retirados: 0. Secções de promoções/mais vendidos: não existem no menu desta loja (só `elementsWithoutMenu` = [{"slugSuffix": "pb"}, {"slugSuffix": "bc"}, {"slugSuffix": "isbc"}], ignorados).
 - Produtos finais: **515**; com preço promocional: 0; marcados como medicamento: 99; parafarmácia: 416; esgotados na Glovo no momento: 0 (vão como is_available true, como pedido).
-- Sem descrição na ficha da Glovo: 195.
+- Sem descrição: 178 (a Glovo não tem texto 'Descrição' na ficha; 17 suplementos ficaram com a lista de ingredientes ativos que vinha colada ao nome).
+- Nomes limpos: 105 (tirado o código CNP '-1234567' do fim e a lista '[PA]' de ativos; o original fica em `name_glovo` no JSON).
 - Fotos: com foto real, subida e provada (200 no URL público, mesmo tamanho, mesmos primeiros bytes e mesmo md5) 511; sem foto real 4. Tipos: image/jpeg 473, image/png 38 (nenhuma AVIF).
 - SQL: 511 linhas em 3 INSERT (`insert_farmacia-teixeira-guarda.sql`).
 
@@ -116,7 +118,7 @@ Amostra ao acaso de 20 produtos para conferir à mão:
 | 8 | CAUDALIE ANGE DES VIGNES EAU PARF 50ML | 25,65 € | Maquilhagem e perfumes | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-teixeira-guarda/fte-4611686018581479795.jpg |
 | 9 | CAUDALIE ROSE DE VIGNE GEL DUCHE 200ML | 7,73 € | Higiene e cuidado pessoal | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-teixeira-guarda/fte-4611686018581479755.jpg |
 | 10 | Homeogene 9 , Blister 60 Unidade(s) Comp | 11,59 € | Constipação, gripe e alergias | sim | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-teixeira-guarda/fte-4611686018581471415.jpg |
-| 11 | MAGNESIUM OK COMP X 30 PIRIDOXINA (VITAMINA B6) [PA] TOCOFEROL (VITAMINA E) [PA] ZINCO (GLUCONATO) [PA] SELENIO (LEVEDURA ENRIQUECIDA) [PA] TIAMINA (VITAMINA B1) [PA] MANGANESIO (GLUCONATO) [PA] MAGNESIO (OXIDO) [PA] RIBOFLAVINA (VITAMINA B2) [PA] CROMIO | 17,36 € | Suplementos e vitaminas | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-teixeira-guarda/fte-4611686018581471972.jpg |
+| 11 | MAGNESIUM OK COMP X 30 | 17,36 € | Suplementos e vitaminas | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-teixeira-guarda/fte-4611686018581471972.jpg |
 | 12 | LRPOSAY LIPIKAR BAUME AP+M ECO TUBE 200ML | 21,50 € | Higiene e cuidado pessoal | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-teixeira-guarda/fte-4611686018581484271.jpg |
 | 13 | LIERAC HOMME BALSAMO SUAV POS BARBA 75 | 21,22 € | Homem | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-teixeira-guarda/fte-4611686018581477314.jpg |
 | 14 | AVENE HYALURON ACTIV B3 CR REFILL 50ML | 36,62 € | Dermocosmética | não | — |
@@ -126,3 +128,13 @@ Amostra ao acaso de 20 produtos para conferir à mão:
 | 18 | URIAGE BARIESUN LEITE KIDS SPF50+100ML | 20,61 € | Solares | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-teixeira-guarda/fte-4611686018581481012.jpg |
 | 19 | ISDIN FOTOPROT PED F WATER SPF50 50ML | 31,58 € | Solares | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-teixeira-guarda/fte-4611686018581472858.png |
 | 20 | DRENASLIM COCKTAIL MORANGO STICKS X15 | 17,75 € | Suplementos e vitaminas | não | https://ojykpzwqrtusfeakzrna.supabase.co/storage/v1/object/public/product-images/farmacias/farmacia-teixeira-guarda/fte-4611686018581479796.jpg |
+
+## Notas de método
+
+- Lojas encontradas pelo nome na página pública da Glovo da Guarda (categoria Farmácia e beleza): `farmacia-da-se-grd` e `farmacia-teixeira-grd`. As duas têm, na ficha legal da Glovo, a mesma empresa (GRIPHARMA, S.A., NIF 500995850).
+- Árvore lida em `/v3/stores/<store>/addresses/<address>/node/store_menu` (secção > categoria > subsecção), produtos em `/v4/.../content/main?nodeType=DEEP_LINK&link=<secção>/<categoria>` e nas parciais `/v4/.../content/partial?component=section&id=<id>`; descrição na ficha `POST /v4/.../products/<id>/view`.
+- Preço: o `price` do cartão do produto (o que o cliente vê). Conferido com o preço da ficha de cada produto: 100% iguais. Nenhum produto tinha promoção (sem preço riscado), por isso `promo_price_cents` é null em todos.
+- `id` = prefixo + id da Glovo (`fse-`/`fte-` + número de 19 dígitos, guardado como texto porque passa o limite de inteiros do JavaScript). O `external_id` é o código CNP/interno da farmácia (7 dígitos), igual nas duas lojas para o mesmo produto.
+- `is_medicine`: a ficha da Glovo mostra o aviso MNSRM em todos os produtos destas lojas, por isso não serve. Usei: produto 'restricted' na Glovo, nome no formato INFARMED ('Nome, dose x qtd forma-CNP'), dose em mg + forma farmacêutica escrita por extenso, ou estar na secção Medicamentos da Glovo com nome que não é de parafarmácia (marcas de cosmética, repelentes, tampões, faixas térmicas, xaropes-dispositivo). Revistas à mão as exceções (medicamentos fora da secção Medicamentos e produtos da secção marcados como parafarmácia).
+- Ritmo: a Glovo respondeu 429 ao fim de ~100 pedidos a 2,6/s; o resto foi feito a 1 pedido a cada 1,5 s com cache em disco (fora do repo).
+- Fotos: descarregadas com `Accept: image/jpeg,image/png,image/webp`; o tipo foi decidido pelos bytes (nenhuma veio AVIF, mesmo quando o URL da Glovo acabava em .webp/.png). Sobe com a conta demo da própria loja para `product-images/farmacias/<loja>/<id>.<ext>`. Marcadores 'sem imagem' detetados por md5 repetido entre produtos diferentes e revistos numa folha de contactos (`analisar_fotos.py`).

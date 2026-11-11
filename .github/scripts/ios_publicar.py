@@ -336,10 +336,61 @@ def nome_para_a_build():
     return proximo_nome([d["attributes"]["versionString"] for d in todas])
 
 
+def aviso_versao_a_venda():
+    """(11/11/2026) Liga o aviso de "versao nova" nos iPhones SO quando a Apple
+    ja publicou. Antes, o build_ios.yml gravava app_latest_version_code_ios logo
+    a seguir ao envio (10/11 e 11/11: aviso ligado com a versao ainda em
+    revisao, corrigido a mao para 247). Agora: le a versao READY_FOR_SALE na
+    App Store Connect, tira o numero da build (CFBundleVersion, o mesmo que o
+    AppUpdateService compara) e grava-o so se for MAIOR do que o que esta em
+    platform_settings. Nunca baixa o numero. Precisa de SUPABASE_SERVICE_ROLE_KEY."""
+    srk = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not srk:
+        morre("falta SUPABASE_SERVICE_ROLE_KEY")
+    c, j = get("/v1/apps/%s/appStoreVersions" % APP, **{
+        "fields[appStoreVersions]": "versionString,appStoreState,build",
+        "include": "build", "fields[builds]": "version", "limit": "20"})
+    if c != 200:
+        morre("nao consegui listar as versoes (%s): %s" % (c, erro_apple(j)))
+    builds = {b["id"]: b["attributes"].get("version") for b in j.get("included", [])
+              if b.get("type") == "builds"}
+    a_venda = []
+    for d in j.get("data", []):
+        if d["attributes"].get("appStoreState") != "READY_FOR_SALE":
+            continue
+        rel = ((d.get("relationships") or {}).get("build") or {}).get("data") or {}
+        v = builds.get(rel.get("id"))
+        if v and str(v).isdigit():
+            a_venda.append((int(v), d["attributes"]["versionString"]))
+    if not a_venda:
+        print("nenhuma versao READY_FOR_SALE com build - nada a fazer")
+        return 0
+    build, nome = max(a_venda)
+    url = ("https://ojykpzwqrtusfeakzrna.supabase.co/rest/v1/platform_settings"
+           "?key=eq.app_latest_version_code_ios")
+    hs = {"apikey": srk, "Authorization": "Bearer " + srk, "Content-Type": "application/json"}
+    r = requests.get(url + "&select=value", headers=hs, timeout=30)
+    if r.status_code != 200 or not r.json():
+        morre("nao consegui ler app_latest_version_code_ios (%s)" % r.status_code)
+    atual = int(str(r.json()[0]["value"]).strip('"') or 0)
+    print("a venda: %s build %s; gravado hoje: %s" % (nome, build, atual))
+    if build <= atual:
+        print("nada a mudar")
+        return 0
+    r = requests.patch(url, headers=dict(hs, Prefer="return=representation"),
+                       data=json.dumps({"value": build}), timeout=30)
+    if r.status_code != 200 or int(str(r.json()[0]["value"]).strip('"')) != build:
+        morre("a gravacao nao ficou (%s): %s" % (r.status_code, r.text[:200]))
+    print("app_latest_version_code_ios = %s (lido de volta)" % build)
+    return 0
+
+
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "--nome":
         print(nome_para_a_build())
         return 0
+    if len(sys.argv) > 1 and sys.argv[1] == "--aviso":
+        return aviso_versao_a_venda()
     bid = esperar_build()
     print("build VALID:", bid)
     vid, nome = versao_alvo()

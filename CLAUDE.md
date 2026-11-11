@@ -6,6 +6,9 @@
 
 @AGENTS.md
 
+**Modo automático seguro (05/11/2026):** segue a skill `modo-automatico`: faz e testa num ramo de ensaio
+`ai/AAAA-MM-DD-descricao`, abre pedido de revisão e não publica. Publica o Claude.ai.
+
 ## 1. Antes de planear
 
 - Ler `PADRAO_BORA.md` (lei da casa: o que uma categoria/papel novo tem de ter, regra dos

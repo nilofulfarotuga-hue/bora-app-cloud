@@ -1,0 +1,81 @@
+diff --git a/.claude/hooks/git-guardrails.py b/.claude/hooks/git-guardrails.py
+index 6cc7643..74a6234 100644
+--- a/.claude/hooks/git-guardrails.py
++++ b/.claude/hooks/git-guardrails.py
+@@ -40,6 +40,8 @@ import sys
+ 
+ # Ramos para onde o push e permitido. Editar aqui se o ramo de trabalho mudar.
+ RAMOS_PERMITIDOS = ["autonomous-night-2026-04-29"]
++# Ramos de ensaio do modo automatico: nao publicam nada.
++RAMO_ENSAIO = r"^ai/\d{4}-\d{2}-\d{2}-[\w.-]+$"
+ 
+ # (regex, motivo) - operacoes destrutivas, sempre bloqueadas.
+ # O push forcado saiu desta lista: quem o decide agora e o _push_forcado.py, que
+@@ -144,7 +146,7 @@ def main():
+         bloqueia("push forcado reescreve a historia remota (modo grosseiro)", cru)
+ 
+     for ramo in ramos_do_push(comando):
+-        if ramo not in RAMOS_PERMITIDOS:
++        if ramo not in RAMOS_PERMITIDOS and not re.match(RAMO_ENSAIO, ramo):
+             bloqueia(
+                 "push para '%s'; so e permitido: %s"
+                 % (ramo, ", ".join(RAMOS_PERMITIDOS)),
+diff --git a/.claude/plugins/bora-mods/hooks/regras.ts b/.claude/plugins/bora-mods/hooks/regras.ts
+index 53463d7..53bc21c 100644
+--- a/.claude/plugins/bora-mods/hooks/regras.ts
++++ b/.claude/plugins/bora-mods/hooks/regras.ts
+@@ -189,6 +189,13 @@ function eContextoSql(seg: string[]): boolean {
+   return /^(psql|pg_dump|pg_restore|supabase)$/.test(c) || seg.some(x => /PGPASSWORD|postgres(ql)?:\/\//.test(x))
+ }
+ 
++// Ramo de ensaio do modo automatico: não publica nada, não precisa de pergunta.
++function pushDeEnsaio(args: string[]): boolean {
++  const pos = args.filter(a => !a.startsWith('-'))
++  const destino = (pos[1] ?? '').replace(/^.*:/, '').replace(/^refs\/heads\//, '')
++  return pos.length === 2 && /^ai\/\d{4}-\d{2}-\d{2}-[\w.-]+$/.test(destino)
++}
++
+ export function avaliaComando(comando: string, ctx: Contexto): Veredito {
+   const segs = segmentos(comando)
+   let pedePush = false
+@@ -199,7 +206,7 @@ export function avaliaComando(comando: string, ctx: Contexto): Veredito {
+       const { sub, args } = g
+       if (sub === 'push') {
+         if (pushForcado(args)) return nega('git push forçado (bandeira de força ou refspec com +)')
+-        pedePush = true
++        if (!pushDeEnsaio(args)) pedePush = true
+       }
+       if (sub === 'add' && args.some(a => ['-A', '--all', '.', ':/', './', '*'].includes(a))) {
+         return nega('git add -A / git add . (arrasta trabalho alheio; adiciona por caminho)')
+@@ -512,7 +519,13 @@ function segmentoSoLeitura(t: string[]): boolean {
+   return false
+ }
+ 
++// Prova de 05/11: o allow daqui passa por cima do deny da trava do modo automatico.
++// Segredos nunca se aprovam sozinhos.
++const TOCA_SEGREDO =
++  /(^|[\s"'\\/=:])(\.env(?!\.(example|sample|template)\b)|\.dart_defines|\.credentials\.json|key\.properties)|\.(jks|keystore|pem|p12|pfx)\b/i
++
+ export function aprovaSemPerguntar(tool: string, args: Args, raizes: string[]): string | null {
++  if (TOCA_SEGREDO.test(`${str(args.file_path)} ${str(args.path)} ${str(args.command)}`)) return null
+   if (SEMPRE_SIM.has(tool)) return 'leitura'
+   if (tool === 'Agent' || tool === 'Task') {
+     return /^(Explore|Plan)$/.test(str(args.subagent_type)) ? 'agente só de leitura' : null
+diff --git a/.claude/plugins/bora-mods/hooks/tranca.test.ts b/.claude/plugins/bora-mods/hooks/tranca.test.ts
+index 9068c03..c046ec3 100644
+--- a/.claude/plugins/bora-mods/hooks/tranca.test.ts
++++ b/.claude/plugins/bora-mods/hooks/tranca.test.ts
+@@ -155,6 +155,13 @@ describe('passa (chega ao Claude Code)', () => {
+     expect(d.corridas).toEqual(['Bash'])
+   })
+ 
++  test('git push para ramo de ensaio ai/: não pergunta, não publica nada', async ($, on) => {
++    const d = dubles(on)
++    const r = await $.tool.call({ tool: 'Bash', command: 'git push origin ai/2026-11-05-x' })
++    expect(r.deny).toBeUndefined()
++    expect(d.perguntas).toEqual([])
++  })
++
+   test('mensagem de commit com "--force" entre aspas não bloqueia', async ($, on) => {
+     const d = dubles(on)
+     const r = await $.tool.call({ tool: 'Bash', command: 'git commit -m "nunca usar git push --force"' })

@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-topics-erros-aprendidos-parte5
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-10
+ultima_confirmacao: 2026-11-11
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 5 de 5)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte5`, origem `claude-ai`, atualizada em 2026-11-10T17:19:23.091754+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte5`, origem `claude-ai`, atualizada em 2026-11-11T08:14:13.520398+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte5 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 5 de 5), copiada a 10/11/2026 17:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 5 de 5), copiada a 11/11/2026 08:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - [stated] 31/10 18:29: na resposta ao Ricardo ("o que disseste ontem?") escrevi seco — só "não dá para fazer fiado", a conta e "quando consegues mandar?"; ele achou grosso outra vez (repete o de 30/10) → regra: reto sem ser grosso — lembrar com calma que ajudou porque o cliente pediu e achou que era só até lhe sair o pagamento; dizer que uma vez ou outra ajuda, mas fiado não consegue nem deixa passar de 20 €; a conta vai no fim, sem frase seca de cobrança
 - [stated] 31/10 19:53: as missões no PC (retoma geral e chaves) ficaram ~7 h paradas à espera de um "Permitir" que nunca lhe apareceu, e eu só registava e voltava a ver de hora a hora; ele irritou-se ("eu dou a missão e vocês não conseguem") → regra: pedido de Permitir sem resposta em 15 min = trazer logo aqui ao chat a lista numerada do que falta autorizar e fazer eu por MCP com o "autorizo" dele; o que só o PC consegue fazer vai num prompt para ELE colar numa sessão nova com "Ignorar permissões" (foi ele que propôs, 31/10)
@@ -43,4 +43,5 @@ estado: atual
 - [stated] 09/11 20:21: ao Ricardo (adiantado até dia 30) pus o preço por dia (4,23 €) → regra: ao cliente vai só o total somado e arredondado (segunda a sábado, sem domingo), nunca o preço por dia
 - [stated] 09/11 21:04: pedi-lhe para ligar a Casa no painel após o classificador travar → regra: com a ordem dele, refazer eu pelas funções do painel; nunca lhe devolver o passo
 - [stated] 10/11: escrevi ao Hugo que estafetas e limpadoras são todos isentos de IVA → regra: uns são isentos, outros não (passam o limite); nunca dizer que todos são isentos
+- [stated] 11/11 08:01: depois de ele já ter colado o prompt, mandei-lhe uma versão nova inteira → regra: prompt entregue não se refaz; o que mudar vai num ADENDO curto aqui no chat, para a mesma sessão
 

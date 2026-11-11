@@ -305,6 +305,12 @@ class PrescricaoService {
   Future<void> adminFarmaciaAbrir(String restaurantId) =>
       _rpc<dynamic>('admin_farmacia_abrir', {'p_restaurant_id': restaurantId});
 
+  /// Nome da loja (a RLS só devolve se a pessoa a pode ver).
+  Future<String?> nomeDaLoja(String restaurantId) async {
+    final r = await _sb.from('restaurants').select('name').eq('id', restaurantId).maybeSingle();
+    return r?['name'] as String?;
+  }
+
   static String? _limpo(String? s) {
     final t = s?.trim();
     return (t == null || t.isEmpty) ? null : t;

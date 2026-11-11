@@ -54,6 +54,7 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
             rotulosVitrineCliente[s.key] ??
             rotulosGorjetas[s.key] ??
             rotulosPesoVariavel[s.key] ??
+            rotulosFarmacias[s.key] ??
             rotulosFavoresRecibos[s.key] ??
             kRotulosDepositoVolta[s.key];
         by.putIfAbsent(s.category ?? 'other', () => []).add(rotulo == null
@@ -161,6 +162,26 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
   /// TORNA a chave editável; o caminho decide-o o _isMoneyKey: a taxa (cents)
   /// e o multiplicador do teto vão pelo diálogo com motivo e auditoria; o
   /// tempo e o interruptor do recibo pelo diálogo comum (auditado no servidor).
+  /// Farmácias (missão farmacias-2026-11-11, PT-BR). Categoria 'farmacias'.
+  static const rotulosFarmacias = <String, String>{
+    'pharmacy_prescription_response_minutes':
+        'Receita: minutos sem resposta até lembrar a farmácia (no dobro do tempo o pedido expira e o cliente é avisado).',
+    'pharmacy_prescription_retention_days':
+        'Receita: dias até apagar a foto, a assinatura e os códigos (dados de saúde) depois de terminar o pedido.',
+    'errand_pharmacy_driver_cents':
+        'Receita: quanto o entregador ganha num levantamento de receita (centavos; 500 = 5,00 €).',
+    'pharmacy_prescription_commission_pct':
+        'Receita: comissão sobre remédios com receita depois da data de início da loja (0.10 = 10%).',
+    'pharmacy_extra_commission_months':
+        'Farmácias: meses sem comissão depois de abrir a loja ao público.',
+    'pharmacy_prescription_consent_version':
+        'Receita: versão do texto de autorização (mude sempre que mudar o texto).',
+    'pharmacy_prescription_consent_text':
+        'Receita: texto da autorização que o cliente assina ({farmacia} = nome da farmácia).',
+    'pharmacy_prescription_real_orders_enabled':
+        'Receita: criar pedido real (entregador + cobrança) nas farmácias abertas ao público. Desligado até ser testado.',
+  };
+
   static const rotulosFavoresRecibos = <String, String>{
     'errand_cash_ceiling_multiplier':
         'Teto do Favor em dinheiro (estimativa × este valor; 1.15 = até 15% acima). '
@@ -220,6 +241,8 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     // m1-dinheiro-favores 08/11: Favor com teto + recibo por e-mail (paridade
     // admin). As de dinheiro seguem pelo caminho auditado (_isMoneyKey).
     if (rotulosFavoresRecibos.containsKey(key)) return true;
+    // Farmácias (11/11/2026): receita, prazos, comissão extra e texto da autorização.
+    if (rotulosFarmacias.containsKey(key)) return true;
     // Depósito Volta (09/11/2026): valor e interruptor. Os dois vão pelo
     // caminho com motivo e auditoria (_isMoneyKey: "cents" e a lista
     // kChavesDinheiroSemMarca) — mudam o que o cliente paga.

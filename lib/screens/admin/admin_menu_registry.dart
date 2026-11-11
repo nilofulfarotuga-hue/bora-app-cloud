@@ -6,6 +6,7 @@ import 'admin_order_edits_screen.dart';
 import 'admin_pesquisas_sem_resultado_screen.dart';
 import 'admin_ajustes_peso_screen.dart';
 import 'admin_favor_diferencas_screen.dart';
+import 'admin_farmacias_screen.dart';
 import 'admin_porteiro_screen.dart';
 import 'admin_pedidos_agendados_screen.dart';
 import 'admin_acerto_unificado_screen.dart';
@@ -325,6 +326,25 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.teal,
       builder: () => const AdminAjustesPesoScreen(),
       keywords: const ['peso', 'peso variavel', 'balanca', 'quilo', 'kg', 'ajuste', 'etiqueta', 'diferenca', 'mercado', 'nao parceiro', 'continente', 'auchan'],
+    ),
+    // 11/11/2026 (farmácias): visibilidade por lista de permissão, receita e comissão extra.
+    AdminMenuItem(
+      id: 'farmacias',
+      title: 'Farmácias',
+      subtitle: 'Farmácia da Sé e Teixeira: quem vê a loja (lista de permissão), receita ligada ou não, comissão extra depois dos meses grátis, abrir ao público',
+      icon: Icons.local_pharmacy,
+      color: Colors.green,
+      builder: () => const AdminFarmaciasScreen(),
+      keywords: const ['farmacia', 'farmácia', 'receita', 'prescricao', 'prescrição', 'se', 'sé', 'teixeira', 'lista de permissao', 'escondida', 'comissao extra'],
+    ),
+    AdminMenuItem(
+      id: 'pedidos_receita',
+      title: 'Pedidos de receita',
+      subtitle: 'Receitas e pedidos especiais às farmácias: estado, quem aceitou ou recusou e quando, forçar ou cancelar, exportar CSV',
+      icon: Icons.receipt_long,
+      color: Colors.green,
+      builder: () => const AdminFarmaciasScreen(abaInicial: 1),
+      keywords: const ['receita', 'prescricao', 'prescrição', 'farmacia', 'farmácia', 'medicamento', 'tenho receita', 'pedido especial'],
     ),
     // 04/11/2026: Favores pagos por MB Way com compra acima do orçado.
     // 08/11/2026: no topo, Favores à espera de aprovação do cliente (teto).

@@ -22,6 +22,8 @@ import '../config/app_colors.dart';
 import '../models/chat_message.dart';
 import '../models/order_model.dart';
 import '../screens/chat_screen.dart';
+import '../screens/farmacia/prescricao_estado_screen.dart';
+import '../screens/partner/farmacia/parceiro_prescricoes_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/order_details_screen.dart';
 import '../screens/partner/services/partner_agenda_screen.dart';
@@ -662,6 +664,41 @@ Future<void> tocarFavorAprovacao(Map<String, dynamic> data,
 /// Tap na notificação local enquanto app em foreground ou background.
 /// Traz a app para o primeiro plano — driver home screen já mostra o card
 /// de aceitar/rejeitar via Realtime.
+/// [11/11/2026 farmácias] Tipos de aviso da receita.
+const Set<String> _kTiposFarmacia = <String>{
+  'prescricao_nova',
+  'prescricao_lembrete',
+  'prescricao_confirmada',
+  'prescricao_resposta',
+  'prescricao_expirada',
+  'farmacia_lembrete_mensal',
+};
+
+/// [11/11/2026 farmácias] Abre o ecrã certo a partir de um aviso da receita.
+/// Devolve true se o tipo é da farmácia (mesmo que ainda não consiga abrir).
+bool _abrirFarmaciaDoAviso(String? type, String id, String? restaurantId, [int tentativa = 0]) {
+  if (type == null || !_kTiposFarmacia.contains(type)) return false;
+  final nav = NotificationService.navigatorKey.currentState;
+  if (nav == null) {
+    if (tentativa < 5) {
+      Future<void>.delayed(const Duration(seconds: 2),
+          () => _abrirFarmaciaDoAviso(type, id, restaurantId, tentativa + 1));
+    }
+    return true;
+  }
+  final parceiro = type == 'prescricao_nova' || type == 'prescricao_lembrete' || type == 'prescricao_confirmada';
+  if (id.isNotEmpty) {
+    nav.push(MaterialPageRoute<void>(
+      builder: (_) => parceiro
+          ? ParceiroPrescricaoDetalheScreen(prescricaoId: id)
+          : PrescricaoEstadoScreen(prescricaoId: id),
+    ));
+  } else if (restaurantId != null && restaurantId.isNotEmpty) {
+    NotificationService.abrirLoja?.call(restaurantId);
+  }
+  return true;
+}
+
 void _onLocalNotifTap(NotificationResponse response) {
   // ignore: avoid_print
   print('[NOTIF TAP] FG actionId=${response.actionId} payload=${response.payload} type=${response.notificationResponseType}');
@@ -676,6 +713,11 @@ void _onLocalNotifTap(NotificationResponse response) {
     final payload = response.payload;
     if (payload == null || payload.isEmpty) return;
     final data = jsonDecode(payload) as Map<String, dynamic>;
+    // [11/11/2026 farmácias] receita: abre o pedido (cliente) ou o detalhe (farmácia).
+    if (_abrirFarmaciaDoAviso(data['type']?.toString(), data['orderId']?.toString() ?? '',
+        data['restaurantId']?.toString())) {
+      return;
+    }
     // [Oferta sobreposta 20/09 · Bloco 3] Botões Aceitar/Recusar da oferta
     // TVDE (imediata ou de reserva): a decisão é tratada ao nível da app.
     const accoesTvde = {
@@ -1441,6 +1483,9 @@ Future<void> postWakeActivityNotification({
 // até o utilizador tocar, igual ao padrão já correto do delivery/TVDE-oferta.
 
 const Set<String> _kPersistentCategoryTypes = <String>{
+  // [11/11/2026 farmácias] Receita nova / sem resposta (parceiro, toca até abrir);
+  // confirmação (parceiro) e respostas/lembrete mensal (cliente).
+  ..._kTiposFarmacia,
   'tvde_ride_status',
   // [Sobreposição 14/09] O admin meteu uma corrida na fila do motorista, deu-lhe
   // uma directamente, ou tirou-lhe a que tinha (notify-tvde-driver v16, kinds
@@ -1597,6 +1642,11 @@ Future<void> _entregarAccaoTvdeAFrio(String rideId, String accao) async {
 /// ou Android com o aviso do próprio FCM): abre o trabalho dessa categoria.
 void _abrirTrabalhoDoPush(RemoteMessage msg) {
   final type = msg.data['type']?.toString();
+  // [11/11/2026 farmácias] receita (o lembrete mensal traz a loja em restaurantId/kind).
+  if (_abrirFarmaciaDoAviso(type, msg.data['orderId']?.toString() ?? '',
+      msg.data['restaurantId']?.toString() ?? msg.data['kind']?.toString())) {
+    return;
+  }
   // [08/11/2026 · m6] "Restaurante do dia" (push-clientes-alvo com
   // restaurant_id): o toque abre a loja sugerida.
   if (type == kTipoRestauranteDoDia) {
@@ -1880,6 +1930,30 @@ Future<void> _showPersistentCategoryNotification(RemoteMessage message) async {
   final data = message.data;
   final type = data['type']?.toString() ?? '';
   final notif = message.notification;
+  // [11/11/2026 farmácias] Receita nova / sem resposta: toca em ciclo (alarme) até abrir.
+  if (type == 'prescricao_nova' || type == 'prescricao_lembrete') {
+    final id = data['orderId']?.toString() ?? '';
+    await IncomingJobAlert.show(
+      id: id.isEmpty ? type : id,
+      type: type,
+      title: data['title']?.toString() ?? notif?.title ?? 'Nova receita para aviar',
+      body: data['body']?.toString() ?? notif?.body ?? 'Toque para responder: tem ou não tem.',
+      extraPayload: {'orderId': id},
+      timeoutMs: 10 * 60 * 1000,
+    );
+    return;
+  }
+  if (_kTiposFarmacia.contains(type)) {
+    final id = data['orderId']?.toString() ?? '';
+    await _showPersistentStatusNotification(
+      type: type,
+      title: data['title']?.toString() ?? notif?.title ?? 'Farmácia',
+      body: data['body']?.toString() ?? notif?.body ?? '',
+      notificationId: (id.isEmpty ? type : id).hashCode,
+      payload: {'type': type, 'orderId': id, 'restaurantId': data['kind']?.toString() ?? ''},
+    );
+    return;
+  }
   switch (type) {
     case 'tvde_ride_status':
       final rideId = data['rideId']?.toString() ?? '';

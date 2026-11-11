@@ -10,11 +10,11 @@ estado: atual
 
 # Grupo de 2 farmácias da Guarda (contacto Rita Grilo) que quer entrar no Bora — condições que o Danilo mandou oferecer e ideia da receita com assinatura
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-farmacias-guarda`, origem `claude-ai`, atualizada em 2026-11-11T16:13:02.878767+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-farmacias-guarda`, origem `claude-ai`, atualizada em 2026-11-11T18:13:46.160552+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas farmacias guarda · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/farmacias-guarda.md), copiada a 11/11/2026 16:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/farmacias-guarda.md), copiada a 2026-11-11 18:12 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: farmacias-guarda
@@ -37,4 +37,4 @@ aliases: [Rita Grilo, grupo de farmácias, farmácias parceiras]
 - [stated] 11/11 15:10: mandou montar as lojas da Farmácia da Sé e da Farmácia Teixeira com TODOS os produtos da Glovo e, por agora, os preços da Glovo (ainda não há preço de balcão); botões de Favor/receita dentro da loja; fluxo da receita: o cliente envia, o PARCEIRO tem de aceitar primeiro (vê se tem o remédio) ou carregar em "não tenho", e só depois aparece ao cliente; usar os agentes de perfeição/design ([[refinador]])
 - PROMPT REGISTADO 11/11 15:15: missão farmacias-2026-11-11 (MOTOR Opus 5.5, sessão NOVA do Claude Code no PC, pasta bora_app, Ignorar permissões), entregue no chat para ele colar; fluxo e2e_log 'farmacias-2026-11-11'. Scope: bloco 1 duas lojas escondidas com catálogo Glovo; bloco 2 preço igual à Boom + comissão extra de 10% só após 3 meses; bloco 3 botões na loja; bloco 4 fluxo da receita (cliente, parceiro aceita/recusa, estafeta, admin) atrás de interruptor; bloco 5 Juiz + Refinador e publicar nas 3. Estado: à espera de ele colar
 - [stated] 11/11 15:18: os 10% cobram-se também nos remédios com receita, só depois dos 3 meses ("temos que ganhar algum dinheiro também"); mandou publicar já e deixar as duas lojas e todo o fluxo ligados SÓ na conta de cliente dele (vai mostrar no telemóvel à farmácia na sexta), invisível para toda a gente; quer o melhor possível para impressionar, quer ganhar estes dois clientes. ADENDO 1 da missão farmacias-2026-11-11 entregue no chat às 15:20
-
+- 11/11 17:34: servidor das farmácias provado no ar (2 lojas escondidas só para as 2 contas dele, 867 produtos na Sé e 511 na Teixeira, 3 tarefas automáticas, bucket privado, função de limpeza). Juntei o pedido 11 (commit 8f3c9f2): web publicada às 17:37 com o botão "Tenho receita"; Android e iPhone ficaram na fila atrás de outra publicação. Guião da demonstração no repo (.claude/.ai/missoes/farmacias-2026-11-11/GUIAO-DEMONSTRACAO.md); logins de demonstração no PC (Desktop\Bora\farmacias-logins-demonstracao.txt). Por aplicar: migração 05 (desconto dos 10% no fecho semanal), só precisa quando as lojas abrirem e tem de ser refeita sobre o fecho atual (mudou com o pagar-na-loja)

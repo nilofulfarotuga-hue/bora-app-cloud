@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-11T17:37:03.623222+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-11T18:37:03.585237+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-11 17:30 UTC. Páginas listadas: 613.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-11 18:34 UTC. Páginas listadas: 616.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-11-11).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-31).
-3. Estado vivo: `digest-2026-11-11-amigo-casa` (2026-11-11).
+3. Estado vivo: `digest-2026-11-11-farmacias` (2026-11-11).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -51,8 +51,10 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-11-11)
 
-## digest (229)
+## digest (231)
 
+- digest-2026-11-11-farmacias — Digest 11/11 — farmácias da Sé e Teixeira (receita, lojas escondidas) (2026-11-11)
+- digest-2026-11-11-editar-perfil — Digest 11/11 — Editar perfil do cliente (2026-11-11)
 - digest-2026-11-11-amigo-casa — Digest 11/11 — Amigo com a Casa e Manutenção (por publicar) (2026-11-11)
 - digest-2026-11-11-propaganda-casa-amigo — Digest 11/11 - propaganda Casa e Amigo (blocos 0 e 1) (2026-11-11)
 - digest-2026-11-11-fechar-tudo — Digest 11/11 — fechar-tudo (lote 2, Amigo, R7, sites, LRE, publicação 726/727) (2026-11-11)
@@ -367,7 +369,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-limite-pagamento-dinheiro — Limite de €40 em pagamento a dinheiro no [[bora-app]] — onde vive mesmo (4 sítios hardcoded) e prompt entregue para o tornar configurável p… (2026-11-02)
 - livro-areas-limpeza-vertical — Bora App Limpeza (cleaning) vertical — Helpling-style booking and dispatch (2026-11-02)
 - livro-areas-livro-comum — "Livro comum" — o Danilo quer que Claude.ai, Hermes/Emerson, Claude Code e ChatGPT saibam todos o mesmo (tudo sobre ele e o Bora); ler ante… (2026-10-23)
-- livro-areas-lojas-takeaway-guarda — Restaurantes da Guarda (sushi, pizzarias, churrasqueira) não-parceiros de takeaway por telefone no Bora — escolhidos e excluídos (04/10); D… (2026-11-07)
+- livro-areas-lojas-takeaway-guarda — Restaurantes da Guarda (sushi, pizzarias, churrasqueira) não-parceiros de takeaway por telefone no Bora — escolhidos e excluídos (04/10); D… (2026-11-11)
 - livro-areas-luan-pladur — Luan Almeida (pladur/obras, Guarda) — prospect que chegou pelo WhatsApp a 04/10; Danilo ofereceu site grátis e pensar numa área de obras no… (2026-10-23)
 - livro-areas-marca-ja-esta — Nome novo da marca da app do Danilo ("Já Está", substitui "Bora") — ler antes de falar de nome, marca, logótipo, domínio ou registo no INPI (2026-10-23)
 - livro-areas-marketing-parceiros — Propaganda do Bora com parceiros — recrutamento de parceiros e regra dos cartazes com QR para as lojas (Mister Navalha, Sabores de Casa) (2026-10-29)
@@ -505,7 +507,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (175)
+## outras (176)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -555,6 +557,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - engenharia-reversa-achados-2026-10-17 — Engenharia reversa — achados da pesquisa mundial de 17/10/2026 (REA, filme, navegador) (2026-10-17)
 - entrega-amigo-casa-2026-11-11 — Entrega para a Claude.ai: publicar o Amigo com a Casa e Manutenção (11/11) (2026-11-11)
 - entrega-amigo-casa-2026-11-11-patch — Remendo do client-assistant (Amigo + Casa e Manutenção) 11/11 — git apply sobre origin/autonomous-night-2026-04-29 b8af9bc9 (2026-11-11)
+- entrega-editar-perfil-2026-11-11 — Entrega: Editar perfil do cliente — migrações por aplicar e ordem de publicação (2026-11-11)
 - erro-2026-11-02-whatsapp-conversa-eu — Erro 02/11: artes mandadas para a conversa "Eu" do WhatsApp pessoal (2026-11-02)
 - estado-2026-09-13 — Estado do Bora a 13/09/2026 (auditoria da Claude.ai depois de 3-4 dias sem Claude) (2026-09-13)
 - fecho-2026-10-17-cancelamento-tardio — Fecho 17/10 — cancelamento tardio TVDE: publicado nas 3 plataformas (estado final do prompt prompt-cancelamento-tardio-2026-10-17) (2026-10-17)

@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-lojas-takeaway-guarda
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-07
+ultima_confirmacao: 2026-11-11
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Restaurantes da Guarda (sushi, pizzarias, churrasqueira) não-parceiros de takeaway por telefone no Bora — escolhidos e excluídos (04/10); DaVinci retirada a 05/11 por queixa do dono
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-lojas-takeaway-guarda`, origem `claude-ai`, atualizada em 2026-11-07T22:12:57.602033+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-lojas-takeaway-guarda`, origem `claude-ai`, atualizada em 2026-11-11T18:13:46.160552+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas lojas takeaway guarda · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/lojas-takeaway-guarda.md), copiada a 07/11/2026 22:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/lojas-takeaway-guarda.md), copiada a 2026-11-11 18:12 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: lojas-takeaway-guarda
@@ -32,4 +32,4 @@ FINAL WRITE
 - [stated] 25/10/2026: lojas de encomenda por telefone (Fuku etc.) — quer um botão "Chamar estafeta já" no painel para quando a loja diz que fica pronto antes dos 15 min de espera; prompt posto na fila da sessão "bora-app" do Claude Code (PC), run_id botao-chamar-estafeta-ja-2026-10-25. Estado: na fila
 - [stated] 05/11/2026: o dono da DaVinci reclamou por WhatsApp (loja na Bora sem contrato nem autorização) e ameaçou medidas legais; o Danilo mandou tirar a DaVinci da app — fica fora, não voltar a pôr
 - [stated] 07/11/2026: Jyosmi Sushi — quer abordar o dono e oferecer-lhe o que o Bora faz (site, WhatsApp, pedidos) para ele deixar de pagar mensalidade à empresa que hoje lhe trata do site e do WhatsApp; mandou descobrir quem é essa empresa e quanto cobra por mês, para falar disso na conversa com ele (ver [[missao-domingo-noite]] para a pendência do catálogo)
-
+- [stated] 11/11/2026 (pedido do Fuku para Vale de Estrela): num pedido agendado, a hora marcada é a hora a que o cliente quer a comida EM CASA — autorizou o sistema contar a viagem loja→cliente (e, nas lojas por telefone, o tempo de preparação) e chamar o estafeta só depois do "Encomendado à loja"

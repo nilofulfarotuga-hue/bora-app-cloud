@@ -457,8 +457,9 @@ pode fazer:
 - [x] Textos de `ios/APP_STORE_COPY.md` escritos pela API e relidos.
 - [ ] Carregar os screenshots do §2.
 - [ ] Preencher o questionário de privacidade (§5).
-- [ ] Confirmar "trader status" se a Apple pedir (empresário em nome
-      individual, NIF 322151171).
+- [ ] Confirmar "trader status" se a Apple pedir (sociedade Danilo Fulfaro
+      da Silva - Unipessoal Lda, NIPC 519686233 — decisão do Danilo de
+      11/11/2026: a app fica no nome da sociedade).
 - [ ] Autorizar o job de release do workflow (`workflow_dispatch` com
       `enviar=true`) depois de os segredos do §8 estarem no repo.
 

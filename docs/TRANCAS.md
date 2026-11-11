@@ -557,3 +557,10 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   `20261111100000_checkin_r7_descontos`); o remendo de 3 linhas da app (mandar o `checkin_vale_id` no create_order e ligar
   `CartStore.descontoCheckinNoPedido`) está em `docs/propostas/fechar-tudo-2026-11-11/R7_order_store_patch.md` para a
   Claude.ai. Os 6 degraus de desconto continuam desligados até lá.
+
+- **11/11/2026 ~10:08, missão `fechar-tudo-2026-11-11` (adendo 3, "O da terceira voce pode abrir a trava.")** — com a janela das
+  travas aberta (DESLIGAR-M11 desde 10/11 18:50), o Edit de `lib/stores/order_store.dart` voltou a ser negado ("zona vermelha:
+  order_store.dart (finalizePurchase)"). Este "nega" vem de `.claude/plugins/bora-mods/zonas-vermelhas.json`, que o DESLIGAR-M11 não
+  abre; não se voltou a correr o DESLIGAR-M11 (com a janela já aberta ele regravaria o bak-20261109-m11 com o estado aberto e falharia).
+  Não contornado. Destrava: a Claude.ai aplica `docs/propostas/fechar-tudo-2026-11-11/R7_order_store_patch.md` pelo GitHub, ou uma
+  sessão `claude --safe-mode` aberta pelo Danilo.

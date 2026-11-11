@@ -156,8 +156,11 @@ funciona, mas é ruído desnecessário numa revisão.
 | Marketing URL | `https://boraguarda.com` |
 
 Verificado no ar a 2026-09-07: HTTP 200, sem marcadores por preencher, com o
-responsável identificado (Danilo Fulfaro da Silva, empresário em nome
-individual, NIF 322151171) e com a secção 6 sobre eliminar a conta.
+responsável identificado e com a secção 6 sobre eliminar a conta. Desde
+11/11/2026 o responsável é a sociedade Danilo Fulfaro da Silva - Unipessoal
+Lda, NIPC 519686233, Rua do Torreão 14, 6300-610 Guarda (decisão do Danilo:
+a app fica no nome da sociedade; Termos e Privacidade de boraguarda.com já a
+indicam desde 11/11).
 
 ## Vídeo demonstrativo — onde vive e o que mostra
 

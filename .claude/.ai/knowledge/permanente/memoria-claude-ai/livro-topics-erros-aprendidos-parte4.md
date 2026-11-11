@@ -10,11 +10,11 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 4 de 5 — continua em livro-topics-erros-aprendidos-parte5)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte4`, origem `claude-ai`, atualizada em 2026-11-11T08:14:13.520398+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte4`, origem `claude-ai`, atualizada em 2026-11-11T10:13:26.967811+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte4 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 4 de 5), copiada a 11/11/2026 08:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 4 de 5), copiada a 11/11/2026 10:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - [stated] 28/10 10:33 (na hora da demonstração da Boom): disse-lhe que as senhas das contas de demonstração estavam no Telegram e não lhas dei; ele não as tinha à mão e reclamou "você tem que me dar a senha" → regra: quando ele pede o login de uma conta de teste/demonstração, dou-lho logo aqui na conversa (e se eu não tiver a senha, reponho uma nova pelo servidor, testo e dou-a); nunca o mandar procurar no Telegram
 - [stated] 28/10 12:34: na mensagem ao Emanuel (Boom! Burger) escrevi que ele fatura o preço de balcão "tal como já faz com a Glovo"; ele corrigiu: na Glovo o Emanuel fatura o preço que aparece ao cliente na app, porque a Glovo lhe cobra 30%; na Bora fatura só o preço de balcão, porque a Bora não lhe cobra comissão → regra: nunca dizer ao parceiro que a fatura na Bora é igual à da Glovo/Uber; se comparar, é para mostrar essa diferença. Também tirou da mensagem a entrega grátis (ele próprio conversa com o Emanuel: tinha-lhe dito acima de 20 €, agora é 30 €) e mandou tirar o "Equipa Bora": o Emanuel já sabe que ele é o dono e a mensagem vai do número pessoal dele, na voz dele, natural

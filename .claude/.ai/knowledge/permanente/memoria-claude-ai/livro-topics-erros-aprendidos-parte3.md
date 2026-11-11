@@ -10,11 +10,11 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 3 de 5 — continua em livro-topics-erros-aprendidos-parte4)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte3`, origem `claude-ai`, atualizada em 2026-11-11T08:14:13.520398+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte3`, origem `claude-ai`, atualizada em 2026-11-11T10:13:26.967811+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte3 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 3 de 5), copiada a 11/11/2026 08:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 3 de 5), copiada a 11/11/2026 10:14 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - [stated] 21/10: na mensagem ao contabilista sobre os códigos de atividade e a resposta do IMT escrevi como se o Danilo soubesse de leis (artigos, acórdãos) → regra: mensagem a contabilista/advogado/entidade com pesquisa jurídica tem de dizer que ele fez a pesquisa com ajuda de IA e não percebe de leis; tom humilde de quem pede opinião, nunca de quem ensina. REFORÇO 21/10: falar da IA UMA vez só ("fiz uma pesquisa com IA") e a mensagem curta, sem artigos nem acórdãos — ele achou longa e com IA demais
 - [stated] 22/10: na resposta ao Hugo (contabilista, grupo da Segurança Social) pus passaporte, oferta do número da Segurança Social e um lembrete da pergunta dos códigos/IMT → regra: ele queria só "Obrigado, Hugo. Vou enviar o cartão de residência." Resposta a pedido simples = uma linha, só o que ele vai mandar; não acrescentar documentos, ofertas nem lembrar perguntas antigas

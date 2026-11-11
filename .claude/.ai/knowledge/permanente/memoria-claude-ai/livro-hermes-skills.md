@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-hermes-skills
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-09
+ultima_confirmacao: 2026-11-10
 zona: verde
 confianca: alta
 estado: atual
@@ -10,13 +10,13 @@ estado: atual
 
 # Skills do Hermes (as que criou + lista das de fábrica), cópia noturna
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-hermes-skills`, origem `hermes`, atualizada em 2026-11-09T23:40:06.899847+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-hermes-skills`, origem `hermes`, atualizada em 2026-11-10T23:40:08.486276+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro hermes skills · memoria claude.ai · claude_ai_memoria
 
-# Skills do Hermes (cópia de 2026-11-09)
+# Skills do Hermes (cópia de 2026-11-10)
 
-Skills que o Hermes criou sozinho: 16. Vindas de fábrica ou instaladas: 81. Fonte única das skills partilhadas: .claude/skills/ do repo bora-app-cloud (espelho na VPS em /opt/data/cortex-brain/.claude/skills). Skill nova do Hermes entra lá como hermes-<nome>, revista pelo critico.
+Skills que o Hermes criou sozinho: 16. Vindas de fábrica ou instaladas: 96. Fonte única das skills partilhadas: .claude/skills/ do repo bora-app-cloud (espelho na VPS em /opt/data/cortex-brain/.claude/skills). Skill nova do Hermes entra lá como hermes-<nome>, revista pelo critico.
 
 ## Criadas pelo Hermes
 
@@ -452,13 +452,13 @@ description: Quando o Danilo pedir (por voz) para publicar todo dia/de 2 em 2 ho
 ## Caminho que funciona / o que verificar antes
 1. Mensagem de voz ambigua ou cortada: perguntar UMA vez o que e a marca/onde postar (foi o certo).
 2. Postar em grupos precisa de sessao de Facebook num browser. O token Meta que o Hermes tem e da PAGINA do Bora: nao serve para grupos nem para o Em Dia.
-3. Os comandos `pc` e `browse` passam pelo PC do Danilo via Tailscale. Se der "Dial 100.71.105.7 ... 502/timeout", o IP configurado e do portatil antigo: verificar o IP certo do PC atual (`danilo`, 100.75.79.116) antes de dizer que o PC esta desligado.
+3. Os comandos `pc` e `browse` passam pelo PC do Danilo via Tailscale. Se der "Dial 100.75.79.116 ... 502/timeout", o IP configurado e do portatil antigo: verificar o IP certo do PC atual (`danilo`, 100.75.79.116) antes de dizer que o PC esta desligado.
 4. Sem sessao de Facebook na VPS, a rota fiavel e: Claude.ai publica pelo Chrome pessoal (deviceId 5b260cdd), ou o Hermes com um Chrome da VPS onde o Danilo ja fez login uma vez.
 5. Conta nova de Facebook: precisa de email do Em Dia (so existem caixas @boraguarda.com = Bora) e SMS/verificacao; contas novas de servidor tendem a ser bloqueadas. Dizer isto numa linha e dar as 2 opcoes: "usa o meu perfil" ou "cria nova".
 
 ## Navegador na VPS (provado 09/11)
 - Setup que funciona: `cd /opt/data/emdia-fb && uv venv .venv && uv pip install --python .venv/bin/python playwright`, depois `p.chromium.launch(executable_path="/usr/bin/chromium", headless=True, args=["--no-sandbox"])`. Abre facebook.com/r.php sem problema (locale pt-PT: campos Nome proprio/Apelido, Dia/Mes/Ano, Genero, email/telemovel, palavra-passe, "Enviar").
-- Receita que PASSOU o formulario de registo (09/11, chega a `confirmemail.php` = conta criada, espera codigo SMS): launch com `--disable-blink-features=AutomationControlled` + user_agent de Chrome Windows; PRIMEIRO aceitar o aviso de cookies (`get_by_text("Permitir todos os cookies"|"Recusar cookies opcionais")` com `evaluate("e=>e.click()")`), porque o banner de cookies e a "camada invisivel" que intercepta cliques. Campos: Nome/Apelido = 2 `input[type=text]`; Dia/Mes/Ano/Genero sao `div` com aria-label "Selecionar dia|mes|ano" (abrir com `get_by_label(...).click(force=True)`), opcoes `[role=option]` clicadas por `evaluate("e=>e.click()")`; o MES e por nome ("maio"), nao numero; genero Mulher/Homem/Personalizado (nao escolher `.last`); telemovel com prefixo `+
+- Receita que PASSOU o formulario de registo (09/11, chega a `confirmemail.php` = conta criada, espera codigo SMS): launch com `--disable-blink-features=AutomationControlled` + user_agent de Chrome Windows; PRIMEIRO aceitar o aviso de cookies (`get_by_text("Permitir todos os cookies"|"Recusar cookies opcionais")` com `evaluate("e=>e.click()")`), porque o banner de cookies e a "camada invisivel" que intercepta cliques. Campos: Nome/Apelido = 2 `input[type=text]`; Dia/Mes/Ano/Genero sao `div` com aria-label "Selecionar dia|mes|ano" (abrir com `get_by_label(...).click(force=True)`), opcoes `[role=option]` clicadas por `evaluate("e=>e.click()")`; o MES e por nome ("maio"), nao numero; genero Mulher/Homem/Personalizado (nao escolher `.last`); telemovel com prefixo `
 [... cortado]
 
 ### hermes-stt-config (hermes-agent/hermes-stt-config)
@@ -668,13 +668,13 @@ For the `pc` bridge (Tailscale SSH to the user's PC), confirm reachability in tw
 
 ```bash
 # Layer 1 — node present & recently seen in Tailscale
-tailscale status | grep -E 'laptop-2q09vqa1|100.71.105.7'
+tailscale status | grep -E 'danilo|100.75.79.116'
 # Expected: a node line; watch for "offline, last seen Xm ago" or no row at all.
 
 # Layer 2 — actual SSH round-trip (the only one that matters)
 timeout 25 ssh -o ProxyCommand='tailscale nc %h %p' \
   -o StrictHostKeyChecking=accept-new -o ConnectTimeout=25 \
-  hermes@100.71.105.7 'echo BRIDGE_OK'
+  danil@100.75.79.116 'echo BRIDGE_OK'
 # Green iff it prints BRIDGE_OK within ~25s and exits 0.
 ```
 
@@ -688,7 +688,7 @@ Interpretation:
 ## Attempt Repair (bounded; host-side only)
 
 The bridge repair script lives on the **host** (e.g. `/root/bora-bridge-up.sh`) and
-must be executed from the **host** or from the 
+must be executed from the **host** or from the **remote
 [... cortado]
 
 ### web-content-extraction (research/web-content-extraction)
@@ -908,6 +908,7 @@ stt:
 - macos-computer-use (apple/macos-computer-use) — |
 - claude-code (autonomous-ai-agents/claude-code) — Delegate coding to Claude Code CLI (features, PRs).
 - codex (autonomous-ai-agents/codex) — Delegate coding to OpenAI Codex CLI (features, PRs).
+- computer-use (autonomous-ai-agents/computer-use) — Drive the desktop background-first; escalate on signal.
 - hermes-agent (autonomous-ai-agents/hermes-agent) — Configure, extend, or contribute to Hermes Agent.
 - opencode (autonomous-ai-agents/opencode) — Delegate coding to OpenCode CLI (features, PR review).
 - architecture-diagram (creative/architecture-diagram) — Dark-themed SVG architecture/cloud/infra diagrams as HTML.
@@ -927,7 +928,9 @@ stt:
 - songwriting-and-ai-music (creative/songwriting-and-ai-music) — Songwriting craft and Suno AI music prompts.
 - touchdesigner-mcp (creative/touchdesigner-mcp) — Control a running TouchDesigner instance via twozero MCP — create operators, set parameters, wire connections, execute Python, build real-time visuals. 36 native tools.
 - jupyter-live-kernel (data-science/jupyter-live-kernel) — Iterative Python via live Jupyter kernel (hamelnb).
+- sdlc-review (devops/sdlc-review) — Review Kanban handoffs and route verified outcomes.
 - dogfood (dogfood) — Exploratory QA of web apps: find bugs, evidence, reports.
+- email-inbox-triage (email/email-inbox-triage) — Triage an inbox: prioritize threads, draft replies safely.
 - himalaya (email/himalaya) — Himalaya CLI: IMAP/SMTP email from terminal.
 - codebase-inspection (github/codebase-inspection) — Inspect codebases w/ pygount: LOC, languages, ratios.
 - github-auth (github/github-auth) — GitHub auth setup: HTTPS tokens, SSH keys, gh CLI login.
@@ -958,28 +961,40 @@ stt:
 - segment-anything-model (mlops/models/segment-anything) — SAM: zero-shot image segmentation via points, boxes, masks.
 - obsidian (note-taking/obsidian) — Read, search, create, and edit notes in the Obsidian vault.
 - airtable (productivity/airtable) — Airtable REST API via curl. Records CRUD, filters, upserts.
+- document-to-action-items (productivity/document-to-action-items) — Extract cited obligations, deadlines, tasks from documents.
 - google-workspace (productivity/google-workspace) — Gmail, Calendar, Drive, Docs, Sheets via gws CLI or Python.
 - maps (productivity/maps) — Geocode, POIs, routes, timezones via OpenStreetMap/OSRM.
+- meeting-action-items (productivity/meeting-action-items) — Turn meeting notes into cited decisions, owners, tickets.
+- microsoft-office (productivity/microsoft-office) — Create, read, and edit Word, PowerPoint, and Excel files.
 - nano-pdf (productivity/nano-pdf) — Edit PDF text/typos/titles via nano-pdf CLI (NL prompts).
 - notion (productivity/notion) — Notion API + ntn CLI: pages, databases, markdown, Workers.
 - ocr-and-documents (productivity/ocr-and-documents) — Extract text from PDFs/scans (pymupdf, marker-pdf).
+- pdf (productivity/pdf) — PDF files: create, read, merge, fill, OCR, edit text.
 - powerpoint (productivity/powerpoint) — Create, read, edit .pptx decks, slides, notes, templates.
-- teams-meeting-pipeline (productivity/teams-meeting-pipeline) — Operate the Teams meeting summary pipeline via Hermes CLI — summarize meetings, inspect pipeline status, replay jobs, manage Microsoft Graph subscriptions.
+- product-price-monitor (productivity/product-price-monitor) — Watch product, flight, or listing prices; alert on target.
+- teams-meeting-pipeline (productivity/teams-meeting-pipeline) — Teams meeting summaries, job replay, Graph subscriptions.
+- weekly-review-planning (productivity/weekly-review-planning) — Weekly reset: commitments, stalled work, next-week plan.
 - arxiv (research/arxiv) — Search arXiv papers by keyword, author, category, or ID.
 - blogwatcher (research/blogwatcher) — Monitor blogs and RSS/Atom feeds via blogwatcher-cli tool.
+- competitor-news-monitor (research/competitor-news-monitor) — Watch named companies for material news; cited digests.
+- grounded-citations (research/grounded-citations) — Ground answers and documents in cited, verifiable sources.
 - llm-wiki (research/llm-wiki) — Karpathy's LLM Wiki: build/query interlinked markdown KB.
 - polymarket (research/polymarket) — Query Polymarket: markets, prices, orderbooks, history.
 - research-paper-writing (research/research-paper-writing) — Write ML papers for NeurIPS/ICML/ICLR: design→submit.
 - openhue (smart-home/openhue) — Control Philips Hue lights, scenes, rooms via OpenHue CLI.
-- xurl (social-media/xurl) — X/Twitter via xurl CLI: post, search, DM, media, v2 API.
+- xurl (social-media/xurl) — X/Twitter via xurl CLI: raw post search, posting, DM, media.
+- codebase-inspection (software-development/codebase-inspection) — Inspect codebases w/ pygount: LOC, languages, ratios.
+- dogfood (software-development/dogfood) — Exploratory QA of web apps: find bugs, evidence, reports.
+- github (software-development/github) — GitHub via gh CLI: PRs, issues, reviews, repos, auth.
 - hermes-agent-skill-authoring (software-development/hermes-agent-skill-authoring) — Author in-repo SKILL.md: frontmatter, validator, structure, and writing-quality principles.
 - node-inspect-debugger (software-development/node-inspect-debugger) — Debug Node.js via --inspect + Chrome DevTools Protocol CLI.
 - plan (software-development/plan) — Plan mode: write an actionable markdown plan to .hermes/plans/, no execution. Bite-sized tasks, exact paths, complete code.
 - python-debugpy (software-development/python-debugpy) — Debug Python: pdb REPL + debugpy remote (DAP).
 - requesting-code-review (software-development/requesting-code-review) — Pre-commit review: security scan, quality gates, auto-fix.
-- simplify-code (software-development/simplify-code) — Parallel 3-agent cleanup of recent code changes.
+- simplify-code (software-development/simplify-code) — Parallel 4-agent cleanup of recent code changes.
 - spike (software-development/spike) — Throwaway experiments to validate an idea before build.
 - systematic-debugging (software-development/systematic-debugging) — 4-phase root cause debugging: understand bugs before fixing.
 - test-driven-development (software-development/test-driven-development) — TDD: enforce RED-GREEN-REFACTOR, tests before code.
+- blocked-page-recovery (web/blocked-page-recovery) — Use when a fetch fails: 403/429, paywall, WAF, bot wall.
 - yuanbao (yuanbao) — Yuanbao (元宝) groups: @mention users, query info/members.
 

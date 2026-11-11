@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-11T10:37:04.101493+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-11T12:07:03.198667+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-11 10:13 UTC. Páginas listadas: 599.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-11 12:06 UTC. Páginas listadas: 602.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-11-11).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-31).
-3. Estado vivo: `digest-2026-11-10-pagar-na-loja` (2026-11-10).
+3. Estado vivo: `digest-2026-11-11-fechar-tudo` (2026-11-11).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -51,8 +51,9 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-11-11)
 
-## digest (225)
+## digest (226)
 
+- digest-2026-11-11-fechar-tudo — Digest 11/11 — fechar-tudo (lote 2, Amigo, R7, sites, LRE, publicação 726/727) (2026-11-11)
 - digest-2026-11-10-pagar-na-loja — Digest 10/11/2026 — missão pagar-na-loja (estafeta paga a loja parceira na recolha) (2026-11-10)
 - digest-2026-11-10-fecho-contabilista — Digest 10/11/2026 — fecho ao contabilista com as regras do Hugo (Claude Code) (2026-11-10)
 - digest-2026-11-09-entrega-filme-dipsy — Digest 09/11 — entrega da missão do filme ao Dipsy (2026-11-09)
@@ -436,7 +437,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - relatorio-semanal-reels-2026-11-02 — Relatório semanal dos reels - 2026-11-02 (2026-11-02)
 - relatorio-semanal-reels-2026-11-09 — Relatório semanal dos reels - 2026-11-09 (2026-11-09)
 
-## prompt (41)
+## prompt (43)
 
 - prompt-auditoria-3-plataformas-2026-10-06 — Prompt de missão: auditoria das 3 plataformas (06/10) (2026-10-06)
 - prompt-boom-burger-2026-10-27 — PROMPT Boom! Burger — loja parceira + site premium (27/10/2026) (2026-10-27)
@@ -466,6 +467,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - prompt-missao-geral-2026-10-28-parte2 — PROMPT missão geral 28/10, parte 2/2 (blocos 1 a F, resumo) (2026-10-28)
 - prompt-motor-claude-2026-10-31 — Prompt Motor Claude 31/10: robôs usam primeiro o crédito da API do Claude (plano Ultra) e depois a rotação grátis (2026-10-31)
 - prompt-peso-variavel-2026-10-26 — PROMPT missão peso variável (26/10/2026) — para o Claude Code do PC (2026-10-26)
+- prompt-propaganda-casa-amigo-2026-11-11 — Prompt: propaganda Casa e Manutenção + Amigo Bora, grupos e 2 anúncios Meta (11/11/2026) (2026-11-11)
 - prompt-publica-e-fecha-2026-10-29 — Prompt: publicar hoje + arrumação + Bloco 11 + reembolsos (29/10 18:20) (2026-10-29)
 - prompt-publica-e-fecha-2026-10-29-adendo-1 — Adendo 1 ao prompt publica-e-fecha (29/10 18:40): motores do robô em grátis com rotação (2026-10-29)
 - prompt-publica-e-fecha-2026-10-29-adendo-2 — Adendo 2 ao prompt publica-e-fecha (29/10 18:55): motores grátis do OpenCode em rotação + link /pedir/boom do site (2026-10-29)
@@ -473,6 +475,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - prompt-publica-e-fecha-2026-10-29-adendo-4 — Adendo 4 (29/10 19:10): robô WhatsApp da Boom AO VIVO para o teste do Danilo, resposta na hora, super inteligente (2026-10-29)
 - prompt-publica-e-fecha-2026-10-29-adendo-5 — Adendo 5 (29/10 19:18): revisão da conversa do dia — o que ainda faltava (2026-10-29)
 - prompt-publicar-retoma-2026-10-31 — Prompt PUBLICAR da retoma (31/10 20:00) — itens 2, 3 e 4 autorizados pelo Danilo 19:53 (2026-10-31)
+- prompt-refinador-v1-2026-11-11 — Prompt: instalar o Refinador Bora (agente de refinamento, chefe de 7 lentes + cético) — 11/11/2026 (2026-11-11)
 - prompt-retoma-geral-2026-10-31 — PROMPT ÚNICO 31/10/2026 — parar, limpar a RAM e retomar todas as missões (Casa, motor Claude, Dipsy, lembretes) (2026-10-31)
 - prompt-robo-suporte-inteligente-2026-11-05 — Missão robô do suporte super inteligente (05/11/2026) (2026-11-05)
 - prompt-stripe-empresa-2026-11-01 — Prompt — ligar o app à Stripe da empresa (01/11/2026) (2026-11-02)
@@ -659,7 +662,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - regra-gmail-links-embrulhados — REGRA para todos os agentes: emails com links NUNCA pelo conector Gmail (embrulha os links em google.com/url) (2026-11-01)
 - resposta-contabilista-iva-2026-10-28 — Resposta do Hugo (DC Consultores): IVA normal trimestral, programa de faturação, modelo aceite — 28/10/2026 (2026-10-28)
 - resposta-contabilista-iva-parte2-2026-10-28 — Hugo (15:54-15:55): faturas emitidas pelo escritório, não ficar no art. 53.º, IVA não mexe na margem — e as contas de outubro com IVA (2026-10-28)
-- respostas-claude-ai-filme — Respostas do Claude.ai às dúvidas do Dipsy no filme (Ep1) (2026-11-10)
+- respostas-claude-ai-filme — Respostas do Claude.ai às dúvidas do Dipsy no filme (Ep1) (2026-11-11)
 - robo-documentos-2026-10-29 — Robô fiscal de documentos — relatório (adendo 3, 29/10/2026) (2026-10-29)
 - seguranca-auditoria-2026-10-21 — Auditoria de seguranca do app (21/10, agente N4) (2026-10-21)
 - sistema-motores-e-portas — Quem faz o quê — uma porta só (atualizado 17/09/2026) (2026-09-17)

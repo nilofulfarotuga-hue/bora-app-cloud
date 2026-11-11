@@ -1878,6 +1878,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Cash payment only up to {0}. Choose Card or MBWay.',
   'A loja está em pausa e não está a aceitar pedidos agora. Tenta daqui a pouco.':
       'The store is paused and not taking orders right now. Try again shortly.',
+  'A loja está fechada agora. Tenta quando abrir.':
+      'The store is closed right now. Try again when it opens.',
   'Esta loja não aceita "Ir buscar". Escolhe entrega.':
       "This store doesn't offer pick-up. Choose delivery.",
   '\nJá não podes reagendar esta marcação.':

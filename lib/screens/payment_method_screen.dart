@@ -1226,6 +1226,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     if (err.contains('STORE_PAUSED')) {
       return 'A loja está em pausa e não está a aceitar pedidos agora. Tenta daqui a pouco.'.tr;
     }
+    // 11/11/2026: loja parceira fora do horário (a app trava antes do servidor).
+    if (err.contains('STORE_CLOSED')) {
+      return 'A loja está fechada agora. Tenta quando abrir.'.tr;
+    }
     if (err.contains('TAKEAWAY_NOT_ENABLED') ||
         err.contains('TAKEAWAY_REQUIRES_PARTNER')) {
       return 'Esta loja não aceita "Ir buscar". Escolhe entrega.'.tr;

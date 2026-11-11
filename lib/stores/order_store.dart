@@ -871,9 +871,14 @@ class OrderStore extends ChangeNotifier {
         )
         .toList();
 
+    // Uma razão antiga (de uma tentativa anterior) nunca fica no ecrã.
+    lastCreateOrderError = null;
     if (isPartnerStore && serviceType == OrderServiceType.restaurant) {
       final restaurant = _restaurantStore?.restaurantByName(vendorName);
       if (restaurant != null && !restaurant.isOpenNow()) {
+        // 11/11/2026 (Farmácia da Sé às 21:23): sem razão, o ecrã mostrava o
+        // genérico "Não foi possível criar o pedido". Diz-se que está fechada.
+        lastCreateOrderError = 'STORE_CLOSED';
         return false;
       }
     }

@@ -10,11 +10,11 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 4 de 4)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte4`, origem `claude-ai`, atualizada em 2026-11-11T15:16:38.86573+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte4`, origem `claude-ai`, atualizada em 2026-11-11T16:13:02.878767+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte4 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 4 de 4), copiada a 11/11/2026 15:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 4 de 4), copiada a 11/11/2026 16:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - [stated] 03/11 14:47: no mercado, a fazer a compra para o Vansh, pediu "o NIF da empresa" e eu dei o da Bora (519686233); era o da Guarda FC SAD (518256430) → regra: compra ou serviço para o Vansh/Guarda FC = NIF da SAD; ler sempre o contexto do pedido antes de escolher qual "empresa"
 - [stated] 03/11 20:14: pediu uma missão para o "DeepC/Deep Sea" e que passasse ao "Gypsy"; li Gypsy como o ChatGPT e lancei a missão no Claude Code, e ele mandou parar ("é o Gypsy que vai fazer tudo") → regra: Gypsy/Gipsy/DeepC/Deep Sea = o Dipsy (DeepSeek Harness), nunca o ChatGPT; missão para o Dipsy não vai ao Claude Code. Hoje a guarda do Dipsy não o deixa publicar nem sair dos sites do Bora: dizer isso antes de agir
@@ -40,4 +40,5 @@ estado: atual
 - [stated] 11/11 08:01: depois de ele já ter colado o prompt, mandei-lhe uma versão nova inteira → regra: prompt entregue não se refaz; o que mudar vai num ADENDO curto aqui no chat, para a mesma sessão
 - [stated] 11/11 10:05: disse-lhe que faltava o Livro de Reclamações e o Hermes 0.23 — já estavam feitos (registo submetido 11/11 09:00 com o NIPC; Hermes 0.23.1 no ar desde 10/11 19:15) → regra: antes de listar pendências, ler o e2e_log MAIS RECENTE de cada assunto, não o registo antigo que ficou "pendente"
 - [stated] 11/11 14:21: à farmácia (Rita Grilo) escrevi "não cobramos comissão" e "montamos a partir do catálogo da Glovo" → regra: parceiro novo = 3 primeiros meses sem taxa, depois 10% dos produtos (Glovo ~30%); nunca dizer que copiamos da Glovo; mensagem curta, natural e a puxar para fechar
+- [stated] 11/11 15:18: pus os remédios com receita sem comissão e a receita desligada até para ele → regra: os 10% cobram-se em tudo (receita incluída), só depois dos 3 meses; para apresentar, fica tudo ligado só na conta de cliente dele
 

@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-11T15:37:03.745633+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-11T16:37:03.219155+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-11 15:16 UTC. Páginas listadas: 607.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-11 16:36 UTC. Páginas listadas: 609.
 
 ## O que é o Bora
 
@@ -51,10 +51,11 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige) (2026-11-11)
 
-## digest (227)
+## digest (228)
 
 - digest-2026-11-11-propaganda-casa-amigo — Digest 11/11 - propaganda Casa e Amigo (blocos 0 e 1) (2026-11-11)
 - digest-2026-11-11-fechar-tudo — Digest 11/11 — fechar-tudo (lote 2, Amigo, R7, sites, LRE, publicação 726/727) (2026-11-11)
+- digest-2026-11-10-fechar-tudo — Digest fechar-tudo 10/11 (sessão do PC) (2026-11-11)
 - digest-2026-11-10-pagar-na-loja — Digest 10/11/2026 — missão pagar-na-loja (estafeta paga a loja parceira na recolha) (2026-11-10)
 - digest-2026-11-10-fecho-contabilista — Digest 10/11/2026 — fecho ao contabilista com as regras do Hugo (Claude Code) (2026-11-10)
 - digest-2026-11-09-entrega-filme-dipsy — Digest 09/11 — entrega da missão do filme ao Dipsy (2026-11-09)
@@ -503,7 +504,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (171)
+## outras (172)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -599,6 +600,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - paridade-rea-2026-10-26 — Paridade REA 26/10 — Glovo, Uber Eats, iFood e Bora vistos de fora (resumo) (2026-10-26)
 - paridade-rea-2026-10-26-plano — PLANO de melhorias do Bora (paridade REA 26/10) — à espera da revisão da Claude.ai (2026-10-26)
 - paridade-uber-ifood-2026-10-13 — Paridade Bora vs Uber/Uber Eats/iFood + REA (vídeos de 13/10) (2026-10-13)
+- pedido-claude-ai-farmacias-2026-11-11-servidor — Pedido do PC: publicar o servidor das farmácias (11/11) (2026-11-11)
 - pendencias-2026-11-01 — Pendências dos últimos 30 dias (lista numerada dada ao Danilo a 01/11 ~19:35) (2026-11-01)
 - perfil — Quem é o Danilo (2026-09-13)
 - plano-14-dias-2 — Plano de 14 dias, parte 2 (09/11 a 22/11/2026) (2026-11-08)

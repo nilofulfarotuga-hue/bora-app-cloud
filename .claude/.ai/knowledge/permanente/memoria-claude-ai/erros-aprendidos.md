@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-11T15:16:53.652218+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-11T16:35:59.757221+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -167,4 +167,6 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 11/11 10:05 (quem errou: claude-ai): disse-lhe que faltava o Livro de Reclamações e o Hermes 0.23 — já estavam feitos (registo submetido 11/11 09:00 com o NIPC; Hermes 0.23.1 no ar desde 10/11 19:15) → regra: antes de listar pendências, ler o e2e_log MAIS RECENTE de cada assunto, não o registo antigo que ficou "pendente"
 11/11 14:21 (quem errou: claude-ai): à farmácia (Rita Grilo) escrevi "não cobramos comissão" e "montamos a partir do catálogo da Glovo" → regra: parceiro novo = 3 primeiros meses sem taxa, depois 10% dos produtos (Glovo ~30%); nunca dizer que copiamos da Glovo; mensagem curta, natural e a puxar para fechar
 11/11 14:56 (quem errou: claude-ai): tratei os 10% como a única margem com a farmácia → regra: farmácia = esquema da Boom para o cliente (15% no produto + 5% de serviço) e, depois dos 3 meses grátis, a farmácia paga ainda 10% do que vender pela app
+11/11 15:18 (quem errou: claude-ai): pus os remédios com receita sem comissão e a receita desligada até para ele → regra: os 10% cobram-se em tudo (receita incluída), só depois dos 3 meses; para apresentar, fica tudo ligado só na conta de cliente dele
+- 11/11 (claude-code): 10/11 18:40: abri a janela das travas e lancei uma sessão para a usar; a minha vez ficou à espera e a janela ficou aberta até 11/11 de manhã (~13 h); a sessão só arrancou no dia seguinte, com a tranca aberta em memória, e teve de ser parada → abrir a janela das travas só mesmo antes de a usar e fechá-la (RESTAURAR-M10, MD5 igual) no mesmo turno; nunca a deixar aberta à espera de CI, Danilo ou agentes; antes de acabar um turno confirmar as travas por MD5; arquivar as sessões lançadas numa janela depois de usadas
 

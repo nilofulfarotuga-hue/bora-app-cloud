@@ -11,6 +11,7 @@ import '../../widgets/admin/test_order_badge.dart';
 import '_admin_cancel_order_dialog.dart';
 import 'admin_order_detail_screen.dart';
 import '../../utils/hora_lisboa_ext.dart';
+import '../../utils/euros.dart';
 
 class AdminOrdersScreen extends StatefulWidget {
   const AdminOrdersScreen({super.key});
@@ -108,7 +109,10 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           'vendor_name, assigned_driver_id, customer_name, service_type, '
           'takeaway_pickup_code, scheduled_for, prep_time_minutes, '
           'wallet_applied_cents, tokens_applied_count, tokens_applied_value_cents, '
-          'stripe_charge_cents, is_test_order');
+          'stripe_charge_cents, is_test_order, '
+          // 10/11 pagar-na-loja: o que o entregador faz na loja
+          'loja_pagamento_estado, loja_pagar_valor, is_purchase_finalized, '
+          'final_purchase_value');
       var query = _statusFilter == 'all' ? base : base.eq('status', _statusFilter);
       if (_paymentFilter != 'all') {
         // 'mixed' covers any order with wallet OR tokens applied.
@@ -328,6 +332,10 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       'payment_method',
       'payment_status',
       'driver_id',
+      // 10/11 pagar-na-loja
+      'loja_situacao',
+      'estafeta_paga_loja',
+      'pago_de_fato_loja',
     ];
     final rows = _orders
         .map((o) => [
@@ -341,6 +349,12 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
               o['payment_method'] ?? '',
               o['payment_status'] ?? '',
               o['assigned_driver_id'] ?? '',
+              o['loja_pagamento_estado'] ?? '',
+              o['loja_pagar_valor'] ?? '',
+              o['is_purchase_finalized'] == true &&
+                      o['loja_pagamento_estado'] == 'pagar_loja'
+                  ? (o['final_purchase_value'] ?? '')
+                  : '',
             ])
         .toList();
     final stamp = DateTime.now().toIso8601String().substring(0, 10);
@@ -719,6 +733,35 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                                         ),
                                         // T1.1: payment breakdown badges
                                         _PaymentBreakdownBadges(order: o),
+                                        // 10/11 pagar-na-loja: quanto o entregador
+                                        // paga à loja na retirada.
+                                        if (o['loja_pagamento_estado'] ==
+                                            'pagar_loja')
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                                top: 2),
+                                            child: Text(
+                                              'Estafeta paga à loja: ${eur((o['loja_pagar_valor'] as num?) ?? 0)} (pagar na loja)',
+                                              style: const TextStyle(
+                                                  color: AppColors.accent,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700),
+                                            ),
+                                          )
+                                        else if (o['loja_pagamento_estado'] !=
+                                            null)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                                top: 2),
+                                            child: Text(
+                                              _rotuloLojaCurto(
+                                                  o['loja_pagamento_estado']
+                                                      as String?),
+                                              style: const TextStyle(
+                                                  color: AppColors.textSecondary,
+                                                  fontSize: 12),
+                                            ),
+                                          ),
                                         // PROMPT C — código de retirada (PT-BR)
                                         // Aparece apenas quando service_type='takeaway'
                                         // e takeaway_pickup_code está presente.
@@ -784,6 +827,15 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
 }
 
 // T1.1: Payment breakdown badges shown inline in admin order list.
+/// 10/11/2026 pagar-na-loja: nome curto (PT-BR) da situação da loja na lista.
+String _rotuloLojaCurto(String? estado) => switch (estado) {
+      'ja_pago' => 'Já pago pelo app (o entregador não paga nem cobra)',
+      'fazer_compra' => 'Fazer compra (loja não parceira)',
+      'parceiro_chamou' => 'Parceiro chamou entregador',
+      'ir_buscar' => 'Retirada no balcão (takeaway)',
+      _ => '',
+    };
+
 class _PaymentBreakdownBadges extends StatelessWidget {
   const _PaymentBreakdownBadges({required this.order});
   final Map<String, dynamic> order;

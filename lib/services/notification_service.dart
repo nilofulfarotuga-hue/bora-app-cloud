@@ -346,6 +346,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final distanceKm = data['distanceKm']?.toString() ?? '0';
   final driverEarnings = data['driverEarnings']?.toString() ?? '0.00';
   final dropoffAddress = data['dropoffAddress']?.toString() ?? '';
+  // pagar-na-loja (10/11/2026): a frase do dinheiro vem pronta do servidor.
+  final lojaLinha = data['lojaLinha']?.toString() ?? '';
 
   // ── Exec6 GATE (2026-05-25) ─────────────────────────────────────────────
   // ANTIGO: bg handler disparava 3 UIs em paralelo (local notif fullScreenIntent
@@ -367,6 +369,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       'distanceKm': distanceKm,
       'driverEarnings': driverEarnings,
       'dropoffAddress': dropoffAddress,
+      'lojaLinha': lojaLinha,
       'offerExpiresAt': data['offerExpiresAt']?.toString() ?? '',
       'ts': DateTime.now().millisecondsSinceEpoch,
     }));
@@ -460,7 +463,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       // até user dismisses ou age na notif. Padrão Glovo/Uber.
       additionalFlags: Int32List.fromList(<int>[4]),
       styleInformation: BigTextStyleInformation(
-        '$vendorName\n💰 €$total  •  📍 ${distanceKm}km\n✅ Ganho: €$driverEarnings',
+        textosNotificacaoOferta(
+          vendorName: vendorName,
+          total: total,
+          distanceKm: distanceKm,
+          driverEarnings: driverEarnings,
+          lojaLinha: lojaLinha,
+        ).grande,
         contentTitle: '🛵 Novo pedido!',
         summaryText: 'Bora',
       ),
@@ -478,7 +487,13 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     await plugin.show(
       orderId.hashCode,
       '🛵 Novo pedido — €$driverEarnings',
-      '$vendorName • €$total • ${distanceKm}km',
+      textosNotificacaoOferta(
+        vendorName: vendorName,
+        total: total,
+        distanceKm: distanceKm,
+        driverEarnings: driverEarnings,
+        lojaLinha: lojaLinha,
+      ).corpo,
       NotificationDetails(android: androidDetails, iOS: kDetalhesIosPedido),
       payload: jsonEncode({'orderId': orderId, 'type': 'new_order_offer'}),
     );
@@ -1322,6 +1337,32 @@ Future<void> cancelPartnerOrderNotification(String orderId) async {
 /// está registado em todos). Reusa canal v3 (IMPORTANCE_HIGH + sound bora_alert
 /// + bypass DND). Acções 'accept_order' / 'reject_order' têm handler em
 /// onBackgroundNotificationAction.
+/// pagar-na-loja (10/11/2026): os textos da notificação de oferta. A frase do
+/// dinheiro ("Pagas 13,80 € na loja · Cobras 19,71 €" / "Já pago — …" /
+/// "Fazes a compra") vem PRONTA do servidor (notify-driver, campo `lojaLinha`)
+/// — a app não a calcula. Sem ela (servidor antigo, pedido sem loja) fica o
+/// texto de sempre. Pura, para o teste.
+({String grande, String corpo}) textosNotificacaoOferta({
+  required String vendorName,
+  required String total,
+  required String distanceKm,
+  required String driverEarnings,
+  String lojaLinha = '',
+}) {
+  if (lojaLinha.trim().isEmpty) {
+    return (
+      grande:
+          '$vendorName\n💰 €$total  •  📍 ${distanceKm}km\n✅ Ganho: €$driverEarnings',
+      corpo: '$vendorName • €$total • ${distanceKm}km',
+    );
+  }
+  return (
+    grande:
+        '$vendorName\n💵 $lojaLinha\n📍 ${distanceKm}km  •  ✅ Ganho: €$driverEarnings',
+    corpo: '$vendorName • $lojaLinha • ${distanceKm}km',
+  );
+}
+
 @pragma('vm:entry-point')
 Future<void> postWakeActivityNotification({
   required String orderId,
@@ -1329,6 +1370,7 @@ Future<void> postWakeActivityNotification({
   required String total,
   required String distanceKm,
   required String driverEarnings,
+  String lojaLinha = '',
   String? offerExpiresAt,
 }) async {
   try {
@@ -1373,7 +1415,13 @@ Future<void> postWakeActivityNotification({
     await plugin.show(
       orderId.hashCode,
       '🛵 Novo pedido — €$driverEarnings',
-      '$vendorName • €$total • ${distanceKm}km',
+      textosNotificacaoOferta(
+        vendorName: vendorName,
+        total: total,
+        distanceKm: distanceKm,
+        driverEarnings: driverEarnings,
+        lojaLinha: lojaLinha,
+      ).corpo,
       NotificationDetails(android: androidDetails, iOS: kDetalhesIosPedido),
       payload: jsonEncode({'orderId': orderId, 'type': 'new_order_offer'}),
     );

@@ -19,10 +19,12 @@ void main() {
   });
 
   test('os sítios do dinheiro usam eur(...)', () {
+    // pagar-na-loja (10/11/2026): os três "RECEBER …" (não parceira, parceiro
+    // chama estafeta e o "entregar ao parceiro") passam a um só texto, com o
+    // mesmo eur(...). O "entregar ao parceiro" confundia o estafeta e sai de vez.
+    expect(mapa, isNot(contains('entregar ao parceiro')));
     for (final s in [
-      "'RECEBER \${eur(amount)} EM DINHEIRO'",
-      "'RECEBER \${eur(amount)} DO CLIENTE EM DINHEIRO'",
-      "'RECEBER \${eur(amount)} — entregar ao parceiro'",
+      "'COBRA {0} AO CLIENTE'.trArgs([eur(amount)])",
       "'PAGAR \${eur(amount)} AO ESTABELECIMENTO'",
       "'inclui +\${eur(debtEur)} de dívida anterior'",
       "'Compra finalizada: \${eur(finalTotal)}'",

@@ -494,6 +494,11 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
     final isPay = direction == 'bora_pays_partner';
     final isOwe = direction == 'partner_pays_bora';
     final cashKept = (s['cash_kept_by_partner'] as num?)?.toDouble() ?? 0;
+    // 10/11/2026 pagar-na-loja — parte do cash que o entregador pagou à loja
+    // na retirada (pedidos do app em dinheiro). Já está dentro de cashKept.
+    final pagoRecolha = (s['pago_em_mao_na_recolha'] is num)
+        ? (s['pago_em_mao_na_recolha'] as num).toDouble()
+        : double.tryParse('${s['pago_em_mao_na_recolha'] ?? ''}') ?? 0;
     // 09/11/2026 — Depósito Volta da semana (0 se o servidor ainda não manda).
     final depositoVolta = s['deposit_volta_total'] is num
         ? (s['deposit_volta_total'] as num).toDouble()
@@ -579,6 +584,7 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
                 'Comissão Bora: ${_fmtEur((s['commission_total'] as num?) ?? 0)}\n'
                 'Parte do parceiro: ${_fmtEur((s['partner_share'] as num?) ?? 0)}'
                 '${cashKept > 0 ? '\nDinheiro já recebido pelo parceiro (cash na loja): ${_fmtEur(cashKept)} — entra ao contrário' : ''}'
+                '${pagoRecolha > 0 ? '\n  dos quais recebido em mão do entregador na retirada (pago na loja): ${_fmtEur(pagoRecolha)}' : ''}'
                 '${depositoVolta > 0 ? '\nDepósito Volta (vai 100% para o parceiro): ${_fmtEur(depositoVolta)}' : ''}',
                 style: const TextStyle(
                     fontSize: 12, color: AppColors.textSecondary, height: 1.5),

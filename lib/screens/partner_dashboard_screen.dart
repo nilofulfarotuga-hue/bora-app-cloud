@@ -34,6 +34,7 @@ import '../widgets/web_push_card.dart';
 import '../widgets/partner/painel_avaliacoes_e_funil.dart';
 import '../widgets/partner/partner_agendados_atalho.dart';
 import '../widgets/partner/cartao_modo_ocupado.dart';
+import '../widgets/partner/aviso_pagamento_estafeta.dart';
 import '../services/modo_ocupado_service.dart';
 import '../utils/nota_do_pedido.dart';
 import '../widgets/biometric_login_tile.dart';
@@ -1969,6 +1970,13 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
         if (order.isTakeaway && order.takeawayIsCurbside) ...[
           const SizedBox(height: 8),
           _CurbsideAlert(info: order.takeawayCurbsideInfo),
+        ],
+        // pagar-na-loja (10/11/2026): em cada pedido com entrega, como o
+        // estafeta paga (em dinheiro na recolha, ou já pago pela app).
+        if (!order.isTakeaway &&
+            AvisoPagamentoEstafeta.texto(order) != null) ...[
+          const SizedBox(height: 8),
+          AvisoPagamentoEstafeta(order: order),
         ],
         const SizedBox(height: 12),
         // Festas: a data agendada da encomenda, bem visível antes dos itens.

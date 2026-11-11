@@ -50,6 +50,7 @@ import '../utils/valor_em_centimos.dart';
 import '../widgets/address_text.dart';
 import '../widgets/cliente_nome_destaque.dart';
 import '../widgets/driver_chat_fab.dart';
+import '../widgets/payments/loja_pagamento.dart';
 import '../widgets/driver_invoice_nif_card.dart';
 import '../widgets/driver_item_options.dart';
 import '../widgets/entrega_marcada_estafeta.dart';
@@ -1172,6 +1173,18 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
               right: 16,
               top: MediaQuery.of(context).size.height * 0.62 + 52,
               child: DriverChatFab(order: focusOrder),
+            ),
+
+          // pagar-na-loja (10/11/2026): o dinheiro do pedido em letra grande e
+          // SEMPRE à vista — a caminho da loja, na loja e a caminho do cliente.
+          // O painel de baixo abre fechado (15 %): o estafeta não tem de o
+          // abrir para saber quanto paga à loja e quanto cobra ao cliente.
+          if (focusOrder != null && FaixaDinheiroEstafeta.temFaixa(focusOrder))
+            Positioned(
+              top: topPadding + 80,
+              left: 12,
+              right: 12,
+              child: FaixaDinheiroEstafeta(order: focusOrder),
             ),
 
           // Bottom info panel — draggable sheet: map fills most of the screen,
@@ -2808,9 +2821,9 @@ class _FinalizedBanner extends StatelessWidget {
 
 /// BUG 9 (2026-05-15) — banner persistente "RECEBER €X" durante a entrega
 /// para qualquer pedido cash. Distinto de _FinalizedBanner (storeShopping V2).
-/// Texto diferenciado:
-///   - Parceiro: "RECEBER €X — entregar ao parceiro"
-///   - Não-parceiro: "RECEBER €X EM DINHEIRO"
+/// pagar-na-loja (10/11/2026): um texto só — "COBRA X € AO CLIENTE" — o mesmo
+/// número da faixa do topo do mapa. O antigo texto do parceiro confundia o
+/// estafeta: a loja já ficou paga na recolha, não há nada a entregar depois.
 /// Instanciado a partir de pickedUp (estafeta já recolheu o pedido).
 /// 28/10/2026 (C3): com saldo/tokens leva a "conta curta" por baixo. Público
 /// só para o teste de widget.
@@ -2828,19 +2841,9 @@ class CashCollectBanner extends StatelessWidget {
     final amount = order.totalToCollectCash;
     final hasDebt = order.hasCashDebt;
     final debtEur = order.debtCollectedCents / 100.0;
-    final isPartner = order.isPartnerStore;
-    final isPartnerSelfDispatch = order.isPartnerSelfDispatch;
-    final String mainText;
-    if (isPartnerSelfDispatch) {
-      // Fluxo "parceiro chama estafeta": o estafeta JÁ pagou o mesmo valor
-      // ao parceiro na recolha — agora recebe-o do cliente. Empate.
-      mainText =
-          'RECEBER ${eur(amount)} DO CLIENTE EM DINHEIRO';
-    } else if (isPartner) {
-      mainText = 'RECEBER ${eur(amount)} — entregar ao parceiro';
-    } else {
-      mainText = 'RECEBER ${eur(amount)} EM DINHEIRO';
-    }
+    // Parceira, não parceira ou "parceiro chama estafeta": o estafeta cobra ao
+    // cliente o total que o servidor diz (totalToCollectCash).
+    final String mainText = 'COBRA {0} AO CLIENTE'.trArgs([eur(amount)]);
 
     return Container(
       width: double.infinity,

@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-11T13:37:03.463146+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-11T14:07:03.834039+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-11 13:07 UTC. Páginas listadas: 604.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-11 13:46 UTC. Páginas listadas: 605.
 
 ## O que é o Bora
 
@@ -438,7 +438,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - relatorio-semanal-reels-2026-11-02 — Relatório semanal dos reels - 2026-11-02 (2026-11-02)
 - relatorio-semanal-reels-2026-11-09 — Relatório semanal dos reels - 2026-11-09 (2026-11-09)
 
-## prompt (44)
+## prompt (45)
 
 - prompt-amigo-casa-2026-11-11 — Prompt: o Amigo Bora tem de saber da Casa e Manutenção (11/11/2026) (2026-11-11)
 - prompt-auditoria-3-plataformas-2026-10-06 — Prompt de missão: auditoria das 3 plataformas (06/10) (2026-10-06)
@@ -464,6 +464,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - prompt-maiores-18-2026-10-07 — Prompt: verificação de idade +18 (tabaco/álcool) — estado: PRONTO, NÃO LANÇADO (bloqueado: publica nas lojas, falta o Danilo autorizar) (2026-10-07)
 - prompt-manha-2026-11-02-ignorar-permissoes — Prompt para a sessão do PC em "Ignorar permissões" (02/11): o que o classificador travou na infra (B10-B13, B15) (2026-11-02)
 - prompt-meta-anuncios-2026-10-30 — Prompt: 2 anúncios novos da Meta (instalar app + carrossel do check-in) e dados da empresa na Meta (30/10/2026) (2026-10-30)
+- prompt-meta-grupos-casa-amigo-2026-11-11 — Prompt PC: anúncios Meta + grupos da Casa e do Amigo + renovar login do loop (11/11/2026 13:55) (2026-11-11)
 - prompt-missao-da-noite-2026-10-07 — Prompt MISSÃO DA NOITE 07/10 (FABLE) — Bora Assistente (prioridade) + fechar +18 + Gmail caça-clientes + Apple Foco + GPS corrida; entregue… (2026-10-07)
 - prompt-missao-geral-2026-10-28 — PROMPT missão geral 28/10 (Divan + Boom + robô WhatsApp + cartazes + erros), parte 1/2 (2026-10-28)
 - prompt-missao-geral-2026-10-28-parte2 — PROMPT missão geral 28/10, parte 2/2 (blocos 1 a F, resumo) (2026-10-28)

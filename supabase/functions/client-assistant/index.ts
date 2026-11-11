@@ -118,6 +118,8 @@ import {
 // 11/11/2026 (ordem do Danilo 10:54): fala mais humana — sem reapresentar, sem o nome a abrir, parabéns uma
 // vez, uma sugestão só, e o histórico das últimas mensagens da conversa.
 import { afinarFala, podeOutroCarrinho, textosDoAssistente, ultimasMensagens } from './estilo.ts';
+// 11/11/2026 (amigo-casa, "Conserta o amigo"): Casa e Manutenção com os preços da tabela e a ligação que a abre.
+import { casaParaModelo, deixaCasa, eTrabalhoDeCasa, semFraseDeMesa } from './casa.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -448,6 +450,12 @@ function buildFunctionDeclarations() {
       parameters: { type: 'object', properties: { restaurant_id: { type: 'string' } }, required: ['restaurant_id'] },
     },
     {
+      // 11/11/2026 (amigo-casa): os preços da Casa e Manutenção vêm daqui, nunca de cor.
+      name: 'casa_servicos',
+      description: 'Casa e Manutenção da Bora: profissionais que vão a casa montar móveis (roupeiro, cama), pendurar televisão, quadros e prateleiras, trocar torneiras, autoclismos, candeeiros, eletricidade, gás, pintura, pladur, jardinagem e pequenas mudanças. Devolve TODOS os serviços com o preço real (fixo, à hora ou por orçamento com fotos), a regra do material, a garantia e o cancelamento. Chama SEMPRE que o cliente fala de um trabalho em casa, antes de responder.',
+      parameters: { type: 'object', properties: {} },
+    },
+    {
       // v12 (11/11/2026): "que restaurantes estão abertos?" deixou de ter "não tenho a lista".
       name: 'lojas_abertas',
       description: 'Quem está ABERTO AGORA na Bora (horário real de cada loja, hora de Lisboa): restaurantes, supermercados, farmácias e lojas, com os PARCEIROS da Bora primeiro, a hora a que fecham, a morada e o link do Google Maps. Usa para "que restaurantes estão abertos?", "o que há aberto agora?", "há farmácia aberta?", "onde posso comer sushi agora?". Nunca digas que não tens a lista.',
@@ -557,7 +565,7 @@ function buildSystemFixo(personalidade = false, pesquisa = false): string {
     // m11 / adendo 1-B (09/11/2026): com a personalidade ligada o Amigo é amigo para tudo, nunca "de compras".
     personalidade
       ? IDENTIDADE_AMIGO
-      : 'És o Bora Assistente, o assistente de compras da Bora App (entregas de restaurantes, supermercados, lojas e farmácias; Favores; Limpeza; Reservas de mesa; Serviços) na Guarda, Portugal.',
+      : 'És o Bora Assistente, o assistente de compras da Bora App (entregas de restaurantes, supermercados, lojas e farmácias; Favores; Limpeza; Casa e Manutenção; Reservas de mesa; Serviços) na Guarda, Portugal.',
     'Língua: português de Portugal, tom simpático e direto. Respostas CURTAS (1-3 frases): os cartões com lojas, artigos e totais aparecem sozinhos por baixo do teu texto — não repitas listas inteiras nem tabelas. O cliente pode escrever em português do Brasil, com erros ou por voz: percebe a intenção.',
     '',
     // 11/11/2026 (ordem do Danilo, 10:54): mais humano e mais esperto.
@@ -588,6 +596,7 @@ function buildSystemFixo(personalidade = false, pesquisa = false): string {
     '9b. Comparação com outras apps (Glovo, Uber Eats, iFood, Bolt Food): quando o cliente manda prints do carrinho de outra app ou pede "compara com a Glovo", o sistema já lê os artigos, corre basket_quote e calcula a diferença — o cartão de comparação aparece sozinho. Tu só comentas em 1-2 frases com os números que a ferramenta deu (nunca calcules nada). Se a outra app ficar mais barata, diz a verdade e sugere a loja mais barata do Bora na mesma. Se o cliente ESCREVEU os artigos e os preços da outra app, chama comparar_outra_app. Se só disse "compara com a Glovo" sem print nem preços, pede-lhe o print do carrinho. NUNCA dizes um preço da outra app que o cliente não deu.',
     '9c. Quando o cliente te corrige ou percebes que erraste → learn_lesson com a regra certa (curta, sem dinheiro) e continua a ajudar.',
     '9d. "Que restaurantes / lojas / farmácias estão abertos?", "o que há aberto agora?" → lojas_abertas (horário real de agora, parceiros primeiro). Responde com 3 a 5 nomes, parceiros primeiro, e a hora a que fecham; a morada e o link do mapa (vêm da ferramenta) quando a pessoa pergunta onde fica. NUNCA digas que não tens a lista.',
+    '9e. CASA E MANUTENÇÃO (montar móveis, pendurar televisão ou quadros, torneiras, autoclismos, candeeiros, eletricidade, gás, pintura, pladur, jardim, pequenas mudanças) → chama casa_servicos ANTES de responder e diz o preço do serviço que bate, tal como vem (ex.: "Montar um roupeiro fica 80,00 €"); à hora diz "20,00 € por hora"; os de orçamento pedem-se com fotos e os profissionais respondem com o preço; uma área em ainda_nao_disponivel (ex.: pintura) diz-se que ainda não está disponível, sem a meter noutro serviço. Diz numa frase curta que o profissional leva as ferramentas e o material é do cliente. Garantia e cancelamento grátis: com os números da ferramenta. A ligação para abrir a Casa e Manutenção aparece sozinha por baixo da tua resposta: diz só que pode marcar aí. NUNCA perguntas "quantas pessoas" nem nada de reservas de mesa (isso é só para reservar mesa num restaurante) e NUNCA ofereces um Favor para ir buscar material ou fazer o trabalho.',
     pesquisa
       ? '10. Fora do âmbito (trabalhos de casa, outras apps) → responde numa frase simpática que só tratas da Bora e volta ao assunto com uma sugestão. O tempo, a agenda e os eventos da Guarda, notícias e a farmácia de serviço NÃO estão fora: regra 20.'
       : '10. Fora do âmbito (futebol, notícias, trabalhos de casa, outras apps) → responde numa frase simpática que só tratas da Bora e volta ao assunto com uma sugestão.',
@@ -1013,6 +1022,9 @@ Deno.serve(async (req: Request) => {
   let favores: Json[] = [];
   let favorPreco: Json = null;
   const acoes: Json[] = [];
+  // 11/11/2026 (amigo-casa): a Casa está visível (casa_config.visivel)? null = ainda não se perguntou.
+  let casaVisivel: boolean | null = null;
+  const pedeCasa = eTrabalhoDeCasa(userMessage);
   let gapLogged = false;
   // v11: ferramentas corridas nesta volta (decidem se há deixa e se a compra acabou numa ação).
   const ferramentasUsadas = new Set<string>();
@@ -1207,6 +1219,13 @@ Deno.serve(async (req: Request) => {
           ]);
           if (error) return { ok: false, error: error.message };
           return { ok: true, data: { loja: r?.name ?? rid, aberta_agora: open?.is_open, abre_as: open?.opens_at, fecha_em_minutos: open?.closes_in_minutes, horario: r?.business_hours ?? null } };
+        }
+        case 'casa_servicos': {
+          // 11/11/2026 (amigo-casa): a mesma RPC que a app usa (casa_config: casa_servicos + definições).
+          const { data, error } = await adminClient.rpc('casa_config');
+          if (error) return { ok: false, error: error.message };
+          casaVisivel = data?.visivel === true;
+          return { ok: true, data: casaParaModelo(data) };
         }
         case 'lojas_abertas': {
           // v12 (11/11/2026): quem está aberto AGORA (is_partner_open de cada loja visível, hora de Lisboa),
@@ -1469,7 +1488,9 @@ Deno.serve(async (req: Request) => {
   // não como mensagem do cliente; e a resposta anterior fica guardada para o caso de a nova falar "do cliente".
   let notaSistema = '';
   let textoAntesDaNota = '';
+  // 11/11/2026 (amigo-casa): um trabalho em casa acaba na ligação da Casa (posta no fecho), não num Favor.
   const precisaDeAcao = (): boolean => s.personality && !hasImage && pedeAcao(userMessage) &&
+    !pedeCasa && !ferramentasUsadas.has('casa_servicos') &&
     propostas.length === 0 && favores.length === 0 && !comparacao &&
     !acoes.some((a) => ACOES_DE_COMPRA.has(a.tipo)) && ![...ferramentasUsadas].some((n) => FERRAMENTAS_AJUDA.has(n));
   // Texto que o modelo escreve no MESMO turno em que chama só ferramentas "leves" (botão, memória,
@@ -1790,11 +1811,37 @@ Deno.serve(async (req: Request) => {
   }
   if (handoff && !acoes.some((a) => a.tipo === 'suporte_humano')) acoes.push({ tipo: 'suporte_humano', rotulo: 'Falar com o suporte', destino: null });
 
+  // ── 11/11/2026 (amigo-casa): trabalho em casa → sem frases de reserva de mesa, sem Favor para o material
+  // (só se a pessoa falou de Favor) e a ligação que abre a Casa e Manutenção. Vai como DEIXA abrir_faixa
+  // (categoria casa) porque as apps já publicadas a abrem sem versão nova. ──
+  let deixaDaCasa: Json = null;
+  const turnoDaCasa = ferramentasUsadas.has('casa_servicos') || pedeCasa;
+  if (turnoDaCasa && !geminiError && !handoff && !hasImage && propostas.length === 0 && !comparacao) {
+    if (casaVisivel === null) {
+      const { data: cfg } = await adminClient.rpc('casa_config');
+      casaVisivel = cfg?.visivel === true;
+    }
+    finalText = semFraseDeMesa(finalText);
+    if (!/\bfavor/i.test(userMessage)) {
+      for (let i = acoes.length - 1; i >= 0; i--) {
+        if (acoes[i].tipo === 'pedir_favor' || acoes[i].tipo === 'abrir_favores') acoes.splice(i, 1);
+      }
+    }
+    if (casaVisivel) {
+      const d = deixaCasa(new Date().toISOString().slice(0, 10));
+      const { data: lin, error: ie } = await adminClient.from('assistant_deixas').insert({
+        user_id: userId, conversation_id: conversationId, chave: d.chave, tipo: d.tipo, texto: d.texto, acao: d.acao,
+      }).select('id').single();
+      if (ie) console.warn('[AMIGO] deixa da casa:', ie.message);
+      else if (lin?.id) deixaDaCasa = { id: lin.id, tipo: d.tipo, texto: d.texto, acao: d.acao };
+    }
+  }
+
   // ── v11: a DEIXA — uma linha útil no fim de uma conversa livre (nunca em compras, comparações,
   // fotos, ajuda/suporte ou erro). Escolhida e escrita aqui com dados do banco; rotação de 24 h por
   // cliente (assistant_deixas). Sem a tabela (migração por aplicar) não há deixa. ──
-  let deixa: Json = null;
-  if (s.personality && s.deixaOn && !hasImage && !handoff && !geminiError && propostas.length === 0 && !divisao &&
+  let deixa: Json = deixaDaCasa;
+  if (!deixa && s.personality && s.deixaOn && !hasImage && !handoff && !geminiError && propostas.length === 0 && !divisao &&
       favores.length === 0 && !comparacao && !listaExtraida && !pedeAcao(userMessage) &&
       ![...ferramentasUsadas].some((n) => FERRAMENTAS_AJUDA.has(n))) {
     try {

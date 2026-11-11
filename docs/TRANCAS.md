@@ -564,3 +564,9 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   abre; não se voltou a correr o DESLIGAR-M11 (com a janela já aberta ele regravaria o bak-20261109-m11 com o estado aberto e falharia).
   Não contornado. Destrava: a Claude.ai aplica `docs/propostas/fechar-tudo-2026-11-11/R7_order_store_patch.md` pelo GitHub, ou uma
   sessão `claude --safe-mode` aberta pelo Danilo.
+
+- **11/11/2026 ~13:30, missão `amigo-casa-2026-11-11` ("Conserta o amigo")** — duas recusas da trava do modo automático, não contornadas:
+  (1) ler `.supabase-token.env` para a CLI do Supabase ("ficheiro de segredos: usa só variáveis de ambiente"); a CLI deste PC está sem
+  login (`AccessTokenRequiredError`), por isso não há publicação de Edge pela CLI. (2) `deploy_edge_function` do `client-assistant`
+  pelo MCP ("publica a Claude.ai"). O código está no ramo `ai/2026-11-11-amigo-casa`; a Claude.ai publica a função (9 ficheiros) e
+  corre as provas — instruções na página `entrega-amigo-casa-2026-11-11` do livro.

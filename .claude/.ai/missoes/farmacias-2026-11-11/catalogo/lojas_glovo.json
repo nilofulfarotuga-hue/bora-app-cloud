@@ -1,0 +1,56 @@
+[
+ {
+  "loja": "farmacia-se-guarda",
+  "nome_glovo": "Farmácia da Sé",
+  "glovo_slug": "farmacia-da-se-grd",
+  "glovo_store_id": "461279",
+  "glovo_address_id": "732949",
+  "url_glovo": "https://glovoapp.com/pt/pt/guarda/stores/farmacia-da-se-grd",
+  "morada": "R. Batalha Reis A, 6300-668 Guarda, Portugal",
+  "telefone": "+351271223202",
+  "horario": [
+   "Segunda-feira: 09:00 - 20:30",
+   "Terça-feira: 09:00 - 20:30",
+   "Quarta-feira: 09:00 - 20:30",
+   "Quinta-feira: 09:00 - 20:30",
+   "Sexta-feira: 09:00 - 20:30",
+   "Sábado: 09:00 - 19:30",
+   "Domingo: Fechado"
+  ],
+  "latitude": null,
+  "longitude": null,
+  "nota_coordenadas": "a Glovo não devolve coordenadas da loja (location=null em /v3/stores e na ficha); não inventadas",
+  "imagem_loja_url": "https://glovo.dhmedia.io/image/stores-glovo/stores/14b8db7059e5b7ea2e16787116fa370978c63838ff176843f503f869eb7c6a50",
+  "logo_url": null,
+  "nome_legal": "GRIPHARMA , S.A.",
+  "morada_sede": "R. Batalha Reis A, 6300-668 Guarda, Portugal",
+  "nif": "500995850"
+ },
+ {
+  "loja": "farmacia-teixeira-guarda",
+  "nome_glovo": "Farmácia Teixeira",
+  "glovo_slug": "farmacia-teixeira-grd",
+  "glovo_store_id": "461596",
+  "glovo_address_id": "733650",
+  "url_glovo": "https://glovoapp.com/pt/pt/guarda/stores/farmacia-teixeira-grd",
+  "morada": "Largo Gen. Humberto Delgado, 6300-717 Guarda, Portugal",
+  "telefone": "+351271211110",
+  "horario": [
+   "Segunda-feira: 09:15 - 19:30",
+   "Terça-feira: 09:15 - 19:30",
+   "Quarta-feira: 09:15 - 19:30",
+   "Quinta-feira: 09:15 - 19:30",
+   "Sexta-feira: 09:15 - 19:30",
+   "Sábado: 09:15 - 13:00",
+   "Domingo: Fechado"
+  ],
+  "latitude": null,
+  "longitude": null,
+  "nota_coordenadas": "a Glovo não devolve coordenadas da loja (location=null em /v3/stores e na ficha); não inventadas",
+  "imagem_loja_url": "https://glovo.dhmedia.io/image/stores-glovo/stores/749765414b5383fecda07462e587e9deacb0cbbae8558afd6e32cb10b633a112",
+  "logo_url": null,
+  "nome_legal": "GRIPHARMA , S.A.",
+  "morada_sede": "Largo Gen. Humberto Delgado, 6300-717 Guarda, Portugal",
+  "nif": "500995850"
+ }
+]

@@ -1,0 +1,68 @@
+OK 65
+  ✓ stubs
+  ✓ dados
+  ✓ 01 cabeça
+  ✓ 02
+  ✓ gatilho demo mínimo
+  ✓ 03
+  ✓ 04
+  ✓ antes do 06: estranho não vê
+  ✓ 06
+  ✓ 06: 2 lojas aprovadas e escondidas
+  ✓ 06: 4 linhas na lista
+  ✓ estranho não vê lojas
+  ✓ estranho não vê produtos
+  ✓ estranho continua a ver a Boom e a Wells
+  ✓ anónimo não vê
+  ✓ Danilo (bora) vê as 2
+  ✓ Danilo vê os produtos
+  ✓ dona da Sé vê a Sé
+  ✓ dona da Sé não vê a Teixeira
+  ✓ botões: estranho false
+  ✓ botões: Danilo true
+  ✓ botões: Wells (modo desligado) false
+  ✓ cartão na loja escondida é recusado
+  ✓ dinheiro passa a teste
+  ✓ é pedido demo para o despacho
+  ✓ Boom a cartão continua normal
+  ✓ Boom não é demo
+  ✓ estranho não consegue enviar
+  ✓ sem assinatura é recusado
+  ✓ ficheiro de outra pessoa é recusado
+  ✓ Danilo envia receita
+  ✓ farmácia foi avisada (push notify-partner)
+  ✓ sininho da farmácia
+  ✓ estranho não responde
+  ✓ dona da Teixeira não responde à Sé
+  ✓ estranho não lê o pedido
+  ✓ a Sé lê o pedido
+  ✓ a Teixeira não lê o pedido da Sé
+  ✓ Sé aceita 23,50 €
+  ✓ estado aceite + cliente avisado
+  ✓ Sé não responde 2 vezes
+  ✓ Danilo confirma a dinheiro (demo)
+  ✓ confirmar não criou pedido real
+  ✓ Sé recusa sem stock
+  ✓ recusado com motivo
+  ✓ recusado não se confirma
+  ✓ parcial sem itens é recusado
+  ✓ Sé aceita parcial
+  ✓ cliente confirma só o que há (MB Way, demo)
+  ✓ vigia: lembrete aos 15 min
+  ✓ lembrete marcado e avisado
+  ✓ vigia: expira aos 30 min
+  ✓ expirado e cliente avisado
+  ✓ pedido livre sem assinatura
+  ✓ lembrete definido
+  ✓ lembrete dispara 1 aviso e passa ao mês seguinte
+  ✓ admin lista (nilofulfarotuga)
+  ✓ cliente comum não lista
+  ✓ admin vê farmácias
+  ✓ admin define lista por email (devolve o que não existe)
+  ✓ cron: 3 tarefas
+  ✓ limpeza: nada ainda (30 dias)
+  ✓ limpeza: o recusado há 31 dias
+  ✓ marcar apagado põe a null
+  ✓ parceiro não muda a comissão
+FALHOU 0
+

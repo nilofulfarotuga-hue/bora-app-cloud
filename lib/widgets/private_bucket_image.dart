@@ -6,6 +6,7 @@ import 'bora_foto_ecra_inteiro.dart';
 
 const _privateBuckets = <String>{
   'driver-documents',
+  'prescricoes', // farmácias 11/11/2026: receitas (dados de saúde)
   'order-photos',
   'receipts',
   'cleaner-documents',

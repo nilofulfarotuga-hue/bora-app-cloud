@@ -30,6 +30,7 @@ import 'cart_screen.dart';
 import 'product_detail_screen.dart';
 
 import '../l10n/tr.dart';
+import '../widgets/farmacia/farmacia_botoes_topo.dart';
 import '../utils/euros.dart';
 
 class StoreProductsScreen extends StatefulWidget {
@@ -269,6 +270,9 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
               fundo: Colors.white,
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             ),
+          // Farmácias (11/11/2026): "Tenho receita", "Peça aqui" e "Repetir todos os meses".
+          // O servidor decide se aparecem (categoria + modo da receita + lista de permissão).
+          FarmaciaBotoesTopo(restaurantId: widget.restaurantId, storeName: widget.storeName),
           // ── Search bar ─────────────────────────────────────────────────────
           Container(
             color: Colors.white,

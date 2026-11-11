@@ -52,6 +52,7 @@ import 'partner_products_screen.dart';
 import 'profile_screen.dart';
 import '../widgets/aviso_dados_fiscais_em_falta.dart';
 import '../widgets/bora/bora_barra_separadores.dart';
+import 'partner/farmacia/parceiro_prescricoes_screen.dart';
 
 class PartnerDashboardScreen extends StatefulWidget {
   const PartnerDashboardScreen({super.key, required this.restaurant});
@@ -1244,6 +1245,9 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                 // [Web 07/10/2026] Só no navegador e só até a permissão
                 // estar dada: regista o token em partner_push_tokens.
                 const WebPushCard(role: 'partner'),
+                // 11/11/2026 (farmácias): receitas e pedidos especiais, com toque
+                // persistente enquanto houver algum por responder. Só farmácias.
+                FarmaciaReceitasCartao(restaurant: currentRestaurant),
                 // 10/11/2026 (missão fecho-contabilista, C3): barra vermelha
                 // quando faltam dados para as Finanças (DAC7); toque abre o
                 // ecrã "Dados fiscais". Bloco F: no 1.º separador, à vista.

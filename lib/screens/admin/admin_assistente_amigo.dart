@@ -14,11 +14,16 @@
 // 09/11/2026 (pendências, bloco I): secção "Voz do servidor" — consumo do dia e do mês, % do grátis
 // da Google, interruptor, teto, limite por cliente, voz e teste (admin_amigo_voz_overview /
 // admin_amigo_voz_definir). Ver admin_amigo_voz_secao.dart.
+//
+// 11/11/2026 (fechar-tudo, bloco 2): secção "Pesquisa na internet" — interruptor, máximo de pesquisas por
+// mensagem (1 a 5) e pesquisas de hoje e do mês, de ia_gastos (admin_amigo_pesquisa_overview /
+// admin_amigo_pesquisa_definir). Ver admin_amigo_pesquisa_secao.dart.
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import 'admin_amigo_pesquisa_secao.dart';
 import 'admin_amigo_rosto_secao.dart';
 import 'admin_amigo_voz_secao.dart';
 
@@ -245,6 +250,8 @@ class _AdminAssistenteAmigoTabState extends State<AdminAssistenteAmigoTab>
           AdminAmigoRostoSecao(dias: _dias),
           const Divider(height: 28),
           AdminAmigoVozSecao(dias: _dias),
+          const Divider(height: 28),
+          const AdminAmigoPesquisaSecao(),
           const Divider(height: 28),
           const Text('Interruptores', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
           SwitchListTile(

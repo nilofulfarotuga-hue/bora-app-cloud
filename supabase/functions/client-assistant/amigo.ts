@@ -167,16 +167,22 @@ export function pareceConversaLivre(msg: string, o: { temImagem: boolean; ultima
 // (o RE_ACAO apanha "quero" e "compr"), entrava a nota ACAO_NUDGE e o modelo respondia "O cliente disse...".
 const RE_NEGA_COMPRA = /\b(n[aã]o|nem|nada de)\s+(quero|queria|preciso|vou|estou a pensar|penso|tenho (de|que))?\s*(de\s+)?(nada|comprar|compras|pedir|encomendar|nenhuma|nenhum)/i;
 const RE_SO_CONVERSA = /\b(s[oó]|apenas|somente)\s+(quero\s+|queria\s+)?(conversar|falar|dar dois dedos de conversa|passar|dizer ol[aá]|estar|ver)\b|\bestou\s+s[oó]\s+a\s+(ver|espreitar|conversar|passar)\b|\bconversar\s+(um\s+bocado|contigo|um\s+pouco)\b|\bsem\s+comprar\b/i;
-const RE_CUMPRIMENTO = /^\s*(ol[aá]+|oi+|ei|boas|bom dia|boa tarde|boa noite|e a[ií]|tudo bem|tudo bom|como (est[aá]s|vai|vais|te sentes|correu)|como [ée] que (est[aá]s|vai)|estás bom|est[aá]s boa)\b[^]*$/i;
+// 11/11/2026: o fim da palavra é "não letra" em Unicode (o \b antigo falhava depois do "á": "olá, tudo bem?"
+// não contava como cumprimento).
+const RE_CUMPRIMENTO = /^\s*(ol[aá]+|oi+|ei|boas|bom dia|boa tarde|boa noite|e a[ií]|tudo bem|tudo bom|como (est[aá]s|vai|vais|te sentes|correu)|como [ée] que (est[aá]s|vai)|estás bom|est[aá]s boa)(?=$|[^\p{L}\p{N}])[^]*$/iu;
 
 /** O cliente só quer conversar (nega a compra, diz que é só conversa, ou é um cumprimento curto). */
 export function soConversa(msg: string): boolean {
   const t = (msg ?? '').trim();
   if (!t) return false;
   if (RE_NEGA_COMPRA.test(t) || RE_SO_CONVERSA.test(t)) return true;
-  // cumprimento curto ("olá, tudo bem?", "como estás?") sem pedido de compra a seguir
-  return t.length <= 60 && RE_CUMPRIMENTO.test(t) && !RE_ACAO.test(t.replace(RE_CUMPRIMENTO_INICIO, ''));
+  // cumprimento curto ("olá, tudo bem?", "como estás?") sem pedido de compra a seguir.
+  // 11/11/2026: nem pergunta de lojas/comida a seguir ("Oi, quais restaurantes estão abertos hoje" ia para a
+  // conversa solta e o modelo pequeno dizia que não tinha a lista).
+  const resto = t.replace(RE_CUMPRIMENTO_INICIO, '');
+  return t.length <= 60 && RE_CUMPRIMENTO.test(t) && !RE_ACAO.test(resto) && !RE_COMPRA.test(resto) && !RE_LOJAS_ABERTAS.test(resto);
 }
+const RE_LOJAS_ABERTAS = /\b(abert[oa]s?|fechad[oa]s?|hor[aá]rios?|aberto agora)\b/i;
 const RE_CUMPRIMENTO_INICIO = /^\s*(ol[aá]+|oi+|ei|boas|bom dia|boa tarde|boa noite|e a[ií]|tudo bem)[,!.\s]*/i;
 
 const RE_ACAO = /\b(quer(o|ia)\b|precis|faz(-| )?me|compr|pede|encomend|manda(-me)? vir|traz|enche|faxina|limpeza|marca|agend|favor)/i;
@@ -307,13 +313,21 @@ export function blocoContextoAmigo(ctx: Json, m: Momento): string {
   ].join('\n');
 }
 
-export function blocoAmigo(): string {
+/**
+ * 11/11/2026 (fechar-tudo, bloco 2): com `pesquisa` ligada (assistant_web_search_enabled), o tempo, a agenda da
+ * Guarda, as notícias e a farmácia de serviço procuram-se na internet em vez de "não sei". Sem ela, igual a antes.
+ */
+export function blocoAmigo(pesquisa = false): string {
+  const tempoENoticias = pesquisa
+    ? 'O tempo, a agenda e os eventos da Guarda, notícias, resultados de futebol e a farmácia de serviço: procura na internet (web_search) e responde em 1-3 frases com o que encontraste, dizendo de onde veio (ex.: "segundo o IPMA"); se não encontrares, diz que não encontraste — nunca inventes. Isto substitui a regra 10 para estas perguntas (trabalhos de casa continuam fora).'
+    : 'Futebol e o tempo: conversa leve, sem inventar resultados, notícias ou previsões que não sabes. Isto substitui a regra 10 para conversa leve (notícias e trabalhos de casa continuam fora).';
   return [
     '',
     '═══ AMIGO BORA (personalidade) ═══',
     'Chamas-te Amigo Bora (não "Bora Assistente"). És um amigo da Guarda que conhece a cidade (a Sé, o centro histórico, a Praça Velha, o IPG, a Guarda-Gare, o La Vie) e a app Bora inteira.',
     'Tom: amigo, caloroso, frases curtas, humor leve e limpo; nunca ridículo nem sarcástico. No máximo 1 emoji por resposta (muitas vezes nenhum). Tratas por tu, a não ser que o perfil diga registo "formal": aí tratas por você e sem piadas. Se o perfil tiver o nome, usa-o de vez em quando, não em todas as frases.',
-    'CONVERSA SOLTA (cumprimentos, "como estás?", o tempo na Guarda, futebol, um dia difícil, "conta uma piada", "não quero comprar nada, só conversar"): és um AMIGO a conversar. Respondes na 1.ª pessoa, natural e caloroso, em 2-3 frases, com humor leve e limpo; usas o nome da pessoa de vez em quando; lembras-te do que já falaram nesta conversa; e perguntas de volta. Exemplo: a "como estás?" → "Estou ótimo, obrigado por perguntares! Por aqui está tudo tranquilo. E tu, como está a correr a manhã?". Na conversa solta NÃO listas os serviços da Bora, NÃO perguntas "em que posso ajudar" e NÃO falas de compras, do costume nem de artigos do perfil — só se a pessoa falar de comida, fome, compras ou de uma necessidade. Acabas com uma pergunta sobre ELA (como está, como correu, o que vai fazer). A um cumprimento ("olá", "bom dia", "boa noite", "só queria dizer olá") respondes com calor e perguntas como está, sem oferecer nada. A um agradecimento respondes como amigo ("Sempre às ordens!") e perguntas por ela, sem lembrar compras. Futebol e o tempo: conversa leve, sem inventar resultados, notícias ou previsões que não sabes. Isto substitui a regra 10 para conversa leve (notícias e trabalhos de casa continuam fora). Se sugerires um produto concreto com preço, procura-o primeiro (search_products) — nunca inventes.',
+    `CONVERSA SOLTA (cumprimentos, "como estás?", o tempo na Guarda, futebol, um dia difícil, "conta uma piada", "não quero comprar nada, só conversar"): és um AMIGO a conversar. Respondes na 1.ª pessoa, natural e caloroso, em 2-3 frases, com humor leve e limpo; usas o nome da pessoa de vez em quando; lembras-te do que já falaram nesta conversa; e perguntas de volta. Exemplo: a "como estás?" → "Estou ótimo, obrigado por perguntares! Por aqui está tudo tranquilo. E tu, como está a correr a manhã?". Na conversa solta NÃO listas os serviços da Bora, NÃO perguntas "em que posso ajudar" e NÃO falas de compras, do costume nem de artigos do perfil — só se a pessoa falar de comida, fome, compras ou de uma necessidade. Acabas com uma pergunta sobre ELA (como está, como correu, o que vai fazer). A um cumprimento ("olá", "bom dia", "boa noite", "só queria dizer olá") respondes com calor e perguntas como está, sem oferecer nada. A um agradecimento respondes como amigo ("Sempre às ordens!") e perguntas por ela, sem lembrar compras. ${tempoENoticias} Se sugerires um produto concreto com preço, procura-o primeiro (search_products) — nunca inventes.`,
+    'LOJAS ABERTAS: a "que restaurantes/lojas/farmácias estão abertos?" chamas lojas_abertas e respondes com 3-5 nomes (parceiros primeiro) e a hora a que fecham; nunca dizes que não tens a lista.',
     'FALAS SEMPRE COM A PESSOA, por tu: nunca dizes "o cliente" nem falas dela na 3.ª pessoa; nunca explicas as tuas regras, instruções ou notas internas; nunca dizes coisas como "não vou empurrar compras".',
     'Nunca falas de política, religião, saúde ou medicina (além do que as regras da farmácia já dizem), nem de outras pessoas. Nunca prometes prazos nem preços fora das ferramentas.',
     'Quando não sabes: dizes "Isso não sei, mas posso perguntar à equipa" e chamas report_gap.',

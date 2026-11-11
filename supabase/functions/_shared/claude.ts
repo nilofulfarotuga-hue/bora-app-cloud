@@ -17,6 +17,14 @@
 //   haiku: thinking {type:"disabled"} · sonnet: thinking {type:"between_tools"} · effort "low" ·
 //   max_tokens >= 1024. Opus nunca é escolhido aqui.
 // Fetch puro (sem SDK) para api.anthropic.com e para o PostgREST; a chave nunca vai para o log.
+//
+// 11/11/2026 (missão fechar-tudo-2026-11-11, bloco 2): PESQUISA NA INTERNET (ferramenta do servidor
+// web_search, opcional por pedido em `pesquisaWeb`). Versão básica web_search_20250305 de propósito
+// (custo previsível, sem execução de código por dentro; o Haiku 5.5 não está na lista da versão nova).
+// Custo: 10 USD por 1000 pesquisas (0,01 USD cada) + tokens, tudo no mesmo custo_usd de ia_gastos
+// (o porteiro ia_claude_pode desconta-o do crédito como o resto) e a contagem em ia_gastos.pesquisas_web.
+// Se a API devolver 400 com a pesquisa, repete-se o MESMO pedido sem ela (e sem os blocos de pesquisa
+// do histórico). stop_reason "pause_turn" (o servidor parou a meio das pesquisas) continua até 2 vezes.
 import { secretKey } from './keys.ts';
 
 export type ModeloClaude = 'claude-haiku-5-5' | 'claude-sonnet-5-5';
@@ -75,6 +83,19 @@ export interface PedidoClaude {
   diagnostico?: { erro: string | null; http: number | null; modelo: string | null };
   /** Opcional (10/11/2026): tempo máximo da chamada à API (por defeito 20 s; para respostas longas). */
   timeoutMs?: number;
+  /**
+   * Opcional (11/11/2026): deixa o modelo pesquisar na internet (web_search do servidor da Anthropic).
+   * Sem isto, o pedido sai igual ao de sempre (e blocos de pesquisa antigos saem do histórico).
+   */
+  pesquisaWeb?: PesquisaWeb;
+}
+
+/** Pesquisa na internet num pedido (11/11/2026). */
+export interface PesquisaWeb {
+  /** Máximo de pesquisas NESTE pedido (1 a 5; fora disso fica no limite mais perto). */
+  maxUsos: number;
+  /** Onde está a pessoa (aproximado), para os resultados virem da zona certa. */
+  local?: { cidade?: string; regiao?: string; pais?: string; fuso?: string };
 }
 
 export interface RespostaClaude {
@@ -88,6 +109,10 @@ export interface RespostaClaude {
   ms: number;
   /** Conteúdo tal e qual veio: é isto que se devolve como mensagem 'assistant' antes dos tool_result. */
   conteudo: BlocoClaude[];
+  /** 11/11/2026: pesquisas na internet feitas neste pedido (usage.server_tool_use.web_search_requests). */
+  pesquisasWeb: number;
+  /** 11/11/2026: a API recusou o pedido com a pesquisa (400) e esta resposta veio do pedido sem ela. */
+  semPesquisaPor400: boolean;
 }
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
@@ -110,6 +135,88 @@ export function custoClaudeUsd(modelo: ModeloClaude, u: UsoClaude): number {
   const usd = (u.input_tokens * p.entrada + u.output_tokens * p.saida +
     u.cache_creation_input_tokens * p.cacheEscrita + u.cache_read_input_tokens * p.cacheLeitura) / 1e6;
   return Math.round(usd * 1e6) / 1e6;
+}
+
+// ── Pesquisa na internet (11/11/2026) ───────────────────────────────────────
+/** Preço oficial: 10 USD por 1000 pesquisas. */
+export const PRECO_PESQUISA_WEB_USD = 0.01;
+const PESQUISA_MAX_USOS = 5;
+const CONTINUACOES_MAX = 2;
+
+export function limitarUsosPesquisa(n: unknown): number {
+  const v = Math.round(Number(n));
+  if (!Number.isFinite(v)) return 3;
+  return Math.max(1, Math.min(PESQUISA_MAX_USOS, v));
+}
+
+/** A ferramenta web_search do servidor (versão básica: custo previsível; serve o Haiku e o Sonnet). */
+export function ferramentaPesquisaWeb(p: PesquisaWeb): BlocoClaude {
+  const t: BlocoClaude = { type: 'web_search_20250305', name: 'web_search', max_uses: limitarUsosPesquisa(p.maxUsos) };
+  const l = p.local;
+  if (l && (l.cidade || l.regiao || l.pais || l.fuso)) {
+    const loc: Record<string, string> = { type: 'approximate' };
+    if (l.cidade) loc.city = l.cidade;
+    if (l.regiao) loc.region = l.regiao;
+    if (l.pais) loc.country = l.pais;
+    if (l.fuso) loc.timezone = l.fuso;
+    t.user_location = loc;
+  }
+  return t;
+}
+
+/** Blocos que só existem com ferramentas do servidor (pesquisa e afins). Os tool_result do cliente ficam. */
+export function eBlocoDoServidor(b: BlocoClaude): boolean {
+  const t = String(b?.type ?? '');
+  return t === 'server_tool_use' || (t.endsWith('_tool_result') && t !== 'tool_result');
+}
+
+/**
+ * O histórico sem a pesquisa: tira os blocos do servidor e as citações dos textos (as citações apontam
+ * para resultados que deixam de lá estar). Usado quando o pedido vai sem a ferramenta.
+ */
+export function semPesquisaWeb(msgs: MensagemClaude[]): MensagemClaude[] {
+  return msgs.map((m) => {
+    if (typeof m.content === 'string') return m;
+    const blocos = m.content
+      .filter((b) => !eBlocoDoServidor(b))
+      .map((b) => {
+        if (b?.type === 'text' && 'citations' in b) {
+          const { citations: _c, ...resto } = b;
+          return resto;
+        }
+        return b;
+      });
+    return { role: m.role, content: blocos };
+  });
+}
+
+function temBlocosDoServidor(msgs: MensagemClaude[]): boolean {
+  return msgs.some((m) => Array.isArray(m.content) && m.content.some(eBlocoDoServidor));
+}
+
+/** 400 (que não seja falta de crédito) num pedido com a pesquisa → repete-se o mesmo pedido sem ela. */
+export function deveRepetirSemPesquisa(status: number, texto: string, comPesquisa: boolean): boolean {
+  return comPesquisa && status === 400 && !/credit balance/i.test(texto ?? '');
+}
+
+export function pesquisasDoUso(u: unknown): number {
+  const s = (u && typeof u === 'object' ? (u as Record<string, unknown>).server_tool_use : null) as Record<string, unknown> | null;
+  const n = Number(s?.web_search_requests ?? 0);
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
+}
+
+/**
+ * O texto da resposta. Com pesquisas, só o que vem DEPOIS do último resultado do servidor (o "vou
+ * procurar…" de antes da pesquisa não é a resposta). Sem pesquisas, todos os textos, como sempre.
+ */
+export function textoDaResposta(conteudo: BlocoClaude[]): string {
+  let inicio = 0;
+  conteudo.forEach((b, i) => { if (eBlocoDoServidor(b)) inicio = i + 1; });
+  const depois = conteudo.slice(inicio);
+  const textos = (depois.some((b) => b?.type === 'text') ? depois : conteudo)
+    .filter((b) => b?.type === 'text' && typeof b.text === 'string')
+    .map((b) => b.text as string);
+  return textos.join('').trim();
 }
 
 function numero(x: unknown): number {
@@ -169,32 +276,47 @@ async function perguntarPorteiro(prioridade: number, robo: string): Promise<Port
 export async function registarGasto(linha: {
   robo: string; prioridade: number; modelo: string; uso: UsoClaude; custo: number;
   ms: number; ok: boolean; erro?: string | null;
+  /** 11/11/2026: pesquisas na internet desta chamada (o custo delas já vem em `custo`). */
+  pesquisasWeb?: number;
 }): Promise<void> {
   const url = Deno.env.get('SUPABASE_URL');
   const chave = secretKey();
   if (!url || !chave) return;
+  const corpo: Record<string, unknown> = {
+    maquina: 'edge',
+    robo: linha.robo,
+    perfil: linha.robo,
+    prioridade: linha.prioridade,
+    modelo: linha.modelo,
+    tokens_entrada: linha.uso.input_tokens,
+    tokens_saida: linha.uso.output_tokens,
+    tokens_cache_escrita: linha.uso.cache_creation_input_tokens,
+    tokens_cache_leitura: linha.uso.cache_read_input_tokens,
+    custo_usd: linha.custo,
+    ms: linha.ms,
+    ok: linha.ok,
+    erro: linha.erro ? linha.erro.slice(0, 500) : null,
+  };
+  // A coluna pesquisas_web só vai quando houve pesquisas (sem a migração de 11/11 a coluna não existe).
+  if (linha.pesquisasWeb && linha.pesquisasWeb > 0) corpo.pesquisas_web = linha.pesquisasWeb;
+  const gravar = (c: Record<string, unknown>) => fetch(`${url}/rest/v1/ia_gastos`, {
+    method: 'POST',
+    headers: { ...cabecalhosBanco(chave), Prefer: 'return=minimal' },
+    body: JSON.stringify(c),
+    signal: AbortSignal.timeout(TIMEOUT_BANCO_MS),
+  });
   try {
-    const r = await fetch(`${url}/rest/v1/ia_gastos`, {
-      method: 'POST',
-      headers: { ...cabecalhosBanco(chave), Prefer: 'return=minimal' },
-      body: JSON.stringify({
-        maquina: 'edge',
-        robo: linha.robo,
-        perfil: linha.robo,
-        prioridade: linha.prioridade,
-        modelo: linha.modelo,
-        tokens_entrada: linha.uso.input_tokens,
-        tokens_saida: linha.uso.output_tokens,
-        tokens_cache_escrita: linha.uso.cache_creation_input_tokens,
-        tokens_cache_leitura: linha.uso.cache_read_input_tokens,
-        custo_usd: linha.custo,
-        ms: linha.ms,
-        ok: linha.ok,
-        erro: linha.erro ? linha.erro.slice(0, 500) : null,
-      }),
-      signal: AbortSignal.timeout(TIMEOUT_BANCO_MS),
-    });
-    if (!r.ok) await r.text().catch(() => ''); // tabela ainda não existe (migração por aplicar): ignora-se
+    const r = await gravar(corpo);
+    if (!r.ok) {
+      const txt = await r.text().catch(() => '');
+      // Migração de 11/11 por aplicar: grava sem a contagem (o custo das pesquisas fica no custo_usd).
+      if ('pesquisas_web' in corpo && /pesquisas_web/i.test(txt)) {
+        delete corpo.pesquisas_web;
+        const r2 = await gravar(corpo);
+        if (!r2.ok) await r2.text().catch(() => '');
+      }
+      // tabela ainda não existe (migração por aplicar): ignora-se
+    }
   } catch {
     // ignora-se: o livro de gastos nunca derruba a resposta
   }
@@ -220,16 +342,23 @@ function mensagemVazia(m: MensagemClaude): boolean {
 
 /** Corpo do pedido (exportado para os testes). */
 export function corpoPedido(p: PedidoClaude, modelo: ModeloClaude): Record<string, unknown> {
+  let mensagens = p.messages.filter((m) => !mensagemVazia(m));
+  // Sem a ferramenta de pesquisa, os blocos de pesquisas antigas saem do histórico (senão a API recusa).
+  if (!p.pesquisaWeb && temBlocosDoServidor(mensagens)) mensagens = semPesquisaWeb(mensagens).filter((m) => !mensagemVazia(m));
   const corpo: Record<string, unknown> = {
     model: modelo,
     max_tokens: Math.max(1024, Math.round(p.maxTokens ?? 2048)),
     system: blocosSistema(p.system, p.contexto),
-    messages: p.messages.filter((m) => !mensagemVazia(m)),
+    messages: mensagens,
     thinking: modelo === 'claude-haiku-5-5' ? { type: 'disabled' } : { type: 'between_tools' },
     output_config: { effort: 'low' },
   };
-  if (p.tools && p.tools.length > 0) {
-    corpo.tools = p.tools;
+  // 11/11/2026: a pesquisa na internet vai junto das ferramentas do cliente (fica no fim: as de sempre
+  // continuam na mesma posição e a cache não muda quando a pesquisa está desligada).
+  const tools: BlocoClaude[] = [...(p.tools ?? [])];
+  if (p.pesquisaWeb) tools.push(ferramentaPesquisaWeb(p.pesquisaWeb));
+  if (tools.length > 0) {
+    corpo.tools = tools;
     corpo.tool_choice = { type: 'auto' };
   }
   return corpo;
@@ -266,53 +395,88 @@ export async function claudePrimeiro(p: PedidoClaude): Promise<RespostaClaude | 
   const t0 = Date.now();
   let erro: string | null = null;
   let uso: UsoClaude = USO_ZERO;
+  // 11/11/2026: pesquisa na internet (opcional), repetição sem ela no 400 e continuação do pause_turn.
+  let comPesquisa = Boolean(p.pesquisaWeb);
+  let semPesquisaPor400 = false;
+  let pesquisas = 0;
+  let continuacoes = 0;
+  let enviar: MensagemClaude[] = msgs;
+  const acumulado: BlocoClaude[] = [];
+  const custoTotal = () => Math.round((custoClaudeUsd(modelo, uso) + pesquisas * PRECO_PESQUISA_WEB_USD) * 1e6) / 1e6;
   try {
-    const resp = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'x-api-key': chaveApi,
-        'anthropic-version': API_VERSAO,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify(corpoPedido({ ...p, messages: msgs }, modelo)),
-      signal: ctrl.signal,
-    });
-    if (!resp.ok) {
-      const txt = (await resp.text().catch(() => '')).slice(0, 300);
-      const semCredito = resp.status === 400 && /credit balance/i.test(txt);
-      erro = `http ${resp.status}${semCredito ? ' (sem credito)' : ''}: ${txt}`;
-      httpFalha = resp.status;
-      return null;
+    while (true) {
+      const resp = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'x-api-key': chaveApi,
+          'anthropic-version': API_VERSAO,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(corpoPedido({ ...p, messages: enviar, pesquisaWeb: comPesquisa ? p.pesquisaWeb : undefined }, modelo)),
+        signal: ctrl.signal,
+      });
+      if (!resp.ok) {
+        const txt = (await resp.text().catch(() => '')).slice(0, 300);
+        if (acumulado.length === 0 && deveRepetirSemPesquisa(resp.status, txt, comPesquisa)) {
+          // A API recusou o pedido com a pesquisa: o mesmo pedido sai outra vez, sem ela.
+          console.log(`[claude] robo=${p.robo} 400 com a pesquisa na internet, repete sem ela: ${txt.slice(0, 160)}`);
+          await registarGasto({
+            robo: p.robo, prioridade: p.prioridade, modelo, uso: USO_ZERO, custo: 0,
+            ms: Date.now() - t0, ok: false, erro: `http 400 com pesquisa web (repetido sem ela): ${txt}`,
+          });
+          comPesquisa = false;
+          semPesquisaPor400 = true;
+          enviar = msgs;
+          continue;
+        }
+        const semCredito = resp.status === 400 && /credit balance/i.test(txt);
+        erro = `http ${resp.status}${semCredito ? ' (sem credito)' : ''}: ${txt}`;
+        httpFalha = resp.status;
+        return null;
+      }
+      // deno-lint-ignore no-explicit-any
+      const j = await resp.json() as any;
+      const u = usoDe(j?.usage);
+      uso = {
+        input_tokens: uso.input_tokens + u.input_tokens,
+        output_tokens: uso.output_tokens + u.output_tokens,
+        cache_creation_input_tokens: uso.cache_creation_input_tokens + u.cache_creation_input_tokens,
+        cache_read_input_tokens: uso.cache_read_input_tokens + u.cache_read_input_tokens,
+      };
+      pesquisas += pesquisasDoUso(j?.usage);
+      const conteudo: BlocoClaude[] = Array.isArray(j?.content) ? j.content : [];
+      acumulado.push(...conteudo);
+      const stopReason = String(j?.stop_reason ?? '');
+      if (stopReason === 'refusal') {
+        erro = `refusal: ${j?.stop_details?.category ?? 'sem categoria'}`;
+        return null;
+      }
+      if (stopReason === 'pause_turn' && continuacoes < CONTINUACOES_MAX) {
+        // O servidor parou a meio das pesquisas: manda-se o que veio e ele continua (sem mensagem nova).
+        continuacoes++;
+        enviar = [...msgs, { role: 'assistant', content: [...acumulado] }];
+        continue;
+      }
+      const texto = textoDaResposta(acumulado);
+      const toolUses: ToolUseClaude[] = acumulado
+        .filter((b) => b?.type === 'tool_use' && typeof b.id === 'string' && typeof b.name === 'string')
+        .map((b) => ({
+          id: b.id as string,
+          name: b.name as string,
+          input: (b.input && typeof b.input === 'object' && !Array.isArray(b.input) ? b.input : {}) as Record<string, unknown>,
+        }));
+      if (!texto && toolUses.length === 0) {
+        erro = `resposta vazia (stop_reason=${stopReason || '?'})`;
+        return null;
+      }
+      const ms = Date.now() - t0;
+      const custoUsd = custoTotal();
+      await registarGasto({ robo: p.robo, prioridade: p.prioridade, modelo, uso, custo: custoUsd, ms, ok: true, pesquisasWeb: pesquisas });
+      return {
+        texto, toolUses, stopReason, modelo, usage: uso, custoUsd, ms, conteudo: acumulado,
+        pesquisasWeb: pesquisas, semPesquisaPor400,
+      };
     }
-    // deno-lint-ignore no-explicit-any
-    const j = await resp.json() as any;
-    uso = usoDe(j?.usage);
-    const conteudo: BlocoClaude[] = Array.isArray(j?.content) ? j.content : [];
-    const stopReason = String(j?.stop_reason ?? '');
-    if (stopReason === 'refusal') {
-      erro = `refusal: ${j?.stop_details?.category ?? 'sem categoria'}`;
-      return null;
-    }
-    const texto = conteudo
-      .filter((b) => b?.type === 'text' && typeof b.text === 'string')
-      .map((b) => b.text as string)
-      .join('')
-      .trim();
-    const toolUses: ToolUseClaude[] = conteudo
-      .filter((b) => b?.type === 'tool_use' && typeof b.id === 'string' && typeof b.name === 'string')
-      .map((b) => ({
-        id: b.id as string,
-        name: b.name as string,
-        input: (b.input && typeof b.input === 'object' && !Array.isArray(b.input) ? b.input : {}) as Record<string, unknown>,
-      }));
-    if (!texto && toolUses.length === 0) {
-      erro = `resposta vazia (stop_reason=${stopReason || '?'})`;
-      return null;
-    }
-    const ms = Date.now() - t0;
-    const custoUsd = custoClaudeUsd(modelo, uso);
-    await registarGasto({ robo: p.robo, prioridade: p.prioridade, modelo, uso, custo: custoUsd, ms, ok: true });
-    return { texto, toolUses, stopReason, modelo, usage: uso, custoUsd, ms, conteudo };
   } catch (e) {
     const nome = (e as Error)?.name ?? '';
     erro = nome === 'AbortError' ? `timeout ${Math.round(limiteMs / 1000)} s` : `fetch: ${(e as Error)?.message ?? e}`;
@@ -323,8 +487,8 @@ export async function claudePrimeiro(p: PedidoClaude): Promise<RespostaClaude | 
       diag(erro.slice(0, 300), httpFalha, modelo);
       console.log(`[claude] robo=${p.robo} modelo=${modelo} falhou, reserva Gemini: ${erro.slice(0, 200)}`);
       await registarGasto({
-        robo: p.robo, prioridade: p.prioridade, modelo, uso, custo: custoClaudeUsd(modelo, uso),
-        ms: Date.now() - t0, ok: false, erro,
+        robo: p.robo, prioridade: p.prioridade, modelo, uso, custo: custoTotal(),
+        ms: Date.now() - t0, ok: false, erro, pesquisasWeb: pesquisas,
       });
     }
   }

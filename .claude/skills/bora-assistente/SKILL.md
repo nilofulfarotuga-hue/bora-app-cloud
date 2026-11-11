@@ -142,6 +142,24 @@ A resposta estruturada fica em `assistant_chat_messages.structured` para redesen
   `admin_amigo_ver_perfil` com motivo e auditoria). Lógica pura e testes: `amigo.ts`/`amigo_test.ts`,
   `assistant-profile-refresh/perfil.ts`, `test/amigo_bora_test.dart`.
 
+## v12 (11/11/2026, missão fechar-tudo-2026-11-11, bloco 2)
+- **Pesquisa na internet**: ferramenta do servidor `web_search_20250305` (básica de propósito: custo previsível,
+  serve Haiku e Sonnet) pelo `_shared/claude.ts` (`PedidoClaude.pesquisaWeb`). Só tempo, agenda/eventos da Guarda,
+  notícias, futebol, farmácia de serviço. Definições `assistant_web_search_enabled` / `assistant_web_search_max_uses`
+  (1 a 5, por MENSAGEM). 0,01 USD por pesquisa no `custo_usd` de `ia_gastos` + contagem em `ia_gastos.pesquisas_web`.
+  400 com a pesquisa → o mesmo pedido sem ela; `pause_turn` continua até 2 vezes; sem a ferramenta, os blocos de
+  pesquisa saem do histórico. Testes: `_shared/claude_pesquisa_test.ts`.
+- **lojas_abertas** (RPC `assistant_lojas_abertas`, `is_partner_open` por loja; reserva pelo horário guardado com
+  `abertaPeloHorario`) e **parceiro primeiro** em `search_products` (RPC `assistant_produtos_parceiro_aberto`: nome,
+  secção ou descrição do produto; "açaí" → bowls do Goola).
+- **"quero"/"sim"/"pode ser"** logo a seguir a uma sugestão: carrinho montado em código a partir de
+  `structured.ultima_sugestao` (`eConfirmacaoDeCompra` + `confirmacaoEParaOCarrinho` — não dispara se a resposta
+  anterior perguntou outra coisa ou pediu para guardar uma alergia). A última rede também tenta montar antes do
+  "não consegui". Lógica pura em `client-assistant/sugestao.ts` (testes `sugestao_test.ts`).
+- Conversa livre do Amigo no `claude-sonnet-5-5` (`assistant_amigo_model` e `claude_robos.edge-amigo.modelo`).
+- Painel: secção "Pesquisa na internet" (`admin_amigo_pesquisa_secao.dart`, `admin_amigo_pesquisa_overview` /
+  `admin_amigo_pesquisa_definir`). Migração `20261111090000_amigo_pesquisa_e_lojas_abertas.sql`.
+
 ## Armadilhas já vistas (07/10/2026)
 - O conector "claude ai Supabase" (apply_migration/execute_sql) prendeu 3× nesse dia: SQL vai pela
   gaveta `platform_settings.staged_<nome>_<data>` (JSON com sql/estado/motivo/prova) e a Claude.ai aplica.

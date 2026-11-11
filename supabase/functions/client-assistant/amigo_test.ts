@@ -253,6 +253,26 @@ Deno.test('adendo 4: resposta escrita para a nota interna é apanhada', () => {
   assert(!respostaParaOSistema('Encontrei o teu hambúrguer no Boom. Queres que prepare o carrinho?'));
 });
 
+// ─── 11/11/2026 (fechar-tudo, bloco 2): cumprimento + pergunta de lojas não é conversa solta; pesquisa ───
+Deno.test('11/11: "Oi, quais restaurantes estão abertos hoje" não é cumprimento solto', () => {
+  const o = { temImagem: false, ultimaTinhaCompra: false };
+  for (const f of ['Oi Qual os restaurantes que estão aberto hoje', 'olá, o que está aberto agora?', 'bom dia, há farmácia aberta?']) {
+    assertEquals(soConversa(f), false, `soConversa("${f}")`);
+  }
+  assert(!pareceConversaLivre('Oi Qual os restaurantes que estão aberto hoje', o));
+  // os cumprimentos de sempre continuam conversa
+  assert(soConversa('olá, tudo bem?'));
+  assert(soConversa('boa noite Amigo'));
+});
+
+Deno.test('11/11: com a pesquisa ligada, o Amigo procura o tempo e a agenda em vez de "não sei"', () => {
+  assertStringIncludes(blocoAmigo(true), 'web_search');
+  assertStringIncludes(blocoAmigo(true), 'farmácia de serviço');
+  assertStringIncludes(blocoAmigo(true), 'lojas_abertas');
+  assert(!blocoAmigo(false).includes('web_search'));
+  assertStringIncludes(blocoAmigo(false), 'sem inventar resultados');
+});
+
 Deno.test('adendo 4: as notas internas pedem resposta direta, por tu, e o Amigo fala como amigo', () => {
   assertStringIncludes(ACAO_NUDGE, 'Responde diretamente à pessoa, por tu');
   assert(!ACAO_NUDGE.startsWith('SISTEMA'));

@@ -10,11 +10,11 @@ estado: atual
 
 # Restaurantes da Guarda (sushi, pizzarias, churrasqueira) não-parceiros de takeaway por telefone no Bora — escolhidos e excluídos (04/10); DaVinci retirada a 05/11 por queixa do dono
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-lojas-takeaway-guarda`, origem `claude-ai`, atualizada em 2026-11-11T18:13:46.160552+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-lojas-takeaway-guarda`, origem `claude-ai`, atualizada em 2026-11-11T19:13:19.599333+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas lojas takeaway guarda · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/lojas-takeaway-guarda.md), copiada a 2026-11-11 18:12 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/lojas-takeaway-guarda.md), copiada a 2026-11-11 19:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: lojas-takeaway-guarda

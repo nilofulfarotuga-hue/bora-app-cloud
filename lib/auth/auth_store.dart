@@ -343,6 +343,113 @@ class AuthStore extends ChangeNotifier {
     return null;
   }
 
+  /// "Editar perfil" do cliente (missão editar-perfil-2026-11-11).
+  ///
+  /// Grava pela RPC `client_update_my_profile`: o servidor valida (nome 2–60,
+  /// telemóvel PT de 9 dígitos), só deixa mudar a PRÓPRIA conta (o id vem do
+  /// token), grava em `public.users` e no metadata do login, e guarda o
+  /// antes/depois em `user_profile_changes`. O estado local só muda depois de
+  /// o servidor confirmar — com a rede em baixo nada se perde nem se finge.
+  ///
+  /// [phone] vazio = não mexe no telemóvel. Devolve `null` quando correu bem,
+  /// ou a mensagem de erro em PT-PT.
+  Future<String?> editClientProfile({
+    required String name,
+    String? phone,
+  }) async {
+    final client = _currentClient;
+    if (client == null) {
+      return 'A tua sessão terminou. Entra outra vez na tua conta.';
+    }
+    final tel = (phone ?? '').trim();
+
+    final Object? res;
+    try {
+      res = await _supabase.rpc('client_update_my_profile', params: {
+        'p_name': name.trim(),
+        'p_phone': tel.isEmpty ? null : tel,
+      }).timeout(const Duration(seconds: 20));
+    } on TimeoutException {
+      return 'A ligação está lenta. Verifica a internet e tenta de novo.';
+    } catch (e) {
+      debugPrint('editClientProfile falhou => $e');
+      return 'Não foi possível guardar. Verifica a ligação e tenta de novo.';
+    }
+
+    if (res is! Map) {
+      return 'Não foi possível guardar. Tenta de novo.';
+    }
+    if (res['ok'] != true) {
+      final erro = res['erro'];
+      return erro is String && erro.isNotEmpty
+          ? erro
+          : 'Não foi possível guardar. Tenta de novo.';
+    }
+
+    final nome = (res['name'] as String?)?.trim();
+    final telGravado = (res['phone'] as String?)?.trim();
+    _applyClientContact(
+      (nome == null || nome.isEmpty) ? client.name : nome,
+      (telGravado == null || telGravado.isEmpty) ? client.phone : telGravado,
+    );
+    // O servidor já mudou o metadata; isto põe a sessão guardada neste
+    // telemóvel em dia, para o nome não voltar ao antigo ao reabrir a app.
+    unawaited(_syncSessionContactMetadata());
+    return null;
+  }
+
+  /// Traz nome/telemóvel de `public.users` para a app. Uma mudança feita no
+  /// painel admin ou aprovada no Suporte passa a aparecer no Perfil e no
+  /// "Olá, X!" sem o cliente ter de sair e voltar a entrar. Silencioso: sem
+  /// rede, sem sessão ou sem linha, fica tudo como está.
+  Future<void> syncClientContactFromServer() async {
+    try {
+      final client = _currentClient;
+      final uid = _supabase.auth.currentUser?.id;
+      if (client == null || uid == null) return;
+      final row = await _supabase
+          .from('users')
+          .select('name, phone')
+          .eq('id', uid)
+          .maybeSingle()
+          .timeout(const Duration(seconds: 10));
+      if (row == null || !identical(client, _currentClient)) return;
+      final n = (row['name'] as String?)?.trim() ?? '';
+      final p = (row['phone'] as String?)?.trim() ?? '';
+      final nome = n.isNotEmpty ? n : client.name;
+      final tel = p.isNotEmpty ? p : client.phone;
+      if (nome == client.name && tel == client.phone) return;
+      _applyClientContact(nome, tel);
+      await _syncSessionContactMetadata();
+    } catch (e) {
+      debugPrint('syncClientContactFromServer => $e');
+    }
+  }
+
+  void _applyClientContact(String name, String phone) {
+    final client = _currentClient;
+    if (client == null) return;
+    if (client.name == name && client.phone == phone) return;
+    final updated = client.copyWith(name: name, phone: phone);
+    _currentClient = updated;
+    if (updated.email.isNotEmpty) _clientsByEmail[updated.email] = updated;
+    _persistClient(updated);
+    notifyListeners();
+  }
+
+  /// Best-effort: o metadata do login é de onde a app relê o nome ao abrir.
+  Future<void> _syncSessionContactMetadata() async {
+    final client = _currentClient;
+    if (client == null || _supabase.auth.currentUser == null) return;
+    try {
+      await _supabase.auth.updateUser(
+        UserAttributes(data: {_kName: client.name, _kPhone: client.phone}),
+      );
+    } catch (e) {
+      debugPrint('AuthStore: metadata do contacto não atualizado => $e');
+    }
+  }
+
   /// [url] may be empty to clear the photo.
   Future<void> updateCurrentUserPhoto(String url) async {
     if (_currentClient != null) {
@@ -495,6 +602,9 @@ class AuthStore extends ChangeNotifier {
         _clientsByEmail[email] = account;
         _currentClient = account;
         notifyListeners();
+        // Editar perfil (11/11/2026): o metadata pode estar atrás de
+        // public.users (mudança feita no painel ou aprovada no Suporte).
+        unawaited(syncClientContactFromServer());
         break;
 
       case 'driver':

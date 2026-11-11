@@ -57,6 +57,26 @@ String? normalizarTelemovelPt(String? valor) {
   return s;
 }
 
+/// Nome como fica gravado: sem espaços nas pontas nem espaços repetidos.
+String limparNome(String? valor) =>
+    (valor ?? '').trim().replaceAll(RegExp(r'\s+'), ' ');
+
+/// Nome no "Editar perfil" (11/11/2026): 2 a 60 caracteres e pelo menos 2
+/// letras — a mesma regra que o servidor (`_apply_user_profile_change`)
+/// aplica, para o erro aparecer logo no campo e não só depois de gravar.
+String? validarNomePerfil(String? valor) {
+  final nome = limparNome(valor);
+  if (nome.isEmpty) return 'Escreve o teu nome.';
+  final tamanho = nome.runes.length;
+  if (tamanho < 2 || tamanho > 60) {
+    return 'O nome tem de ter entre 2 e 60 caracteres.';
+  }
+  if (RegExp(r'\p{L}', unicode: true).allMatches(nome).length < 2) {
+    return 'Escreve o teu nome com letras.';
+  }
+  return null;
+}
+
 /// `true` quando a ficha tem contacto utilizável — o teste único que o ecrã de
 /// completar perfil e o checkout usam para decidir se ainda falta pedir dados.
 bool contactoDoClienteCompleto({String? nome, String? telemovel}) =>

@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-11T21:07:03.672964+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-11T21:37:03.513556+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-11 20:56 UTC. Páginas listadas: 618.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-11 21:22 UTC. Páginas listadas: 618.
 
 ## O que é o Bora
 
@@ -34,7 +34,7 @@ Quer respostas curtas, em texto corrido e sem jargão, e que o trabalho se faça
 
 1. `erros-aprendidos` — as correções do Danilo; errou uma vez, nunca mais (atualizada 2026-11-11).
 2. `regras-do-danilo` — as regras dele; mandam em tudo (atualizada 2026-10-31).
-3. Estado vivo: `digest-2026-11-11-meta-grupos` (2026-11-11).
+3. Estado vivo: `digest-2026-11-11-farmacias` (2026-11-11).
 4. Antes de mexer em pedidos, estafetas, dinheiro ou migrações: `regras-operacao-agentes`.
 5. Ferramenta nova sem MCP? `livro-porta-unica` explica como ligar (Córtex por MCP, ou o ficheiro plano LIVRO.md com senha).
 
@@ -53,8 +53,8 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 ## digest (232)
 
-- digest-2026-11-11-meta-grupos — Digest 11/11 — Meta, grupos, Casa, Amigo e "A Guarda toda numa app" (2026-11-11)
 - digest-2026-11-11-farmacias — Digest 11/11 — farmácias da Sé e Teixeira (receita, lojas escondidas) (2026-11-11)
+- digest-2026-11-11-meta-grupos — Digest 11/11 — Meta, grupos, Casa, Amigo e "A Guarda toda numa app" (2026-11-11)
 - digest-2026-11-11-editar-perfil — Digest 11/11 — Editar perfil do cliente (2026-11-11)
 - digest-2026-11-11-amigo-casa — Digest 11/11 — Amigo com a Casa e Manutenção (por publicar) (2026-11-11)
 - digest-2026-11-11-propaganda-casa-amigo — Digest 11/11 - propaganda Casa e Amigo (blocos 0 e 1) (2026-11-11)

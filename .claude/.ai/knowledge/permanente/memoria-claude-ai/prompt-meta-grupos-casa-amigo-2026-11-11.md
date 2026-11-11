@@ -10,9 +10,11 @@ estado: atual
 
 # Prompt PC: anúncios Meta + grupos da Casa e do Amigo + renovar login do loop (11/11/2026 13:55)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `prompt-meta-grupos-casa-amigo-2026-11-11`, origem `claude-ai`, atualizada em 2026-11-11T13:46:50.441244+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `prompt-meta-grupos-casa-amigo-2026-11-11`, origem `claude-ai`, atualizada em 2026-11-11T14:07:23.243076+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: prompt meta grupos casa amigo 2026 11 11 · memoria claude.ai · claude_ai_memoria
+
+>>> ATUALIZAÇÃO 11/11 14:10 (Danilo 14:06): passam a ser TRÊS anúncios e os 20 € dividem-se pelos três — Casa 7 €, "A Guarda toda numa app" 7 €, Amigo Bora 6 € (orçamento total de cada um, até 14/11 12:00). O 3.º anúncio e o seu roteiro estão no prompt que o Danilo cola na sessão nova (copiado também no fim desta página). Onde esta página diz "10 € cada", vale a atualização. <<<
 
 
 ⚠️ MODO PROTECÇÃO TOTAL ⚠️

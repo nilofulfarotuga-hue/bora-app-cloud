@@ -1,42 +1,51 @@
 import 'dart:io';
 
+import 'package:bora_app/l10n/strings_en.dart';
 import 'package:bora_app/services/aviso_ia.dart';
 import 'package:bora_app/widgets/aviso_alergenios.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Missão fechar-tudo-2026-11-10, bloco E6: o assistente/Amigo diz que é uma
-/// IA na primeira fala (Reg. (UE) 2024/1689, art. 50.º/1), só guarda
-/// alergias/dietas com o "sim" do cliente (RGPD, art. 9.º) e, enquanto um
-/// prato não tem os 14 alergénios, a app manda contactar a loja antes de pagar
-/// (Reg. (UE) 1169/2011).
+/// Missão fechar-tudo-2026-11-10, bloco E6, revisto a 11/11/2026: o aviso de
+/// IA (Reg. (UE) 2024/1689, art. 50.º/1) SAIU DA FALA do Amigo (ordem do
+/// Danilo, 10:54) e está na etiqueta "assistente virtual" do cabeçalho do ecrã
+/// do Amigo e na Informação legal; alergias/dietas só com o "sim" do cliente
+/// (RGPD, art. 9.º) e, enquanto um prato não tem os 14 alergénios, a app manda
+/// contactar a loja antes de pagar (Reg. (UE) 1169/2011).
 void main() {
-  group('primeira fala do Amigo', () {
-    test('a primeira fala começa pelo aviso de IA', () {
-      expect(comAvisoIA('Olá! Sou o Amigo.'), '$kAvisoIA Olá! Sou o Amigo.');
+  group('aviso de IA: fora da fala, sempre à vista', () {
+    test('a frase antiga sai das respostas guardadas', () {
+      expect(semAvisoIA('$kAvisoIA Olá! Sou o Amigo Bora.'), 'Olá! Sou o Amigo Bora.');
+      expect(semAvisoIA('Aqui tens.'), 'Aqui tens.');
     });
 
-    test('as falas seguintes ficam como estão', () {
-      expect(comAvisoIA('Aqui tens.', primeiraFala: false), 'Aqui tens.');
-    });
-
-    test('se já diz que é uma IA, não se repete', () {
-      const t = 'Olá! Sou o Amigo, uma inteligência artificial do Bora.';
-      expect(comAvisoIA(t), t);
-      expect(jaDizQueEIA('Sou uma IA.'), isTrue);
-      expect(jaDizQueEIA('I am an AI.'), isTrue);
-      expect(jaDizQueEIA('Eu ia pedir, bom dia.'), isFalse,
-          reason: '"ia" do verbo ir e "dia" não são o aviso');
-    });
-
-    test('texto vazio: fica só o aviso', () {
-      expect(comAvisoIA('  '), kAvisoIA);
-    });
-
-    test('o ecrã do Amigo põe o aviso na saudação feita sem o servidor', () {
+    test('o ecrã do Amigo não põe o aviso na fala e mostra a etiqueta', () {
       final s = File('lib/screens/client/assistant/amigo_screen.dart')
           .readAsStringSync();
-      expect(s, contains('r ??= AssistantReply.texto(comAvisoIA('));
+      expect(s, isNot(contains('comAvisoIA(')));
+      expect(s, contains("'Olá! Sou o Amigo Bora. Fala comigo: estou aqui para o que precisares.'.tr"));
+      expect(s, contains("Text('assistente virtual'.tr,"));
+      expect(s, contains('await _voz.falar(semAvisoIA(r.texto));'));
+    });
+
+    test('a etiqueta "assistente virtual" também está em inglês', () {
+      expect(kStringsEn['assistente virtual'], 'virtual assistant');
+      expect(
+          kStringsEn['Olá! Sou o Amigo Bora. Fala comigo: estou aqui para o que precisares.'],
+          isNot(contains('AI')));
+    });
+
+    test('o chat do suporte humano NÃO mudou: diz na 1.ª resposta que é assistente virtual', () {
+      final s = File('supabase/functions/support-human-chat/index.ts').readAsStringSync();
+      expect(s, contains('a assistente virtual (inteligência artificial) de apoio ao cliente'));
+      expect(s, contains('Na tua PRIMEIRA resposta de cada conversa diz numa frase curta que és a assistente virtual da Bora'));
+    });
+
+    test('a Informação legal diz que o Amigo é um assistente virtual', () {
+      expect(kAvisoLegalAssistente, contains('assistente virtual automático (inteligência'));
+      expect(kAvisoLegalAssistente, contains('Não substitui o apoio humano'));
+      final legal = File('lib/screens/legal_info_screen.dart').readAsStringSync();
+      expect(legal, contains('kAvisoLegalAssistente'));
     });
   });
 
@@ -44,12 +53,12 @@ void main() {
     final idx = File('supabase/functions/client-assistant/index.ts')
         .readAsStringSync();
 
-    test('primeira resposta de cada conversa e todas as saudações com aviso',
-        () {
-      expect(idx, contains('finalText = comAvisoIA(finalText, messagesCount === 0);'));
-      expect(idx, contains('texto: comAvisoIA(s.welcome, true)'));
-      expect(idx, contains('comAvisoIA(saudacaoHabitual(hab, perfil), true)'));
-      expect(idx, contains('comAvisoIA(saudacaoSimples(m, perfil, s.amigoWelcome), true)'));
+    test('nenhuma fala nem saudação leva o aviso de IA', () {
+      expect(idx, isNot(contains('comAvisoIA(')));
+      expect(idx, contains('finalText = semAvisoIA(finalText);'));
+      expect(idx, contains('texto: s.welcome,'));
+      expect(idx, contains('const texto = saudacaoHabitual(hab, perfil);'));
+      expect(idx, contains('texto: saudacaoSimples(m, perfil, s.amigoWelcome),'));
     });
 
     test('alergias e dietas só se guardam com consentimento explícito', () {

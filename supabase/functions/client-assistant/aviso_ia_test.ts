@@ -1,29 +1,26 @@
 // deno test supabase/functions/client-assistant/aviso_ia_test.ts
-// Missão fechar-tudo-2026-11-10, bloco E6: o assistente diz que é uma IA na primeira fala de cada
-// conversa (Reg. (UE) 2024/1689, art. 50.º/1) e só guarda alergias/dietas com o "sim" do cliente
-// (RGPD, art. 9.º/2 a)).
+// Missão fechar-tudo-2026-11-10, bloco E6, revisto a 11/11/2026 (ordem do Danilo, 10:54: "ele não tem que
+// falar que é inteligência artificial"): o aviso de IA SAIU DA FALA — está na etiqueta "assistente virtual"
+// do cabeçalho do ecrã do Amigo e na Informação legal da app (Reg. (UE) 2024/1689, art. 50.º/1). As alergias
+// e dietas continuam a guardar-se só com o "sim" do cliente (RGPD, art. 9.º/2 a)).
 import { assert, assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts';
-import { AVISO_IA, comAvisoIA, consentimentoExplicito, eDadoDeSaude, jaDizQueEIA } from './amigo.ts';
+import { AVISO_IA, consentimentoExplicito, eDadoDeSaude, saudacaoSimples, semAvisoIA } from './amigo.ts';
 
-Deno.test('primeira fala: começa pelo aviso de IA', () => {
-  assertEquals(comAvisoIA('Boa tarde, Ana! Pergunta-me o que quiseres.', true),
-    `${AVISO_IA} Boa tarde, Ana! Pergunta-me o que quiseres.`);
+Deno.test('a frase antiga do aviso sai da fala (o modelo copiava-a do histórico)', () => {
+  assertEquals(semAvisoIA(`${AVISO_IA} A Goola Açaí está aberta até às 22:00.`), 'A Goola Açaí está aberta até às 22:00.');
+  assertEquals(semAvisoIA('Aqui tens as lojas.'), 'Aqui tens as lojas.');
+  assertEquals(semAvisoIA(AVISO_IA), '');
 });
 
-Deno.test('as falas seguintes não repetem o aviso', () => {
-  assertEquals(comAvisoIA('Aqui tens as lojas.', false), 'Aqui tens as lojas.');
+Deno.test('a resposta honesta a "és um robô?" fica (só sai a frase antiga exata)', () => {
+  const t = 'Sou o assistente virtual do Bora, uma inteligência artificial. Se quiseres, há pessoas da equipa no suporte.';
+  assertEquals(semAvisoIA(t), t);
 });
 
-Deno.test('se o texto já diz que é uma IA, não se duplica', () => {
-  const t = 'Olá! Sou o Amigo, uma inteligência artificial do Bora.';
-  assertEquals(comAvisoIA(t, true), t);
-  assert(jaDizQueEIA('Sou uma IA do Bora.'));
-  // "ia" do verbo ir e "dia" não contam como aviso.
-  assert(!jaDizQueEIA('Eu ia pedir uma pizza hoje, bom dia.'));
-});
-
-Deno.test('fala vazia na primeira vez: fica só o aviso', () => {
-  assertEquals(comAvisoIA('', true), AVISO_IA);
+Deno.test('a saudação é natural e não diz que é uma IA', () => {
+  const s = saudacaoSimples({ dia: 3, diaNome: 'quarta', periodo: 'manha', hora: 10 }, { nome_tratamento: 'Ana' }, '');
+  assert(s.startsWith('Bom dia, Ana! Sou o Amigo Bora.'), s);
+  assert(!/intelig[eê]ncia artificial|\bIA\b/.test(s), s);
 });
 
 Deno.test('alergias, intolerâncias e dietas são dados de saúde', () => {

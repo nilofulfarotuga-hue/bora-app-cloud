@@ -277,11 +277,14 @@ class _AmigoScreenState extends State<AmigoScreen>
     if (passou < 700) await Future<void>.delayed(Duration(milliseconds: 700 - passou));
     if (!mounted || turno != _turno) return;
     final boasVindas = AssistantFlags.boasVindasAmigo.value;
-    // E6 (10/11/2026): a saudação de reserva (sem servidor) também diz que é
-    // uma IA — Reg. (UE) 2024/1689, art. 50.º/1.
-    r ??= AssistantReply.texto(comAvisoIA(
-      boasVindas.isEmpty ? 'Olá! Sou o Amigo. Fala comigo: estou aqui para o que precisares.'.tr : boasVindas,
-    ));
+    // 11/11/2026 (ordem do Danilo, 10:54): a saudação não diz que é uma IA.
+    // O aviso (Reg. (UE) 2024/1689, art. 50.º/1) está na etiqueta "assistente
+    // virtual" do cabeçalho e na Informação legal (lib/services/aviso_ia.dart).
+    r ??= AssistantReply.texto(
+      boasVindas.isEmpty
+          ? 'Olá! Sou o Amigo Bora. Fala comigo: estou aqui para o que precisares.'.tr
+          : boasVindas,
+    );
     if (r.conversationId != null) {
       _conversationId = r.conversationId;
       unawaited(widget.cerebro.guardarConversa(_conversationId));
@@ -300,7 +303,9 @@ class _AmigoScreenState extends State<AmigoScreen>
       _fase = AmigoFase.aFalar;
       _aDizerDeixa = false;
     });
-    await _voz.falar(r.texto);
+    // 11/11/2026: respostas guardadas antes de hoje ainda podem trazer a frase
+    // antiga do aviso de IA — essa nunca se diz.
+    await _voz.falar(semAvisoIA(r.texto));
     if (!mounted || turno != _turno) return;
     final d = r.deixa;
     if (d != null && d.texto.trim().isNotEmpty) {
@@ -452,6 +457,20 @@ class _AmigoScreenState extends State<AmigoScreen>
     );
   }
 
+  // ── Voltar ────────────────────────────────────────────────────────────
+
+  /// 11/11/2026 (ordem do Danilo): sair do Amigo. Volta ao ecrã anterior; se não
+  /// houver para onde voltar, vai para a home pelo caminho da app (a 1.ª rota,
+  /// que o _RootNavigator reconstrói) — nunca pushReplacement.
+  Future<void> _voltar() async {
+    _turno++;
+    unawaited(_voz.parar());
+    unawaited(_ouvido.parar());
+    final nav = Navigator.of(context);
+    final saiu = await nav.maybePop();
+    if (!saiu && mounted) nav.popUntil((r) => r.isFirst);
+  }
+
   // ── Ações dos cartões (assistant_acoes.dart) ──────────────────────────
 
   @override
@@ -480,11 +499,40 @@ class _AmigoScreenState extends State<AmigoScreen>
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         foregroundColor: AppColors.primaryDark,
-        title: Text('Amigo'.tr,
-            style: const TextStyle(
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.w800,
-                color: AppColors.primaryDark)),
+        // 11/11/2026 (ordem do Danilo): a seta fininha quase não se via no
+        // iPhone e ele não conseguia sair. Agora: botão cheio, seta + "Voltar",
+        // 48 px de altura no mínimo, branco sobre o verde escuro.
+        leadingWidth: 120,
+        leading: _BotaoVoltar(onTap: _voltar),
+        // O aviso de IA está aqui, sempre visível, e não na fala (11/11/2026).
+        // Em ecrãs estreitos encolhe em vez de cortar ("assistente …" não serve).
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            key: const Key('amigo-cabecalho'),
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Amigo Bora'.tr,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      color: AppColors.primaryDark)),
+              Text('assistente virtual'.tr,
+                  key: const Key('amigo-assistente-virtual'),
+                  maxLines: 1,
+                  softWrap: false,
+                  style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                      color: AppColors.textSecondary)),
+            ],
+          ),
+        ),
+        centerTitle: true,
         actions: [
           _BotaoSom(voz: _voz, aoTocar: _tocarNoSom),
         ],
@@ -532,7 +580,7 @@ class _AmigoScreenState extends State<AmigoScreen>
                         pergunta: _pergunta,
                         // a dizer a deixa: a legenda guarda a resposta e o
                         // cartão da deixa fica realçado
-                        textoFixo: _aDizerDeixa ? r?.texto : null,
+                        textoFixo: _aDizerDeixa && r != null ? semAvisoIA(r.texto) : null,
                       ),
                       if (r?.deixa != null && _fase != AmigoFase.aPensar && _fase != AmigoFase.aOuvir)
                         _CartaoDeixa(
@@ -593,6 +641,67 @@ class _AmigoScreenState extends State<AmigoScreen>
       case AmigoSomEstado.semVoz:
         snack('Este aparelho não tem voz de Portugal: o Amigo fala por legenda.'.tr);
     }
+  }
+}
+
+/// Sair do Amigo (11/11/2026, ordem do Danilo): botão cheio verde escuro com a
+/// seta e a palavra "Voltar" a branco, 48 px de altura no mínimo (o botão
+/// inteiro é a área de toque). O gesto de deslizar da esquerda do iOS continua
+/// a funcionar (a rota é a MaterialPageRoute de sempre e não há PopScope).
+class _BotaoVoltar extends StatelessWidget {
+  const _BotaoVoltar({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Semantics(
+          button: true,
+          label: 'Voltar ao ecrã anterior'.tr,
+          excludeSemantics: true,
+          child: Material(
+            color: AppColors.primaryDark,
+            shape: const StadiumBorder(),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              key: const Key('amigo-voltar'),
+              onTap: onTap,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 0, 14, 0),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 22),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'Voltar'.tr,
+                          maxLines: 1,
+                          overflow: TextOverflow.fade,
+                          softWrap: false,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -160,6 +160,18 @@ A resposta estruturada fica em `assistant_chat_messages.structured` para redesen
 - Painel: secção "Pesquisa na internet" (`admin_amigo_pesquisa_secao.dart`, `admin_amigo_pesquisa_overview` /
   `admin_amigo_pesquisa_definir`). Migração `20261111090000_amigo_pesquisa_e_lojas_abertas.sql`.
 
+## 11/11/2026, 10:54 (ordem do Danilo no iPhone) — Amigo mais humano
+- **Aviso de IA fora da fala**: nem saudação nem 1.ª resposta dizem "Sou uma inteligência artificial…"
+  (`semAvisoIA` no servidor e na app tira a frase antiga do histórico). O aviso vive na etiqueta
+  "assistente virtual" do cabeçalho do ecrã do Amigo e na Informação legal (`kAvisoLegalAssistente`).
+  O support-human-chat NÃO mudou.
+- **Fala** (`client-assistant/estilo.ts`, testes `estilo_test.ts`): nunca se reapresenta (a não ser que
+  perguntem quem é), não abre pelo nome nem repete o nome, parabéns uma vez, UMA sugestão só (tira
+  "se preferires, também há…"; `podeOutroCarrinho` recusa um 2.º carrinho num pedido de uma coisa só).
+  Bloco "COMO FALAS" no prompt. Histórico ao modelo = últimas 20 mensagens (antes 24 linhas com ferramentas).
+- **Ecrã**: botão "Voltar" cheio (seta + palavra, ≥48 px, `Key('amigo-voltar')`), `maybePop` e, sem para
+  onde voltar, `popUntil(isFirst)`; o deslizar do iOS funciona (MaterialPageRoute, sem PopScope).
+
 ## Armadilhas já vistas (07/10/2026)
 - O conector "claude ai Supabase" (apply_migration/execute_sql) prendeu 3× nesse dia: SQL vai pela
   gaveta `platform_settings.staged_<nome>_<data>` (JSON com sql/estado/motivo/prova) e a Claude.ai aplica.

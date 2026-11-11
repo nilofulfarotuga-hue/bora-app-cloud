@@ -51,6 +51,10 @@ void main() {
     // [E2b] A plataforma europeia ODR fechou (Reg. (UE) 2024/3228).
     expect(find.textContaining('ODR'), findsNothing);
     expect(find.textContaining('ec.europa.eu'), findsNothing);
+    // [11/11/2026] O aviso de IA saiu da fala do Amigo e está aqui.
+    expect(find.textContaining('assistente virtual automático (inteligência artificial)'),
+        findsOneWidget);
+    expect(find.textContaining('Não substitui o apoio humano'), findsOneWidget);
   });
 
   testWidgets('cada linha pede o endereço certo (mailto, tel, https)',

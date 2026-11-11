@@ -16,6 +16,14 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 11/11/2026 Amigo: botão Voltar bem visível, etiqueta "assistente virtual" no cabeçalho e saudação
+  // de reserva sem o aviso de IA na fala. À mão.
+  'assistente virtual':
+      'virtual assistant',
+  'Olá! Sou o Amigo Bora. Fala comigo: estou aqui para o que precisares.':
+      "Hi! I'm Amigo Bora. Talk to me: I'm here for whatever you need.",
+  'Voltar ao ecrã anterior':
+      'Back to the previous screen',
   // 10/11/2026 (fechar-tudo, bloco G): check-in a fundo — caminho, festa, perdão e lembrete. À mão.
   'Prémio':
       'Prize',

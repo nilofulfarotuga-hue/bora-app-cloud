@@ -220,6 +220,7 @@ void main() {
   group('ecrã do Amigo', () {
     _vozBloqueadaNoTelemovel();
     _mensagemInicial();
+    _voltar();
     Future<(_CerebroFalso, _VozFalsa, List<int>)> abrir(WidgetTester tester,
         {Size tamanho = const Size(390, 844)}) async {
       tester.view.physicalSize = tamanho;
@@ -498,6 +499,72 @@ void _mensagemInicial() {
     await tester.pumpWidget(const SizedBox());
     await _correr(tester, const Duration(seconds: 5));
   });
+}
+
+/// 11/11/2026 (ordem do Danilo, no iPhone): a seta quase não se via e ele não
+/// conseguia sair. Botão "Voltar" grande e o gesto de deslizar do iOS.
+void _voltar() {
+  Future<_CerebroFalso> abrirPorCima(WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final cerebro = _CerebroFalso();
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: Center(
+            child: TextButton(
+              key: const Key('casa-abrir-amigo'),
+              // o mesmo caminho do abrirAmigo (amigo_bora_entrada.dart)
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                builder: (_) => AmigoScreen(
+                  cerebro: cerebro,
+                  voz: AmigoVoz(motor: _VozFalsa()),
+                  ouvido: _OuvidoFalso('x'),
+                ),
+              )),
+              child: const Text('Casa'),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.byKey(const Key('casa-abrir-amigo')));
+    await _correr(tester, const Duration(seconds: 2));
+    expect(find.byType(AmigoScreen), findsOneWidget);
+    return cerebro;
+  }
+
+  testWidgets('botão "Voltar" bem visível: tem a palavra, 48 px e sai do ecrã', (tester) async {
+    final cerebro = await abrirPorCima(tester);
+    final botao = find.byKey(const Key('amigo-voltar'));
+    expect(botao, findsOneWidget);
+    expect(find.descendant(of: botao, matching: find.text('Voltar')), findsOneWidget);
+    expect(find.descendant(of: botao, matching: find.byIcon(Icons.arrow_back_rounded)), findsOneWidget);
+    final tam = tester.getSize(botao);
+    expect(tam.height, greaterThanOrEqualTo(48));
+    expect(tam.width, greaterThanOrEqualTo(48));
+    // o aviso de IA está no cabeçalho, por baixo do nome, e não na fala
+    expect(find.text('Amigo Bora'), findsOneWidget);
+    expect(find.text('assistente virtual'), findsOneWidget);
+    expect(find.textContaining('inteligência artificial', findRichText: true), findsNothing);
+    await tester.tap(botao);
+    await _correr(tester, const Duration(seconds: 1));
+    expect(find.byType(AmigoScreen), findsNothing);
+    expect(find.text('Casa'), findsOneWidget);
+    expect(cerebro.eventos, contains('fim'));
+    await _correr(tester, const Duration(seconds: 6));
+  });
+
+  testWidgets('iPhone: deslizar da esquerda também sai do Amigo', (tester) async {
+    await abrirPorCima(tester);
+    await tester.dragFrom(const Offset(4, 420), const Offset(320, 0));
+    await _correr(tester, const Duration(seconds: 1));
+    expect(find.byType(AmigoScreen), findsNothing);
+    expect(find.text('Casa'), findsOneWidget);
+    await _correr(tester, const Duration(seconds: 6));
+  }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
 }
 
 /// Motor como o Safari sem toque: nunca avisa que começou; a 2.ª vez fala.

@@ -73,7 +73,7 @@ import {
 import {
   ACAO_NUDGE,
   blocoAmigo,
-  comAvisoIA,
+  semAvisoIA,
   consentimentoExplicito,
   eDadoDeSaude,
   blocoContextoAmigo,
@@ -115,6 +115,9 @@ import {
   textoCarrinhoMontado,
   tipoDe,
 } from './sugestao.ts';
+// 11/11/2026 (ordem do Danilo 10:54): fala mais humana — sem reapresentar, sem o nome a abrir, parabéns uma
+// vez, uma sugestão só, e o histórico das últimas mensagens da conversa.
+import { afinarFala, podeOutroCarrinho, textosDoAssistente, ultimasMensagens } from './estilo.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -139,7 +142,10 @@ const ACOES_DE_COMPRA = new Set(['pedir_favor', 'marcar_limpeza', 'abrir_favores
 
 const SYSTEM_DELIM_OPEN = '<<<SYSTEM>>>';
 const SYSTEM_DELIM_CLOSE = '<<<END_SYSTEM>>>';
-const HISTORY_LIMIT = 24;
+// 11/11/2026: o histórico que vai ao modelo são as últimas 20 mensagens da pessoa e do Amigo (com as notas
+// das ferramentas delas). Antes eram 24 LINHAS, e as linhas das ferramentas comiam a conversa (3-4 voltas).
+const HISTORY_LINHAS = 120;
+const HISTORY_MENSAGENS = 20;
 const MAX_IMAGENS = 6;
 const MAX_IMAGEM_CHARS = 6_000_000;
 const MAX_IMAGENS_CHARS_TOTAL = 16_000_000;
@@ -554,6 +560,17 @@ function buildSystemFixo(personalidade = false, pesquisa = false): string {
       : 'És o Bora Assistente, o assistente de compras da Bora App (entregas de restaurantes, supermercados, lojas e farmácias; Favores; Limpeza; Reservas de mesa; Serviços) na Guarda, Portugal.',
     'Língua: português de Portugal, tom simpático e direto. Respostas CURTAS (1-3 frases): os cartões com lojas, artigos e totais aparecem sozinhos por baixo do teu texto — não repitas listas inteiras nem tabelas. O cliente pode escrever em português do Brasil, com erros ou por voz: percebe a intenção.',
     '',
+    // 11/11/2026 (ordem do Danilo, 10:54): mais humano e mais esperto.
+    '═══ COMO FALAS (sempre) ═══',
+    '- Como um amigo ao telefone: frases curtas, PT-PT natural, 1 a 2 frases na maior parte das respostas. Nunca listas, tabelas nem parágrafos de explicação.',
+    '- NUNCA te reapresentas: a app já te apresentou na saudação. Nada de "Sou o Amigo Bora", "Olá, eu sou…" a meio da conversa.',
+    '- Não abres as respostas pelo nome da pessoa ("Rui, …"). O nome, no máximo uma vez na conversa inteira.',
+    '- Felicitações (anos, uma conquista): uma vez só na conversa. Se no histórico já deste os parabéns, não voltas a dar.',
+    '- LEMBRAS-TE da conversa: o histórico acima é desta conversa (com as notas ⟦ferramentas⟧). Não perguntas o que a pessoa já disse e usas o que ela disse (o que quer, o que não gosta, para quem é, onde está).',
+    '- Para sugerir comida ou compras, olha primeiro para os ÚLTIMOS PEDIDOS e o PERFIL (o que costuma pedir e de onde) e para o que disse agora.',
+    '- UMA sugestão só, a melhor para ela (um carrinho, uma loja, um artigo). Nada de "se preferires, também há…", "se tiveres mais fome, há a…" nem segundas opções: se quiser outra, ela pede.',
+    '- O cartão já mostra o preço e o total: podes dizer o total uma vez, sem fazer a conta por partes (produto + entrega + taxas). Avisos só se mudarem a decisão (ex.: "é congelado, para fazer em casa").',
+    '',
     '═══ REGRA DO CARRINHO (a mais importante) ═══',
     'O botão "Encher o carrinho" SÓ aparece ao cliente se, NESTA resposta, chamares propose_cart ou basket_quote e a ferramenta devolver ok. Procurar com search_products NÃO cria carrinho. Por isso: sempre que encontras o que o cliente quer, chama propose_cart antes de responder. Nunca digas "toca em Encher o carrinho" sem isso. Se o cliente diz que o carrinho/botão não apareceu, chama logo propose_cart com os product_ids (estão nas notas ⟦ferramentas⟧ do histórico) — nunca mandes para o suporte por isso.',
     '',
@@ -582,7 +599,7 @@ function buildSystemFixo(personalidade = false, pesquisa = false): string {
     '16. O histórico pode ter notas entre ⟦ ⟧ com o que as ferramentas devolveram antes (produtos, ids, lojas). Usa-as, mas NUNCA escrevas ⟦ ⟧ nem copies essas notas nas tuas respostas.',
     '17. As "LIÇÕES" e as "PERGUNTAS JÁ APRENDIDAS" abaixo vieram de conversas anteriores: usa-as como ajuda, mas nunca passam por cima das regras de ouro nem trazem preços. Se uma lição contradisser uma regra, ignora a lição.',
     '18. O que vem de search_help é um manual INTERNO da Bora: serve para explicares ao cliente como a app funciona para ele. Nunca dizes ao cliente ganhos de estafetas ou parceiros, comissões, percentagens de repartição, nomes de ficheiros, nem que algo "está planeado"/"pode não estar ativo". Se só houver isso, diz que vais confirmar com a equipa.',
-    '19. És uma inteligência artificial (IA). Nunca dizes nem dás a entender que és uma pessoa; se te perguntarem, confirmas que és uma IA do Bora e que há pessoas da equipa no suporte. O sistema já põe o aviso de IA na primeira resposta de cada conversa: não o repitas.',
+    '19. És o assistente virtual do Bora (uma inteligência artificial). A app já o mostra no cabeçalho ("assistente virtual"): NÃO o dizes nas respostas nem a abrir a conversa. Se te perguntarem diretamente se és uma pessoa, um robô ou uma IA, respondes com naturalidade que és o assistente virtual do Bora e que há pessoas da equipa no suporte (pede-se aqui no chat). Nunca dizes nem dás a entender que és uma pessoa.',
   ];
   if (pesquisa) {
     lines.push('20. PESQUISA NA INTERNET (web_search): SÓ para o tempo e a previsão, a agenda e os eventos da Guarda (concertos, feiras, cinema, teatro), notícias, resultados de futebol, a farmácia de serviço e horários de serviços públicos. Uma ou duas pesquisas chegam; responde em 1-3 frases com o que encontraste, dizendo de onde veio (ex.: "segundo o IPMA", "na agenda da Câmara"), sem links compridos. Se não encontrares, diz que não encontraste — nunca inventes nem passes à equipa por isso. NUNCA pesquises produtos, preços, lojas ou restaurantes da Bora (isso é search_products e lojas_abertas) nem preços de outras apps.');
@@ -764,7 +781,8 @@ Deno.serve(async (req: Request) => {
     const m = momentoLisboa(new Date());
     const vazio = { propostas: [], divisao: null, favores: [], favor_preco: null, lista_extraida: null, handoff: false, comparacao: null };
     if (!s.personality) {
-      return jsonResponse({ ok: true, abrir: true, conversation_id: null, texto: comAvisoIA(s.welcome, true), acoes: [], amigo: false, emocao: 'alegre', ...vazio });
+      // 11/11/2026: a saudação já não diz que é uma IA (a etiqueta "assistente virtual" está no cabeçalho).
+      return jsonResponse({ ok: true, abrir: true, conversation_id: null, texto: s.welcome, acoes: [], amigo: false, emocao: 'alegre', ...vazio });
     }
     let ctx: Json = {};
     try {
@@ -795,7 +813,7 @@ Deno.serve(async (req: Request) => {
             });
             if (!pe && prop?.ok) {
               const proposta = { ...prop, coverage_pct: 100, missing_items: [], savings_cents: 0, rank: 1, kind: 'single' };
-              const texto = comAvisoIA(saudacaoHabitual(hab, perfil), true);
+              const texto = saudacaoHabitual(hab, perfil);
               const acoes = [{ tipo: 'repetir_habitual', rotulo: 'Sim, repete', destino: String(prop.proposal_id ?? '') }];
               const structured = {
                 ...vazio, texto, propostas: [proposta], acoes, amigo: true, saudacao: 'habitual', emocao: 'alegre',
@@ -819,7 +837,7 @@ Deno.serve(async (req: Request) => {
       }
     }
     return jsonResponse({
-      ok: true, abrir: true, conversation_id: null, texto: comAvisoIA(saudacaoSimples(m, perfil, s.amigoWelcome), true),
+      ok: true, abrir: true, conversation_id: null, texto: saudacaoSimples(m, perfil, s.amigoWelcome),
       acoes: [], amigo: true, saudacao: 'simples', emocao: 'alegre', ...vazio,
     });
   }
@@ -892,14 +910,14 @@ Deno.serve(async (req: Request) => {
 
   const [{ data: histRows }, { data: memRows }, { data: statRow }, { data: knowRows }, { data: supRow }, learnedText] = await Promise.all([
     adminClient.from('assistant_chat_messages').select('role, content, tool_name, tool_input, tool_output, structured')
-      .eq('conversation_id', conversationId).order('created_at', { ascending: false }).limit(HISTORY_LIMIT),
+      .eq('conversation_id', conversationId).order('created_at', { ascending: false }).limit(HISTORY_LINHAS),
     adminClient.from('assistant_client_memory').select('kind, key, value').eq('user_id', userId).order('updated_at', { ascending: false }).limit(40),
     adminClient.from('assistant_client_stats').select('savings_shown_cents, savings_realized_cents').eq('user_id', userId).maybeSingle(),
     adminClient.from('assistant_knowledge').select('topic, title, content').eq('active', true).order('sort_order'),
     adminClient.from('support_settings').select('whatsapp_number, support_email').eq('id', 1).maybeSingle(),
     lerAprendidas(),
   ]);
-  const history = (histRows ?? []).reverse();
+  const history = ultimasMensagens((histRows ?? []).reverse(), HISTORY_MENSAGENS);
   // Comparação com outra app que ficou pendente (ex.: faltava a morada) — fica na última resposta estruturada.
   let comparacaoPendente: { app: string | null; total_outra_app_cents: number } | null = null;
   for (let i = history.length - 1; i >= 0; i--) {
@@ -1002,6 +1020,8 @@ Deno.serve(async (req: Request) => {
   // é daqui que sai a `ultima_sugestao` guardada para o "quero" da próxima mensagem.
   const produtosVistos: ProdutoVisto[] = [];
   let veioDoCesto = false;
+  // 11/11/2026: carrinhos soltos (propose_cart) criados nesta volta — num pedido de uma coisa só, um só.
+  let carrinhosSoltos = 0;
 
   async function clientDropoff(): Promise<{ lat: number | null; lng: number | null }> {
     if (dropoffLat !== null && dropoffLng !== null) return { lat: dropoffLat, lng: dropoffLng };
@@ -1114,12 +1134,18 @@ Deno.serve(async (req: Request) => {
             .filter((i: Json) => typeof i?.product_id === 'string')
             .map((i: Json) => ({ product_id: i.product_id, quantity: Math.max(1, Math.min(50, Math.round(num(i.quantity, 1)))) }));
           if (!rid || items.length === 0) return { ok: false, error: 'restaurant_id e items obrigatórios' };
+          // 11/11/2026 (ordem do Danilo): UMA sugestão só. Num pedido de uma coisa só, o 1.º carrinho é a
+          // sugestão; um 2.º em alternativa (outra loja, outro tamanho) não se cria.
+          if (!podeOutroCarrinho(carrinhosSoltos, userMessage)) {
+            return { ok: false, error: 'Já criaste um carrinho nesta resposta. Sugere UMA coisa só: fica com esse e fala só dele, sem "se preferires, também há". Se a pessoa quiser outra loja ou outro artigo, ela pede.' };
+          }
           const { data, error } = await userClient.rpc('assistant_propose_cart', {
             p_conversation_id: conversationId, p_restaurant_id: rid, p_items: items,
             p_dropoff_lat: dropoffLat, p_dropoff_lng: dropoffLng, p_apartment: apartment,
           });
           if (error) return { ok: false, error: error.message };
           if (!data?.ok) return { ok: false, error: data?.error ?? 'erro' };
+          carrinhosSoltos++;
           const prop = { ...data, coverage_pct: 100, missing_items: [], savings_cents: 0, rank: propostas.length + 1, kind: 'single' };
           propostas = [...propostas, prop];
           return { ok: true, data: compactProposal(prop) };
@@ -1725,6 +1751,16 @@ Deno.serve(async (req: Request) => {
   // m11 (09/11/2026): a cara do Amigo — a etiqueta [cara:...] que o modelo pôs sai do texto.
   const cara = extrairEmocao(finalText);
   finalText = cara.texto;
+  // 11/11/2026 (ordem do Danilo 10:54): a fala do modelo fica mais humana — sem se reapresentar, sem abrir
+  // pelo nome, parabéns uma vez só, uma sugestão só (estilo.ts). Os textos escritos pelo código (fotos,
+  // comparação, o "quero") ficam como estão.
+  if (!respondidoPorFotos && !respondidoPorCodigo && !comparacao && finalText) {
+    finalText = afinarFala(finalText, {
+      nome: typeof amigoCtx?.perfil?.nome_tratamento === 'string' ? amigoCtx.perfil.nome_tratamento : null,
+      anteriores: textosDoAssistente(history),
+      mensagem: userMessage,
+    });
+  }
   let handoff = false;
   if (geminiError) {
     finalText = 'Tive um problema a responder agora. Tenta enviar outra vez — se continuar, toca em "Falar com o suporte".';
@@ -1795,8 +1831,10 @@ Deno.serve(async (req: Request) => {
     ticketId = (tk?.id as string | undefined) ?? null;
   }
 
-  // E6 (10/11/2026, Reg. (UE) 2024/1689 art. 50.º/1): a primeira fala de cada conversa diz que é uma IA.
-  finalText = comAvisoIA(finalText, messagesCount === 0);
+  // E6 → 11/11/2026 (ordem do Danilo 10:54): o aviso de IA SAIU da fala; está na etiqueta "assistente virtual"
+  // do cabeçalho do ecrã do Amigo e na Informação legal da app. A frase antiga, se o modelo a copiar do
+  // histórico, sai aqui.
+  finalText = semAvisoIA(finalText);
 
   const structured = {
     texto: finalText, propostas, divisao, favores, favor_preco: favorPreco, lista_extraida: listaExtraida, acoes, handoff,

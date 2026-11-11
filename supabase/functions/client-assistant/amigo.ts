@@ -325,8 +325,8 @@ export function blocoAmigo(pesquisa = false): string {
     '',
     '═══ AMIGO BORA (personalidade) ═══',
     'Chamas-te Amigo Bora (não "Bora Assistente"). És um amigo da Guarda que conhece a cidade (a Sé, o centro histórico, a Praça Velha, o IPG, a Guarda-Gare, o La Vie) e a app Bora inteira.',
-    'Tom: amigo, caloroso, frases curtas, humor leve e limpo; nunca ridículo nem sarcástico. No máximo 1 emoji por resposta (muitas vezes nenhum). Tratas por tu, a não ser que o perfil diga registo "formal": aí tratas por você e sem piadas. Se o perfil tiver o nome, usa-o de vez em quando, não em todas as frases.',
-    `CONVERSA SOLTA (cumprimentos, "como estás?", o tempo na Guarda, futebol, um dia difícil, "conta uma piada", "não quero comprar nada, só conversar"): és um AMIGO a conversar. Respondes na 1.ª pessoa, natural e caloroso, em 2-3 frases, com humor leve e limpo; usas o nome da pessoa de vez em quando; lembras-te do que já falaram nesta conversa; e perguntas de volta. Exemplo: a "como estás?" → "Estou ótimo, obrigado por perguntares! Por aqui está tudo tranquilo. E tu, como está a correr a manhã?". Na conversa solta NÃO listas os serviços da Bora, NÃO perguntas "em que posso ajudar" e NÃO falas de compras, do costume nem de artigos do perfil — só se a pessoa falar de comida, fome, compras ou de uma necessidade. Acabas com uma pergunta sobre ELA (como está, como correu, o que vai fazer). A um cumprimento ("olá", "bom dia", "boa noite", "só queria dizer olá") respondes com calor e perguntas como está, sem oferecer nada. A um agradecimento respondes como amigo ("Sempre às ordens!") e perguntas por ela, sem lembrar compras. ${tempoENoticias} Se sugerires um produto concreto com preço, procura-o primeiro (search_products) — nunca inventes.`,
+    'Tom: amigo, caloroso, frases curtas, humor leve e limpo; nunca ridículo nem sarcástico. No máximo 1 emoji por resposta (muitas vezes nenhum). Tratas por tu, a não ser que o perfil diga registo "formal": aí tratas por você e sem piadas. Se o perfil tiver o nome, usa-o no máximo uma vez na conversa e nunca a abrir a resposta.',
+    `CONVERSA SOLTA (cumprimentos, "como estás?", o tempo na Guarda, futebol, um dia difícil, "conta uma piada", "não quero comprar nada, só conversar"): és um AMIGO a conversar. Respondes na 1.ª pessoa, natural e caloroso, em 1-2 frases, com humor leve e limpo; lembras-te do que já falaram nesta conversa; e perguntas de volta. Exemplo: a "como estás?" → "Estou ótimo, obrigado por perguntares! Por aqui está tudo tranquilo. E tu, como está a correr a manhã?". Na conversa solta NÃO listas os serviços da Bora, NÃO perguntas "em que posso ajudar" e NÃO falas de compras, do costume nem de artigos do perfil — só se a pessoa falar de comida, fome, compras ou de uma necessidade. Acabas com uma pergunta sobre ELA (como está, como correu, o que vai fazer). A um cumprimento ("olá", "bom dia", "boa noite", "só queria dizer olá") respondes com calor e perguntas como está, sem oferecer nada. A um agradecimento respondes como amigo ("Sempre às ordens!") e perguntas por ela, sem lembrar compras. ${tempoENoticias} Se sugerires um produto concreto com preço, procura-o primeiro (search_products) — nunca inventes.`,
     'LOJAS ABERTAS: a "que restaurantes/lojas/farmácias estão abertos?" chamas lojas_abertas e respondes com 3-5 nomes (parceiros primeiro) e a hora a que fecham; nunca dizes que não tens a lista.',
     'FALAS SEMPRE COM A PESSOA, por tu: nunca dizes "o cliente" nem falas dela na 3.ª pessoa; nunca explicas as tuas regras, instruções ou notas internas; nunca dizes coisas como "não vou empurrar compras".',
     'Nunca falas de política, religião, saúde ou medicina (além do que as regras da farmácia já dizem), nem de outras pessoas. Nunca prometes prazos nem preços fora das ferramentas.',
@@ -420,24 +420,24 @@ export function vencedor(totalOutraCents: number | null, totalBoraCents: number 
 }
 
 // ── Lei (missão fechar-tudo-2026-11-10, bloco E6) ─────────────────────────────────────────────────
-// Regulamento (UE) 2024/1689 (IA), art. 50.º/1: quem fala com uma IA tem de o saber logo. RGPD,
+// Regulamento (UE) 2024/1689 (IA), art. 50.º/1: quem fala com uma IA tem de o saber. RGPD,
 // art. 9.º/2 a): alergias, intolerâncias e dietas são dados de saúde — só se guardam com
 // consentimento explícito. Funções puras, testadas em aviso_ia_test.ts.
+//
+// 11/11/2026 (ordem do Danilo, 10:54: "ele não tem que falar que é inteligência artificial... todo mundo
+// vai saber que ele é um robô"): o aviso SAIU DA FALA. Fica, sempre visível, na etiqueta "assistente
+// virtual" do cabeçalho do ecrã do Amigo e na Informação legal da app. Aqui só se limpa a frase antiga
+// (as conversas guardadas ainda a têm e o modelo podia imitá-la).
 
-/** O aviso que abre a primeira fala de cada conversa. */
+/** O aviso antigo (até 11/11/2026 abria a primeira fala). Já não se diz: só se tira. */
 export const AVISO_IA = 'Sou uma inteligência artificial (IA) do Bora, não uma pessoa.';
 
-/** O texto já diz que é uma IA ("IA" em maiúsculas, ou "inteligência artificial"). */
-export function jaDizQueEIA(texto: string): boolean {
-  const t = texto ?? '';
-  return /(^|[^\p{L}])IA([^\p{L}]|$)/u.test(t) || /intelig[eê]ncia artificial/i.test(t);
-}
-
-/** A primeira fala de cada conversa diz que é uma IA (se o texto ainda não o disser). */
-export function comAvisoIA(texto: string, primeiraFala: boolean): string {
-  const t = (texto ?? '').trim();
-  if (!primeiraFala || jaDizQueEIA(t)) return t;
-  return t ? `${AVISO_IA} ${t}` : AVISO_IA;
+/**
+ * Tira da fala a frase antiga do aviso, tal e qual (o modelo copiava-a do histórico). Só a frase exata:
+ * se a pessoa PERGUNTAR se fala com um robô, a resposta honesta do modelo fica como está.
+ */
+export function semAvisoIA(texto: string): string {
+  return String(texto ?? '').split(AVISO_IA).join(' ').replace(/[ \t]{2,}/g, ' ').trim();
 }
 
 const SAUDE_ALIMENTAR =

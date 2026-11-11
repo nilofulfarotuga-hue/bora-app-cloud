@@ -5,6 +5,7 @@ import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../config/legal_identity.dart';
 import '../services/app_update_service.dart';
+import '../services/aviso_ia.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import 'prestador/como_o_bora_decide_screen.dart';
 
@@ -244,6 +245,29 @@ class LegalInfoScreen extends StatelessWidget {
                       fontSize: 13,
                       color: AppColors.textSecondary,
                       height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            // ── Amigo Bora: assistente virtual (11/11/2026) ──────────────
+            // Reg. (UE) 2024/1689, art. 50.º/1. O aviso saiu da fala do Amigo
+            // (ordem do Danilo) e vive aqui e na etiqueta "assistente
+            // virtual" do cabeçalho do ecrã do Amigo.
+            const _Cartao(
+              titulo: 'Amigo Bora',
+              children: [
+                Padding(
+                  key: ValueKey('legal-amigo-assistente-virtual'),
+                  padding: EdgeInsets.fromLTRB(
+                      Spacing.lg, Spacing.sm, Spacing.lg, Spacing.lg),
+                  child: Text(
+                    kAvisoLegalAssistente,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textPrimary,
+                      height: 1.45,
                     ),
                   ),
                 ),

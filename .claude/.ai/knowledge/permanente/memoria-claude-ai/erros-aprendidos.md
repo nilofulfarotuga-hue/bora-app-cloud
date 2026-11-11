@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-11T10:13:26.967811+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-11T15:16:53.652218+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -165,4 +165,6 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 11/11 08:01 (quem errou: claude-ai): depois de ele já ter colado o prompt, mandei-lhe uma versão nova inteira → regra: prompt entregue não se refaz; o que mudar vai num ADENDO curto aqui no chat, para a mesma sessão
 - 11/11 (claude-code): 11/11: as travas ficaram abertas desde 10/11 18:50 (DESLIGAR-M11 corrido e nunca fechado com RESTAURAR-M10) → quem abre a janela das travas fecha-a na mesma sessão com RESTAURAR-M10 e prova os MD5; a sessão seguinte compara os MD5 de hoje com bak-20261108-m10 antes de começar e reporta se estiverem abertas
 11/11 10:05 (quem errou: claude-ai): disse-lhe que faltava o Livro de Reclamações e o Hermes 0.23 — já estavam feitos (registo submetido 11/11 09:00 com o NIPC; Hermes 0.23.1 no ar desde 10/11 19:15) → regra: antes de listar pendências, ler o e2e_log MAIS RECENTE de cada assunto, não o registo antigo que ficou "pendente"
+11/11 14:21 (quem errou: claude-ai): à farmácia (Rita Grilo) escrevi "não cobramos comissão" e "montamos a partir do catálogo da Glovo" → regra: parceiro novo = 3 primeiros meses sem taxa, depois 10% dos produtos (Glovo ~30%); nunca dizer que copiamos da Glovo; mensagem curta, natural e a puxar para fechar
+11/11 14:56 (quem errou: claude-ai): tratei os 10% como a única margem com a farmácia → regra: farmácia = esquema da Boom para o cliente (15% no produto + 5% de serviço) e, depois dos 3 meses grátis, a farmácia paga ainda 10% do que vender pela app
 

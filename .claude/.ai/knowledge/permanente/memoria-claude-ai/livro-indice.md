@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-11T08:37:04.229867+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-11T10:37:04.101493+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-11 08:14 UTC. Páginas listadas: 598.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-11 10:13 UTC. Páginas listadas: 599.
 
 ## O que é o Bora
 
@@ -495,7 +495,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (170)
+## outras (171)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -530,6 +530,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - dipsy-j2-em-dia-calculadoras-2026-11-10 — Missão do Dipsy dipsy-j2-em-dia-calculadoras-2026-11-10 (2026-11-10)
 - dipsy-j3-animacao-estudio-2026-11-10 — Missão do Dipsy dipsy-j3-animacao-estudio-2026-11-10 (2026-11-10)
 - dipsy-j4-crm-whatsapp-2026-11-10 — Missão do Dipsy dipsy-j4-crm-whatsapp-2026-11-10 (2026-11-10)
+- dipsy-j4b-crm-instalar-2026-11-11 — Missão do Dipsy dipsy-j4b-crm-instalar-2026-11-11 (2026-11-11)
 - diretiva-plataformas-2024-2831 — Diretiva (UE) 2024/2831 trabalho em plataformas — o que obriga o Bora, estado em Portugal, o que está feito e checklist para 02/12/2026 (2026-11-01)
 - dsh-como-usar — Como usar o Dipsy (dsh) (2026-11-08)
 - dsh-como-usar-novidades-2026-10-31 — Dipsy: o que ficou novo a 31/10 (complemento da pagina dsh-como-usar) (2026-10-31)
@@ -672,7 +673,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 42 páginas com título [PESSOAL] (vida do Danilo). Não se listam aqui nem vão para o espelho público nem para o LIVRO.md; só se leem quando a tarefa é dele, e nunca vão para motores grátis que treinam com o conteúdo.
 
-## Skills partilhadas (152 no repo + 11 só na VPS)
+## Skills partilhadas (153 no repo + 11 só na VPS)
 
 Fonte única: `.claude/skills/` do repo (o Hermes lê o espelho em `/opt/data/cortex-brain/.claude/skills`). Diferenças VPS ↔ repo: `/opt/data/livro/skills/DIFERENCA.md`.
 
@@ -775,6 +776,7 @@ Fonte única: `.claude/skills/` do repo (o Hermes lê o espelho em `/opt/data/co
 - memory — This skill should be used when the user says "SKILL: memory", asks to save an important decision, record a confirmed pattern, update the operational…
 - mensagem-para-fora-nome-dele — Usa SEMPRE antes de redigir ou enviar mensagem, email, WhatsApp ou carta para pessoa de fora (cliente, parceiro, advogada, contabilista, banco, entid…
 - migrate-screen-to-design — Re-skin de 1 ecrã para o design system (MODO A patch generator) — substitui hex de marca/semânticos por AppColors tokens, sinaliza AppBar custom→Bora…
+- modo-automatico — Modo automático seguro do Danilo, válido em todas as pastas e em projetos novos (bora_app, BoraStudio, jai-site, Em Dia, sites de clientes, cofre Obs…
 - mods-bora — Os mods do Claude Code do Bora (plugin bora-mods, 02/10/2026) — tranca que proíbe zonas vermelhas por código, vigia de missão parada, contador de gas…
 - navegadores-e-contas — Escolher o perfil certo do Chrome (sempre pelo deviceId, nunca pelo nome "Browser 1/2") antes de abrir qualquer site, painel ou login. Usa-se em toda…
 - notify-broadcast — Envia notificação push em massa segmentada (all/clients/drivers/partners) via push_broadcasts + Edge Fn execute-broadcast. Dry-run preview da audiênc…

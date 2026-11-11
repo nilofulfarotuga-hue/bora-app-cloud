@@ -1,0 +1,209 @@
+{
+ "approve_repo_igual_producao": "DIFERENTE ff1304e18b60a114ee8c404635f0648f",
+ "md5_mig1": "99ce60a83b0b1984629096d83b75338f",
+ "md5_mig2": "29e4a8b30b8adad9cf4c7151a8083a0e",
+ "mig2_reaplicada_sem_erro": true,
+ "t1_grava": {
+  "ok": true,
+  "name": "Cliente E2E Editado",
+  "phone": "912345678",
+  "campos": [
+   "name",
+   "phone"
+  ],
+  "alterado": true,
+  "change_id": 1
+ },
+ "t1_ficha": {
+  "name": "Cliente E2E Editado",
+  "phone": "912345678",
+  "meta": {
+   "outro": "fica",
+   "bora_name": "Cliente E2E Editado",
+   "bora_phone": "912345678"
+  }
+ },
+ "t2_igual": {
+  "ok": true,
+  "name": "Cliente E2E Editado",
+  "phone": "912345678",
+  "campos": [],
+  "alterado": false
+ },
+ "t2b_so_nome_tel_vazio": false,
+ "t3_nome_A": "NOME_INVALIDO",
+ "t3_nome_12": "NOME_INVALIDO",
+ "t3_nome_61": "NOME_INVALIDO",
+ "t3_nome_60_ok": true,
+ "t4_tel_812": "TELEMOVEL_INVALIDO",
+ "t4_tel_curto": "TELEMOVEL_INVALIDO",
+ "t4_tel_00351": "931112222",
+ "t7_cliente_no_admin": "apenas administradores",
+ "t7b_cliente_historico": "NOT_ADMIN",
+ "t5_sem_sessao": "SEM_SESSAO",
+ "t5b_convidado": "CONVIDADO",
+ "t13_limite": "LIMITE_DIARIO",
+ "t6_admin": {
+  "ok": true,
+  "name": "Cliente E2E Admin",
+  "phone": "931112222",
+  "campos": [
+   "name"
+  ],
+  "alterado": true,
+  "change_id": 11
+ },
+ "t6_admin_sem_mudanca": {
+  "ok": true,
+  "name": "Cliente E2E Admin",
+  "phone": "931112222",
+  "campos": [],
+  "alterado": false
+ },
+ "t6_admin_tel_invalido": {
+  "ok": false,
+  "erro": "Telemóvel inválido. Usa 9 dígitos a começar por 9 (ex.: 912345678).",
+  "codigo": "TELEMOVEL_INVALIDO"
+ },
+ "t8_robo": {
+  "name": "Cliente E2E Robo",
+  "phone": "913000000",
+  "updated": [
+   "name",
+   "phone"
+  ],
+  "user_id": "11111111-1111-4111-8111-111111111111",
+  "alterado": true
+ },
+ "t8_estado": {
+  "status": "executed",
+  "exec": true
+ },
+ "t8_ficha": {
+  "name": "Cliente E2E Robo",
+  "phone": "913000000",
+  "meta": {
+   "outro": "fica",
+   "bora_name": "Cliente E2E Robo",
+   "bora_phone": "913000000"
+  }
+ },
+ "t9_proibido": {
+  "error": "FORBIDDEN_FIELD — only name and phone allowed",
+  "sqlstate": "P0001"
+ },
+ "t9_estado": "failed",
+ "t9b_tel_mau": {
+  "error": "TELEMOVEL_INVALIDO: Telemóvel inválido. Usa 9 dígitos a começar por 9 (ex.: 912345678).",
+  "sqlstate": "P0001"
+ },
+ "t9b_estado_e_ficha_intacta": {
+  "estado": "failed",
+  "ficha": "913000000"
+ },
+ "t9c_duplo_toque": "ACTION_NOT_FOUND_OR_NOT_PENDING",
+ "t_avisos": [
+  {
+   "kind": "admin",
+   "title": "Os teus dados foram atualizados",
+   "body": "A equipa Bora atualizou o teu nome. Se não foste tu a pedir, fala connosco no Suporte."
+  },
+  {
+   "kind": "admin",
+   "title": "Os teus dados foram atualizados",
+   "body": "Mudámos o teu nome e o teu telemóvel, como pediste no Suporte. Se não foste tu a pedir, fala connosco no Suporte."
+  }
+ ],
+ "t_push_chamadas": 2,
+ "t10_historico": [
+  {
+   "origem": "robo_aprovado",
+   "quem": "nilofulfarotuga@gmail.com",
+   "antes": {
+    "name": "Cliente E2E Admin",
+    "phone": "931112222"
+   },
+   "depois": {
+    "name": "Cliente E2E Robo",
+    "phone": "913000000"
+   },
+   "tem_pedido": true
+  },
+  {
+   "origem": "admin",
+   "quem": "nilofulfarotuga@gmail.com",
+   "antes": {
+    "name": "Nome Repetido g"
+   },
+   "depois": {
+    "name": "Cliente E2E Admin"
+   },
+   "tem_pedido": false
+  },
+  {
+   "origem": "cliente",
+   "quem": "cliente.teste@bora.test",
+   "antes": {
+    "name": "Nome Repetido f"
+   },
+   "depois": {
+    "name": "Nome Repetido g"
+   },
+   "tem_pedido": false
+  },
+  {
+   "origem": "cliente",
+   "quem": "cliente.teste@bora.test",
+   "antes": {
+    "name": "Nome Repetido e"
+   },
+   "depois": {
+    "name": "Nome Repetido f"
+   },
+   "tem_pedido": false
+  },
+  {
+   "origem": "cliente",
+   "quem": "cliente.teste@bora.test",
+   "antes": {
+    "name": "Nome Repetido d"
+   },
+   "depois": {
+    "name": "Nome Repetido e"
+   },
+   "tem_pedido": false
+  },
+  {
+   "origem": "cliente",
+   "quem": "cliente.teste@bora.test",
+   "antes": {
+    "name": "Nome Repetido c"
+   },
+   "depois": {
+    "name": "Nome Repetido d"
+   },
+   "tem_pedido": false
+  }
+ ],
+ "t_auditoria_admin": [
+  {
+   "action": "update_client_contact",
+   "details": {
+    "campos": [
+     "name"
+    ],
+    "change_id": 11
+   }
+  }
+ ],
+ "t11_privilegios": {
+  "auth_apply": false,
+  "anon_apply": false,
+  "auth_notify": false,
+  "anon_client": false,
+  "auth_client": true,
+  "anon_hist": false,
+  "auth_tab": false
+ },
+ "t12_outros_ramos_iguais": true
+}

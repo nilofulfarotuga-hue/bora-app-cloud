@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-10
+ultima_confirmacao: 2026-11-11
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-10T20:54:53.135282+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-11T20:56:31.206163+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -624,3 +624,16 @@ Termos novos: "Google Flow personagem fixo desenho animado longo" (animacao_ia) 
 - BORA (PARADO desde 26/10): checklist Meta Ads para WhatsApp (nomes padrão, UTM, boas-vindas) e criativo como alvo (Andromeda). https://www.youtube.com/watch?v=K0TvECvn8vU , https://www.youtube.com/watch?v=ZyFIVVsMmXI
 - JÁ TEMOS: robô do suporte (chatbots, 3 vídeos), Perfil Google (Jai, 3 vídeos), reserva LTX/Wan no Kaggle.
 - RECUSADO: n8n básico, GoHighLevel, Wan Animate em ComfyUI local, Google Local Ads (Índia), Shopee/afiliados, RHIMS, canal dark, stickman.
+
+## 11/11/2026 — radar diário (agente na nuvem)
+40 vídeos revistos (36 com nota >= 6): 8 novos, 12 PENDENTES, 7 já temos, 13 rejeitados (4 por nota baixa). Nenhum do tema animacao_ia; 3 do filme vindos de outras pesquisas.
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): agência/vender automação a PMEs 7+4+3+3 — PENDENTE desde 13/10; OmniRoute 7 — já temos (9Router); Vox 6 — PENDENTE desde 11/10 (missão Dipsy j3); DeepSeek Harness 6 — FEITO (Dipsy); anúncios Meta 6 — FEITO 11/11 (Casa e Guarda toda numa app ligadas até 14/11; Amigo pausado); Perfil Google 6 — FEITO (Jai); chatbot do pedido 6 — FEITO 05/11; prospeção 6 — caça-clientes feito; Jev 4 — PENDENTE desde 23/09 (pagamento); CRM WhatsApp 4 — PENDENTE desde 18/10 (Dipsy j4b 11/11); micro-SaaS 4 — PENDENTE desde 21/10; app de finanças 3 — calculadoras na missão Dipsy j2 (10/11); fotos de comida 3 — PENDENTE desde 02/11; sites PMEs 3 — PENDENTE desde 25/10; voz grátis 3 — PENDENTE desde 01/11; edição HyperFrames 3 — PENDENTE desde 11/10; Claude Duet 3 — PENDENTE desde 22/10.
+- DINHEIRO (PENDENTE desde 13/10, reforço): vender o RESULTADO feito pelos nossos agentes (Service as Software), vender a dor (chamada perdida → mensagem de volta) e regras de cobrança: taxa de arranque à cabeça, nada de 30+ dias, teto de gasto de IA por cliente. https://www.youtube.com/watch?v=NbVR9TXejuo , https://www.youtube.com/watch?v=9kqve8F0yzk , https://www.youtube.com/watch?v=rO9q0d0gs7M
+- BORA (novo): cardápio desenhado com fotos REAIS + preços do Bora, feito pelo Claude em HTML→imagem (grátis; o Food Perfect não é preciso), como extra para parceiros. https://www.youtube.com/watch?v=4M-Okf5Ncv4 ; reforço: nunca fotos de comida feitas por IA (pendente desde 02/11). https://www.youtube.com/watch?v=0KLwuaCtaTM
+- EM DIA/REELS (novo): gancho "o dinheiro que desaparece" (gastos pequenos que somam no mês) https://www.youtube.com/watch?v=tcG4xylilRc ; agrupar reels em Séries do Instagram https://www.youtube.com/watch?v=S77ymOu9IrU
+- SISTEMA (novo): ver se a compressão de tokens (filtrar logs) está ligada no nosso OmniRoute. https://www.youtube.com/watch?v=lJ1KBxkk_4U ; Ego Lite (navegador para agentes) com o Dipsy só para pesquisa de concorrentes, em leitura — confirmar se é grátis/aberto. https://www.youtube.com/watch?v=cAXoZCM6HS8
+- EM DIA (PENDENTE desde 11/10): explicativos/Vox pelo Claude Code; Remotion tem licença, lente grátis = HTML+Playwright+ffmpeg/HyperFrames; Higgs Engine gasta créditos. https://www.youtube.com/watch?v=zK0QMc_fkw0 , https://www.youtube.com/watch?v=fhGGV2tfdxI , https://www.youtube.com/watch?v=CIQsFVJ1v8o , https://www.youtube.com/watch?v=e2Fykz51Nxg
+- FILME (novo): Leonardo.ai, Gemini Omni Flash 1.2 no AI Studio e Pruna para a boca sincronizada (ver caminhos-animacao-filme).
+- JÁ TEMOS: OmniRoute/9Router (3 vídeos + OpenRouter Auto Code), Dipsy (Harness, router+workers), OpenCode, ChatGPT+Gemini.
+- RECUSADO: geradores de vídeo grátis genéricos, ComfyUI, marketing genérico (4), Geo Fest (pago), notícias.
+- Radar aprende 11/11: sem termos dos vídeos (assuntos já têm termo); +1 da conversa (farmácias com receita no Bora), -1 (primeiros 1000 utilizadores, 0 vídeos bons em 14 dias); 70 ativos.

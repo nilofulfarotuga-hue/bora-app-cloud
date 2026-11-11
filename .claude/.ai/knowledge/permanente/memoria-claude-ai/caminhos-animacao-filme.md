@@ -2,7 +2,7 @@
 id: memoria-claude-ai-caminhos-animacao-filme
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-10
+ultima_confirmacao: 2026-11-11
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-11-10T20:54:54.056836+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-11-11T20:56:31.206163+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -137,3 +137,18 @@ Nenhum vídeo novo do tema animacao_ia. Do termo "desenho animado grátis sem pl
 - Movimento a partir de 1 imagem: Wan Animate (personagem + vídeo de referência de movimento). No RunningHub é pago (moedas); lente grátis = o mesmo Wan Animate aberto no Kaggle com GPU. Testar dentro da missão dipsy-j3. https://www.youtube.com/watch?v=A9nl2uwwIYE
 - Caminho 5 (Vibes): o vídeo mostra carregar a NOSSA imagem no Vibes e animar sem créditos — confirma que dá para usar a personagem do filme; continua parado no botão de conta. https://www.youtube.com/watch?v=iVZ4a_XD1uo
 - Fora: Wan Animate em ComfyUI local (placa), stickman.
+
+## 11/11/2026 — vídeo "animação 2D com Claude + pack + ComfyUI" (Danilo mandou a transcrição) — VEREDITO DO CONSELHO
+- O vídeo: Claude Opus 5.5 cria animação 2D por código (SVG) com um "pack" grátis de instruções + imagem de estilo; voz Kokoro; para o complexo usa ComfyUI local (Krea 2, Qwen Image Edit, remoção de fundo, máscaras automáticas). O próprio autor mostra que o SVG sai de brinquedo e só melhora com GPU local. É da mesma família já rejeitada a 02/11 (SVG + HyperFrames) e 10/11 (3D em código), e do Claude Motion (21/10).
+- Conselho (ChatGPT, Gemini, DeepSeek no Chrome pessoal + qwen3.7-max e minimax-m3 pelo plano Go; glm-5.2 devolveu vazio): 5 em 5 dizem que NÃO muda o essencial. Todos: manter marioneta 2D + 9 bocas + Rhubarb (a única cadeia aprovada), cortar 3D/Blender, InfiniteTalk e ComfyUI no PC fraco, e parar de trocar de motor.
+- Aproveitar do vídeo só 2 coisas: (1) separar camadas de uma imagem aprovada (cabeça, braços, corpo) para montar a marioneta — testar remoção de fundo/segmentação em CPU e, no Kaggle, um modelo de camadas (a confirmar); (2) o "pack" fechado, que já existe (missão do Dipsy).
+- Ideia nova do ChatGPT, ADOTADA: portão de 45 segundos antes de produzir mais — as duas irmãs juntas, uma fala de cada, uma caminhada, uma expressão de surpresa, uma mudança de câmara, música e efeitos. Passou = padrão do episódio; não passou = corrige só essa cena.
+- Discordâncias: duração (Gemini/Qwen: 5-7 min; ChatGPT: 12-15; Danilo exige 15-30) → mantém-se 15+ min, entregue em blocos terminados; voz de criança (ChatGPT: gravar gente real, mas o Danilo NÃO quer a voz das filhas; Gemini/DeepSeek: Kokoro com pitch) → nenhum serve sozinho, fica Chatterbox/Qwen3-TTS/OmniVoice por medição; ferramentas de janela (Tahoma2D, OpenToonz, Synfig, Krita) → NÃO, o estúdio é por código/agentes, ele não clica em programas.
+
+
+## 11/11/2026 — radar diário
+Nenhum vídeo do tema animacao_ia; 3 de outras pesquisas acrescentam à BOCA SINCRONIZADA (caminho 3) e à DURAÇÃO:
+- Leonardo.ai: personagem falante a partir de UMA imagem, com boca sincronizada; grátis e sem marca d'água segundo o vídeo (confirmar limite diário). https://www.youtube.com/watch?v=mv8pn0TtOJ4
+- Gemini Omni Flash 1.2 no Google AI Studio: vídeo curto com boca sincronizada e música, controlo de resolução/formato — versão mais nova que o Omniflash 1.1 do Flow. https://www.youtube.com/watch?v=O9Hn_om69uE
+- Pruna: vídeos até 20 s em HD grátis, anima imagem com áudio e boca sincronizada; alterna modelos para fugir aos limites diários. https://www.youtube.com/watch?v=OnpUiz2IzhE
+Para testar na missão Dipsy j3 com a ficha da personagem e a voz fixa; nada entra no filme sem os fiscais.

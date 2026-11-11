@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-11T16:37:03.219155+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-11T17:07:03.832957+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-11 16:36 UTC. Páginas listadas: 609.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-11 17:07 UTC. Páginas listadas: 612.
 
 ## O que é o Bora
 
@@ -504,7 +504,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 
 - sql-modo-demo-2026-10-27 — SQL do modo demonstracao (Boom! Burger) para o Claude.ai aplicar (2026-10-27)
 
-## outras (172)
+## outras (175)
 
 - 00-LEIA-PRIMEIRO — Como usar esta memória (2026-10-23)
 - adendo-1-final-app-2026-10-29 — Adendo 1 da missão final-app-2026-10-29 (2026-10-29)
@@ -552,6 +552,8 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - emdia-grupos-facebook — Em Dia — publicações em grupos de Facebook (2026-10-04)
 - engenharia-reversa — Engenharia reversa — método do Danilo para clonar o que já existe (pedido 17/10/2026) (2026-10-17)
 - engenharia-reversa-achados-2026-10-17 — Engenharia reversa — achados da pesquisa mundial de 17/10/2026 (REA, filme, navegador) (2026-10-17)
+- entrega-amigo-casa-2026-11-11 — Entrega para a Claude.ai: publicar o Amigo com a Casa e Manutenção (11/11) (2026-11-11)
+- entrega-amigo-casa-2026-11-11-patch — Remendo do client-assistant (Amigo + Casa e Manutenção) 11/11 — git apply sobre origin/autonomous-night-2026-04-29 b8af9bc9 (2026-11-11)
 - erro-2026-11-02-whatsapp-conversa-eu — Erro 02/11: artes mandadas para a conversa "Eu" do WhatsApp pessoal (2026-11-02)
 - estado-2026-09-13 — Estado do Bora a 13/09/2026 (auditoria da Claude.ai depois de 3-4 dias sem Claude) (2026-09-13)
 - fecho-2026-10-17-cancelamento-tardio — Fecho 17/10 — cancelamento tardio TVDE: publicado nas 3 plataformas (estado final do prompt prompt-cancelamento-tardio-2026-10-17) (2026-10-17)
@@ -667,6 +669,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - reembolsos-b2-sql-tokens — reembolsos-b2-sql-tokens (2026-10-29)
 - reembolsos-dashboard-passos — Reembolsos (Bloco 2) — passos para publicar pelo painel do Supabase (29/10/2026) (2026-10-29)
 - regra-gmail-links-embrulhados — REGRA para todos os agentes: emails com links NUNCA pelo conector Gmail (embrulha os links em google.com/url) (2026-11-01)
+- resposta-claude-ai-farmacias-2026-11-11-servidor — Resposta da Claude.ai ao pedido do PC: servidor das farmacias NAO aplicado (11/11 17:00) (2026-11-11)
 - resposta-contabilista-iva-2026-10-28 — Resposta do Hugo (DC Consultores): IVA normal trimestral, programa de faturação, modelo aceite — 28/10/2026 (2026-10-28)
 - resposta-contabilista-iva-parte2-2026-10-28 — Hugo (15:54-15:55): faturas emitidas pelo escritório, não ficar no art. 53.º, IVA não mexe na margem — e as contas de outubro com IVA (2026-10-28)
 - respostas-claude-ai-filme — Respostas do Claude.ai às dúvidas do Dipsy no filme (Ep1) (2026-11-11)

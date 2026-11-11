@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-topics-erros-aprendidos-parte2
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-10
+ultima_confirmacao: 2026-11-11
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 2 de 5 — continua em livro-topics-erros-aprendidos-parte3)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte2`, origem `claude-ai`, atualizada em 2026-11-10T17:17:33.265934+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte2`, origem `claude-ai`, atualizada em 2026-11-11T08:14:13.520398+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte2 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 2 de 5), copiada a 10/11/2026 17:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 2 de 5), copiada a 11/11/2026 08:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - [stated] 17/10: reclamou que o radar de vídeos nunca lhe falou do REA (engenharia reversa), que estava na moda — o radar viu mais de 10 vídeos de nota 8-9 desde 12/10, registou uma proposta a 13/10 e marcou o resto como "já temos" sem nada feito; e a missão do emulador de 13/10 nunca correu → regra: "já temos" só com prova de que está instalado e a funcionar; o que foi só registado é "pendente" e volta a ser-lhe dito; assunto com 3+ vídeos fortes na semana é moda e vai sempre na mensagem dele (prompt do radar corrigido 17/10)
 - [stated] 17/10: no vídeo da limpeza os ecrãs da app passaram rápido demais (gostou do vídeo, mas o cliente não conseguia ver as opções) → regra: em todo vídeo, a parte da app vai um pouco mais devagar — cada toque fica marcado e cada ecrã fica parado uns 2 a 3 segundos para a pessoa ler, sem arrastar

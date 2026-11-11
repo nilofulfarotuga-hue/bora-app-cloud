@@ -2,19 +2,19 @@
 id: memoria-claude-ai-livro-areas-missao-domingo-noite
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-10
+ultima_confirmacao: 2026-11-11
 zona: verde
 confianca: alta
 estado: atual
 ---
 
-# Missão grande de domingo à noite (08/11/2026) para terminar o que falta no Bora — lista de pendências que o Danilo vai ditando; ler antes de montar essa missão (parte 1 de 2 — continua em livro-areas-missao-domingo-noite-parte2)
+# Missão grande de domingo à noite (08/11/2026) para terminar o que falta no Bora — lista de pendências que o Danilo vai ditando; ler antes de montar essa missão (parte 1 de 3 — continua em livro-areas-missao-domingo-noite-parte2…)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-missao-domingo-noite`, origem `claude-ai`, atualizada em 2026-11-10T17:16:35.759277+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-missao-domingo-noite`, origem `claude-ai`, atualizada em 2026-11-11T08:14:13.520398+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas missao domingo noite · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/missao-domingo-noite.md), copiada a 10/11/2026 17:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/missao-domingo-noite.md), copiada a 11/11/2026 08:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: missao-domingo-noite

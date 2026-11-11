@@ -2,19 +2,19 @@
 id: memoria-claude-ai-livro-areas-missao-domingo-noite-parte2
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-10
+ultima_confirmacao: 2026-11-11
 zona: verde
 confianca: alta
 estado: atual
 ---
 
-# Missão grande de domingo à noite (08/11/2026) para terminar o que falta no Bora — lista de pendências que o Danilo vai ditando; ler antes de montar essa missão (parte 2 de 2)
+# Missão grande de domingo à noite (08/11/2026) para terminar o que falta no Bora — lista de pendências que o Danilo vai ditando; ler antes de montar essa missão (parte 2 de 3 — continua em livro-areas-missao-domingo-noite-parte3)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-missao-domingo-noite-parte2`, origem `claude-ai`, atualizada em 2026-11-10T17:16:35.759277+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-missao-domingo-noite-parte2`, origem `claude-ai`, atualizada em 2026-11-11T08:14:13.520398+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas missao domingo noite parte2 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/missao-domingo-noite.md, parte 2 de 2), copiada a 10/11/2026 17:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/missao-domingo-noite.md, parte 2 de 3), copiada a 11/11/2026 08:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - 08/11 21:50 ESTADO REAL (e2e_log): M1 (+adendo talões), M2, M4 (+adendo suporte), M6 e M7 FECHARAM o código e testes (≈2935 testes verdes) mas a bora-tranca/trava recusou TODO o push, SQL e deploy: nada no GitHub, nada aplicado, nada publicado, nada testado no emulador (RAM < 3 GB). M3 Dipsy parcial (instalado no PC; VPS bloqueada por SSH). M5 Em Dia a correr no Dipsy. M7 pendentes do Danilo: mensagens aos 3 estafetas + Hugo (respondeu "Ainda não"), ativar Connect na empresa, repasses semanais Stripe (manual, 155,79 € pendentes). PROMPT REGISTADO: M8 m8-fechar-e-testar-noite-2026-11-08 (ficheiro entregue a ele para colar: Opus 5.5, bora_app, Ignorar permissões, sessão nova) — junta os 6 ramos ai/2026-11-08-*, aplica os SQL, publica Edge, 17 cenários no emulador Android, publica nas 3 e prova; check-in com desconto e navegação M7 ficam de fora. Estado: entregue 21:55
 - [stated] 08/11 22:31 respostas dele: SIM mandar mensagens ao Valdemir, Erika, Euliney e ao Cauã (Goola + Sabores de Casa); quando pagar a Boom, mandar ao Emanuel o que falta + link da Stripe (lembrete criado no telemóvel); SIM ativar Connect na Stripe da empresa; SIM repasses automáticos ("primeiro paga parceiros e estafetas, o que sobrar vai ao banco, automático"); SIM restaurante do dia (17:30, só opt-in); SIM autorizar o Google Drive da Bora para a cópia dos talões; rever TUDO o último mês e o que ficou para trás, incluindo radar de vídeos; "vai a fundo no do Jai, ele vive falando Wikipédia, temos de fazer valer o pagamento dele"; amanhã cedo vai às Finanças pôr o que falta no nome dele (lembrete criado). FEITO por mim 22:45 no Chrome da Bora: repasses da Stripe da empresa postos em AUTOMÁTICO SEMANAL à quarta. BLOQUEADO: Connect da empresa exige foto do documento + selfie do Danilo (Stripe Identity) — só ele; WhatsApp da Bora no Chrome pessoal está no ecrã do QR — nada sai até ele ler o QR. PROMPT REGISTADO: M9 m9-jai-fazer-valer-2026-11-08 (ficheiro entregue; Opus 5.5, pasta projetosflutter, Ignorar permissões, em paralelo com a M8): estado real, dossier/inventário de notabilidade para a Wikipédia sem editar, pitches de entrevista (máx. 8 envios), anúncios/Search Console, site em dia, contas do Jai preparadas, radar-jai com módulo de pitch. Balanço do mês (auditoria 22:50): padrão repetido = missões "a correr" sem fecho registado e prompts "à espera do Enter dele" (Boom retoma 03/11, adendos, peso variável app 31/10, NIF/caixa 04/11, angariadores 24/10, Super Agent 05/11); radar de vídeos pede desde 13/10 o "pacote PMEs" (CRM WhatsApp aberto Deskcom/Waziper na VPS, atendente para clínicas/oficinas) e nunca foi testado

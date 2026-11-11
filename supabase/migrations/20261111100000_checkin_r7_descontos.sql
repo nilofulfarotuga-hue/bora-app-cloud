@@ -94,7 +94,8 @@ CREATE OR REPLACE TRIGGER trg_checkin_premio_pedido_cancelado
 -- 5. Quanto a Bora pagou em descontos do check-in nos pedidos entregues de um período (os mesmos
 --    pedidos que o fecho conta). O desconto aplicado é o valor do vale: o mínimo de produtos de cada
 --    degrau é sempre maior do que o valor.
-CREATE OR REPLACE FUNCTION public._fecho_descontos_checkin(p_ini timestamptz, p_fim timestamptz)
+--    p_parceiro: NULL = todos; true/false = só lojas parceiras / só não parceiras.
+CREATE OR REPLACE FUNCTION public._fecho_descontos_checkin(p_ini timestamptz, p_fim timestamptz, p_parceiro boolean DEFAULT NULL)
  RETURNS numeric
  LANGUAGE sql
  STABLE SECURITY DEFINER
@@ -103,7 +104,8 @@ AS $function$
   SELECT COALESCE(round(sum(v.valor_cents) / 100.0, 2), 0)
     FROM public.checkin_premios_vales v
    WHERE v.tipo = 'desconto' AND v.estado = 'usado'
-     AND v.pedido_id IN (SELECT f.order_id FROM public._fecho_pedidos(p_ini, p_fim) f)
+     AND v.pedido_id IN (SELECT f.order_id FROM public._fecho_pedidos(p_ini, p_fim) f
+                          WHERE p_parceiro IS NULL OR f.is_partner = p_parceiro)
 $function$;
 
 -- Resumo dos vales de desconto (painel e extrato do dono).
@@ -145,16 +147,20 @@ BEGIN
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION public._fecho_descontos_checkin(timestamptz, timestamptz) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public._fecho_descontos_checkin(timestamptz, timestamptz, boolean) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public._checkin_descontos_resumo(timestamptz, timestamptz) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.admin_checkin_descontos_resumo() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_checkin_descontos_resumo() TO authenticated;
 
--- 6. Fecho do contabilista: linha própria "Descontos do check-in (pagos pela Bora)", tirada dos Ajustes.
+-- 6. Fecho do contabilista: linha própria "Descontos do check-in (pagos pela Bora)". O desconto sai da
+--    platform_commission, por isso já estava DENTRO da margem/comissão; agora a margem e a comissão
+--    mostram-se antes do desconto e o desconto aparece à parte. A receita total e os Ajustes não mudam.
 SELECT pg_temp._r7_patch('public.admin_monthly_closeout(integer, integer)',
   'v_r_ajustes := round(v_r_rec - (v_r_ent + v_r_serv + v_r_sacos + v_r_peq + v_r_parc + v_r_np - v_r_tok), 2);',
-  'v_r_ajustes := round(v_r_rec - (v_r_ent + v_r_serv + v_r_sacos + v_r_peq + v_r_parc + v_r_np - v_r_tok'
-  || ' - public._fecho_descontos_checkin(v_ini, v_fim)), 2);  -- 11/11/2026 R7');
+  'v_r_np := v_r_np + public._fecho_descontos_checkin(v_ini, v_fim, false);  -- 11/11/2026 R7: margem antes do desconto'
+  || chr(10) || '  v_r_parc := v_r_parc + public._fecho_descontos_checkin(v_ini, v_fim, true);'
+  || chr(10) || '  v_r_ajustes := round(v_r_rec - (v_r_ent + v_r_serv + v_r_sacos + v_r_peq + v_r_parc + v_r_np - v_r_tok'
+  || ' - public._fecho_descontos_checkin(v_ini, v_fim)), 2);');
 SELECT pg_temp._r7_patch('public.admin_monthly_closeout(integer, integer)',
   '''ajustes_descontos'', v_r_ajustes);',
   '''descontos_checkin'', -public._fecho_descontos_checkin(v_ini, v_fim),  -- 11/11/2026 R7: pagos pela Bora'

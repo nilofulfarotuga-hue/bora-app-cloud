@@ -303,6 +303,11 @@ class _AdminExtratoDonoScreenState extends State<AdminExtratoDonoScreen> {
                                 _x!['devem_a_bora'] as List, AppColors.success,
                                 boraPaga: false),
                             const SizedBox(height: 12),
+                            // 11/11/2026 (R7): descontos do check-in pagos pela Bora.
+                            if (_x!['descontos_checkin'] is Map) ...[
+                              _descontosCheckinCard(),
+                              const SizedBox(height: 12),
+                            ],
                             _arcasCard(),
                           ],
                         ),
@@ -459,6 +464,24 @@ class _AdminExtratoDonoScreenState extends State<AdminExtratoDonoScreen> {
           const Text(
               'Inclui os saldos das carteiras dos clientes (crédito que podem gastar) e o TVDE, que ainda não entra no acerto semanal.',
               style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+        ]),
+      ),
+    );
+  }
+
+  /// 11/11/2026 (R7): vales de desconto do check-in no período (a Bora paga o
+  /// desconto: sai da comissão dela, o estafeta e a loja recebem igual).
+  Widget _descontosCheckinCard() {
+    final d = Map<String, dynamic>.from(_x!['descontos_checkin'] as Map);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _titulo('Descontos do check-in (pagos pela Bora)'),
+          _linha('Usados no período (${d['usados_n'] ?? 0})', eur(d['usados_cents']),
+              bold: true, cor: AppColors.error),
+          _linha('Emitidos no período (${d['emitidos_n'] ?? 0})', eur(d['emitidos_cents'])),
+          _linha('Por usar hoje (${d['por_usar_n'] ?? 0})', eur(d['por_usar_cents'])),
         ]),
       ),
     );

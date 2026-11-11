@@ -82,6 +82,8 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
   final Map<String, bool> _marcoAtivo = {};
   final _intervalo = TextEditingController();
   List<Map<String, dynamic>> _custos = [];
+  // 11/11/2026 (R7): vales de DESCONTO do check-in (emitidos, usados, por usar).
+  Map<String, dynamic>? _descontos;
 
   List<String> get _chavesMarcos => chavesMarcosDe(_defs);
 
@@ -166,6 +168,7 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
         campos['produto_id']!.text = '${m['produto_id'] ?? ''}';
       }
       await _loadCustos();
+      await _loadDescontos();
       await _loadVales();
       await _loadEscada();
       if (!mounted) return;
@@ -187,6 +190,39 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
     });
     _vales = [for (final x in (r as List)) Map<String, dynamic>.from(x as Map)];
     if (mounted) setState(() {});
+  }
+
+  /// 11/11/2026 (R7): resumo dos vales de desconto deste mês. Falha à parte.
+  Future<void> _loadDescontos() async {
+    try {
+      final r = await _db.rpc('admin_checkin_descontos_resumo');
+      _descontos = r is Map ? Map<String, dynamic>.from(r) : null;
+    } catch (_) {
+      _descontos = null;
+    }
+  }
+
+  Widget _descontosCard() {
+    final d = _descontos!;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Descontos do check-in (pagos pela Bora)',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            Text('Degraus de desconto ligados: ${d['degraus_ligados'] ?? 0} de ${d['degraus_total'] ?? 0}'),
+            Text('Emitidos este mês: ${d['emitidos_n'] ?? 0} (${_euros(d['emitidos_cents'])})'),
+            Text('Usados este mês: ${d['usados_n'] ?? 0} (${_euros(d['usados_cents'])})'),
+            Text('Por usar agora: ${d['por_usar_n'] ?? 0} (${_euros(d['por_usar_cents'])})'),
+            const Text('A lista abaixo e o CSV mostram cada vale (coluna prêmio = "… de desconto …").',
+                style: TextStyle(fontSize: 12)),
+          ],
+        ),
+      ),
+    );
   }
 
   /// Custo dos prêmios por mês e por loja. Falha à parte.
@@ -757,6 +793,7 @@ class _AdminCheckinPremiosScreenState extends State<AdminCheckinPremiosScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (_descontos != null) _descontosCard(),
         Wrap(
           spacing: 6,
           runSpacing: 4,

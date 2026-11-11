@@ -1,0 +1,32 @@
+name: iPhone - aviso de versao nova so depois de a Apple publicar
+# (11/11/2026) Substitui o passo do build_ios.yml que gravava
+# app_latest_version_code_ios logo a seguir ao envio (antes da aprovacao).
+# Proposta: docs/propostas/fechar-tudo-2026-11-11/CI_ios_aviso_so_depois_de_aprovada.md
+on:
+  schedule:
+    - cron: '17,47 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ios-aviso-versao
+  cancel-in-progress: true
+jobs:
+  aviso:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+      - name: Gravar app_latest_version_code_ios = build a venda
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_B64: ${{ secrets.ASC_KEY_P8_B64 }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python3 -m pip install --quiet --disable-pip-version-check pyjwt cryptography requests
+          mkdir -p ~/private_keys
+          echo "$ASC_KEY_P8_B64" | base64 -d > ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          ASC_P8=~/private_keys/AuthKey_${ASC_KEY_ID}.p8 python3 .github/scripts/ios_publicar.py --aviso

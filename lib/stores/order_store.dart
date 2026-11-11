@@ -521,6 +521,11 @@ class OrderStore extends ChangeNotifier {
     // 14/10/2026: desconto dos tokens (o servidor corta à regra e tira-o do
     // valor do cartão; o create_order no finalize faz a mesma conta).
     double tokenDiscountEur = 0.0,
+    // 11/11/2026 (R7) — vale de desconto do check-in escolhido no carrinho.
+    // Vai no rascunho: o quote do create-payment-intent tira-o do valor do
+    // cartão e o create_order do finalize valida-o (dono, loja, validade,
+    // mínimo de produtos). A app só o passa.
+    String? checkinValeId,
   }) async {
     final liveUserId = supabase.auth.currentUser?.id;
     if (liveUserId == null ||
@@ -589,6 +594,9 @@ class OrderStore extends ChangeNotifier {
       'wallet_applied_cents': walletAppliedCents,
       if (tokenDiscountEur > 0)
         'token_discount_cents': (tokenDiscountEur * 100).round(),
+      // 11/11/2026 (R7): vale de desconto do check-in (o servidor valida).
+      if (checkinValeId != null && checkinValeId.isNotEmpty)
+        'checkin_vale_id': checkinValeId,
       if (pickupLocation != null) 'pickup_lat': pickupLocation.latitude,
       if (pickupLocation != null) 'pickup_lng': pickupLocation.longitude,
       'dropoff_lat': destination.latitude,
@@ -769,6 +777,10 @@ class OrderStore extends ChangeNotifier {
     int walletAppliedCents = 0,
     // 04/10/2026 — "Deixar à porta" (vai para orders.deixar_a_porta).
     bool deixarAPorta = false,
+    // 11/11/2026 (R7) — vale de desconto do check-in escolhido no carrinho.
+    // Quem decide se desconta é o servidor (_create_order_core valida dono,
+    // loja, validade e mínimo de produtos); a app só o passa.
+    String? checkinValeId,
     // 04/10/2026 — total do SERVIDOR (quote) para a pré-verificação do
     // limite do dinheiro. Sem ele usa-se o cálculo local.
     double? totalServidor,
@@ -904,6 +916,9 @@ class OrderStore extends ChangeNotifier {
       'requires_car': requiresCar,
       if (deixarAPorta && serviceType != OrderServiceType.takeaway)
         'deixar_a_porta': true,
+      // 11/11/2026 (R7): vale de desconto do check-in (o servidor valida).
+      if (checkinValeId != null && checkinValeId.isNotEmpty)
+        'checkin_vale_id': checkinValeId,
       // S1.4: Wallet debit happens atomically inside create_order RPC.
       // Pre-validates balance with FOR UPDATE lock; throws on insufficient.
       'wallet_applied_cents': walletAppliedCents,

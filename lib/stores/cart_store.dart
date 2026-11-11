@@ -325,11 +325,11 @@ class CartStore extends ChangeNotifier {
   // `checkin_vale_id`. Quem decide se desconta é o servidor: só na loja do
   // vale e com o subtotal no mínimo. Abaixo do mínimo devolve quanto falta.
   //
-  // DESLIGADO até o `OrderStore.createOrder` mandar o `checkin_vale_id` (a
-  // tranca do Bora não deixa esta sessão mexer no order_store, zona do
-  // finalizePurchase). Com isto a false o carrinho nunca mostra um desconto
-  // que o pedido não leva: o total do ecrã é sempre o que se paga.
-  static bool descontoCheckinNoPedido = false;
+  // LIGADO a 11/11/2026 (R7): o `OrderStore.createOrder` (dinheiro, MB Way) e o
+  // `startCardPaymentDraft` (cartão) já mandam o `checkin_vale_id`, por isso o
+  // desconto que o carrinho mostra é o que o pedido leva. Se voltar a false, o
+  // carrinho deixa de mostrar o vale e nenhum pedido o usa.
+  static bool descontoCheckinNoPedido = true;
 
   String? _checkinValeId;
   int _checkinValeValorCents = 0;
@@ -1532,6 +1532,8 @@ class CartStore extends ChangeNotifier {
       errandRequestPhotoUrl: _errandRequestPhotoUrl,
       savedPmId: savedPmId,
       tokenDiscountEur: tokenDiscountEurDe(tokensUsed),
+      // 11/11/2026 (R7): o vale de desconto do check-in segue no rascunho.
+      checkinValeId: _checkinValeId,
     );
   }
 
@@ -1656,6 +1658,8 @@ class CartStore extends ChangeNotifier {
       customerName: customerName,
       apartmentDelivery: _apartmentDelivery,
       deixarAPorta: deixarAPortaNoPedido(paymentMethod),
+      // 11/11/2026 (R7): o vale de desconto do check-in segue no pedido.
+      checkinValeId: _checkinValeId,
       totalServidor: resumoMostrado.doServidor ? resumoMostrado.total : null,
       tokenDiscountEur: tokenDiscountEurDe(tokensUsed),
       packagePhotoUrl: _packagePhotoUrl,

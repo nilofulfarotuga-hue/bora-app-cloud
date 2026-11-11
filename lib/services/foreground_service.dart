@@ -710,6 +710,8 @@ class _BoraTaskHandler extends TaskHandler {
         total: payload['total']?.toString() ?? '0.00',
         distanceKm: payload['distanceKm']?.toString() ?? '0',
         driverEarnings: payload['driverEarnings']?.toString() ?? '0.00',
+        // pagar-na-loja (10/11/2026): frase do dinheiro pronta do servidor.
+        lojaLinha: payload['lojaLinha']?.toString() ?? '',
         offerExpiresAt: prazo,
       );
     } catch (e) {

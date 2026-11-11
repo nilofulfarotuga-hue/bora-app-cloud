@@ -166,6 +166,17 @@ class OrderModel {
   /// (ex.: sacos mercado a €0.10/saco).
   double? cashTotalDue;
 
+  /// pagar-na-loja (10/11/2026, business_rules 2.4.2): o que o estafeta faz na
+  /// loja, decidido SÓ pelo servidor (`orders.loja_pagamento_estado`):
+  /// `pagar_loja`, `ja_pago`, `fazer_compra`, `parceiro_chamou`, `ir_buscar`.
+  /// null = pedido sem loja (favor, levar/enviar) ou ainda sem cálculo.
+  /// Nunca se envia para o servidor — o gatilho recalcula.
+  String? lojaPagamentoEstado;
+
+  /// Preço de balcão que o estafeta paga à loja parceira na recolha
+  /// (`orders.loja_pagar_valor`, só em `pagar_loja`; senão 0). A app só mostra.
+  double lojaPagarValor;
+
   /// Items added by the driver during storeShopping (caso A: cliente
   /// pediu via chat; caso B: substituição de produto faltando). Each entry:
   /// `{name, price_base_cents, price_final_cents, qty, reason, added_at,
@@ -396,6 +407,8 @@ class OrderModel {
     this.debtCollectedCents = 0,
     this.extraChargeAmount,
     this.cashTotalDue,
+    this.lojaPagamentoEstado,
+    this.lojaPagarValor = 0,
     List<Map<String, dynamic>>? itemsAdded,
     this.tipCents = 0,
     this.takeawayPickupCode,
@@ -670,6 +683,10 @@ class OrderModel {
           (data['debt_collected_cents'] as num?)?.toInt() ?? 0,
       extraChargeAmount: (data['extra_charge_amount'] as num?)?.toDouble(),
       cashTotalDue: (data['cash_total_due'] as num?)?.toDouble(),
+      lojaPagamentoEstado: data['loja_pagamento_estado'] as String?,
+      lojaPagarValor: (data['loja_pagar_valor'] is String)
+          ? double.tryParse(data['loja_pagar_valor'] as String) ?? 0
+          : (data['loja_pagar_valor'] as num?)?.toDouble() ?? 0,
       itemsAdded: parsedItemsAdded,
       tipCents: (data['tip_amount_cents'] as num?)?.toInt() ?? 0,
       takeawayPickupCode: data['takeaway_pickup_code'] as String?,

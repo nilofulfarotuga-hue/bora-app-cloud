@@ -59,6 +59,26 @@ const Map<String, String> kStringsEn = <String, String>{
       'Best pick for you',
   'Ainda não tens prémios. Faz o check-in todos os dias: no dia {0} ganhas o primeiro.':
       "No prizes yet. Check in every day: on day {0} you win the first one.",
+  // 10/11/2026: pagar-na-loja — estafeta paga à loja parceira na recolha
+  // (tool/l10n/traducoes/pt-en-26-pagar-na-loja.json). Acrescentado à mão.
+  'Pagas {0} na loja · Cobras {1}': 'You pay {0} at the store · You collect {1}',
+  'Já pago — não pagas nem cobras nada': 'Already paid — you neither pay nor collect anything',
+  'Fazes a compra': 'You do the shopping',
+  'PAGA {0} À LOJA': 'PAY {0} TO THE STORE',
+  'Preço de balcão. É só isto que pagas. Depois cobras ao cliente.': 'Counter price. This is all you pay. Then you collect from the customer.',
+  'JÁ ESTÁ PAGO — não pagas nada na loja': 'ALREADY PAID — you pay nothing at the store',
+  'TENS DE FAZER A COMPRA': 'YOU HAVE TO DO THE SHOPPING',
+  'Paga na caixa e tira foto do talão.': 'Pay at the till and take a photo of the receipt.',
+  'Paga na caixa e tira foto do talão. Valor estimado: {0}': 'Pay at the till and take a photo of the receipt. Estimated amount: {0}',
+  'COBRA {0} AO CLIENTE': 'COLLECT {0} FROM THE CUSTOMER',
+  'inclui +{0} de dívida anterior': 'includes +{0} of previous debt',
+  'JÁ ESTÁ PAGO — não cobres nada': 'ALREADY PAID — do not collect anything',
+  'Pagaste {0} à loja na recolha': 'You paid {0} to the store at pickup',
+  'Recebeste {0} em mão do estafeta na recolha.': 'You received {0} in cash from the courier at pickup.',
+  'O estafeta paga-te {0} em dinheiro quando vier buscar o pedido.': 'The courier pays you {0} in cash when picking up the order.',
+  'Já pago pela app — não cobres nada ao estafeta. Recebes no fecho semanal.': 'Already paid in the app — do not charge the courier. You get paid in the weekly settlement.',
+  'Recebido em mão na recolha: {0} (já descontado)': 'Received in cash at pickup: {0} (already deducted)',
+  'Recebido em mão na recolha (o estafeta pagou-te)': 'Received in cash at pickup (the courier paid you)',
   // 09/11/2026: depósito Volta (latas e garrafas). Acrescentado à mão.
   '+{0} depósito Volta': '+{0} Volta deposit',
   '+{0} depósito Volta ({1} embalagens)': '+{0} Volta deposit ({1} containers)',

@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../l10n/tr.dart';
 import '../models/order_model.dart';
 import '../models/restaurant_model.dart';
 import '../stores/order_store.dart';
@@ -719,7 +720,12 @@ class _PedidoExtratoTile extends StatelessWidget {
               _eur(pedido['parte_bora_cents'])),
           _linha('Fica para ti', _eur(pedido['fica_para_o_parceiro_cents']),
               bold: true),
-          if (((pedido['recebido_pelo_parceiro_cents'] as num?) ?? 0) > 0)
+          // pagar-na-loja (10/11/2026): pedido da app pago em dinheiro — o
+          // estafeta pagou-te na recolha.
+          if (((pedido['recebido_em_mao_na_recolha_cents'] as num?) ?? 0) > 0)
+            _linha('Recebido em mão na recolha (o estafeta pagou-te)'.tr,
+                _eur(pedido['recebido_em_mao_na_recolha_cents']))
+          else if (((pedido['recebido_pelo_parceiro_cents'] as num?) ?? 0) > 0)
             _linha('Recebeste em dinheiro (abate no fecho)',
                 _eur(pedido['recebido_pelo_parceiro_cents'])),
         ],

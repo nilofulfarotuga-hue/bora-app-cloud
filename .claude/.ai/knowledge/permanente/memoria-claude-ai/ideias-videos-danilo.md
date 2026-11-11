@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-09
+ultima_confirmacao: 2026-11-10
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-09T20:57:33.572769+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-10T20:54:53.135282+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -611,3 +611,16 @@ Termos novos: "Google Flow personagem fixo desenho animado longo" (animacao_ia) 
 
 - Radar aprende 09/11: sem termos aprendidos (os assuntos fortes de hoje já têm termo); +1 da conversa (encomendas de bolos e doces para festas, categoria nova do Bora); -1 sem rendimento (Stripe Connect repasse, 0 vídeos bons em 14 dias); 70 ativos.
 - Tarefas do radar (regra M10): 12 abertas — 3 propostas à espera de aprovação (pacote-pmes, crm-whatsapp-pmes, bora-ideias), 8 correram 09/11 mas com revisão pendente (sem veredito do juiz), 1 nova hoje (voz-gratis). Assuntos mais antigos: explicativos/edição Em Dia (11/10), pacote PMEs (13/10), CRM WhatsApp (18/10).
+
+## 10/11/2026 — radar diário (agente na nuvem)
+40 vídeos revistos (33 com nota >= 6): 2 novos, 15 PENDENTES, 7 já temos, 16 rejeitados (7 por nota baixa). Nenhum do tema animacao_ia; 4 do filme vindos de outras pesquisas.
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): agência/vender automação a PMEs 7+4+3 — PENDENTE desde 13/10; atendente WhatsApp 6 — Mister Navalha (marcação no Google Agenda não provada); chatbot que consulta o pedido 6 — FEITO 05/11; Perfil Google como mensalidade 6 — FEITO (Jai); anúncios Meta 6 — PARADO desde 26/10 (pagamento); edição com Claude Code/HyperFrames 6 — PENDENTE desde 11/10; CRM WhatsApp aberto 4 — PENDENTE desde 18/10, passado ao Dipsy hoje (dipsy-j4); micro-SaaS 4 — PENDENTE desde 21/10; sites para PMEs 3 (+4 hoje) — PENDENTE desde 25/10; animação estilo Vox 3 — PENDENTE desde 11/10, agora na missão dipsy-j3.
+- BORA (novo): perfil do prestador (limpeza, favores, serviços) com barra de perfil completo, fotos antes/depois, tempo de resposta visível e pedido de avaliação no fim. https://www.youtube.com/watch?v=7NX0RKIxg-o
+- FILME/EM DIA (novo): vídeo 3D feito em código (Three.js) pelo Claude a partir de pack de personagens/cenários prontos — grátis, sem GPU, personagem igual em todas as cenas. https://www.youtube.com/watch?v=3UbOzkPHcT4 , https://www.youtube.com/watch?v=XOawniOYBMw
+- DINHEIRO (PENDENTE desde 18/10, Dipsy desde 10/11): Desk, CRM WhatsApp aberto (licença MIT) com IA via MCP — candidato para a missão dipsy-j4. https://www.youtube.com/watch?v=ibpfox4aqgM
+- DINHEIRO (PENDENTE desde 13/10): pacote PMEs — AIOS (IA ligada aos sistemas da empresa, implementação + mensalidade) e método VENDER (procurar problemas caros: demora no atendimento, sem follow-up, dados espalhados; começar pela rede na Guarda). https://www.youtube.com/watch?v=yS1VO7oTM18 , https://www.youtube.com/watch?v=65rRm2p41Ow , https://www.youtube.com/watch?v=UTlkkHrOqIg
+- DINHEIRO (PENDENTE desde 25/10): sites/mini sites para negócios locais + SEO para IA como extra. https://www.youtube.com/watch?v=sAcZcN6DCs0 , https://www.youtube.com/watch?v=lOWNt3w6byg , https://www.youtube.com/watch?v=Rh3OGsWh4VM
+- DINHEIRO (pendente): agente WhatsApp que marca no Google Agenda (Umbler Talk pago → Mister Navalha + Google Calendar). https://www.youtube.com/watch?v=5twnyFdFm2s
+- BORA (PARADO desde 26/10): checklist Meta Ads para WhatsApp (nomes padrão, UTM, boas-vindas) e criativo como alvo (Andromeda). https://www.youtube.com/watch?v=K0TvECvn8vU , https://www.youtube.com/watch?v=ZyFIVVsMmXI
+- JÁ TEMOS: robô do suporte (chatbots, 3 vídeos), Perfil Google (Jai, 3 vídeos), reserva LTX/Wan no Kaggle.
+- RECUSADO: n8n básico, GoHighLevel, Wan Animate em ComfyUI local, Google Local Ads (Índia), Shopee/afiliados, RHIMS, canal dark, stickman.

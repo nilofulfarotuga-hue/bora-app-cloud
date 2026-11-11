@@ -137,6 +137,58 @@ relatórios do parceiro misturando as 3 camadas (10% visível + 5% hidden + 5%
 serviço). Agora usa `subtotal × 0.10` (só a comissão visível paga pelo parceiro),
 alinhado com `platform_settings.partner_visible_commission_pct`.
 
+### 2.4.2 Pedido de app a dinheiro em loja parceira (IMPLEMENTADO 2026-11-10)
+
+**Autorização:** Danilo, 10/11/2026, por voz (21:21, 21:30, 21:33 "Pode."), missão
+`pagar-na-loja-2026-11-10`. O que o CLIENTE paga NÃO muda; nenhum preço, comissão ou
+taxa muda. Muda só QUEM paga a loja e QUANDO, e o que se mostra.
+
+**Caso real:** pedido 6d38f5e5 (Boom! Burger, dinheiro). Produtos 16,10; preço de
+balcão 13,80; cliente pagou 19,71; estafeta ganha 4,24. A loja cobrou 13,80 ao estafeta
+na recolha e a app dizia "RECEBER 19,71 — entregar ao parceiro". As contas tratavam o
+pedido como se a Bora pagasse a loja no fecho → a loja receberia duas vezes e o estafeta
+ficaria a dever 15,47 em vez de 1,67. Acertado a 10/11 (cópia `bkp_acerto_graca_boom_20261110`).
+
+| Caso | Loja | Pagamento | Na loja o estafeta… | No cliente | Fecho da loja |
+|---|---|---|---|---|---|
+| **R1** | parceira (pedido da app) | dinheiro | **paga o preço de balcão** (`partner_store_share`) | cobra `cash_total_due` | não recebe este pedido da Bora (já recebeu em mão) |
+| **R2** | parceira | cartão / MB Way | não paga nada | não cobra nada | recebe no fecho, como sempre |
+| **R3** | não parceira | qualquer | faz a compra (caixa + talão), como sempre | cobra se for dinheiro | — |
+| **R4** | parceiro chama estafeta (2.4.1) | dinheiro | igual a 2.4.1, NÃO mudou | igual | igual |
+| **R5** | ir buscar (takeaway) | — | sem estafeta, NÃO mudou | — | igual |
+
+**Conta do estafeta em R1:** deve à Bora = cobrado ao cliente − pago à loja − ganho dele.
+No caso real: 19,71 − 13,80 − 4,24 = **1,67**.
+
+**Fonte única (servidor):**
+- `orders.loja_pagamento_estado` (`pagar_loja` / `ja_pago` / `fazer_compra` /
+  `parceiro_chamou` / `ir_buscar`) e `orders.loja_pagar_valor` (balcão, só em R1),
+  calculados pelo gatilho `zzzz_orders_loja_pagamento` (regra `pedido_loja_estado`) na
+  criação e até à recolha. A app nunca calcula: só mostra.
+- **Marcador (o mesmo do acerto de 10/11):** na recolha de um `pagar_loja` o servidor grava
+  `is_purchase_finalized = true` e `final_purchase_value = loja_pagar_valor`.
+  `order_driver_reimbursement` devolve esse valor → o livro-razão, o acerto do estafeta
+  (`apply_driver_cash_settlement`, `compute_driver_settlement`) contam-no sem dobrar;
+  `compute_partner_weekly_settlement` soma-o em `pago_em_mao_na_recolha` (já dentro de
+  `cash_kept_by_partner`).
+- **Atenção:** nestes pedidos `final_purchase_value` é o que foi pago à loja, NÃO o valor
+  dos produtos. A divisão do pedido (`apply_order_financial_split`) e os extratos da loja
+  continuam a usar o `subtotal`.
+- Correção pelo admin: RPC `admin_corrigir_pago_loja(pedido, valor, motivo)` → acerta o
+  estafeta e a loja, grava em `admin_audit_log`; recusa semanas já pagas/recebidas.
+- Recibos: estafeta vê "Pagou à loja na recolha (preço de balcão)"; loja vê "Recebido em mão
+  do estafeta na recolha".
+
+**Ecrãs:** estafeta — faixa grande e sempre visível no mapa ("PAGA 13,80 € À LOJA" /
+"JÁ ESTÁ PAGO" / "TENS DE FAZER A COMPRA" e, no cliente, "COBRA 19,71 € AO CLIENTE" /
+"JÁ ESTÁ PAGO — não cobres nada"); oferta, lista e notificação com "Pagas X na loja ·
+Cobras Y". Parceiro — aviso em cada pedido com entrega ("O estafeta paga-te 13,80 € em
+dinheiro quando vier buscar o pedido." / "Já pago pela app…"). Admin (PT-BR) — situação,
+"Estafeta paga à loja: X", correção e exportação CSV.
+
+**Pedidos anteriores a 10/11 (não mexidos, semanas pagas):** Goola Açaí fc07ca8d (05/09),
+b4338364 (14/10), 078698ae (05/11) foram contados com a Bora a pagar a loja.
+
 ### 2.5 Sacos de Transporte (Sessão 3 · 2026-05-04)
 
 | Cenário | Quem cobra | Quando | Valor |

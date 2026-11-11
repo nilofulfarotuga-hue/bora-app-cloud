@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-resumo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-09
+ultima_confirmacao: 2026-11-10
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Livro do Bora — resumo para o ChatGPT (regras + erros + índice, sem pessoais), gerado
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-11-09T23:40:07.663819+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-11-10T23:40:09.523174+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro resumo · memoria claude.ai · claude_ai_memoria
 
-# Livro do Bora — resumo para o ChatGPT (2026-11-09)
+# Livro do Bora — resumo para o ChatGPT (2026-11-10)
 
 Lê isto antes de responder ao Danilo. É a mesma verdade que a Claude.ai, o Hermes, o Claude Code e o OpenCode leem (tabela public.claude_ai_memoria). Gerado todas as noites pela VPS; páginas pessoais ficam de fora.
 
@@ -216,7 +216,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - 04/11 (claude-ai): 04/11 11:24: escrevi a tradução da mensagem do Vansh e da resposta entre ferramentas e ela não lhe apareceu no ecrã; ele só viu o cartão em inglês e irritou-se → as duas traduções ("O Vansh falou" e "O que eu estou a responder") vão sempre por mensagem visível antes do cartão, ou como texto final depois da última ferramenta; nunca soltas no meio das ferramentas.
 - 05/11 (claude-ai): 05/11 20:16: disse que os pedidos do McDonald's e do Jyosmi não tinham talão registado e calculei o lucro com o preço de balcão da app; ele tinha registado o talão do McDonald's com foto — a minha consulta com várias instruções devolveu só o resultado da última e não vi a tabela order_receipts_v2 → ver sempre uma consulta de cada vez (ou conferir que vieram todos os resultados) e, antes de dizer que falta talão, ler order_receipts_v2 e o bucket receipts; lucro de pedido não-parceiro usa o valor do TALÃO (driver_typed_total_cents), nunca o preço da app.
 - 07/11 18:42 (Claude.ai): disse que o Valdemir devia €3,24 (banco: €1,77 pendente + €1,47 calculado) sem ver se já tinha pago; ele corrigiu "já pagou tudo, não deve nada" → dívida de motorista só se lista se a conversa confirmar; o banco mostra "pendente" mesmo quando o Danilo já recebeu à mão. Ao responder "quanto deve", dizer o que o banco mostra e perguntar se já pagou, ou ler as conversas antigas primeiro.
-- 08/11 18:00 (claude-ai): pedido do Burger King sem NIF do cliente; eu disse-lhe "fatura sem NIF / consumidor final" e ele corrigiu "você tinha falado que era o NIF da Bora" → regra (conversa de 03/11): cliente deu NIF → talão com o NIF do cliente; cliente SEM NIF → talão com o NIF da Bora (519686233); compra para o Vansh/Guarda FC → NIF da SAD. Antes de dizer que NIF pôr, ler as conversas antigas sobre o tema.
+- 08/11 18:00 (claude-ai): pedido do Burger King sem NIF do cliente; eu disse-lhe "fatura sem NIF / consumidor final" e ele corrigiu "você tinha falado que era o NIF da Bora" → regra (conversa de 03/11): cliente deu NIF → talão com o NIF do cliente; cliente SEM NIF → consumidor final, NUNCA o NIF da Bora (regra mudada pelo Danilo a 10/11, NIF da Bora tirado do sistema); compra para o Vansh/Guarda FC → NIF da SAD. Antes de dizer que NIF pôr, ler as conversas antigas sobre o tema.
 - [stated] 08/11 18:59: recusei forçar a entrega do pedido do Divan sem o código de 4 dígitos (disse que passava por cima da proteção da app); ele corrigiu: "eu sou o dono, é pra forçar e pronto" → regra: quando o Danilo manda finalizar/forçar um pedido, finaliza-se pela via oficial (RPC admin), sem exigir o código; o Dipsy e o Claude Code também têm de conseguir. Tirar as limitações, não inventar mais.
 08/11 (quem errou: claude-ai): entreguei 6 missões sem cobrir tudo o que ele ditou (Stripe da empresa/parceiros/WhatsApp, vídeos do radar, briefs, pagamentos, plano de 14 dias, leis, menu, motorista→delivery) e o LEIA-ME sem dizer "não colar"; ele colou-o como missão e disse "você não ouviu tudo, ler palavra por palavra" → regra: antes de entregar, ler a mensagem dele frase a frase e marcar cada pedido num bloco (checklist 1:1); ficheiro de instruções leva no topo "NÃO colar".
 08/11 (quem errou: claude-ai): no pedido do McDonald's voltei a oferecer mandar ao Hugo a pergunta do NIF; ele irritou-se: "não é para mandar" → regra: dúvida do NIF não vai ao Hugo; respondo eu direto, com a lei, sem propor envios.
@@ -234,6 +234,12 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 09/11 (quem errou: claude-ai): liguei a Casa com o ladrilho só "Casa" e ícone simples na versão do iPhone; ele: "faz tudo pelo meio" → regra: categoria nova só se dá por publicada com o nome completo (ex.: "Casa e Manutenção") e o ícone 3D cartoon igual aos outros, visto nas 3 plataformas
 
 09/11 (quem errou: claude-ai): pedi-lhe para ligar a Casa no painel após o classificador travar → regra: com a ordem dele, refazer eu pelas funções do painel; nunca lhe devolver o passo
+
+10/11 (quem errou: claude-ai): NIF no talão (regra de 10/11, substitui a de 08/11): cliente pediu NIF → talão com o NIF do cliente; cliente SEM NIF → consumidor final, NUNCA o NIF da Bora (tirado do sistema a 10/11); compra para o Vansh/Guarda FC → NIF da SAD. Antes de dizer que NIF pôr, ler as conversas antigas sobre o tema
+
+10/11 (quem errou: claude-ai): escrevi ao Hugo que estafetas e limpadoras são todos isentos de IVA → regra: uns são isentos, outros não (passam o limite); nunca dizer que todos são isentos
+
+10/11 (quem errou: claude-ai): buraco de segurança no banco — dentro de função SECURITY DEFINER o current_user é SEMPRE o dono (postgres), por isso a guarda "current_user in ('postgres','service_role')" deixava qualquer sessão autenticada ler o resumo da Stripe e os prestadores com NIF, email e ganhos. Regra: guarda dessas funções usa is_admin()/role do JWT e, para ligação direta, session_user = 'postgres'; nunca current_user
 
 
 ## Índice do livro (sem páginas pessoais)
@@ -492,6 +498,12 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - digest-2026-11-09-m11 — M11 — Amigo com rosto, talões no Drive, pesquisa inteligente e Casa (09/11/2026)
 - digest-2026-11-09-pendencias — Digest 09/11 — missão pendências (Claude Code)
 - digest-2026-11-09-volta-deposito-kfc — Claude Code 09/11 — depósito Volta e robô do talão do KFC
+- digest-2026-11-10-fecho-contabilista — Digest 10/11/2026 — fecho ao contabilista com as regras do Hugo (Claude Code)
+- digest-2026-11-10-pagar-na-loja — Digest 10/11/2026 — missão pagar-na-loja (estafeta paga a loja parceira na recolha)
+- dipsy-j1-em-dia-semana-2026-11-10 — Missão do Dipsy dipsy-j1-em-dia-semana-2026-11-10
+- dipsy-j2-em-dia-calculadoras-2026-11-10 — Missão do Dipsy dipsy-j2-em-dia-calculadoras-2026-11-10
+- dipsy-j3-animacao-estudio-2026-11-10 — Missão do Dipsy dipsy-j3-animacao-estudio-2026-11-10
+- dipsy-j4-crm-whatsapp-2026-11-10 — Missão do Dipsy dipsy-j4-crm-whatsapp-2026-11-10
 - diretiva-plataformas-2024-2831 — Diretiva (UE) 2024/2831 trabalho em plataformas — o que obriga o Bora, estado em Portugal, o que está feito e checklist 
 - dsh-como-usar — Como usar o Dipsy (dsh)
 - dsh-como-usar-novidades-2026-10-31 — Dipsy: o que ficou novo a 31/10 (complemento da pagina dsh-como-usar)
@@ -566,7 +578,8 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-areas-filme-animacao-parte3 — Série cristã infantil "A Semente da Luz" — cânone, elenco, e estado da produção do Episódio 1 (parte 3 de 4)
 - livro-areas-filme-animacao-parte4 — Série cristã infantil "A Semente da Luz" — cânone, elenco, e estado da produção do Episódio 1 (parte 4 de 4)
 - livro-areas-filme-animacao-v3 — Continuação de filme-animacao a partir da 3.ª reprovação (31/08) — estado da produção v3 do Ep1 "A Semente da Luz", prom
-- livro-areas-filme-animacao-v3-parte2 — Continuação de filme-animacao a partir da 3.ª reprovação (31/08) — estado da produção v3 do Ep1 "A Semente da Luz", prom
+- livro-areas-filme-animacao-v3-parte2 — Continuação de filme-animacao a partir da 3.ª reprovação (31/08) — estado da produção v3 do Ep1 "A Semente da Luz" (part
+- livro-areas-filme-animacao-v3-parte3 — Continuação de filme-animacao a partir da 3.ª reprovação (31/08) — estado da produção v3 do Ep1 "A Semente da Luz" (part
 - livro-areas-ganhar-dinheiro-ia — Objetivo do Danilo de ganhar dinheiro com IA em modo automático (ele só comanda) — o que quer, o que escolheu e o que fi
 - livro-areas-ganhos-prestador — Ganhos do prestador no [[bora-app]] — total do dia em qualquer ecrã e a fórmula do estafeta em loja não-parceira (fica c
 - livro-areas-gibi-biblia-criancas — Animated Bible storytelling project for Danilo's daughters (characters Tuca and Lumi), pivoting to comic book (Gibi) for
@@ -700,6 +713,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - pendencias-2026-11-01 — Pendências dos últimos 30 dias (lista numerada dada ao Danilo a 01/11 ~19:35)
 - perfil — Quem é o Danilo
 - pesquisa-assistente-cliente-2026-10-07 — Pesquisa mundial para o assistente de compras IA do cliente (base da missão que vem depois do +18)
+- pesquisa-checkin-2026-11-10 — Pesquisa do check-in diário — como fazem os melhores (10/11/2026)
 - pesquisa-fatura-nif-2026-10-28 — Fatura com NIF, produto em falta e entrega grátis nos parceiros — pesquisa e decisões (28/10/2026)
 - plano-14-dias-2 — Plano de 14 dias, parte 2 (09/11 a 22/11/2026)
 - plano-14-dias-dia6-a-14 — Plano de 14 dias — do dia 6 ao dia 14 (29/10 a 06/11/2026)
@@ -719,6 +733,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - prompt-connect-empresa-2026-11-04 — Prompt — Connect na Stripe da empresa e repasse automático às lojas (04/11/2026)
 - prompt-dipsy-melhor-2026-10-31 — Missão Dipsy "melhor que o Claude Code" (31/10/2026) — decisões do Danilo 06:31
 - prompt-favor-diferenca-mbway-2026-11-03 — Prompt Favor com compra a mais: MB Way da diferença (03/11 13:35)
+- prompt-fechar-tudo-2026-11-10 — Prompt da missão fechar-tudo 10/11/2026
 - prompt-fecho-pendentes-2026-10-31 — Prompt "fecho-pendentes" (31/10 22:10) — peso ao quilo, suporte com Claude, 4 pagamentos, 3 commits antigos, limpeza 5 m
 - prompt-final-app-2026-10-29 — Prompt missao final-app-2026-10-29
 - prompt-fuku-anuncio-2026-11-03 — Prompt missão anúncio Fuku Sushi na Meta (03/11/2026 20:30)

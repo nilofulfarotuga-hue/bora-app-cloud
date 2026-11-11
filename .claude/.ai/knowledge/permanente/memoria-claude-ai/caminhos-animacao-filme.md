@@ -2,7 +2,7 @@
 id: memoria-claude-ai-caminhos-animacao-filme
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-06
+ultima_confirmacao: 2026-11-10
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Filme das filhas — 5 caminhos grátis para o desenho (revisto 05/10 com os 50 vídeos)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-11-06T20:57:33.238327+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `caminhos-animacao-filme`, origem `claude-ai`, atualizada em 2026-11-10T20:54:54.056836+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: caminhos animacao filme · memoria claude.ai · claude_ai_memoria
 
@@ -131,3 +131,9 @@ Nenhum vídeo novo do tema animacao_ia. Do termo "desenho animado grátis sem pl
 - Consistência da história: curtas feitos pelo Claude em código com "bíblia da série" verificada por agente (furos de roteiro) e medição de cortes/silêncios dos vídeos de referência. https://www.youtube.com/watch?v=4e74CFd0F1E
 - Poupar clipes: animar só a camada que mexe (fundo parado em imagem, personagem por cima) — truque da colagem com Claude + Google Flow. https://www.youtube.com/watch?v=11-0lvGltVA
 - Fora: Kling + stickman (pago/recusado), Anijan (junta Kling/Seedance, créditos, sem prova de personagem fixo).
+
+## 10/11/2026 — radar diário (sem vídeos do tema animacao_ia; 4 do filme vindos de outras pesquisas)
+- Personagem consistente (novo): animação 3D feita em CÓDIGO (Three.js/HTML) pelo Claude, montando cenas a partir de um pack de personagens, cenários e animações prontos — grátis, sem GPU, sem créditos; a personagem é sempre o mesmo modelo, por isso não deriva. Falta: o estilo fica de jogo 3D simples, não de filme; voz e boca à parte. https://www.youtube.com/watch?v=3UbOzkPHcT4 , https://www.youtube.com/watch?v=XOawniOYBMw
+- Movimento a partir de 1 imagem: Wan Animate (personagem + vídeo de referência de movimento). No RunningHub é pago (moedas); lente grátis = o mesmo Wan Animate aberto no Kaggle com GPU. Testar dentro da missão dipsy-j3. https://www.youtube.com/watch?v=A9nl2uwwIYE
+- Caminho 5 (Vibes): o vídeo mostra carregar a NOSSA imagem no Vibes e animar sem créditos — confirma que dá para usar a personagem do filme; continua parado no botão de conta. https://www.youtube.com/watch?v=iVZ4a_XD1uo
+- Fora: Wan Animate em ComfyUI local (placa), stickman.

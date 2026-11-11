@@ -1,5 +1,10 @@
 // @ts-nocheck
 // supabase/functions/notify-driver/index.ts
+// v45 2026-11-10 (missão pagar-na-loja) — a oferta diz logo o dinheiro, numa frase pronta do
+//     servidor (campo `lojaLinha` + no texto do aviso): "Pagas 13,80 € na loja · Cobras 19,71 €"
+//     (app + loja parceira + dinheiro), "Já pago — não pagas nem cobras nada" (cartão/MB Way) ou
+//     "Fazes a compra" (loja não parceira). Os números vêm de orders.loja_pagamento_estado /
+//     loja_pagar_valor (gatilho zzzz_orders_loja_pagamento). Nada mais mudou face ao v44.
 // v43 2026-10-10 (missão "a chamada grita sempre") — ANDROID VOLTA A DATA-ONLY.
 //     O v40/v41 mandava bloco `notification` no topo + `android.notification`:
 //     com isso o Android desenhava ele próprio uma notificação normal (toca uma
@@ -86,7 +91,7 @@ Deno.serve(async (req) => {
   // Guard against stale async pg_net invocations: only send if this driver STILL owns the offer.
   const { data: order, error: orderErr } = await supabase
     .from('orders')
-    .select('status,current_driver_offer_id,driver_offer_expires_at,distance_km,driver_earnings')
+    .select('status,current_driver_offer_id,driver_offer_expires_at,distance_km,driver_earnings,loja_pagamento_estado,loja_pagar_valor,payment_method,cash_total_due,final_total,price,debt_collected_cents')
     .eq('id', orderId)
     .maybeSingle()
   if (orderErr) return json({ ok:false, reason:'order_lookup_error' })
@@ -145,6 +150,9 @@ Deno.serve(async (req) => {
   if (driverEarnings !== '0.00') partes.unshift(`Ganhas €${driverEarnings}`)
   else partes.push(`€${total.toFixed(2)}`)
   if (distanceKm !== '0') partes.push(`${distanceKm}km`)
+  // v45 — o dinheiro numa frase (mesma redacção da app do estafeta).
+  const lojaLinha = linhaDinheiroOferta(order)
+  if (lojaLinha) partes.push(lojaLinha)
   const headsUpBody = partes.join(' • ')
   const titulo = '🛵 Novo pedido!'
 
@@ -156,6 +164,7 @@ Deno.serve(async (req) => {
     orderId:String(orderId), type:'new_order_offer', vendorName,
     total:total.toFixed(2), distanceKm, driverEarnings,
     offerExpiresAt:String(order.driver_offer_expires_at ?? ''),
+    lojaLinha,
     title:titulo, body:headsUpBody,
     url:`${WEB_URL}/#/driver?offer=${orderId}`,
   }
@@ -279,6 +288,21 @@ async function autorizar(req:Request, _supabaseUrl:string, _serviceKey:string): 
   if (!u) return { ok:false, reason:'sem_sessao_valida' }
   if (u.app_metadata?.role === 'admin' || ADMIN_EMAILS.includes(String(u.email ?? '').toLowerCase())) return { ok:true }
   return { ok:false, reason:'papel_sem_permissao' }
+}
+
+// v45 (10/11/2026, pagar-na-loja) — a frase do dinheiro da oferta, igual à da app
+// (lib/widgets/payments/loja_pagamento.dart, linhaDinheiroEstafeta). '' = pedido sem loja.
+// Cobrar = cash_total_due ?? final_total ?? price + dívida antiga (= totalToCollectCash da app).
+function linhaDinheiroOferta(o:any): string {
+  const eur = (v:number) => `${(Number.isFinite(v) ? v : 0).toFixed(2).replace('.', ',')} €`
+  const cobrar = Number(o?.cash_total_due ?? o?.final_total ?? o?.price ?? 0) + Number(o?.debt_collected_cents ?? 0) / 100
+  switch (o?.loja_pagamento_estado) {
+    case 'pagar_loja': return `Pagas ${eur(Number(o?.loja_pagar_valor ?? 0))} na loja · Cobras ${eur(cobrar)}`
+    case 'ja_pago': return 'Já pago — não pagas nem cobras nada'
+    case 'fazer_compra': return 'Fazes a compra'
+    case 'parceiro_chamou': return `Pagas ${eur(cobrar)} na loja · Cobras ${eur(cobrar)}`
+    default: return ''
+  }
 }
 
 function json(obj:any, status=200): Response {

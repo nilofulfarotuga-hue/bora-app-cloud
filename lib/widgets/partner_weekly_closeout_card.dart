@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
+import '../l10n/tr.dart';
 
 /// M2 (2026-06-12) — "O meu fecho semanal" do parceiro. SÓ LEITURA, PT-PT.
 /// Transparência total: o parceiro vê o que a Bora vê, zero ações.
@@ -148,6 +149,19 @@ class _PartnerWeeklyCloseoutCardState extends State<PartnerWeeklyCloseoutCard> {
                   style: const TextStyle(
                       fontSize: 12, color: AppColors.textSecondary),
                 ),
+                // pagar-na-loja (10/11/2026): o que já recebeste em mão do
+                // estafeta na recolha (pedidos da app pagos em dinheiro). Já
+                // está descontado do que a Bora te paga.
+                if (_num(current['pago_em_mao_na_recolha']) > 0)
+                  Text(
+                    'Recebido em mão na recolha: {0} (já descontado)'
+                        .trArgs([_euros(_num(current['pago_em_mao_na_recolha']))]),
+                    key: const Key('fecho_recebido_em_mao'),
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary),
+                  ),
                 const SizedBox(height: Spacing.xxs),
                 Text(netText,
                     style: TextStyle(

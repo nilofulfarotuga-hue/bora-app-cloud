@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-contas-parceiros
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-23
+ultima_confirmacao: 2026-11-11
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Como se calcula e se paga o dinheiro das lojas parceiras do Bora (ledger vs registo do pedido), erros corrigidos a 22/09 e a decisão em aberto da taxa de pedido pequeno
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-contas-parceiros`, origem `claude-ai`, atualizada em 2026-10-23T05:40:25.497254+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-contas-parceiros`, origem `claude-ai`, atualizada em 2026-11-11T05:12:59.521718+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas contas parceiros · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/contas-parceiros.md), copiada a 23/10/2026. A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/contas-parceiros.md), copiada a 11/11/2026 05:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: contas-parceiros
@@ -39,4 +39,4 @@ Corrigido por MCP a 22/09 (Claude.ai)
 - Por varrer ainda: contas do lado do estafeta (ledger vs `driver_earnings`), pedidos de loja não-parceira (modelo dos 15% incluídos + taxa fixa), e serviços (barbearia/limpeza/lavagem, que no ramo final de `pricing_calculate` levam 10% do subtotal sem markup — pode ser outra regra, não confirmado)
 - [stated] 15/10 "PARCEIRO CHAMA ESTAFETA" (botão no painel do parceiro, usado pelo Cauã do [[sabores-de-casa]]): mandou ligar ("Liga agora, arruma aí tudinho certinho") e deixou a escolha do fluxo comigo; disse que acha melhor o estafeta pagar lá na loja, receber o dinheiro do cliente e depois fazer o acerto
 - [stated] 20/10/2026: mandou ESQUECER três achados de dinheiro — motorista que vai ao local e o cliente não aparece não ser pago, pedido pequeno a dar prejuízo à Bora, e a conta do estafeta que soma a dobrar; não mexer nem voltar a listá-los como pendência até ele trazer o assunto
-
+- [stated] 10/11/2026 (pedido da Graça na Boom, a dinheiro, estafeta Valdemir): o Emanuel cobrou ao Valdemir na recolha. O Danilo acha que é assim que deve ser: em pedido de app a DINHEIRO numa loja PARCEIRA, o estafeta paga à loja na recolha e cobra ao cliente na entrega, para não ficar com muito dinheiro na mão. Pago com cartão/MB Way: o estafeta não paga nada na loja. Não-parceira: o estafeta faz a compra. Quer avisos grandes e claros no ecrã do estafeta (na loja e no cliente) e no painel do parceiro. Achado por MCP: o sistema ainda conta como se a Bora pagasse à loja no fecho (pagaria a dobrar) e o ecrã do estafeta diz "RECEBER … — entregar ao parceiro". PROMPT REGISTADO: missão pagar-na-loja-2026-11-10 (MOTOR Opus 5.5, sessão NOVA do Claude Code no PC, pasta bora_app), entregue no chat às ~21:35 para ele colar. Âmbito: servidor (valor a pagar à loja = preço de balcão, contas do fecho sem dobrar), ecrãs do estafeta, painel do parceiro, painel admin, publicar nas 3. 21:30: ele confirmou que o Valdemir pagou 13,80 € à Boom e recebeu 19,71 € (fica a dever 1,67 €; a Boom não recebe nada da Bora por este pedido) e disse "pode". O meu acerto por MCP foi travado pelo sistema de segurança, por isso o acerto do pedido 6d38f5e5 passou a Bloco 0 da missão (pedido marcado como pago na recolha, transação do estafeta 15,47→1,67, saldo +13,80, linha compensatória no livro de contas, fecho da loja a contar o pago na recolha). Prompt v2 entregue no chat às ~21:40. Estado 11/11 05:00: missão corrida no PC. Servidor feito e provado por mim por MCP (pedido da Graça: estafeta deve 1,67, Boom 0 a receber; colunas orders.loja_pagamento_estado/loja_pagar_valor). App pronta no ramo ai/2026-11-10-pagar-na-loja (pedido de revisão #10); a trava do PC não deixou publicar e o meu acesso de escrita ao GitHub foi travado — entreguei-lhe a linha para mandar o próprio Claude Code juntar o #10 e publicar nas 3

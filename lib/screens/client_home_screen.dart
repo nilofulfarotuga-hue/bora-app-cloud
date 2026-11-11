@@ -435,7 +435,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                   // "Ajuda-me a escolher" junto à pesquisa (o botão flutuante
                   // do assistente saiu). Some com o assistente desligado.
                   const AmigoBoraEntrada(),
-                  const SizedBox(height: Spacing.xl),
+                  // 11/11/2026 (Danilo: "para chegar às categorias tem de
+                  // descer muito"): espaços mais curtos, habituais e check-in
+                  // compactos e a receita do dia passou para BAIXO da grelha.
+                  const SizedBox(height: Spacing.lg),
                   // Os meus habituais (adendo 4 · item 6, 29/10/2026): os
                   // últimos pedidos, repetidos num toque. Some sozinho sem
                   // pedidos entregues ou com o interruptor desligado.
@@ -445,13 +448,14 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
                   CheckinDiarioCard(
                     key: ValueKey('checkin-${authStore.userId ?? ''}'),
                   ),
+                  _buildCategoryGrid(context),
+                  const SizedBox(height: Spacing.lg),
                   // Bora Todo Dia (15/10): receita do dia; some sozinha se o
-                  // servidor a tiver desligado.
+                  // servidor a tiver desligado. Desde 11/11 vem depois das
+                  // categorias (o cliente chega primeiro ao que quer pedir).
                   ReceitaDoDiaCard(
                     key: ValueKey('receita-${authStore.userId ?? ''}'),
                   ),
-                  _buildCategoryGrid(context),
-                  const SizedBox(height: Spacing.xl),
                   // FAIXAS DA HOME (05/10): carrossel lido de `home_banners`
                   // (gerido no painel admin). Vazio ou com erro, volta o banner
                   // antigo — a home nunca fica vazia.
@@ -759,6 +763,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       crossAxisCount: 4,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
+      // 11/11/2026: sem isto a grelha herdava a margem da barra de estado do
+      // telemóvel (o Scaffold da home não tem appBar) e abria um buraco
+      // vazio por cima das categorias — ~50 px no iPhone.
+      padding: EdgeInsets.zero,
       crossAxisSpacing: Spacing.sm,
       mainAxisSpacing: Spacing.sm,
       childAspectRatio: 0.88,

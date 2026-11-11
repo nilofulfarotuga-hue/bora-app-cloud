@@ -79,22 +79,24 @@ class _MeusHabituaisState extends State<MeusHabituais> {
         phone: auth.currentClient?.phone, userId: auth.userId);
     final habituais = escolherHabituais(doCliente);
     if (habituais.isEmpty) return const SizedBox.shrink();
+    // 11/11/2026 (Danilo: "estreitar os habituais"): cartão de duas linhas
+    // com o botão ao lado — de 140 para ~64 px. A altura cresce com o tamanho
+    // de letra do telemóvel (acessibilidade) para nunca cortar texto:
+    // 8+8 de margem + 2 linhas de 16 px (≈ 2 × 24 com folga) = 64 a 100 %.
+    final alturaCartao = MediaQuery.textScalerOf(context).scale(48) + 16;
     return Padding(
       key: const Key('meus_habituais'),
-      padding: const EdgeInsets.only(bottom: Spacing.xl),
+      padding: const EdgeInsets.only(bottom: Spacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Os meus habituais'.tr,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),
-          const SizedBox(height: Spacing.sm),
+          const SizedBox(height: Spacing.xs),
           SizedBox(
-            // M10 (09/11/2026): 132 deixava o cartão a transbordar 1 px no
-            // emulador (achado da M8): 12+12 de margem + nome + 2 linhas de
-            // produtos + botão de 44 já passam dos 132. Folga de 8 px.
-            height: 140,
+            height: alturaCartao < 60 ? 60 : alturaCartao,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: habituais.length,
@@ -124,52 +126,52 @@ class _CartaoHabitual extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Uma linha com a loja, outra com o preço e os produtos, e o "Repetir"
+    // ao lado (11/11/2026) — o mesmo conteúdo em metade da altura.
     return Container(
-      width: 270,
-      padding: const EdgeInsets.all(Spacing.md),
+      width: 280,
+      padding: const EdgeInsets.fromLTRB(
+          Spacing.md, Spacing.sm, Spacing.sm, Spacing.sm),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(Radii.lg),
         boxShadow: AppColors.shadowCard,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            pedido.vendorName ?? pedido.serviceType.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            resumoDosProdutos(pedido),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-                fontSize: 16, color: AppColors.textSecondary, height: 1.25),
-          ),
-          const Spacer(),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  eur(pedido.total),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  pedido.vendorName ?? pedido.serviceType.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600),
+                      fontSize: 16, fontWeight: FontWeight.w700),
                 ),
-              ),
-              FilledButton.icon(
-                key: Key('repetir_${pedido.id}'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  minimumSize: const Size(0, 44),
+                Text(
+                  '${eur(pedido.total)} · ${resumoDosProdutos(pedido, maxLinhas: 1)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 16, color: AppColors.textSecondary),
                 ),
-                onPressed: onRepetir,
-                icon: const Icon(Icons.refresh, size: 20),
-                label: Text('Repetir'.tr),
-              ),
-            ],
+              ],
+            ),
+          ),
+          const SizedBox(width: Spacing.sm),
+          FilledButton.icon(
+            key: Key('repetir_${pedido.id}'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              minimumSize: const Size(0, 44),
+              padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+            ),
+            onPressed: onRepetir,
+            icon: const Icon(Icons.refresh, size: 20),
+            label: Text('Repetir'.tr),
           ),
         ],
       ),

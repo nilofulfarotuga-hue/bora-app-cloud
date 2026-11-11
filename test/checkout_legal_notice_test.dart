@@ -21,7 +21,7 @@ import 'package:bora_app/widgets/checkout_legal_notice.dart';
 ///     tipo certo — e o reagendamento de marcação, que não cobra, fica igual.
 const Map<CheckoutLegalKind, String> _frases = {
   CheckoutLegalKind.comida:
-      'Ao confirmar, fazes uma encomenda com obrigação de pagar. Tens 14 dias de livre resolução, exceto para alimentos, bebidas e outros bens perecíveis entregues, produtos abertos ou personalizados e serviços já prestados (DL 24/2014).',
+      'Ao confirmar, fazes uma encomenda com obrigação de pagar. 14 dias de livre resolução, exceto bens perecíveis (comida e bebida), produtos abertos ou personalizados e serviços já prestados (DL 24/2014).',
   CheckoutLegalKind.servico:
       'Ao confirmar, fazes um pedido de serviço com obrigação de pagar. Tens 14 dias de livre resolução até o serviço começar; depois de iniciado com o teu acordo, não há direito de resolução (DL 24/2014).',
   CheckoutLegalKind.marcacao:

@@ -109,13 +109,23 @@ class _ComingSoonPaymentNotice extends StatelessWidget {
 }
 
 class PaymentMethodScreen extends StatefulWidget {
-  const PaymentMethodScreen({super.key, this.gorjetaJuntoCents = 0});
+  const PaymentMethodScreen({
+    super.key,
+    this.gorjetaJuntoCents = 0,
+    this.notaNoCarrinho = false,
+  });
 
   /// Gorjeta do carrinho que vai no MESMO pagamento da compra (30/10/2026):
   /// o carrinho marcou-a no servidor antes de abrir este ecrã, e o servidor
   /// soma-a ao pagamento. Aqui só se MOSTRA (linha "Gorjeta" e total com ela);
   /// 0 = como antes (gorjeta à parte, fora do total).
   final int gorjetaJuntoCents;
+
+  /// 11/11/2026: o carrinho já tem o campo "Nota para a loja ou o estafeta"
+  /// (é o mesmo valor, `CartStore.notaCliente`). Vindo dele, o campo não se
+  /// repete aqui — a nota segue no pedido na mesma. Favores, encomendas e
+  /// "levar compras" não passam pelo carrinho e continuam a mostrá-lo.
+  final bool notaNoCarrinho;
 
   @override
   State<PaymentMethodScreen> createState() => _PaymentMethodScreenState();
@@ -507,7 +517,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     final paymentOptions = <_PaymentOption>[
       _PaymentOption(
         method: PaymentMethod.card,
-        title: 'Cartão (Stripe)'.tr,
+        // 11/11/2026: botão curto, lado a lado com MBWay e Dinheiro.
+        title: 'Cartão'.tr,
         subtitle: 'Pague com cartão de crédito ou débito.'.tr,
         icon: Icons.credit_card,
       ),
@@ -562,6 +573,227 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                       if (mounted) setState(() {});
                     },
                   ),
+                // 11/11/2026 (Danilo: "o cliente tem de ver logo cartão e
+                // dinheiro"): o meio de pagamento sobe para o topo, logo a
+                // seguir à morada, em três botões lado a lado (padrão Glovo/
+                // Uber Eats); o resumo vem depois.
+                const SizedBox(height: Spacing.sm),
+                Text(
+                  'Escolha o método de pagamento'.tr,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+                const SizedBox(height: Spacing.sm),
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var i = 0; i < paymentOptions.length; i++) ...[
+                        if (i > 0) const SizedBox(width: Spacing.sm),
+                        Expanded(
+                          child: Builder(builder: (context) {
+                            final option = paymentOptions[i];
+                            final bool disabled =
+                                option.method == PaymentMethod.cash &&
+                                    cashBlockedByLimit;
+                            return _PaymentOptionTile(
+                              option: option,
+                              groupValue: _selectedMethod,
+                              disabled: disabled,
+                              disabledTooltip:
+                                  disabled ? avisoLimiteDinheiro : null,
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setState(() => _selectedMethod = value);
+                                }
+                              },
+                            );
+                          }),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                // A frase do meio escolhido (antes ia dentro de cada cartão).
+                Padding(
+                  padding: const EdgeInsets.only(top: Spacing.sm),
+                  child: Text(
+                    paymentOptions
+                        .firstWhere((o) => o.method == _selectedMethod,
+                            orElse: () => paymentOptions.first)
+                        .subtitle,
+                    key: const Key('metodo_escolhido_frase'),
+                    style: const TextStyle(
+                        fontSize: 13, color: AppColors.textSecondary),
+                  ),
+                ),
+                // 04/10/2026: o bloqueio do dinheiro diz-se por escrito — nunca
+                // só um botão cinzento (o tooltip só aparecia ao tocar).
+                if (cashBlockedByLimit)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      avisoLimiteDinheiro,
+                      style: const TextStyle(
+                          fontSize: 12.5, color: AppColors.textSecondary),
+                    ),
+                  ),
+                // Troco (29/10/2026): só acrescenta uma linha à nota do pedido.
+                if (_mostraTroco(cartStore))
+                  TrocoCard(
+                    notas: NotaDoPedido.notasParaTroco(_totalAtual),
+                    escolhida: _trocoPara != null && _trocoPara! > _totalAtual
+                        ? _trocoPara
+                        : null,
+                    onChanged: (n) => setState(() => _trocoPara = n),
+                  ),
+                // FAVORES (§55.4) — clareza cartão (garantia ×1,2) vs dinheiro.
+                if (isErrand && errPurchase > 0) ...[
+                  const SizedBox(height: 8),
+                  _ErrandPaymentHint(
+                    method: _selectedMethod,
+                    estimate: errPurchase,
+                  ),
+                ],
+                if (_selectedMethod == PaymentMethod.card &&
+                    (_savedCards.isNotEmpty || _loadingCards)) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(Radii.lg),
+                      boxShadow: AppColors.shadowCard,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                            child: Text(
+                              'Cartões guardados'.tr,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          if (_loadingCards)
+                            const Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Center(
+                                child: SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              ),
+                            )
+                          else ...[
+                            for (final card in _savedCards)
+                              RadioListTile<String?>(
+                                value: card.id,
+                                groupValue: _selectedSavedPmId,
+                                onChanged: (v) =>
+                                    setState(() => _selectedSavedPmId = v),
+                                title: Text(
+                                  '${card.prettyBrand} •••• ${card.last4}',
+                                ),
+                                subtitle: Text(
+                                  card.isDefault
+                                      ? '{0}  ·  predefinido'.trArgs([card.prettyExpiry])
+                                      : card.prettyExpiry,
+                                ),
+                                dense: true,
+                              ),
+                            RadioListTile<String?>(
+                              value: null,
+                              groupValue: _selectedSavedPmId,
+                              onChanged: (v) =>
+                                  setState(() => _selectedSavedPmId = v),
+                              title: Text('+ Pagar com novo cartão'.tr),
+                              dense: true,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+                // Mandato PSD2 — fora do bloco acima de proposito: esse so
+                // aparece quando JA ha cartoes guardados, e a frase e para
+                // quem ainda nao tem nenhum. O widget esconde-se sozinho.
+                if (_selectedMethod == PaymentMethod.card)
+                  const CardMandateNotice(),
+                if (_selectedMethod == PaymentMethod.mbway) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(Radii.lg),
+                      boxShadow: AppColors.shadowCard,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Número MBWay'.tr,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _mbwayPhoneController,
+                            keyboardType: TextInputType.phone,
+                            maxLength: 9,
+                            decoration: const InputDecoration(
+                              prefixText: '+351 ',
+                              hintText: '912345678',
+                              border: OutlineInputBorder(),
+                              counterText: '',
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Telemóvel português associado à tua conta MBWay (9 dígitos).'.tr,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+                if (podeDeixarAPorta)
+                  SwitchListTile.adaptive(
+                    value: cartStore.deixarAPorta && !pagaEmDinheiro,
+                    onChanged:
+                        pagaEmDinheiro ? null : cartStore.setDeixarAPorta,
+                    contentPadding: EdgeInsets.zero,
+                    activeColor: AppColors.primary,
+                    title: Text(
+                      'Deixar à porta'.tr,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      pagaEmDinheiro
+                          ? 'Com pagamento em dinheiro o estafeta entrega-te o pedido em mão.'
+                              .tr
+                          : 'O estafeta deixa o pedido à tua porta e tira uma foto.'
+                              .tr,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                const SizedBox(height: Spacing.lg),
                 Container(
                   decoration: BoxDecoration(
                     color: AppColors.card,
@@ -733,6 +965,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                             tokensToUse > 0) ...[
                           const SizedBox(height: 8),
                           Container(
+                            key: const Key('tokens_faixa'),
                             decoration: BoxDecoration(
                               color: Colors.amber.shade50,
                               borderRadius: BorderRadius.circular(12),
@@ -742,81 +975,80 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                             // escolhe QUANTO usar; o teto ($_tokenMaxPct%) é o
                             // fim físico do trilho (intransponível) com marca
                             // escura no limite.
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.fromLTRB(12, 10, 12, 2),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.monetization_on,
-                                          color: Colors.amber, size: 20),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          'Bora Tokens'.tr,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 14),
-                                        ),
-                                      ),
-                                      Text(
-                                        tokensChosen > 0
-                                            ? '{0} tokens · -{1} €'.trArgs([tokensChosen, tokenDiscount.toStringAsFixed(2).replaceAll('.', ',')])
-                                            : 'não usar',
-                                        style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.amber.shade900),
-                                      ),
-                                    ],
+                            // 11/11/2026 (Danilo: "a parte do token estreita
+                            // bastante"): uma faixa só — nome e valor à
+                            // esquerda, régua à direita (de ~150 para ~48 px).
+                            // O teto continua a ser metade dos tokens; o
+                            // "até X €" é esse teto.
+                            padding: const EdgeInsets.only(left: 10, right: 8),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.monetization_on,
+                                    color: Colors.amber, size: 20),
+                                const SizedBox(width: 6),
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Bora Tokens'.tr,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14),
+                                    ),
+                                    Text(
+                                      tokensChosen > 0
+                                          ? '{0} tokens · -{1} €'.trArgs([
+                                              tokensChosen,
+                                              tokenDiscount
+                                                  .toStringAsFixed(2)
+                                                  .replaceAll('.', ',')
+                                            ])
+                                          : 'até {0} €'.trArgs([
+                                              ((tokensToUse *
+                                                              _tokenValueEur *
+                                                              100)
+                                                          .floor() /
+                                                      100)
+                                                  .toStringAsFixed(2)
+                                                  .replaceAll('.', ',')
+                                            ]),
+                                      key: const Key('tokens_valor'),
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.amber.shade900),
+                                    ),
+                                  ],
+                                ),
+                                Expanded(
+                                  child: SliderTheme(
+                                    data: SliderTheme.of(context).copyWith(
+                                      activeTrackColor: Colors.amber.shade700,
+                                      thumbColor: Colors.amber.shade800,
+                                      inactiveTrackColor: Colors.amber.shade100,
+                                    ),
+                                    child: Slider(
+                                      value: tokensChosen.toDouble(),
+                                      max: tokensToUse.toDouble(),
+                                      divisions: tokensToUse > 0 ? 20 : null,
+                                      onChanged: tokensToUse > 0
+                                          ? (v) => setState(
+                                              () => _tokensSelected = v.round())
+                                          : null,
+                                    ),
                                   ),
-                                  Text(
-                                    'Tens {0} € em tokens — podes usar até {1} € neste pedido (no máximo metade dos teus tokens).'.trArgs([(_availableTokens * _tokenValueEur).toStringAsFixed(2).replaceAll('.', ','), ((tokensToUse * _tokenValueEur * 100).floor() / 100).toStringAsFixed(2).replaceAll('.', ',')]),
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.amber.shade800),
+                                ),
+                                // marca escura INTRANSPONÍVEL do teto
+                                Container(
+                                  width: 4,
+                                  height: 22,
+                                  decoration: BoxDecoration(
+                                    color: Colors.brown.shade800,
+                                    borderRadius: BorderRadius.circular(2),
                                   ),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: SliderTheme(
-                                          data: SliderTheme.of(context)
-                                              .copyWith(
-                                            activeTrackColor:
-                                                Colors.amber.shade700,
-                                            thumbColor: Colors.amber.shade800,
-                                            inactiveTrackColor:
-                                                Colors.amber.shade100,
-                                          ),
-                                          child: Slider(
-                                            value: tokensChosen.toDouble(),
-                                            max: tokensToUse.toDouble(),
-                                            divisions:
-                                                tokensToUse > 0 ? 20 : null,
-                                            onChanged: tokensToUse > 0
-                                                ? (v) => setState(() =>
-                                                    _tokensSelected =
-                                                        v.round())
-                                                : null,
-                                          ),
-                                        ),
-                                      ),
-                                      // marca escura INTRANSPONÍVEL do teto
-                                      Container(
-                                        width: 4,
-                                        height: 22,
-                                        decoration: BoxDecoration(
-                                          color: Colors.brown.shade800,
-                                          borderRadius:
-                                              BorderRadius.circular(2),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
                         ] else if (_tokensLoaded && _availableTokens == 0)
@@ -902,201 +1134,12 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                   favorComLista: cartStore.errandSession?.hasPurchase ?? false,
                 ),
                 // C1 — nota opcional para o estafeta (liga ao customerNotes).
-                CustomerNoteField(
-                  controller: _notesController,
-                  title: 'Nota para a loja ou o estafeta (opcional)',
-                  hint: 'Ex.: sem cebola; tocar no 2.º esquerdo',
-                ),
-                if (podeDeixarAPorta)
-                  SwitchListTile.adaptive(
-                    value: cartStore.deixarAPorta && !pagaEmDinheiro,
-                    onChanged:
-                        pagaEmDinheiro ? null : cartStore.setDeixarAPorta,
-                    contentPadding: EdgeInsets.zero,
-                    activeColor: AppColors.primary,
-                    title: Text(
-                      'Deixar à porta'.tr,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Text(
-                      pagaEmDinheiro
-                          ? 'Com pagamento em dinheiro o estafeta entrega-te o pedido em mão.'
-                              .tr
-                          : 'O estafeta deixa o pedido à tua porta e tira uma foto.'
-                              .tr,
-                      style: const TextStyle(fontSize: 12),
-                    ),
+                if (!widget.notaNoCarrinho)
+                  CustomerNoteField(
+                    controller: _notesController,
+                    title: 'Nota para a loja ou o estafeta (opcional)',
+                    hint: 'Ex.: sem cebola; tocar no 2.º esquerdo',
                   ),
-                const SizedBox(height: 24),
-                Text(
-                  'Escolha o método de pagamento'.tr,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-                const SizedBox(height: 12),
-                Column(
-                  children: paymentOptions.map((option) {
-                    final bool disabled = option.method == PaymentMethod.cash &&
-                        cashBlockedByLimit;
-                    return _PaymentOptionTile(
-                      option: option,
-                      groupValue: _selectedMethod,
-                      disabled: disabled,
-                      disabledTooltip: disabled ? avisoLimiteDinheiro : null,
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => _selectedMethod = value);
-                        }
-                      },
-                    );
-                  }).toList(),
-                ),
-                // 04/10/2026: o bloqueio do dinheiro diz-se por escrito — nunca
-                // só um botão cinzento (o tooltip só aparecia ao tocar).
-                if (cashBlockedByLimit)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      avisoLimiteDinheiro,
-                      style: const TextStyle(
-                          fontSize: 12.5, color: AppColors.textSecondary),
-                    ),
-                  ),
-                // Troco (29/10/2026): só acrescenta uma linha à nota do pedido.
-                if (_mostraTroco(cartStore))
-                  TrocoCard(
-                    notas: NotaDoPedido.notasParaTroco(_totalAtual),
-                    escolhida: _trocoPara != null && _trocoPara! > _totalAtual
-                        ? _trocoPara
-                        : null,
-                    onChanged: (n) => setState(() => _trocoPara = n),
-                  ),
-                // FAVORES (§55.4) — clareza cartão (garantia ×1,2) vs dinheiro.
-                if (isErrand && errPurchase > 0) ...[
-                  const SizedBox(height: 8),
-                  _ErrandPaymentHint(
-                    method: _selectedMethod,
-                    estimate: errPurchase,
-                  ),
-                ],
-                if (_selectedMethod == PaymentMethod.card &&
-                    (_savedCards.isNotEmpty || _loadingCards)) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.card,
-                      borderRadius: BorderRadius.circular(Radii.lg),
-                      boxShadow: AppColors.shadowCard,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-                            child: Text(
-                              'Cartões guardados'.tr,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleSmall
-                                  ?.copyWith(fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                          if (_loadingCards)
-                            const Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Center(
-                                child: SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
-                                ),
-                              ),
-                            )
-                          else ...[
-                            for (final card in _savedCards)
-                              RadioListTile<String?>(
-                                value: card.id,
-                                groupValue: _selectedSavedPmId,
-                                onChanged: (v) =>
-                                    setState(() => _selectedSavedPmId = v),
-                                title: Text(
-                                  '${card.prettyBrand} •••• ${card.last4}',
-                                ),
-                                subtitle: Text(
-                                  card.isDefault
-                                      ? '{0}  ·  predefinido'.trArgs([card.prettyExpiry])
-                                      : card.prettyExpiry,
-                                ),
-                                dense: true,
-                              ),
-                            RadioListTile<String?>(
-                              value: null,
-                              groupValue: _selectedSavedPmId,
-                              onChanged: (v) =>
-                                  setState(() => _selectedSavedPmId = v),
-                              title: Text('+ Pagar com novo cartão'.tr),
-                              dense: true,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-                // Mandato PSD2 — fora do bloco acima de proposito: esse so
-                // aparece quando JA ha cartoes guardados, e a frase e para
-                // quem ainda nao tem nenhum. O widget esconde-se sozinho.
-                if (_selectedMethod == PaymentMethod.card)
-                  const CardMandateNotice(),
-                if (_selectedMethod == PaymentMethod.mbway) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.card,
-                      borderRadius: BorderRadius.circular(Radii.lg),
-                      boxShadow: AppColors.shadowCard,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Número MBWay'.tr,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: _mbwayPhoneController,
-                            keyboardType: TextInputType.phone,
-                            maxLength: 9,
-                            decoration: const InputDecoration(
-                              prefixText: '+351 ',
-                              hintText: '912345678',
-                              border: OutlineInputBorder(),
-                              counterText: '',
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Telemóvel português associado à tua conta MBWay (9 dígitos).'.tr,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -1829,27 +1872,63 @@ class _PaymentOptionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isSelected = option.method == groupValue;
+    final verde = Theme.of(context).colorScheme.primary;
+    final raio = BorderRadius.circular(Radii.md);
+    // 11/11/2026: botão compacto (ícone + nome), três lado a lado no topo do
+    // ecrã. Antes era um cartão alto por método, abaixo do resumo — o cliente
+    // tinha de descer para escolher. A frase de cada método vai por baixo.
     final card = Opacity(
       opacity: disabled ? 0.4 : 1.0,
-      child: Card(
-        elevation: isSelected ? 4 : 1,
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: isSelected
-                ? Theme.of(context).colorScheme.primary
-                : AppColors.divider,
-            width: 1.2,
+      child: Semantics(
+        button: true,
+        selected: isSelected,
+        enabled: !disabled,
+        label: option.title,
+        excludeSemantics: true,
+        child: Material(
+          color: isSelected ? verde.withValues(alpha: 0.08) : AppColors.card,
+          borderRadius: raio,
+          child: InkWell(
+            key: Key('metodo_${option.method.name}'),
+            borderRadius: raio,
+            onTap: disabled ? null : () => onChanged(option.method),
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 60),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: Spacing.xs, vertical: Spacing.sm),
+              decoration: BoxDecoration(
+                borderRadius: raio,
+                border: Border.all(
+                  color: isSelected ? verde : AppColors.divider,
+                  width: isSelected ? 2 : 1.2,
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    option.icon,
+                    size: 22,
+                    color: isSelected ? verde : AppColors.textSecondary,
+                  ),
+                  const SizedBox(height: Spacing.xs),
+                  Text(
+                    option.title,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-        child: RadioListTile<PaymentMethod>(
-          value: option.method,
-          groupValue: groupValue,
-          onChanged: disabled ? null : onChanged,
-          title: Text(option.title),
-          subtitle: Text(option.subtitle),
-          secondary: Icon(option.icon),
         ),
       ),
     );

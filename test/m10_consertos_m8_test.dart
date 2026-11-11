@@ -29,10 +29,18 @@ void main() {
 
   test('o carrossel dos habituais tem altura para o cartão inteiro', () {
     final src = _ler('lib/widgets/home/meus_habituais.dart');
-    final m = RegExp(r'height:\s*(\d+),\s*\n\s*child: ListView\.separated')
+    // 11/11/2026: cartão compacto de duas linhas com o botão ao lado. A altura
+    // é `textScaler.scale(texto) + margem`, para crescer com a letra grande.
+    final m = RegExp(r'textScalerOf\(context\)\.scale\((\d+)\)\s*\+\s*(\d+);')
         .firstMatch(src);
-    expect(m, isNotNull);
-    // 12+12 de margem + nome (16) + 2 linhas de produtos (16 × 1,25) + botão 44.
-    expect(int.parse(m!.group(1)!), greaterThanOrEqualTo(136));
+    expect(m, isNotNull, reason: 'a altura tem de acompanhar o tamanho de letra');
+    final texto = int.parse(m!.group(1)!);
+    final margem = int.parse(m.group(2)!);
+    // 2 linhas de 16 px (Inter ≈ 19,4 px cada) cabem no texto reservado…
+    expect(texto, greaterThanOrEqualTo(40));
+    // …e o botão de 44 px mais 8+8 de margem cabe na altura mínima.
+    expect(margem, greaterThanOrEqualTo(16));
+    expect(src, contains('alturaCartao < 60 ? 60 : alturaCartao'));
+    expect(src, contains('minimumSize: const Size(0, 44)'));
   });
 }

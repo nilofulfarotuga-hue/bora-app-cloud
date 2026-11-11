@@ -522,3 +522,13 @@ envio git passou nas sessões novas (a orquestradora, aberta antes, continuou co
   estão em `supabase/migrations` com o nome da versão aplicada.
 - 10/11 ~22:10 (pagar-na-loja-2026-11-10, Bloco 0.5): bora-tranca barrou Write de supabase/migrations/20261110221000_pagar_na_loja_bloco0_fecho_loja.sql ('migration que toca tokens/wallet/pagamentos/ledger' - o corpo da funcao compute_partner_weekly_settlement le ledger_entries). Nao contornado. A alteracao (autorizada pelo Danilo a 10/11 21:33 'Pode.') foi aplicada pelo MCP do Supabase; o texto exato esta em supabase_migrations.schema_migrations versao 20261110221000 (coluna statements). Fica por fazer: copiar esse texto para o repo quando o Danilo abrir a tranca. e2e_log da missao.
 - 10/11 ~23:50 (pagar-na-loja-2026-11-10, Bloco E4): bora-tranca barrou `git push origin HEAD:autonomous-night-2026-04-29` ('git push é publicar: publica o Claude.ai'), embora a ordem da missão mandasse publicar. Não contornado. Enviado o ramo de ensaio ai/2026-11-10-pagar-na-loja e aberto o pedido de revisão #10 para o ramo de produção. Fica por fazer: juntar o #10 (dispara Android, iPhone e web) e provar as 3.
+- **11/11/2026 ~08:30, missão `fechar-tudo-2026-11-11` (migrações do pagar-na-loja só na base)** — com a janela das
+  travas aberta, a bora-tranca voltou a barrar o Write de
+  `supabase/migrations/20261110221000_pagar_na_loja_bloco0_fecho_loja.sql` ("migration que toca
+  tokens/wallet/pagamentos/ledger": o corpo de `compute_partner_weekly_settlement` lê `ledger_entries`). Não contornado.
+  Ficam só na base, com o texto exato em `supabase_migrations.schema_migrations.statements`:
+  `20261110221000_pagar_na_loja_bloco0_fecho_loja` (2 instruções, md5 f97a43ff…, c5852056…; juntas com `;\n`
+  2d7cac4c…) e `20261110224500_pagar_na_loja_bloco_a_servidor` (20 instruções, 68 683 caracteres; juntas com `;\n`
+  md5 5665c2a8…, a 1.ª 5d8b5129…). A terceira, `20261110231500_pagar_na_loja_admin_lista_fechos_loja` (só a lista do
+  painel, md5 17e900ff…), foi gravada em `supabase/migrations` com o texto da base. As de 10/11 descritas acima
+  (20261110170519, 20261110171114, 20261110173929) continuam no mesmo estado.

@@ -168,7 +168,7 @@ class _No extends StatelessWidget {
     } else if (perdoado) {
       dentro = Icon(Icons.ac_unit_rounded, size: circulo * 0.5, color: _geloIcone);
     } else if (premio) {
-      dentro = PremioFoto(url: m!.fotoUrl ?? m.lojaFotoUrl, tipo: m.tipo, tamanho: circulo - 6);
+      dentro = PremioFoto(url: m.fotoUrl ?? m.lojaFotoUrl, tipo: m.tipo, tamanho: circulo - 6);
     } else if (m != null && m.tipo == 'tokens') {
       dentro = Icon(Icons.star_rounded, size: circulo * 0.55, color: AppColors.warning);
     } else {
@@ -183,7 +183,7 @@ class _No extends StatelessWidget {
     }
 
     final etiqueta = premio
-        ? (valorEmEuros(m!.valorCents).isNotEmpty ? valorEmEuros(m.valorCents) : 'Prémio'.tr)
+        ? (valorEmEuros(m.valorCents).isNotEmpty ? valorEmEuros(m.valorCents) : 'Prémio'.tr)
         : (dia.tokens > 0 ? '+${dia.tokens}' : '');
 
     return Column(

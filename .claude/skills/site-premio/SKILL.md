@@ -1,6 +1,6 @@
 ---
 name: site-premio
-description: O manual de construir sites que se vendem. Use SEMPRE que a tarefa for criar, refazer, avaliar ou orçamentar um site — para um cliente, para um parceiro do Bora, ou para o próprio Bora. Cobre o funil de 6 passos (referência → design system → prompt longo → construir → imagens reais → segunda ronda), o classificador de 3 perguntas, os 4 níveis de site que decidem o preço, os blocos obrigatórios por nicho, o que reprova um site, a regra anti-genérico, e as regras já pagas com erro real. Triggers - "fazer um site para X", "site do cliente Y", "refaz o site", "que nível é este site", "quanto cobrar por este site", "proposta de site", "mini-site do parceiro".
+description: O manual de construir sites que se vendem. Use SEMPRE que a tarefa for criar, refazer, avaliar ou orçamentar um site — para um cliente, para um parceiro do Bora, ou para o próprio Bora. Cobre o funil de 6 passos (referência → design system → prompt longo → construir → imagens reais → segunda ronda), o classificador de 3 perguntas, os 4 níveis de site que decidem o preço, os blocos obrigatórios por nicho, o Livro de Reclamações Eletrónico obrigatório no rodapé de todo o site que vende (ícone oficial da DGC; quem leva e quem não leva), o que reprova um site, a regra anti-genérico, e as regras já pagas com erro real. Triggers - "fazer um site para X", "site do cliente Y", "refaz o site", "que nível é este site", "quanto cobrar por este site", "proposta de site", "mini-site do parceiro", "livro de reclamações no site".
 metadata:
   type: procedural
   zona: verde
@@ -296,6 +296,69 @@ patrocinadores.
 
 ---
 
+## 5c. LIVRO DE RECLAMAÇÕES ELETRÓNICO — obrigatório em todo o site que vende (desde 2026-11-10)
+
+Lei: DL 156/2005, art. 5.º-B, n.º 2 (redação do DL 74/2017): quem vende bens ou presta
+serviços e tem site tem de divulgar nele, "em local visível e de forma destacada", o acesso
+ao Livro de Reclamações Eletrónico. A DGC diz como: com o **ícone oficial** e uma ligação.
+
+**Quem leva.** Todo o site de negócio português que vende ou presta serviços a consumidores:
+barbearia, restaurante, café, loja, clínica, alojamento, clube com loja, e o próprio Bora.
+Vale para os sites novos e para os já entregues, mini-sites de parceiros incluídos.
+
+**Quem não leva.** Site pessoal sem venda (ex.: jaiagarwala.com); amostras privadas e não
+ligadas (`avenca/`, noindex); painéis internos do lojista (ex.: `/admin`).
+
+**O ícone — só o oficial, nunca redesenhado, recortado nem recolorido.** Fonte:
+livroreclamacoes.pt → Manuais → "Imagens dos Logótipos" (`LogosLRE.zip`: 6 PNG de 140×58,
+vermelho, azul e preto, cada um positivo e negativo) e "Manual das Regras de Utilização do
+Logótipo do LRE" (PDF). Cópia pronta no bora-site: `assets/img/livro-reclamacoes.png`
+(= `logo_LRE_vermelho positivo.png`, sha256 `750a6f3ebdbb5980…`). Guardar no próprio site
+(`assets/img/`) ou embutir em data URI quando o site é de ficheiro único.
+Regras do manual: cores vermelho, azul, branco ou preto; tem de **contrastar com o fundo**
+(rodapé escuro → cartão branco atrás do positivo, ou a versão negativo; fundo vermelho → nunca
+o vermelho); visível e legível. O manual não fixa tamanho mínimo: usar o tamanho original,
+140×58, nunca mais pequeno.
+
+**A ligação.** `https://www.livroreclamacoes.pt/inicio` (o apontador que o manual manda),
+`target="_blank" rel="noopener"`, `alt="Livro de Reclamações Eletrónico"`:
+
+```html
+<a href="https://www.livroreclamacoes.pt/inicio" target="_blank" rel="noopener"
+   title="Livro de Reclamações Eletrónico"
+   style="display:inline-block;background:#fff;padding:6px 8px;border-radius:8px;line-height:0;border:0">
+  <img src="/assets/img/livro-reclamacoes.png" alt="Livro de Reclamações Eletrónico"
+       width="140" height="58" loading="lazy"></a>
+```
+
+**Onde.** No rodapé de **todas** as páginas (e no gerador do rodapé, se as páginas forem
+geradas, para não se perder na próxima corrida) e na página de contacto / apoio ao cliente.
+Se o negócio tiver apoio próprio (email, chat, formulário), dizer por escrito que esse apoio
+**não substitui nem é equiparado** ao Livro de Reclamações Eletrónico (regra do manual da DGC).
+
+**Plataforma europeia ODR** (`ec.europa.eu/consumers/odr`): fechou. Nunca pôr esse link;
+tirar onde aparecer.
+
+**O registo na plataforma é do DONO do negócio**, com o NIF/NIPC dele — nós não registamos
+ninguém. Ao entregar o site, dizer-lhe numa linha: "o site já tem o ícone do Livro de
+Reclamações; registar o negócio na plataforma livroreclamacoes.pt é contigo e é obrigatório;
+as reclamações têm resposta em 15 dias úteis."
+
+**Prova antes de entregar.** Um script que abre cada página gerada por HTTP local, conta
+páginas e rodapés com a ligação e o `alt` certos, e confirma que a imagem responde 200 e é a
+oficial (sha256). Modelo usado a 10/11/2026: `verificar_lre.mjs` (missão
+`fechar-tudo-2026-11-10`, bloco E).
+
+**Estado dos sites entregues a 10/11/2026** (missão `fechar-tudo-2026-11-10`): ícone posto,
+em ramo `ai/2026-11-10-livro-reclamacoes` à espera de publicação, no bora-site (com as
+páginas `loja/`, incluindo Sabores de Casa Açaí), Goola, Leonidas, Boom! Burger, Sabores do
+Brasil, PartsFlow e Mister Navalha (este guardado, o site está fora do ar). Ficaram só na lista:
+Ouro e Prata (está FORA, não se promove), Guarda FC (site fechado ao público; já tinha
+ligação de texto ao Livro, falta trocar por ícone quando reabrir) e Mr Kebab (mini-site no ar,
+fora da lista da missão).
+
+---
+
 ## 6. O QUE REPROVA UM SITE
 
 ### Lê-se como amador
@@ -433,6 +496,9 @@ não é usado por nenhuma página aparece como sobra, para se apagar.
 6. Passo 5 → imagens pelo `docs/motor-media-gratis.md`, **só do próprio cliente**
    (§5b), e cada ficheiro registado em `data/origens.json` à medida que entra.
 7. Correr o fiscal visual (`tools/fiscal-visual/`) a 360, 768 e 1440.
+   Antes de entregar: se o negócio vende a consumidores, o ícone oficial do Livro de
+   Reclamações Eletrónico está no rodapé de todas as páginas e na de contacto (§5c), provado
+   por script.
 8. Passo 6 → segunda ronda com o prompt e o site na mão.
 9. Proposta em PDF pelo `tools/proposta/` — **nunca preço solto por mensagem.**
 

@@ -398,7 +398,14 @@ Future<void> openRetailBusiness(
   final pickupLocation = business.location ?? cart.deliveryLocation;
 
   cart.configureSession(
-    serviceType: OrderServiceType.storeShopping,
+    // 11/11/2026 (farmácias da Sé e Teixeira): loja PARCEIRA de retalho segue
+    // o fluxo do parceiro, igual à Boom e ao Sabores do Brasil — o pedido toca
+    // no painel da loja, a loja aceita e prepara, o estafeta só levanta.
+    // Com storeShopping o pedido ficava "compra em loja sem contrato" (aceite
+    // sozinho, sem toque ao parceiro). Não-parceiras continuam storeShopping.
+    serviceType: business.isPartner
+        ? OrderServiceType.restaurant
+        : OrderServiceType.storeShopping,
     isPartnerStore: business.isPartner,
     vendorComingSoon: business.comingSoon,
     vendorComingSoonText: business.comingSoonLabel,

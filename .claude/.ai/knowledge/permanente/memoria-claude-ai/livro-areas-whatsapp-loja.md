@@ -2,19 +2,19 @@
 id: memoria-claude-ai-livro-areas-whatsapp-loja
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-10-31
+ultima_confirmacao: 2026-11-12
 zona: verde
 confianca: alta
 estado: atual
 ---
 
-# Regras fixas do Danilo para o atendimento automático do WhatsApp da loja — ler antes de mexer nesse atendimento
+# Regras fixas do Danilo para o atendimento automático do WhatsApp da loja — ler antes de mexer nesse atendimento (parte 1 de 2 — continua em livro-areas-whatsapp-loja-parte2…)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-whatsapp-loja`, origem `claude-ai`, atualizada em 2026-10-31T11:14:08.884293+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-whatsapp-loja`, origem `claude-ai`, atualizada em 2026-11-12T07:14:46.857952+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas whatsapp loja · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/whatsapp-loja.md), copiada a 31/10/2026 11:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/whatsapp-loja.md, parte 1 de 2), copiada a 12/11/2026 07:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: whatsapp-loja
@@ -41,16 +41,3 @@ aliases: [WhatsApp, WhatsApp da loja, atendimento WhatsApp]
 - [stated] 04/09 EXIGÊNCIA DELE: o atendimento não pode depender do PC nem de ter um navegador aberto — quando ele está a fazer outra coisa o cliente tem de ser respondido na mesma. Resolvido nessa noite: a VPS (Baileys, ao lado do Emerson) passou a PORTA PRINCIPAL, o Chrome do PC ficou só de reserva; provado no banco às 22:23–22:29 com entrega confirmada pela própria WhatsApp (porta `vps-baileys`), tranca partilhada entre as duas portas e vigia de 5 min. Nota do executor: a janela do WhatsApp Web no PC tem de ficar visível e sozinha, senão o Chrome congela a página e a porta do PC falha
 - [stated] O número do WhatsApp da loja é o +351 937 501 673 — é o número que o bot dá quando manda ligar nos casos de urgência
 
-COBRADOR DAS 09:30 (aviso diário de "mensagens sem resposta")
-- Existe um cobrador que às 09:30 manda ao Danilo, pelo Telegram, a lista de quem está sem resposta e as mensagens já redigidas para ele carregar em enviar. NÃO está documentado no Córtex (`cortex_buscar` deu 0) — vale a lição de 04/09: ausência no Córtex não prova ausência no sistema.
-- 08/09: mandou dois falsos alarmes. Causa achada por SELECT: contava como pendentes as linhas do CENSO de 02/09 (`porta='censo'`, `decisao='historico'`, 132 linhas, algumas de 2025 — o histórico antigo importado, a que o Danilo já respondeu à mão) e não contava como resposta as saídas posteriores à última entrada. Colou ainda a story do dia (com "Facebook: ok" e ID de Instagram) dentro do corpo de uma mensagem para cliente, e os textos saíam sem acentos.
-- [stated] Danilo mandou corrigir e disparar pelo carteiro. ORDEM `ordem-20260908101414-29f3` (zona verde) EXECUTADA E FECHADA 08/09 (juiz + conselho, ronda 1): ignorar censo/histórico; dar por respondida a conversa com saída posterior à última entrada; story sempre em bloco separado; acentos em UTF-8. ONDE VIVE O COBRADOR (custou uma ordem a descobrir): `/opt/data/rotinas/cobrador.py` na VPS, FORA do repo git do bora_app — se a VPS for reposta a correção perde-se; fica apontado que vale versioná-lo. Confirmado por mim por SELECT depois do fecho: com a regra nova, zero conversas pendentes.
-- [stated] A Isabel (pergunta de 16/08 sobre demora de um pedido) fica decisão dele, à mão — confirma a regra já filada de que mensagens antigas ficam.
-
-PAUSA GERAL DO ENVIO (13/09)
-- [stated] Danilo mandou pausar o atendimento automático antes de ele próprio escrever pelo WhatsApp da loja (razão dele: "não está muito bom, tenho que consertar"). Fica pausado até ele mandar ligar outra vez — a ordem de religar é dele.
-- FEITO por MCP (Claude.ai, sem executor): `whatsapp_settings.envio_ligado=false`, mais `envio_desligado_em` e `envio_desligado_motivo`. É AQUI que vive o interruptor geral do envio (tabela `whatsapp_settings`, chave `envio_ligado`), vale para as duas portas. PROVADO: a mensagem que entrou 4 segundos depois (whatsapp_messages id 866) ficou com `decisao='silencio-missao'` e não saiu resposta nenhuma. Consequência avisada a ele: com isto desligado NENHUM cliente recebe resposta automática nesse número.
-- [stated] 23/10: o WhatsApp da loja NÃO é só da loja — é também dele, as pessoas falam com ele lá; o bot antigo não sabia distinguir o que é da loja do que é pessoal. Antes de ligar qualquer resposta automática quer discutir com calma como responder; por agora só o esqueleto, nada ligado. Gostava também que um agente respondesse por ele no WhatsApp (ideia em aberto)
-- [stated] 29/10/2026 (robô da loja parceira, caso [[boom-burger]]): a resposta tem de ser NA HORA — o cliente manda e o WhatsApp já responde, sem ficar à espera; e o robô tem de ser "super inteligente": saber tudo da app e tudo da loja (menu, preços, horário, morada), e pedir ao cliente todas as informações do pedido (morada, etc.). Ele testa pelo telemóvel pessoal e quer resposta imediata
-- [stated] 31/10/2026 09:53 (depois de o suporte responder a um "oi" com "não tenho resposta para isso" — "o suporte está muito burro"): o agente de suporte passa a ser o Claude (crédito da API do plano Ultra, missão "motor Claude primeiro") e tem de responder a TUDO o que cliente, estafeta ou parceiro perguntarem, a orientar como a Claude.ai o orienta a ele — "como se fosse eu conversando aqui com você"; só passa o contacto dele quando a pessoa pedir para falar com alguém. Pedido acrescentado ao prompt prompt-motor-claude-2026-10-31 (bloco 3f, prova com 6 mensagens simuladas)
-- [stated] 31/10/2026 10:01 (vale para TODOS os robôs: WhatsApp da Bora, assistente das lojas, suporte, Emerson): têm de ser "super inteligentes" — passar-lhes tudo o que eu sei; lêem o livro comum e o Córtex; o que não souberem vão consultar em algum lado antes de responder; o WhatsApp da loja tem de saber tudo do BORA, não só da loja; cuidado com a informação que não é para dar; e conversar como um chat humano, mesmo em assunto pessoal. Posto no prompt prompt-motor-claude-2026-10-31 (bloco 4d, com lista do que nunca se diz e prova de 6 perguntas)

@@ -2,19 +2,19 @@
 id: memoria-claude-ai-livro-topics-erros-aprendidos-parte2
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-11
+ultima_confirmacao: 2026-11-12
 zona: verde
 confianca: alta
 estado: atual
 ---
 
-# Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 2 de 4)
+# Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir (cheio: continua em erros-aprendidos-2) (parte 2 de 4)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte2`, origem `claude-ai`, atualizada em 2026-11-11T15:15:24.797651+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte2`, origem `claude-ai`, atualizada em 2026-11-12T07:13:51.705637+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte2 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 2 de 4), copiada a 11/11/2026 15:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 2 de 4), copiada a 12/11/2026 07:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - [stated] 20/10: o sistema travou-me o envio das cartas ao IMT e ao Provedor e eu deixei-as nos rascunhos para ele carregar em Enviar; ele não conseguiu e disse "eu autorizo você enviar" → regra: quando um envio for travado, pedir-lhe só "autorizas o envio?" numa linha e enviar eu, em vez de lhe passar rascunhos
 - [stated] 20/10: no resumo das pendências pus "o Divan tem dois MB Way por pagar" e "o Valdemir deve 1,92 €" sem puxar o contexto — ele já tinha dito que o Divan pagou a de 19/10 e que o Valdemir já pagou → regra: antes de listar dívidas de alguém, procurar nas conversas do próprio dia o que ele já disse estar pago, e só listar o que o banco E a conversa confirmam em aberto

@@ -2,23 +2,23 @@
 id: memoria-claude-ai-livro-topics-erros-aprendidos
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-11
+ultima_confirmacao: 2026-11-12
 zona: verde
 confianca: alta
 estado: atual
 ---
 
-# Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 1 de 4 — continua em livro-topics-erros-aprendidos-parte2…)
+# Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir (cheio: continua em erros-aprendidos-2) (parte 1 de 4 — continua em livro-topics-erros-aprendidos-parte2…)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-11T15:14:42.28859+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-12T07:13:51.705637+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md), copiada a 11/11/2026 15:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md), copiada a 12/11/2026 07:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: erros-aprendidos
-description: Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro
+description: Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir (cheio: continua em erros-aprendidos-2)
 sources: [chat]
 aliases: [erros, erros corrigidos, nunca mais errar, lições aprendidas, caminho certo]
 ---

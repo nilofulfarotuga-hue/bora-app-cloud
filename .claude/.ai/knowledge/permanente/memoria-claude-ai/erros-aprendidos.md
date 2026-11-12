@@ -2,7 +2,7 @@
 id: memoria-claude-ai-erros-aprendidos
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-11
+ultima_confirmacao: 2026-11-12
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-11T16:35:59.757221+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `erros-aprendidos`, origem `claude-ai`, atualizada em 2026-11-12T07:13:51.705637+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: erros aprendidos · memoria claude.ai · claude_ai_memoria
 
@@ -169,4 +169,6 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 11/11 14:56 (quem errou: claude-ai): tratei os 10% como a única margem com a farmácia → regra: farmácia = esquema da Boom para o cliente (15% no produto + 5% de serviço) e, depois dos 3 meses grátis, a farmácia paga ainda 10% do que vender pela app
 11/11 15:18 (quem errou: claude-ai): pus os remédios com receita sem comissão e a receita desligada até para ele → regra: os 10% cobram-se em tudo (receita incluída), só depois dos 3 meses; para apresentar, fica tudo ligado só na conta de cliente dele
 - 11/11 (claude-code): 10/11 18:40: abri a janela das travas e lancei uma sessão para a usar; a minha vez ficou à espera e a janela ficou aberta até 11/11 de manhã (~13 h); a sessão só arrancou no dia seguinte, com a tranca aberta em memória, e teve de ser parada → abrir a janela das travas só mesmo antes de a usar e fechá-la (RESTAURAR-M10, MD5 igual) no mesmo turno; nunca a deixar aberta à espera de CI, Danilo ou agentes; antes de acabar um turno confirmar as travas por MD5; arquivar as sessões lançadas numa janela depois de usadas
+- [stated] 12/11 06:14 (Claude.ai, de /topics/erros-aprendidos-2.md): na revisão diária do WhatsApp dei-lhe um resumo curto ("Boom 662", "resolvido") sem explicar o que era cada caso; ele: "vai mais a fundo, explica direito" → regra: em cada caso dizer em português simples quem é (nome, nunca só o número), o que perguntou, o que o robô respondeu e o que falta; "662" é o número pessoal dele (931 992 662)
+- [stated] 12/11 06:22 (Claude.ai, de /topics/erros-aprendidos-2.md): falei em "religar o envio automático" sem explicar o que era, e disse que o cliente ficava "a andar em círculos" por o robô o mandar para o WhatsApp 937 501 673 — errado: esse é o WhatsApp da Bora e é ele que lá responde à mão → regra: nunca usar nomes internos (envio automático, porta, tenant) sem dizer o que fazem; o robô mandar o cliente para o WhatsApp da Bora está certo
 

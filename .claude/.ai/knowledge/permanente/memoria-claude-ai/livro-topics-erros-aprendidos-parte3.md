@@ -2,19 +2,19 @@
 id: memoria-claude-ai-livro-topics-erros-aprendidos-parte3
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-11
+ultima_confirmacao: 2026-11-12
 zona: verde
 confianca: alta
 estado: atual
 ---
 
-# Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde já houve erro (parte 3 de 4)
+# Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir (cheio: continua em erros-aprendidos-2) (parte 3 de 4)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte3`, origem `claude-ai`, atualizada em 2026-11-11T15:16:08.791124+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-parte3`, origem `claude-ai`, atualizada em 2026-11-12T07:13:51.705637+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos parte3 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 3 de 4), copiada a 11/11/2026 15:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos.md, parte 3 de 4), copiada a 12/11/2026 07:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 - [stated] 27/10 22:18: insisti duas vezes (de manhã e à noite) para ele apagar dos 3 grupos os cartazes das vagas que saíram do número pessoal; ele não quer: "deixa lá, já pôs isso, agora deixa" → regra: não voltar a pedir para apagar esses cartazes; daqui para a frente, tudo o que se publicar em grupos sai sempre pelo WhatsApp da Bora
 - [stated] 27/10 22:25: mandei publicar o reel do Tesla no grupo "Brasileiros na Guarda" e no "Marketing, vendas e propaganda Guarda"; ele corrigiu: "o brasileiro agora só pode no marketing" → regra: propaganda da Bora em grupos de WhatsApp só no "Marketing, vendas e propaganda Guarda"; no "Brasileiros na Guarda" não se publica

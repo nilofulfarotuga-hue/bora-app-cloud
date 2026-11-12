@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-areas-robo-suporte
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-11
+ultima_confirmacao: 2026-11-12
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Robô do suporte dentro da app Bora (support-chatbot) — o que o Danilo quer dele, caso da Jennifer (Boom! Burger) e missão de 05/11/2026 para o tornar super inteligente
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-robo-suporte`, origem `claude-ai`, atualizada em 2026-11-11T18:13:46.160552+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-robo-suporte`, origem `claude-ai`, atualizada em 2026-11-12T07:13:51.705637+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas robo suporte · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/robo-suporte.md), copiada a 2026-11-11 18:12 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/robo-suporte.md), copiada a 12/11/2026 07:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: robo-suporte
@@ -26,3 +26,6 @@ aliases: [robô do suporte, suporte da app, support-chatbot, chatbot de suporte,
 - [stated] 05/11/2026: PROMPT REGISTADO — missão robo-suporte-inteligente-2026-11-05 (MOTOR Opus 5.5), colada por mim às ~14:03 na sessão "PC do Danilo" do Claude Code (session_01HPEpV8VYHX4dCf8PX4Wesa), fluxo e2e_log 'robo-suporte-inteligente-2026-11-05'. Scope: ferramentas de leitura novas (conta do pedido linha a linha com tokens e valor cobrado, código curto do pedido, histórico de tokens e carteira, marcações, lojas abertas/horários, produtos e preços, dados do próprio estafeta/parceiro), skills a apontar para ferramentas que não existem, regra "ir buscar antes de responder", modelo Sonnet no suporte, aviso ao Danilo por WhatsApp quando passa à equipa, linha do desconto de tokens no ecrã do pedido, painel admin do suporte, limpeza dos tickets antigos, provas com contas de teste. A sessão "PC do Danilo" ficou presa num passo antigo (migração do NIF na caixa à espera de autorização) e não pegou na missão
 - [stated] 05/11/2026 14:24: mandou lançar numa sessão nova. Lançada por mim às ~14:32 numa sessão nova no ambiente do PC "bora-app-cloud · Danilo" (session_01HPEpV9eWpM3Pxq5YsPPf4m, Opus 5.5). Afinal a "PC do Danilo" já tinha destravado e começado sozinha às 14:18 (1.º passo "A-diagnostico" ok: repo = v35 publicada; 37 perguntas sem resposta em 60 dias). A sessão nova nunca chegou a correr (contexto 0%, a religar); quem faz a missão é a "PC do Danilo". 15:30: feito o diagnóstico e a migração robo_suporte_ferramentas_leitura (14:54; agent_get_order_full, agent_get_my_tokens_history, agent_get_my_wallet_history, agent_get_my_bookings, agent_get_store_info); support-chatbot ainda na v35 e sem passo novo desde 14:54. O rascunho connect-empresa-2026-11-04 ficou guardado no localStorage do Chrome pessoal (bora_backup_draft_connect_empresa_2026_11_04). Estado: a correr na "PC do Danilo"
 - [stated] 11/11/2026 16:54: a cliente Ana Paula não achou "Editar perfil" (o robô mandou-a lá, mas o botão não existe; no Perfil só muda a foto) — ele disse "tem que fazer alguma missão... quando a pessoa quiser editar, manda o que falta que nós colocamos aqui, vê o que você sugere"; nome dela mudado por MCP para "Paula Ferreira" com o "sim" dele. PROMPT REGISTADO 11/11 ~17:05: PROMPT_editar_perfil_2026-11-11 (MOTOR Opus 5.5, ambiente PC "bora-app-cloud · Danilo", sessão nova, e2e_log editar-perfil-2026-11-11): (1) corrigir a navegação da skill GENERAL_FAQ (Editar perfil/Carteira/Ajuda/Os meus pedidos não existem); (2) botão "Editar perfil" na app do cliente (nome + telemóvel, email fixo, RPC só da própria conta); (3) painel admin: editar nome/telemóvel na ficha + aprovar/recusar ACCOUNT_UPDATE que executa de verdade; (4) robô aponta para o botão depois de publicado; (5) reportar: /#/admin nega nilofulfarotuga apesar de is_admin(), horário do Fuku 12–23 seguido vs Glovo fechado às 16:48, rótulo "Hambúrguer do mês" no Fuku, prova da Caixa Mix 36 a 24,73 €. Estado: com o "autorizo" dele (17:16) enviada às ~17:18 — sessão "Editar perfil e navegação da app" (session_01HPEpVAW1NMDAD3TWcsXrR2, ambiente PC bora-app-cloud · Danilo, Opus 5.5, Ignorar permissões), a correr; aviso de limite semanal perto do fim (renova dom. 15/11 18:00)
+- 12/11/2026 06:30, feito por mim via MCP: regra firme da zona de entrega (só Guarda, até 15 km do centro) no Amigo Bora (assistant_learned, source admin) e na skill GENERAL_FAQ do suporte, mais a regra certa dos tokens (máximo metade do valor dos tokens que tem); desligadas 2 "respostas aprendidas" que eram notas internas. CAUSA-RAIZ achada: support_knowledge_chunks tem 471 trechos de notas internas de programação (Obsidian) que os robôs usam para responder a clientes
+- [stated] 12/11/2026: mandou fazer a missão. PROMPT REGISTADO: prompt-conversas-ao-vivo-2026-11-12 (texto completo na tabela claude_ai_memoria; MOTOR Opus 5.5, sessão nova no ambiente PC "bora-app-cloud · Danilo", e2e_log conversas-ao-vivo-2026-11-12). Scope: ecrã "Conversas ao vivo" no painel admin com os 3 robôs, interromper e escrever como Equipa Bora, push de cada mensagem com toque a abrir a conversa, tirar as notas internas do conhecimento dos robôs, trava do anonimato fora dos alertas ao Danilo, revisão diária a contar as respostas manuais, publicar nas 3. Estado: escrito na caixa da sessão nova às ~06:35, o Enter foi travado pelo classificador; à espera do "autorizo" dele. Limite semanal do Claude Code a 88% (renova dom. 15/11 18:00)
+

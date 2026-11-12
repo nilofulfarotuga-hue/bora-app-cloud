@@ -10,11 +10,11 @@ estado: atual
 
 # Continuação de erros-aprendidos (o 1.º ficheiro encheu) — erros que o Danilo corrigiu a partir de 12/11/2026; ler junto com o 1.º antes de agir
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-2`, origem `claude-ai`, atualizada em 2026-11-12T07:13:51.705637+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-topics-erros-aprendidos-2`, origem `claude-ai`, atualizada em 2026-11-12T14:15:35.534836+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro topics erros aprendidos 2 · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos-2.md), copiada a 12/11/2026 07:15 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /topics/erros-aprendidos-2.md), copiada a 12/11/2026 14:13 (hora de Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: erros-aprendidos-2
@@ -24,4 +24,5 @@ aliases: [erros 2, continuação dos erros, lições aprendidas novas]
 ---
 - [stated] 12/11 06:14: na revisão diária do WhatsApp dei-lhe um resumo curto ("Boom 662", "resolvido") sem explicar o que era cada caso; ele: "vai mais a fundo, explica direito" → regra: em cada caso dizer em português simples quem é (nome, nunca só o número), o que perguntou, o que o robô respondeu e o que falta; "662" é o número pessoal dele (931 992 662)
 - [stated] 12/11 06:22: falei em "religar o envio automático" sem explicar o que era, e disse que o cliente ficava "a andar em círculos" por o robô o mandar para o WhatsApp 937 501 673 — errado: esse é o WhatsApp da Bora e é ele que lá responde à mão → regra: nunca usar nomes internos (envio automático, porta, tenant) sem dizer o que fazem; o robô mandar o cliente para o WhatsApp da Bora está certo
-
+- [stated] 12/11 13:26: fiz a mensagem da conta do Vansh para o Fred em inglês e pus "posso passar aí hoje para cobrar no cartão" → regra: o Fred fala português — tudo para o Fred (mensagem e PDFs) vai em português, nada em inglês; a mensagem leva só os valores, sem combinar quando o Danilo passa (isso ele já trata pessoalmente)
+- [stated] 12/11 13:37: ele disse "pode enviar pro Fred" e eu dei-lhe só o texto para ele mandar; irritou-se: "é pra você mandar" → regra: "pode enviar"/"manda" a alguém = envio eu pelo WhatsApp (contas pessoais como Vansh/Fred = WhatsApp PESSOAL dele, que no PC está no Chrome da Bora d9e862e0), com os PDFs anexados; confirmo o número da conta antes de enviar

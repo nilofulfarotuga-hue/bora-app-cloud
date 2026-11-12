@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-resumo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-10
+ultima_confirmacao: 2026-11-11
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Livro do Bora — resumo para o ChatGPT (regras + erros + índice, sem pessoais), gerado
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-11-10T23:40:09.523174+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-11-11T23:40:09.199919+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro resumo · memoria claude.ai · claude_ai_memoria
 
-# Livro do Bora — resumo para o ChatGPT (2026-11-10)
+# Livro do Bora — resumo para o ChatGPT (2026-11-11)
 
 Lê isto antes de responder ao Danilo. É a mesma verdade que a Claude.ai, o Hermes, o Claude Code e o OpenCode leem (tabela public.claude_ai_memoria). Gerado todas as noites pela VPS; páginas pessoais ficam de fora.
 
@@ -240,6 +240,14 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 10/11 (quem errou: claude-ai): escrevi ao Hugo que estafetas e limpadoras são todos isentos de IVA → regra: uns são isentos, outros não (passam o limite); nunca dizer que todos são isentos
 
 10/11 (quem errou: claude-ai): buraco de segurança no banco — dentro de função SECURITY DEFINER o current_user é SEMPRE o dono (postgres), por isso a guarda "current_user in ('postgres','service_role')" deixava qualquer sessão autenticada ler o resumo da Stripe e os prestadores com NIF, email e ganhos. Regra: guarda dessas funções usa is_admin()/role do JWT e, para ligação direta, session_user = 'postgres'; nunca current_user
+
+11/11 08:01 (quem errou: claude-ai): depois de ele já ter colado o prompt, mandei-lhe uma versão nova inteira → regra: prompt entregue não se refaz; o que mudar vai num ADENDO curto aqui no chat, para a mesma sessão
+- 11/11 (claude-code): 11/11: as travas ficaram abertas desde 10/11 18:50 (DESLIGAR-M11 corrido e nunca fechado com RESTAURAR-M10) → quem abre a janela das travas fecha-a na mesma sessão com RESTAURAR-M10 e prova os MD5; a sessão seguinte compara os MD5 de hoje com bak-20261108-m10 antes de começar e reporta se estiverem abertas
+11/11 10:05 (quem errou: claude-ai): disse-lhe que faltava o Livro de Reclamações e o Hermes 0.23 — já estavam feitos (registo submetido 11/11 09:00 com o NIPC; Hermes 0.23.1 no ar desde 10/11 19:15) → regra: antes de listar pendências, ler o e2e_log MAIS RECENTE de cada assunto, não o registo antigo que ficou "pendente"
+11/11 14:21 (quem errou: claude-ai): à farmácia (Rita Grilo) escrevi "não cobramos comissão" e "montamos a partir do catálogo da Glovo" → regra: parceiro novo = 3 primeiros meses sem taxa, depois 10% dos produtos (Glovo ~30%); nunca dizer que copiamos da Glovo; mensagem curta, natural e a puxar para fechar
+11/11 14:56 (quem errou: claude-ai): tratei os 10% como a única margem com a farmácia → regra: farmácia = esquema da Boom para o cliente (15% no produto + 5% de serviço) e, depois dos 3 meses grátis, a farmácia paga ainda 10% do que vender pela app
+11/11 15:18 (quem errou: claude-ai): pus os remédios com receita sem comissão e a receita desligada até para ele → regra: os 10% cobram-se em tudo (receita incluída), só depois dos 3 meses; para apresentar, fica tudo ligado só na conta de cliente dele
+- 11/11 (claude-code): 10/11 18:40: abri a janela das travas e lancei uma sessão para a usar; a minha vez ficou à espera e a janela ficou aberta até 11/11 de manhã (~13 h); a sessão só arrancou no dia seguinte, com a tranca aberta em memória, e teve de ser parada → abrir a janela das travas só mesmo antes de a usar e fechá-la (RESTAURAR-M10, MD5 igual) no mesmo turno; nunca a deixar aberta à espera de CI, Danilo ou agentes; antes de acabar um turno confirmar as travas por MD5; arquivar as sessões lançadas numa janela depois de usadas
 
 
 ## Índice do livro (sem páginas pessoais)
@@ -498,12 +506,20 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - digest-2026-11-09-m11 — M11 — Amigo com rosto, talões no Drive, pesquisa inteligente e Casa (09/11/2026)
 - digest-2026-11-09-pendencias — Digest 09/11 — missão pendências (Claude Code)
 - digest-2026-11-09-volta-deposito-kfc — Claude Code 09/11 — depósito Volta e robô do talão do KFC
+- digest-2026-11-10-fechar-tudo — Digest fechar-tudo 10/11 (sessão do PC)
 - digest-2026-11-10-fecho-contabilista — Digest 10/11/2026 — fecho ao contabilista com as regras do Hugo (Claude Code)
 - digest-2026-11-10-pagar-na-loja — Digest 10/11/2026 — missão pagar-na-loja (estafeta paga a loja parceira na recolha)
+- digest-2026-11-11-amigo-casa — Digest 11/11 — Amigo com a Casa e Manutenção (por publicar)
+- digest-2026-11-11-editar-perfil — Digest 11/11 — Editar perfil do cliente
+- digest-2026-11-11-farmacias — Digest 11/11 — farmácias da Sé e Teixeira (receita, lojas escondidas)
+- digest-2026-11-11-fechar-tudo — Digest 11/11 — fechar-tudo (lote 2, Amigo, R7, sites, LRE, publicação 726/727)
+- digest-2026-11-11-meta-grupos — Digest 11/11 — Meta, grupos, Casa, Amigo e "A Guarda toda numa app"
+- digest-2026-11-11-propaganda-casa-amigo — Digest 11/11 - propaganda Casa e Amigo (blocos 0 e 1)
 - dipsy-j1-em-dia-semana-2026-11-10 — Missão do Dipsy dipsy-j1-em-dia-semana-2026-11-10
 - dipsy-j2-em-dia-calculadoras-2026-11-10 — Missão do Dipsy dipsy-j2-em-dia-calculadoras-2026-11-10
 - dipsy-j3-animacao-estudio-2026-11-10 — Missão do Dipsy dipsy-j3-animacao-estudio-2026-11-10
 - dipsy-j4-crm-whatsapp-2026-11-10 — Missão do Dipsy dipsy-j4-crm-whatsapp-2026-11-10
+- dipsy-j4b-crm-instalar-2026-11-11 — Missão do Dipsy dipsy-j4b-crm-instalar-2026-11-11
 - diretiva-plataformas-2024-2831 — Diretiva (UE) 2024/2831 trabalho em plataformas — o que obriga o Bora, estado em Portugal, o que está feito e checklist 
 - dsh-como-usar — Como usar o Dipsy (dsh)
 - dsh-como-usar-novidades-2026-10-31 — Dipsy: o que ficou novo a 31/10 (complemento da pagina dsh-como-usar)
@@ -516,6 +532,9 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - emdia-grupos-facebook — Em Dia — publicações em grupos de Facebook
 - engenharia-reversa — Engenharia reversa — método do Danilo para clonar o que já existe (pedido 17/10/2026)
 - engenharia-reversa-achados-2026-10-17 — Engenharia reversa — achados da pesquisa mundial de 17/10/2026 (REA, filme, navegador)
+- entrega-amigo-casa-2026-11-11 — Entrega para a Claude.ai: publicar o Amigo com a Casa e Manutenção (11/11)
+- entrega-amigo-casa-2026-11-11-patch — Remendo do client-assistant (Amigo + Casa e Manutenção) 11/11 — git apply sobre origin/autonomous-night-2026-04-29 b8af9
+- entrega-editar-perfil-2026-11-11 — Entrega: Editar perfil do cliente — migrações por aplicar e ordem de publicação
 - erro-2026-11-02-whatsapp-conversa-eu — Erro 02/11: artes mandadas para a conversa "Eu" do WhatsApp pessoal
 - erros-aprendidos — Erros aprendidos — o caderno de correções do Danilo (todos os agentes leem ao acordar e acrescentam quando ele corrige)
 - estado-2026-09-13 — Estado do Bora a 13/09/2026 (auditoria da Claude.ai depois de 3-4 dias sem Claude)
@@ -570,6 +589,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-areas-entrada-login-bora — Portas de entrada do [[bora-app]] (cliente, estafeta, parceiro) — regras que o Danilo fixou e prompt de auditoria entreg
 - livro-areas-entrega-longa-distancia — Decisão do Danilo (05/11/2026) sobre entregas a mais de ~10 km (caso Porto da Carne) e o escalão de km que ele propôs e 
 - livro-areas-estudio-imagem — Plano do Danilo (06/11/2026) de melhorar o negócio de imagem/estúdio com as novidades de imagem do briefing diário — ret
+- livro-areas-farmacias-guarda — Grupo de 2 farmácias da Guarda (contacto Rita Grilo) que quer entrar no Bora — condições que o Danilo mandou oferecer e 
 - livro-areas-favores-paragem-casa — Regra do Danilo para Favores (errands) com "passar em casa primeiro" no bora-app — o que o estafeta tem de ver; ler ante
 - livro-areas-fechar-pendencias-missao — Super-missão "fechar pendências" (20/10/2026) do bora-app — blocos 0,B,C,D,A1,A2,A3,E,H,I,J,G, o que já fechou e o promp
 - livro-areas-fecho-semanal — Regras do Danilo para o acerto semanal do [[bora-app]] (recibos automáticos, comprovativo ao marcar pago, cobrança autom
@@ -619,6 +639,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-areas-mini-site-business — Parallel mini-site web-dev business for local clients using a cinematic HTML/Cloudflare Pages workflow
 - livro-areas-missao-domingo-noite — Missão grande de domingo à noite (08/11/2026) para terminar o que falta no Bora — lista de pendências que o Danilo vai d
 - livro-areas-missao-domingo-noite-parte2 — Missão grande de domingo à noite (08/11/2026) para terminar o que falta no Bora — lista de pendências que o Danilo vai d
+- livro-areas-missao-domingo-noite-parte3 — Missão grande de domingo à noite (08/11/2026) para terminar o que falta no Bora — lista de pendências que o Danilo vai d
 - livro-areas-missao-fable-13-09 — Auditoria de 13/09 depois de 3-4 dias sem Claude (limite esgotado) — o que se achou (Apple aprovou, 2 pedidos com proble
 - livro-areas-missao-voar — Missão grande pós-PC-novo (prompt-missao-voar.md, 30/08) — fases, decisões do Danilo e estado; ler antes de retomar qual
 - livro-areas-mister-kebab — Mr Kebab & Restaurant (Guarda) — novo parceiro de Restaurantes fechado por Danilo; montar loja no app (catálogo via Glov
@@ -646,6 +667,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-areas-radar-ia-parte2 — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) 
 - livro-areas-radar-ia-parte3 — Radar semanal de novidades de IA (bot batedor do Hermes) + vereditos sobre ferramentas (DeepSeek Harness, Jev/TypeSafe) 
 - livro-areas-recibo-cliente-produto-falta — Regras que o Danilo fixou para mexer no conteúdo de um pedido já feito (produto em falta, acrescentar produto) e para o 
+- livro-areas-refinador — Agente de refinamento (Refinador) que o Danilo pediu a 11/11/2026 — última revisão de conteúdos e código depois do Juiz,
 - livro-areas-regras-lancamento-categorias — Regras fixas do Danilo para lançar QUALQUER categoria, loja ou serviço novo no Bora — ler ANTES de planear ou montar pro
 - livro-areas-robo-suporte — Robô do suporte dentro da app Bora (support-chatbot) — o que o Danilo quer dele, caso da Jennifer (Boom! Burger) e missã
 - livro-areas-sabores-de-casa — Sabores de Casa Açaí (mercado BR + açaí, Guarda) — parceiro no app + mini-site cinematográfico de presente (esquema Ouro
@@ -689,7 +711,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-topics-erros-aprendidos-parte2 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde
 - livro-topics-erros-aprendidos-parte3 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde
 - livro-topics-erros-aprendidos-parte4 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde
-- livro-topics-erros-aprendidos-parte5 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde
+- livro-topics-erros-aprendidos-parte5 — Registo de erros que o Danilo já corrigiu (parte 5 — sem uso: o ficheiro agora tem 4 partes)
 - livro-topics-prioridades — Como o Danilo decide prioridades no negócio — foco dos próximos meses e regras de desempate quando duas coisas competem 
 - livro-topics-regras-motores-e-prompts — Regras do Danilo sobre que motor/ferramenta usar (Fable, Opus, ChatGPT, GLM, Gemini, OpenCode) e sessões no Chrome — ler
 - lojas-takeaway-precos — Lojas de takeaway por telefone: Bora (não-parceiro) contra Glovo e Uber Eats, Guarda, 29/10/2026
@@ -710,6 +732,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - paridade-rea-2026-10-26 — Paridade REA 26/10 — Glovo, Uber Eats, iFood e Bora vistos de fora (resumo)
 - paridade-rea-2026-10-26-plano — PLANO de melhorias do Bora (paridade REA 26/10) — à espera da revisão da Claude.ai
 - paridade-uber-ifood-2026-10-13 — Paridade Bora vs Uber/Uber Eats/iFood + REA (vídeos de 13/10)
+- pedido-claude-ai-farmacias-2026-11-11-servidor — Pedido do PC: publicar o servidor das farmácias (11/11)
 - pendencias-2026-11-01 — Pendências dos últimos 30 dias (lista numerada dada ao Danilo a 01/11 ~19:35)
 - perfil — Quem é o Danilo
 - pesquisa-assistente-cliente-2026-10-07 — Pesquisa mundial para o assistente de compras IA do cliente (base da missão que vem depois do +18)
@@ -719,6 +742,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - plano-14-dias-dia6-a-14 — Plano de 14 dias — do dia 6 ao dia 14 (29/10 a 06/11/2026)
 - plano-melhor-que-uber-glovo-2026-10-29 — Plano "100% melhor que a Uber e a Glovo" — volta ao mundo 29/10/2026
 - playbook-redes-emdia — Playbook das redes — Em Dia (28/09)
+- prompt-amigo-casa-2026-11-11 — Prompt: o Amigo Bora tem de saber da Casa e Manutenção (11/11/2026)
 - prompt-auditoria-3-plataformas-2026-10-06 — Prompt de missão: auditoria das 3 plataformas (06/10)
 - prompt-boom-burger-2026-10-27 — PROMPT Boom! Burger — loja parceira + site premium (27/10/2026)
 - prompt-boom-burger-2026-10-27-texto-completo — PROMPT Boom! Burger — texto completo (27/10/2026)
@@ -742,11 +766,13 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - prompt-maiores-18-2026-10-07 — Prompt: verificação de idade +18 (tabaco/álcool) — estado: PRONTO, NÃO LANÇADO (bloqueado: publica nas lojas, falta o Da
 - prompt-manha-2026-11-02-ignorar-permissoes — Prompt para a sessão do PC em "Ignorar permissões" (02/11): o que o classificador travou na infra (B10-B13, B15)
 - prompt-meta-anuncios-2026-10-30 — Prompt: 2 anúncios novos da Meta (instalar app + carrossel do check-in) e dados da empresa na Meta (30/10/2026)
+- prompt-meta-grupos-casa-amigo-2026-11-11 — Prompt PC: anúncios Meta + grupos da Casa e do Amigo + renovar login do loop (11/11/2026 13:55)
 - prompt-missao-da-noite-2026-10-07 — Prompt MISSÃO DA NOITE 07/10 (FABLE) — Bora Assistente (prioridade) + fechar +18 + Gmail caça-clientes + Apple Foco + GP
 - prompt-missao-geral-2026-10-28 — PROMPT missão geral 28/10 (Divan + Boom + robô WhatsApp + cartazes + erros), parte 1/2
 - prompt-missao-geral-2026-10-28-parte2 — PROMPT missão geral 28/10, parte 2/2 (blocos 1 a F, resumo)
 - prompt-motor-claude-2026-10-31 — Prompt Motor Claude 31/10: robôs usam primeiro o crédito da API do Claude (plano Ultra) e depois a rotação grátis
 - prompt-peso-variavel-2026-10-26 — PROMPT missão peso variável (26/10/2026) — para o Claude Code do PC
+- prompt-propaganda-casa-amigo-2026-11-11 — Prompt: propaganda Casa e Manutenção + Amigo Bora, grupos e 2 anúncios Meta (11/11/2026)
 - prompt-publica-e-fecha-2026-10-29 — Prompt: publicar hoje + arrumação + Bloco 11 + reembolsos (29/10 18:20)
 - prompt-publica-e-fecha-2026-10-29-adendo-1 — Adendo 1 ao prompt publica-e-fecha (29/10 18:40): motores do robô em grátis com rotação
 - prompt-publica-e-fecha-2026-10-29-adendo-2 — Adendo 2 ao prompt publica-e-fecha (29/10 18:55): motores grátis do OpenCode em rotação + link /pedir/boom do site
@@ -754,6 +780,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - prompt-publica-e-fecha-2026-10-29-adendo-4 — Adendo 4 (29/10 19:10): robô WhatsApp da Boom AO VIVO para o teste do Danilo, resposta na hora, super inteligente
 - prompt-publica-e-fecha-2026-10-29-adendo-5 — Adendo 5 (29/10 19:18): revisão da conversa do dia — o que ainda faltava
 - prompt-publicar-retoma-2026-10-31 — Prompt PUBLICAR da retoma (31/10 20:00) — itens 2, 3 e 4 autorizados pelo Danilo 19:53
+- prompt-refinador-v1-2026-11-11 — Prompt: instalar o Refinador Bora (agente de refinamento, chefe de 7 lentes + cético) — 11/11/2026
 - prompt-retoma-geral-2026-10-31 — PROMPT ÚNICO 31/10/2026 — parar, limpar a RAM e retomar todas as missões (Casa, motor Claude, Dipsy, lembretes)
 - prompt-robo-suporte-inteligente-2026-11-05 — Missão robô do suporte super inteligente (05/11/2026)
 - prompt-stripe-empresa-2026-11-01 — Prompt — ligar o app à Stripe da empresa (01/11/2026)
@@ -808,6 +835,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - radar-2026-11-07 — Radar de vídeos 07/11/2026 — 40 revistos, 8 novos, 20 pendentes
 - radar-2026-11-08 — Radar de vídeos 08/11/2026 — 40 revistos, 1 novo, 13 pendentes
 - radar-2026-11-09 — Radar de vídeos 09/11/2026 — 40 revistos, 4 novos, 15 pendentes
+- radar-2026-11-11 — Radar de vídeos 11/11/2026 — 40 revistos, 8 novos, 12 pendentes
 - reembolsos-b2-00-leia-me — reembolsos-b2-00-leia-me
 - reembolsos-b2-01-shared-cobranca — reembolsos-b2-01-shared-cobranca
 - reembolsos-b2-ef-admin-cancel-order — reembolsos-b2-ef-admin-cancel-order
@@ -829,6 +857,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - relatorio-semanal-reels-2026-10-29 — Relatório semanal dos reels - 2026-10-29
 - relatorio-semanal-reels-2026-11-02 — Relatório semanal dos reels - 2026-11-02
 - relatorio-semanal-reels-2026-11-09 — Relatório semanal dos reels - 2026-11-09
+- resposta-claude-ai-farmacias-2026-11-11-servidor — Resposta da Claude.ai ao pedido do PC: servidor das farmacias NAO aplicado (11/11 17:00)
 - resposta-contabilista-iva-2026-10-28 — Resposta do Hugo (DC Consultores): IVA normal trimestral, programa de faturação, modelo aceite — 28/10/2026
 - resposta-contabilista-iva-parte2-2026-10-28 — Hugo (15:54-15:55): faturas emitidas pelo escritório, não ficar no art. 53.º, IVA não mexe na margem — e as contas de ou
 - respostas-claude-ai-filme — Respostas do Claude.ai às dúvidas do Dipsy no filme (Ep1)

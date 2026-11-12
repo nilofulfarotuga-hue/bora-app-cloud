@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-11
+ultima_confirmacao: 2026-11-12
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-11T20:56:31.206163+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-12T20:55:32.556024+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -637,3 +637,17 @@ Termos novos: "Google Flow personagem fixo desenho animado longo" (animacao_ia) 
 - JÁ TEMOS: OmniRoute/9Router (3 vídeos + OpenRouter Auto Code), Dipsy (Harness, router+workers), OpenCode, ChatGPT+Gemini.
 - RECUSADO: geradores de vídeo grátis genéricos, ComfyUI, marketing genérico (4), Geo Fest (pago), notícias.
 - Radar aprende 11/11: sem termos dos vídeos (assuntos já têm termo); +1 da conversa (farmácias com receita no Bora), -1 (primeiros 1000 utilizadores, 0 vídeos bons em 14 dias); 70 ativos.
+
+## 12/11/2026 — radar diário (agente na nuvem)
+40 vídeos revistos (36 com nota >= 6): 2 novos, 13 PENDENTES, 14 já temos, 11 rejeitados (4 por nota baixa). Nenhum do tema animacao_ia nem do filme.
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias): CRM WhatsApp aberto 7 (+3 hoje) — PENDENTE desde 18/10, missão Dipsy j4b (WAHA) parou 11/11 na guarda: falta autorizar o SSH à VPS (disco 92% cheio); agência/vender automação a PMEs 7+4+3+3 (+1) — PENDENTE desde 13/10; rececionista de voz 4 (+3) — PENDENTE desde 13/10; avaliações Google 5 (+2) — PENDENTE desde 30/10 (prop-2f8e76dc); Claude Design/Motion 6 (+2) — PENDENTE desde 11/10; DeepSeek Harness 6+4 — FEITO (Dipsy); REA 5 — FEITO 26/10; Hermes 5 — já temos; OmniRoute 7 — já temos; Antigravity 6 — recusado.
+- BORA (novo): regra de 4 passos para responder avaliações negativas no Google — empatia, contexto com palavra-chave do serviço, reafirmar o padrão, convidar a falar em privado. https://www.youtube.com/watch?v=Q5noggUdPgA
+- BORA/FARMÁCIAS (novo): botão repetir encomenda / lembrete de renovação para medicação habitual (ideia vinda da CVS). https://www.youtube.com/watch?v=Dlel_xCdxwU
+- BORA (PENDENTE desde 07/11, GEO prop-bfe857d7): tratar o Perfil Google do Bora como blog — fotos reais diárias, respostas a perguntas concretas, botão WhatsApp; e confirmar com print se o ChatGPT/Perplexity citam o Bora. https://www.youtube.com/watch?v=6mlyR0SyIKk , https://www.youtube.com/watch?v=85fbNLdFQ8E , https://www.youtube.com/watch?v=GOo4FXIylZA
+- DINHEIRO (PENDENTE desde 13/10): vender SISTEMA (CRM+agenda+IA) e não agente solto; escada grátis→revisto→automático no WhatsApp; rececionista de voz com passagem a humano e resumo no Telegram (só 4-5 dados). https://www.youtube.com/watch?v=lXrsqJbJHFE , https://www.youtube.com/watch?v=4YvQrQjIwpg , https://www.youtube.com/watch?v=l8cMuAVRg3w , https://www.youtube.com/watch?v=T4MjFRtPH7c , https://www.youtube.com/watch?v=c-m3COA0jhs
+- DINHEIRO (PENDENTE desde 18/10): CRM WhatsApp aberto multicanal + Hermes ligado ao Desk por MCP. https://www.youtube.com/watch?v=ujnILzOMvNU , https://www.youtube.com/watch?v=uZN6rEDEEG0
+- EM DIA (PENDENTE desde 11/10): explicativos com Claude Design sem plano Team; ElevenLabs pago → voz grátis. https://www.youtube.com/watch?v=sAEJ4AWUFtI , https://www.youtube.com/watch?v=T17ifmBD_6s
+- SISTEMA (extra, já temos a base): perfis isolados Bora vs Em Dia no Hermes; etiquetas visto/inferido nos relatórios dos agentes. https://www.youtube.com/watch?v=7VVO1KitWyM , https://www.youtube.com/watch?v=qUMpigONddc
+- JÁ TEMOS: REA (3), DeepSeek Harness/Dipsy (5), Hermes+Claude Code, memória partilhada (Córtex), artifacts do Claude, Perfil Google (Jai).
+- RECUSADO: Grok Bot, Antigravity (2), Syna (paga), Conhece aí (paga), CRM com disparos em massa, Jarvis Mark LV, Postman.
+- Radar aprende 12/11: sem termos dos vídeos (já têm termo); +1 da conversa (agente revisor/Refinador antes de publicar); -1 (growth hacking app 2026, 1 vídeo bom em 14 dias); 70 ativos.

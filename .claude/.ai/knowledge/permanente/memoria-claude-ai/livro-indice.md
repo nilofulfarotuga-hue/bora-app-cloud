@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-13T15:37:03.960608+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-13T16:37:03.700053+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-13 15:13 UTC. Páginas listadas: 622.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-13 16:13 UTC. Páginas listadas: 622.
 
 ## O que é o Bora
 
@@ -585,7 +585,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-resumo — Livro do Bora — resumo para o ChatGPT (regras + erros + índice, sem pessoais), gerado (2026-11-12)
 - livro-topics-communication — How Danilo communicates and the language conventions across his tools (2026-10-23)
 - livro-topics-erros-aprendidos — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir (cheio: continua em erros-aprendidos-2)… (2026-11-12)
-- livro-topics-erros-aprendidos-2 — Continuação de erros-aprendidos (o 1.º ficheiro encheu) — erros que o Danilo corrigiu a partir de 12/11/2026; ler junto com o 1.º antes de… (2026-11-12)
+- livro-topics-erros-aprendidos-2 — Continuação de erros-aprendidos (o 1.º ficheiro encheu) — erros que o Danilo corrigiu a partir de 12/11/2026; ler junto com o 1.º antes de… (2026-11-13)
 - livro-topics-erros-aprendidos-parte2 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir (cheio: continua em erros-aprendidos-2)… (2026-11-12)
 - livro-topics-erros-aprendidos-parte3 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir (cheio: continua em erros-aprendidos-2)… (2026-11-12)
 - livro-topics-erros-aprendidos-parte4 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir (cheio: continua em erros-aprendidos-2)… (2026-11-12)

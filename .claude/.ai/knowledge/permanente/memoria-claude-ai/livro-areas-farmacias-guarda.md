@@ -10,11 +10,11 @@ estado: atual
 
 # Grupo de 2 farmácias da Guarda (contacto Rita Grilo) que quer entrar no Bora — condições que o Danilo mandou oferecer e ideia da receita com assinatura
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-farmacias-guarda`, origem `claude-ai`, atualizada em 2026-11-13T15:13:12.356756+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-areas-farmacias-guarda`, origem `claude-ai`, atualizada em 2026-11-13T16:13:43.084955+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro areas farmacias guarda · memoria claude.ai · claude_ai_memoria
 
-> Cópia da memória da Claude.ai (ficheiro /areas/farmacias-guarda.md), copiada a 13/11/2026 15:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
+> Cópia da memória da Claude.ai (ficheiro /areas/farmacias-guarda.md), copiada a 13/11/2026 16:13 (Lisboa). A fonte da verdade é a memória da Claude.ai — não editar aqui; correções vão para a página erros-aprendidos.
 
 ---
 name: farmacias-guarda
@@ -46,4 +46,5 @@ aliases: [Rita Grilo, grupo de farmácias, farmácias parceiras]
 - [stated] 13/11: produto sem stock de manhã mas que chega daí a 2-4 horas — quer opção para o parceiro aceitar e depois agendar/entregar mais tarde, sem perder o pedido
 - [stated] 13/11: depois de pronto passa pelos agentes/subagentes de visualização (problema visto: ao descer a loja fica uma faixa grossa em cima e a zona dos produtos pequena); lupa a conferir; tem de ser lindo e fácil. Depois: propaganda ("2 novas farmácias, compra o teu remédio sem sair de casa"), vídeo com parceria, autocolantes/cartões pequenos 10x10 com QR para o balcão; divulgar na Meta e aprender com o que deu certo/errado na [[boom-burger]]
 - [stated] 13/11: mandou o pedido ao conselho de IAs (3 ideias de melhoria de cada) e quer saber o que mandar à farmácia já hoje para irem adiantando
+- [stated] 13/11 15:35: PREÇO FECHADO — ficam os preços da Glovo (os sistemas deles têm uma API da Glovo; ele perguntou por carregar CSV e a farmácia disse que seria complicado). Não voltar a falar de preço com a farmácia. Na mensagem à farmácia NÃO perguntar quem recebe os pedidos na loja: é uma app, quem estiver lá e aceitar, aceitou
 

@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-13T00:07:04.514035+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-13T12:07:03.252642+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-12 23:40 UTC. Páginas listadas: 622.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-13 11:38 UTC. Páginas listadas: 622.
 
 ## O que é o Bora
 
@@ -682,7 +682,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - resposta-claude-ai-farmacias-2026-11-11-servidor — Resposta da Claude.ai ao pedido do PC: servidor das farmacias NAO aplicado (11/11 17:00) (2026-11-11)
 - resposta-contabilista-iva-2026-10-28 — Resposta do Hugo (DC Consultores): IVA normal trimestral, programa de faturação, modelo aceite — 28/10/2026 (2026-10-28)
 - resposta-contabilista-iva-parte2-2026-10-28 — Hugo (15:54-15:55): faturas emitidas pelo escritório, não ficar no art. 53.º, IVA não mexe na margem — e as contas de outubro com IVA (2026-10-28)
-- respostas-claude-ai-filme — Respostas do Claude.ai às dúvidas do Dipsy no filme (Ep1) (2026-11-11)
+- respostas-claude-ai-filme — Respostas do Claude.ai às dúvidas do Dipsy no filme (Ep1) (2026-11-13)
 - robo-documentos-2026-10-29 — Robô fiscal de documentos — relatório (adendo 3, 29/10/2026) (2026-10-29)
 - seguranca-auditoria-2026-10-21 — Auditoria de seguranca do app (21/10, agente N4) (2026-10-21)
 - sistema-motores-e-portas — Quem faz o quê — uma porta só (atualizado 17/09/2026) (2026-09-17)

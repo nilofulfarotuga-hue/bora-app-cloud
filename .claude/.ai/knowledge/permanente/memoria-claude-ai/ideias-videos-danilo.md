@@ -2,7 +2,7 @@
 id: memoria-claude-ai-ideias-videos-danilo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-12
+ultima_confirmacao: 2026-11-13
 zona: verde
 confianca: alta
 estado: atual
@@ -10,7 +10,7 @@ estado: atual
 
 # Ideias tiradas dos vídeos que o Danilo manda
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-12T20:55:32.556024+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `ideias-videos-danilo`, origem `claude-ai`, atualizada em 2026-11-13T20:56:56.561474+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: ideias videos danilo · memoria claude.ai · claude_ai_memoria
 
@@ -651,3 +651,19 @@ Termos novos: "Google Flow personagem fixo desenho animado longo" (animacao_ia) 
 - JÁ TEMOS: REA (3), DeepSeek Harness/Dipsy (5), Hermes+Claude Code, memória partilhada (Córtex), artifacts do Claude, Perfil Google (Jai).
 - RECUSADO: Grok Bot, Antigravity (2), Syna (paga), Conhece aí (paga), CRM com disparos em massa, Jarvis Mark LV, Postman.
 - Radar aprende 12/11: sem termos dos vídeos (já têm termo); +1 da conversa (agente revisor/Refinador antes de publicar); -1 (growth hacking app 2026, 1 vídeo bom em 14 dias); 70 ativos.
+
+## 13/11/2026 — radar diário (agente na nuvem)
+40 vídeos revistos (39 com nota >= 6): 4 novos, 16 PENDENTES, 6 já temos, 14 rejeitados (1 por nota baixa). Nenhum do tema animacao_ia nem do filme (2 de voz grátis). Proposta prop-561662dd.
+- MODA DA SEMANA (3+ vídeos nota>=8 em 7 dias, por termo): CRM WhatsApp aberto 7 — PENDENTE desde 18/10 (Dipsy j4b parado desde 11/11, falta autorizar SSH à VPS); agência/vender automação a PMEs 7 — PENDENTE desde 13/10; Claude Duet 6 (+4 hoje) — PENDENTE desde 22/10 (sem acesso em PT); Claude Design/Motion 6 — PENDENTE desde 11/10; voz grátis 5 (+2) — PENDENTE desde 01/11; postagem automática 7 — robôs de redes já temos; OmniRoute 7 — já temos; DeepSeek Harness 6 — FEITO (Dipsy).
+- EM DIA/BORA (novo): filtro de engajamento — primeiro TikTok, só os que pegarem vão para Instagram/Shorts. https://www.youtube.com/watch?v=yXMMs8k9XPA
+- SISTEMA (novo): CLAUDE.md curto (~200 linhas) com detalhe em ficheiros de referência. https://www.youtube.com/watch?v=qSDDSUcegkQ
+- SISTEMA (novo, lente grátis): 24 skills abertas para Claude Code — Dev Browser (testar cadastro das apps), Marketing Skills (auditar páginas). https://www.youtube.com/watch?v=lnNtwW7R00c
+- SISTEMA (novo, lente grátis): 12 trocas abertas de ferramentas pagas — Metabase e LibreDesk/FreeScout, só se couberem na VPS. https://www.youtube.com/watch?v=8dVy0XFjF1I
+- DINHEIRO (PENDENTE desde 13/10): vender o resultado (Service as Software). https://www.youtube.com/watch?v=8Vk059HpH0s
+- DINHEIRO (PENDENTE desde 18/10): Deskcom audita o site do lead. https://www.youtube.com/watch?v=5NuivW9lPOs
+- DINHEIRO (PENDENTE desde 25/10): empresas novas sem site → site pronto (o vídeo usa a base de CNPJ do Brasil; falta equivalente PT). https://www.youtube.com/watch?v=urPIe9-Bxzs
+- FILME/REELS (PENDENTE desde 01/11, tarefa voz-gratis): Piper, Kokoro, Chatterbox, Voice Box (ver licença comercial); Nexus Voice/Fast Whisper. https://www.youtube.com/watch?v=tcA32xkvxv4 , https://www.youtube.com/watch?v=vrOX8s4bNgY
+- EM DIA (PENDENTE desde 11/10): fábrica de explicativos/edição pelo Claude Code. https://www.youtube.com/watch?v=hXmn57Xn9uc , https://www.youtube.com/watch?v=4IEpQpJG3M4 , https://www.youtube.com/watch?v=5LOdJwvFzqI , https://www.youtube.com/watch?v=NDHza-0m6-8
+- JÁ TEMOS: zonas verde/vermelha + caderno de erros, agentes com skills/CLAUDE.md, resumo de vídeos (o próprio radar), robôs de redes.
+- RECUSADO: Watsender Pro, Pulso Social, postadores em massa (FB Auto Post e outros), OpenArt, Postus, Hai 4 (chave paga), rateio de contas, afiliados por comentários, Seedance.
+- Radar aprende 13/11: +1 termo da conversa (chatbot com passagem para humano em tempo real no painel); -1 (notificação diária/check-in, 0 vídeos bons); 70 ativos.

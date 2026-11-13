@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-13T12:07:03.252642+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-13T15:37:03.960608+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-13 11:38 UTC. Páginas listadas: 622.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-13 15:13 UTC. Páginas listadas: 622.
 
 ## O que é o Bora
 
@@ -329,7 +329,7 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-areas-entrada-login-bora — Portas de entrada do [[bora-app]] (cliente, estafeta, parceiro) — regras que o Danilo fixou e prompt de auditoria entregue a 28/08 (2026-10-23)
 - livro-areas-entrega-longa-distancia — Decisão do Danilo (05/11/2026) sobre entregas a mais de ~10 km (caso Porto da Carne) e o escalão de km que ele propôs e não aplicou; ler an… (2026-11-12)
 - livro-areas-estudio-imagem — Plano do Danilo (06/11/2026) de melhorar o negócio de imagem/estúdio com as novidades de imagem do briefing diário — retomar na semana de 0… (2026-11-08)
-- livro-areas-farmacias-guarda — Grupo de 2 farmácias da Guarda (contacto Rita Grilo) que quer entrar no Bora — condições que o Danilo mandou oferecer e ideia da receita co… (2026-11-11)
+- livro-areas-farmacias-guarda — Grupo de 2 farmácias da Guarda (contacto Rita Grilo) que quer entrar no Bora — condições que o Danilo mandou oferecer e ideia da receita co… (2026-11-13)
 - livro-areas-favores-paragem-casa — Regra do Danilo para Favores (errands) com "passar em casa primeiro" no bora-app — o que o estafeta tem de ver; ler antes de mexer no ecrã… (2026-10-23)
 - livro-areas-fechar-pendencias-missao — Super-missão "fechar pendências" (20/10/2026) do bora-app — blocos 0,B,C,D,A1,A2,A3,E,H,I,J,G, o que já fechou e o prompt da noite de 21/10… (2026-10-24)
 - livro-areas-fecho-semanal — Regras do Danilo para o acerto semanal do [[bora-app]] (recibos automáticos, comprovativo ao marcar pago, cobrança automática) + estado rea… (2026-10-23)

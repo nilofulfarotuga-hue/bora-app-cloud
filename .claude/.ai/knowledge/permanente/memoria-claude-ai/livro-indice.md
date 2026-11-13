@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-indice
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-12
+ultima_confirmacao: 2026-11-13
 zona: verde
 confianca: alta
 estado: atual
@@ -10,13 +10,13 @@ estado: atual
 
 # Índice do livro — vivo (o que é o Bora, quem é o Danilo, onde estão regras/erros/estado, todas as páginas por grupo, skills)
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-12T21:07:03.490031+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-indice`, origem `claude-code`, atualizada em 2026-11-13T00:07:04.514035+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro indice · memoria claude.ai · claude_ai_memoria
 
 # Índice do livro (vivo)
 
-Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-12 20:55 UTC. Páginas listadas: 622.
+Gerado pelo sync da VPS (sincroniza-memoria-claude.sh, de 30 em 30 min, minutos 7 e 37); não editar à mão. A verdade é a tabela `public.claude_ai_memoria`; o espelho no Córtex está em `permanente/memoria-claude-ai/`. Última alteração ao livro: 2026-11-12 23:40 UTC. Páginas listadas: 622.
 
 ## O que é o Bora
 
@@ -578,11 +578,11 @@ Como ler uma página: `select conteudo from claude_ai_memoria where pagina = '<n
 - livro-faxina-2026-10-25 — Faxina do livro 2026-10-25 (proposta do escriba + revisão do critico; nada apagado) (2026-10-25)
 - livro-faxina-2026-11-01 — Faxina do livro 2026-11-01 (proposta do escriba + revisão do critico; nada apagado) (2026-11-01)
 - livro-faxina-2026-11-08 — Faxina do livro 2026-11-08 (proposta do escriba + revisão do critico; nada apagado) (2026-11-08)
-- livro-hermes-aprendeu — O que o Hermes aprendeu sozinho (MEMORY.md + USER.md), cópia noturna (2026-11-11)
-- livro-hermes-skills — Skills do Hermes (as que criou + lista das de fábrica), cópia noturna (2026-11-11)
+- livro-hermes-aprendeu — O que o Hermes aprendeu sozinho (MEMORY.md + USER.md), cópia noturna (2026-11-12)
+- livro-hermes-skills — Skills do Hermes (as que criou + lista das de fábrica), cópia noturna (2026-11-12)
 - livro-hermes-soul-detalhe — Alma antiga do Hermes (SOUL.md de 611 linhas) antes do corte de 23/10/2026 (2026-11-08)
 - livro-porta-unica — Livro — porta única: como ligar qualquer IA ao livro (MCP do Córtex ou LIVRO.md com senha) (2026-10-29)
-- livro-resumo — Livro do Bora — resumo para o ChatGPT (regras + erros + índice, sem pessoais), gerado (2026-11-11)
+- livro-resumo — Livro do Bora — resumo para o ChatGPT (regras + erros + índice, sem pessoais), gerado (2026-11-12)
 - livro-topics-communication — How Danilo communicates and the language conventions across his tools (2026-10-23)
 - livro-topics-erros-aprendidos — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir (cheio: continua em erros-aprendidos-2)… (2026-11-12)
 - livro-topics-erros-aprendidos-2 — Continuação de erros-aprendidos (o 1.º ficheiro encheu) — erros que o Danilo corrigiu a partir de 12/11/2026; ler junto com o 1.º antes de… (2026-11-12)

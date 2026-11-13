@@ -2,7 +2,7 @@
 id: memoria-claude-ai-livro-resumo
 tipo: conceito
 origem: [claude-ai, public.claude_ai_memoria]
-ultima_confirmacao: 2026-11-11
+ultima_confirmacao: 2026-11-12
 zona: verde
 confianca: alta
 estado: atual
@@ -10,11 +10,11 @@ estado: atual
 
 # Livro do Bora — resumo para o ChatGPT (regras + erros + índice, sem pessoais), gerado
 
-> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-11-11T23:40:09.199919+00:00).
+> Espelho automatico da tabela `public.claude_ai_memoria` (pagina `livro-resumo`, origem `claude-code`, atualizada em 2026-11-12T23:40:08.551923+00:00).
 > Gerado por sincroniza-memoria-claude.sh de hora a hora. NAO editar a mao: a verdade vive na tabela.
 > Palavras-chave: livro resumo · memoria claude.ai · claude_ai_memoria
 
-# Livro do Bora — resumo para o ChatGPT (2026-11-11)
+# Livro do Bora — resumo para o ChatGPT (2026-11-12)
 
 Lê isto antes de responder ao Danilo. É a mesma verdade que a Claude.ai, o Hermes, o Claude Code e o OpenCode leem (tabela public.claude_ai_memoria). Gerado todas as noites pela VPS; páginas pessoais ficam de fora.
 
@@ -248,6 +248,8 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 11/11 14:56 (quem errou: claude-ai): tratei os 10% como a única margem com a farmácia → regra: farmácia = esquema da Boom para o cliente (15% no produto + 5% de serviço) e, depois dos 3 meses grátis, a farmácia paga ainda 10% do que vender pela app
 11/11 15:18 (quem errou: claude-ai): pus os remédios com receita sem comissão e a receita desligada até para ele → regra: os 10% cobram-se em tudo (receita incluída), só depois dos 3 meses; para apresentar, fica tudo ligado só na conta de cliente dele
 - 11/11 (claude-code): 10/11 18:40: abri a janela das travas e lancei uma sessão para a usar; a minha vez ficou à espera e a janela ficou aberta até 11/11 de manhã (~13 h); a sessão só arrancou no dia seguinte, com a tranca aberta em memória, e teve de ser parada → abrir a janela das travas só mesmo antes de a usar e fechá-la (RESTAURAR-M10, MD5 igual) no mesmo turno; nunca a deixar aberta à espera de CI, Danilo ou agentes; antes de acabar um turno confirmar as travas por MD5; arquivar as sessões lançadas numa janela depois de usadas
+- [stated] 12/11 06:14 (Claude.ai, de /topics/erros-aprendidos-2.md): na revisão diária do WhatsApp dei-lhe um resumo curto ("Boom 662", "resolvido") sem explicar o que era cada caso; ele: "vai mais a fundo, explica direito" → regra: em cada caso dizer em português simples quem é (nome, nunca só o número), o que perguntou, o que o robô respondeu e o que falta; "662" é o número pessoal dele (931 992 662)
+- [stated] 12/11 06:22 (Claude.ai, de /topics/erros-aprendidos-2.md): falei em "religar o envio automático" sem explicar o que era, e disse que o cliente ficava "a andar em círculos" por o robô o mandar para o WhatsApp 937 501 673 — errado: esse é o WhatsApp da Bora e é ele que lá responde à mão → regra: nunca usar nomes internos (envio automático, porta, tenant) sem dizer o que fazem; o robô mandar o cliente para o WhatsApp da Bora está certo
 
 
 ## Índice do livro (sem páginas pessoais)
@@ -695,7 +697,8 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-areas-tvde-vertical-parte2 — Bora App TVDE ride-hailing vertical — dispatch, pricing, UI, payments (parte 2 de 4)
 - livro-areas-tvde-vertical-parte3 — Bora App TVDE ride-hailing vertical — dispatch, pricing, UI, payments (parte 3 de 4)
 - livro-areas-tvde-vertical-parte4 — Bora App TVDE ride-hailing vertical — dispatch, pricing, UI, payments (parte 4 de 4)
-- livro-areas-whatsapp-loja — Regras fixas do Danilo para o atendimento automático do WhatsApp da loja — ler antes de mexer nesse atendimento
+- livro-areas-whatsapp-loja — Regras fixas do Danilo para o atendimento automático do WhatsApp da loja — ler antes de mexer nesse atendimento (parte 1
+- livro-areas-whatsapp-loja-parte2 — Regras fixas do Danilo para o atendimento automático do WhatsApp da loja — ler antes de mexer nesse atendimento (parte 2
 - livro-claude-code-aprendeu — O que o Claude Code aprendeu sozinho (memória automática do PC), cópia
 - livro-claude-md-detalhe — Detalhe dos CLAUDE.md (repo e global) antes do corte de 23/10/2026
 - livro-faxina-2026-10-25 — Faxina do livro 2026-10-25 (proposta do escriba + revisão do critico; nada apagado)
@@ -707,10 +710,11 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - livro-porta-unica — Livro — porta única: como ligar qualquer IA ao livro (MCP do Córtex ou LIVRO.md com senha)
 - livro-resumo — Livro do Bora — resumo para o ChatGPT (regras + erros + índice, sem pessoais), gerado
 - livro-topics-communication — How Danilo communicates and the language conventions across his tools
-- livro-topics-erros-aprendidos — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde
-- livro-topics-erros-aprendidos-parte2 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde
-- livro-topics-erros-aprendidos-parte3 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde
-- livro-topics-erros-aprendidos-parte4 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir em qualquer área onde
+- livro-topics-erros-aprendidos — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir (cheio: continua em e
+- livro-topics-erros-aprendidos-2 — Continuação de erros-aprendidos (o 1.º ficheiro encheu) — erros que o Danilo corrigiu a partir de 12/11/2026; ler junto 
+- livro-topics-erros-aprendidos-parte2 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir (cheio: continua em e
+- livro-topics-erros-aprendidos-parte3 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir (cheio: continua em e
+- livro-topics-erros-aprendidos-parte4 — Registo de erros que o Danilo já corrigiu — o que errei, a regra certa e a data; ler antes de agir (cheio: continua em e
 - livro-topics-erros-aprendidos-parte5 — Registo de erros que o Danilo já corrigiu (parte 5 — sem uso: o ficheiro agora tem 4 partes)
 - livro-topics-prioridades — Como o Danilo decide prioridades no negócio — foco dos próximos meses e regras de desempate quando duas coisas competem 
 - livro-topics-regras-motores-e-prompts — Regras do Danilo sobre que motor/ferramenta usar (Fable, Opus, ChatGPT, GLM, Gemini, OpenCode) e sessões no Chrome — ler
@@ -755,6 +759,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - prompt-cancelamento-tardio-2026-10-17 — Prompt: cancelamento tardio TVDE — app, painel e publicação nas 3 plataformas (17/10) — estado: a correr
 - prompt-casa-manutencao-2026-10-30 — Prompt: missão Casa & Manutenção (categoria nova, decisões do Danilo 30/10/2026)
 - prompt-connect-empresa-2026-11-04 — Prompt — Connect na Stripe da empresa e repasse automático às lojas (04/11/2026)
+- prompt-conversas-ao-vivo-2026-11-12 — Missão conversas ao vivo dos robôs + robô esperto (12/11/2026)
 - prompt-dipsy-melhor-2026-10-31 — Missão Dipsy "melhor que o Claude Code" (31/10/2026) — decisões do Danilo 06:31
 - prompt-favor-diferenca-mbway-2026-11-03 — Prompt Favor com compra a mais: MB Way da diferença (03/11 13:35)
 - prompt-fechar-tudo-2026-11-10 — Prompt da missão fechar-tudo 10/11/2026
@@ -836,6 +841,7 @@ Como usar: ler ao acordar, antes de agir. Quando o Danilo te corrigir, ACRESCENT
 - radar-2026-11-08 — Radar de vídeos 08/11/2026 — 40 revistos, 1 novo, 13 pendentes
 - radar-2026-11-09 — Radar de vídeos 09/11/2026 — 40 revistos, 4 novos, 15 pendentes
 - radar-2026-11-11 — Radar de vídeos 11/11/2026 — 40 revistos, 8 novos, 12 pendentes
+- radar-2026-11-12 — Radar de vídeos 12/11/2026 — 40 revistos, 2 novos, 13 pendentes
 - reembolsos-b2-00-leia-me — reembolsos-b2-00-leia-me
 - reembolsos-b2-01-shared-cobranca — reembolsos-b2-01-shared-cobranca
 - reembolsos-b2-ef-admin-cancel-order — reembolsos-b2-ef-admin-cancel-order

@@ -1,11 +1,6 @@
 ---
 name: apple-conta-e-loja
-description: >
-  Lições provadas sobre a conta Apple Developer e a App Store da Bora: como se lê o estado
-  real (email por inteiro, API por país, lookup público), o ciclo do estatuto de comerciante
-  (DSA) e o que a verificação exige, quando se reenvia e quando não, o que a API faz e não faz,
-  e a regra do repo público com dados pessoais. Usar em qualquer missão que toque a conta
-  Apple, o App Store Connect, a disponibilidade por país, o DSA ou uma submissão iOS.
+description: "Lições provadas da conta Apple Developer e da App Store da Bora: ler o estado real, DSA/comerciante, reenvios, o que a API faz. Usar em qualquer missão de App Store Connect, país, DSA ou submissão iOS."
 metadata:
   versao: 1.0
   criada: 2026-09-16

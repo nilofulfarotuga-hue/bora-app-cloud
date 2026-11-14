@@ -1,17 +1,6 @@
 ---
 name: market-data-sync
-description: >
-  Skill universal para sincronizar catálogo de produtos de qualquer loja
-  (supermercados, farmácias, restaurantes) para a base de dados Bora.
-  Recebe nome da loja + restaurant_id + fonte (Glovo / Uber Eats / manual),
-  extrai produtos + imagens da fonte (SEM preço), e busca o preço real no
-  site oficial da loja via extensão Chrome. UPDATE se produto já existe
-  (lookup por name normalizado), INSERT se novo (com needs_review=true e
-  is_available=false até ter preço). ZERO duplicados garantidos por
-  normalização (lowercase + trim + sem acentos). Triggers:
-  "sincronizar produtos do Continente Guarda", "importar Glovo Continente",
-  "buscar preços do Pingo Doce", "sync Uber Eats Mercadona",
-  "actualizar catálogo da loja X", "market-data-sync".
+description: "Sincroniza o catálogo de qualquer loja (supermercado, farmácia, restaurante) para a base do Bora a partir de Glovo, Uber Eats ou manual. Dry-run por defeito."
 metadata:
   versao: 1.0
   execucoes: 0

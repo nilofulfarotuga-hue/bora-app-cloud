@@ -1,6 +1,6 @@
 ---
 name: security-and-hardening
-description: Hardens code against vulnerabilities. Use when handling user input, authentication, data storage, or external integrations. Use when building any feature that accepts untrusted data, manages user sessions, or interacts with third-party services. Use when personal data or privacy compliance (GDPR, CCPA) is involved.
+description: "Endurece código contra vulnerabilidades: entradas não confiáveis, autenticação, armazenamento de dados, integrações externas. Usar ao criar algo que recebe dados de fora ou gere sessões."
 ---
 
 # Security and Hardening
@@ -372,7 +372,7 @@ Securing data is "can an attacker read it?" Privacy is "should *we* even hold it
 - **Get consent before collection or third-party sharing**, and make it auditable. Sending PII to an analytics/ad/LLM vendor is "sharing" — the user's choice gates it, and the vendor needs a data-processing agreement.
 - **Localize defaults, don't hardcode one region's law.** Data-residency and rules differ by user location; make the policy a configurable boundary, not an assumption.
 
-When data crosses a trust boundary, validate it as untrusted (see Input Validation above); when a privacy incident exposes personal data, the breach-notification clock is part of the postmortem — follow the `debugging-and-error-recovery` skill.
+When data crosses a trust boundary, validate it as untrusted (see Input Validation above); when a privacy incident exposes personal data, the breach-notification clock is part of the postmortem — follow the `diagnosing-bugs` skill.
 
 ## Securing AI / LLM Features
 

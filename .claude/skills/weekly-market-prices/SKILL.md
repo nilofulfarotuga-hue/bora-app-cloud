@@ -1,6 +1,6 @@
 ---
 name: weekly-market-prices
-description: Orquestra o update semanal de preços de mercado. Verifica saúde dos pg_cron de preços, corre o update do Continente (Product-Show + JSON-LD, 3.5s/req) e gera relatório de diferenças. SÓ Continente (método confirmado). NUNCA preços de Uber/Glovo. Dry-run default.
+description: "Atualização semanal de preços de mercado: verifica os pg_cron de preços, corre o update do Continente e gera o relatório de diferenças. Só o Continente."
 metadata:
   type: data
   category: market

@@ -1,6 +1,6 @@
 ---
 name: sync-market-photos
-description: Preenche photo_url de produtos de mercado com needs_photo=true reutilizando fotos de uma loja "donor" (Mercadona, 100% fotos) por search_normalized — só DB, zero scraping, ZERO preço. Dry-run default; --commit grava photo_url+image_source+needs_photo=false.
+description: "Preenche photo_url de produtos de mercado com needs_photo=true reaproveitando fotos de uma loja dadora (Mercadona) por search_normalized. Só base de dados, não mexe em preços. Dry-run."
 metadata:
   type: data
   category: market

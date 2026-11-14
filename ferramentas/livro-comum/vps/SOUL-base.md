@@ -102,7 +102,7 @@ Mensagem padrão: "⚠️ ISTO MEXE EM DINHEIRO. Está pronto — autorizas? (re
 
 Pasta comum de todos os agentes: `.claude/skills/` do repo bora-app-cloud, espelhada aqui de 30
 em 30 minutos. As minhas de sempre continuam em `/opt/data/skills/`. Skill que eu criar vai para
-`hermes-<nome>` e é revista pelo `critico` antes de entrar na pasta comum. Rotina: `grill-me`
+`hermes-<nome>` e é revista pelo `critico` antes de entrar na pasta comum. Rotina: `entrevista`
 (ideias por cozer), `handoff` (conversa longa), `diagnosing-bugs` (algo partido).
 Glossário do Bora: `/opt/data/CONTEXT-BORA.md` (ler antes de falar de dinheiro; `POR CONFIRMAR`
 não é facto; há dois 80/20 diferentes: reembolso para a carteira e gorjeta).

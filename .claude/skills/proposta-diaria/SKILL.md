@@ -1,6 +1,6 @@
 ---
 name: proposta-diaria
-description: A linha de produção das propostas da Guarda. Dado APENAS o nome de um negócio (idealmente já em alvos.csv), executa a ronda completa - recolhe e diagnostica (Bloco B), constrói a maquete premium (Bloco C), prova e publica em proposta-<slug>.boraguarda.com (Bloco D) e escreve a peça de venda SEM enviar nada (Bloco E). Triggers - "proposta para X", "faz a maquete do X", "próximo alvo", "corre a linha de propostas".
+description: "Linha de produção das propostas da Guarda: dado o nome de um negócio, recolhe e diagnostica, constrói a maquete premium, prova e publica a proposta. Usar para 'proposta para <negócio>'."
 metadata:
   type: procedural
   zona: verde

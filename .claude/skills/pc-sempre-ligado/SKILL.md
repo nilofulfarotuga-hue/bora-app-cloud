@@ -1,6 +1,6 @@
 ---
 name: pc-sempre-ligado
-description: Manter o PC do Danilo a trabalhar 24 h sem quedas de sessão, extensão do Chrome ou alarmes falsos da VPS. Usar quando uma sessão cai ("Não foi possível alcançar"), a extensão desliga, o vigia diz que a VPS morreu, ou o PC fica lento. Diz o que já está aplicado, como se verifica, e o que falta.
+description: "Manter o PC do Danilo a trabalhar 24 h: sessões que caem, extensão do Chrome que desliga, alarmes falsos da VPS. Usar quando uma sessão cai ou o vigia dá alarme."
 metadata:
   criada: 2026-10-06
   missao: quatro-blocos-06-10

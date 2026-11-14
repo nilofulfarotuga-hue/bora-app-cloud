@@ -1,7 +1,6 @@
 ---
 name: git-add-por-caminho
-description: >
-  Usa SEMPRE antes de correr 'git add' no Bash. Se vires 'bora-tranca: BLOQUEADO Bash — git add -A / git add .' (arrasta trabalho alheio), não contornes nem repitas o comando. Faz 'git status --short', escolhe só os ficheiros desta tarefa e adiciona-os por caminho exacto. Visto em 2 sessões/2 dias (21-22/10/2026).
+description: "Usar antes de 'git add': a tranca bloqueia 'git add -A' e 'git add .'. Ver 'git status --short' e juntar só os ficheiros da própria missão, um por caminho."
 metadata:
   versao: 1.0
   criada: 2026-10-22

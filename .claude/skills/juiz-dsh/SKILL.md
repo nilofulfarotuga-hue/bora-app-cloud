@@ -1,6 +1,6 @@
 ---
 name: juiz-dsh
-description: "Como o Dipsy (dsh) faz commits: todo o commit passa pelo Juiz anti-trapaça do repo antes de existir, através do script dsh-commit.ps1, e é recusado se o Juiz falhar. Nunca git commit à mão, nunca git push. Usar sempre que o Dipsy tiver de gravar trabalho no git, ou quando o Danilo pedir para guardar, commitar ou juntar mudanças."
+description: "Como o Dipsy (dsh) faz commits: sempre pelo dsh-commit.ps1, que corre o Juiz anti-trapaça e recusa se falhar. Nunca git commit à mão nem git push."
 ---
 
 # Juiz antes de cada commit do Dipsy

@@ -29,7 +29,7 @@ regras de prova, §4 publicação e segredos, §5 como o Danilo trabalha, §6 zo
 §7 o inventário (o backlog real), §8 o modelo de prompt curto. Um plano de categoria nova copia a
 §1 ponto por ponto.
 
-## 0-bis. ANTES DE ABRIR UM NAVEGADOR — skill `navegadores-e-contas`
+## 0-bis. ANTES DE ABRIR UM NAVEGADOR — skill `contas-e-navegadores`
 
 O perfil escolhe-se pelo `deviceId`, nunca pelo nome ("Browser 1/2" trocam). Perfil **Bora**
 `d9e862e0-a5ea-486f-b054-f333ef51b46a` (Apple, Meta/Instagram, Play, Supabase, Resend, Gemini
@@ -45,7 +45,7 @@ dúvidas. Cada dúvida procura-se PRIMEIRO, por esta ordem: memória do Claude C
 (`cortex_buscar`), livro (`claude_ai_memoria`: `erros-aprendidos`, `regras-do-danilo`,
 `livro-indice`, digests), conversas antigas e o código. Só o que ninguém sabe vai ao Danilo,
 **numa mensagem só, numerada**, para ele responder "1 sim, 2 não". Nunca uma pergunta de cada vez,
-nunca o que já foi dito. Ferramentas: skills `interview-me` / `grilling` (a entrevista nunca se
+nunca o que já foi dito. Ferramentas: skill `entrevista` (a entrevista nunca se
 vira para o Danilo quando a Claude.ai, o Córtex ou o livro respondem). Enquanto ele não responde,
 faz-se o que não depende da resposta.
 
@@ -163,7 +163,7 @@ Em conflito entre este resumo e a fonte, **vale a fonte**; não se muda nenhum v
 ```
 
 Skills deste fluxo: `protocolo-missao-bora` (formato e fecho de missão), `falar-com-o-danilo`
-(canal e tom), `aprender` (correções no livro), `navegadores-e-contas` (perfil certo),
+(canal e tom), `aprender` (correções no livro), `contas-e-navegadores` (perfil certo),
 `trocar-chaves-servidor` (trocar uma chave sem partir nada), `painel-admin-limpo` (paridade e
 regras do painel), `distribuir-trabalho` (motores grátis por dentro).
 

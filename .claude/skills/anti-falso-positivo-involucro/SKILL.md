@@ -1,7 +1,6 @@
 ---
 name: anti-falso-positivo-involucro
-description: >
-  Usa esta skill sempre que fores confiar num exit code, HTTP status, ou 'sucesso' de alto nível de qualquer script/curl/alarme/roteador do sistema Bora. Regra: exit code 0 ou HTTP 200 NÃO prova que o trabalho de dentro correu — já aconteceu 3 vezes em 2 dias (hermes, canal de alarme via curl, roteador de candidatos) o invólucro dizer sucesso com o conteúdo a dizer falha. Sempre verificar o CONTEÚDO da resposta, nunca só o código.
+description: "Usar sempre que fores confiar num exit code 0, HTTP 200 ou 'sucesso' de script, curl ou alarme: o invólucro mente. Verificar sempre o conteúdo da resposta, nunca só o código."
 metadata:
   versao: 1.0
   criada: 2026-09-17

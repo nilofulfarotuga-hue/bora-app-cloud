@@ -1,6 +1,6 @@
 ---
 name: update-bora-knowledge
-description: Deteta drift entre a skill bora-knowledge e a realidade do repo (Edge Functions em supabase/functions vs 08-edge-functions.md; pastas de skill vs INDEX.md + contagem) e, em MODO A, sincroniza factos verificáveis para um ficheiro auto-gerido (00-auto-facts.md). NUNCA edita os docs curados 01–12 (Knowledge Protocol). detect_drift é read-only; apply_updates só toca no ficheiro de máquina.
+description: "Deteta desfasamento entre a skill bora-knowledge e o repo (Edge Functions, pastas de skills) e sincroniza factos verificáveis. Usar depois de mudanças no projeto."
 metadata:
   type: meta
   category: consolidation

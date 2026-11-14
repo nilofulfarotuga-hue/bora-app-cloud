@@ -1,6 +1,6 @@
 ---
 name: update-platform-setting
-description: Altera UMA chave de platform_settings com segurança — dry-run gera SQL + impacto + chaves dependentes; --commit aplica + admin_audit_log + cria nota ADR em decisions/. Chaves blindadas (stripe_/dispatch_/pricing_/commission_/fee_) exigem --i-know-what-im-doing.
+description: "Altera UMA chave de platform_settings com segurança: dry-run com SQL, impacto e chaves dependentes; --commit aplica com auditoria e ADR. Chaves de stripe, dispatch e pricing estão blindadas."
 metadata:
   type: operator
   category: config

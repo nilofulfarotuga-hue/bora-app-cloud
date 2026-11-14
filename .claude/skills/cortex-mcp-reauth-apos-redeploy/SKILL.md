@@ -1,7 +1,6 @@
 ---
 name: cortex-mcp-reauth-apos-redeploy
-description: >
-  Usa esta skill no arranque de qualquer sessão, logo depois de tentar `cortex_buscar`/`cortex_ler`, se a ferramenta não responder ou vier vazia. É 'regra conhecida' que o OAuth do Córtex MCP se perde a cada redeploy da VPS. Diagnostica confirmando o contentor + initialize/tools/list, e se confirmado, avisa o Danilo numa linha para reautorizar o conector — nunca ficar às voltas a tentar de novo sozinho nem bloquear a missão por isso.
+description: "Usar no arranque se o cortex_buscar/cortex_ler não responder: o OAuth do Córtex perde-se a cada redeploy da VPS. Confirmar o contentor e avisar o Danilo numa linha; não bloquear a missão."
 metadata:
   versao: 1.0
   criada: 2026-09-17

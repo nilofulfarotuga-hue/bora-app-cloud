@@ -1,12 +1,6 @@
 ---
 name: roteador
-description: >
-  Encaminha um pedido falado do Danilo para o projeto certo, com todas as ferramentas
-  disponíveis. Usa esta skill sempre que o pedido NÃO disser claramente em que pasta ou
-  projeto mexer — por exemplo "vê o que falta no site do Happy", "quantas encomendas
-  entraram esta semana", "arranja aquilo do clube", "o que é que o Córtex diz sobre o loop".
-  Também quando a sessão está aberta na raiz do QG. NÃO usar quando o pedido já nomeia
-  ficheiro ou pasta (aí vai-se direto ao trabalho).
+description: "Encaminha um pedido falado do Danilo para o projeto e as ferramentas certas quando o pedido não diz em que pasta mexer (ex.: 'vê o que falta', 'arranja isso')."
 metadata:
   versao: 1.0
   criada: 2026-08-19
@@ -64,7 +58,7 @@ roteador existe para resolver.
 | Tipo de trabalho | O que chamar |
 |---|---|
 | Decidir o que fazer, prioridades | `ceo-ai` |
-| Funcionalidade nova | `spec-driven-development` → `planning-and-task-breakdown` → `incremental-implementation` → `test-driven-development` → `code-review-and-quality` → `shipping-and-launch` |
+| Funcionalidade nova | `spec-driven-development` → `planning-and-task-breakdown` → `incremental-implementation` → `tdd` → `code-review-and-quality` → `shipping-and-launch` |
 | Design de interface | `/impeccable critique`, `polish`, `adapt`, `typeset`, `delight` |
 | Verificar trabalho feito | juiz (`orquestracao\hermes-bridge\juiz-go.ps1`), bot `fiscal` do Hermes |
 | Segunda opinião numa decisão | `buzz`, Conselho (MCP `go_conselho`) |

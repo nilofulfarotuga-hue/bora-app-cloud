@@ -1,6 +1,6 @@
 ---
 name: diretor-criativo
-description: Diretor criativo do Bora — gera campanhas de marketing completas (estratégia → copy anti-slop → artes via nano-banana → adaptação por canal → auto-crítica) SEMPRE ancoradas no brand-brain. Use quando o Danilo pedir campanha, post, banner, anúncio ou material de marca. Nunca publica — entrega a pasta da campanha; publicação é da skill social-publisher após aprovação.
+description: "Campanhas de marketing completas do Bora (estratégia, copy anti-slop, artes nano-banana, adaptação por canal, autocrítica) ancoradas no brand-brain. Usar quando o Danilo pedir uma campanha. Não publica."
 metadata:
   type: marketing
   versao: 2

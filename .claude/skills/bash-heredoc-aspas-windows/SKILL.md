@@ -1,7 +1,6 @@
 ---
 name: bash-heredoc-aspas-windows
-description: >
-  Usa esta skill sempre que o Bash tool devolver 'Exit code 2 ... unexpected EOF while looking for matching' — erro de aspas/heredoc mal fechado no Git Bash deste PC Windows. Visto 3x em 2 sessões/3 dias. Confere aspas simples/duplas emparelhadas e heredocs antes de repetir o comando; nunca reenviar o mesmo comando sem corrigir a sintaxe. REFORCO 23/09: Reforço: este erro voltou a acontecer depois de a skill já existir (mais 2 sessões/2 dias) — insistir em confirmar aspas/heredoc ANTES de reenviar, nunca repetir o comando idêntico à espera que passe.
+description: "Usar quando o Bash der 'Exit code 2 ... unexpected EOF while looking for matching' no Git Bash do PC: aspas ou heredoc mal fechados. Corrigir a sintaxe antes de reenviar; nunca repetir o comando igual."
 metadata:
   versao: 1.0
   criada: 2026-09-21

@@ -1,6 +1,6 @@
 ---
 name: onboard-partner-pharmacy
-description: Onboarda farmácia/parafarmácia parceira a partir de pasta com info.yaml + produtos.csv + fotos. Valida licença INFARMED, bloqueia medicamentos sujeitos a receita (só OTC), adiciona disclaimer obrigatório, gera descrições PT-PT sem claims médicas, insere via Edge Fn register-partner (category=pharmacy). Dry-run por defeito.
+description: "Onboarda farmácia ou parafarmácia parceira a partir de pasta (info.yaml, produtos.csv, fotos): valida INFARMED, bloqueia medicamentos com receita (só OTC) e põe o aviso obrigatório. Dry-run."
 metadata:
   type: onboarder
   category: partner

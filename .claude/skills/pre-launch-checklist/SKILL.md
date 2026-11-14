@@ -1,6 +1,6 @@
 ---
 name: pre-launch-checklist
-description: Auditoria read-only de prontidão para lançamento — agrega contagens dos pontos críticos (drivers/restaurants pending, produtos sem preço/imagem, settings críticos, admin_audit_log recente) e devolve relatório PT-BR com ✅/⚠️/❌ por categoria. Não escreve nada.
+description: "Auditoria read-only de prontidão para lançamento: candidaturas pendentes, produtos sem preço ou imagem, settings críticos, auditoria recente. Devolve relatório PT-BR."
 metadata:
   type: auditor
   category: readiness

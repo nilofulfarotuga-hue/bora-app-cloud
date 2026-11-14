@@ -1,6 +1,6 @@
 ---
 name: storeshopping-v2-debugger
-description: Diagnostica um pedido storeShopping V2 não-parceiro completo. Cruza orders + order_purchase_items_v2 + order_receipts_v2 + wallet_transactions + admin_audit_log num único relatório. Útil para validar fluxo end-to-end após fixes ou debug de pedidos com comportamento estranho.
+description: "Diagnostica um pedido storeShopping V2 não-parceiro: cruza orders, itens, talões, wallet_transactions e admin_audit_log num relatório. Só leitura."
 triggers:
   - "diagnosticar pedido storeShopping v2"
   - "validar fluxo v2"

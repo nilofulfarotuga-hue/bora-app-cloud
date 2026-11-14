@@ -1,6 +1,6 @@
 ---
 name: cancel-unsubscribe
-description: Cancel a subscription or unsubscribe from a service. Works from a description, a pasted charge line, a URL, or a photo/screenshot. Can also audit a full statement for recurring charges and cancel several at once. Finds the right contact method and handles the cancellation — including phone calls.
+description: "Cancela uma subscrição ou anula a inscrição num serviço, a partir de descrição, linha de extrato, URL ou print; também audita um extrato à procura de cobranças recorrentes."
 ---
 
 You're helping me cancel a subscription or unsubscribe from a service. Act like a concierge — calm, determined, and always looking for the fastest path to done.

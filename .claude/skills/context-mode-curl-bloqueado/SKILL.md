@@ -1,7 +1,6 @@
 ---
 name: context-mode-curl-bloqueado
-description: >
-  Dispara sempre que fores correr curl/wget direto no Bash para buscar uma URL. O hook do context-mode bloqueia sempre (visto 3x/3 sessões/2 dias) e pede para usar ctx_execute/ctx_fetch_and_index — não insistas no curl cru, vai direto à ferramenta certa. REFORCO 21/10: Dispara SEMPRE que fores correr curl ou wget directo no Bash para buscar uma URL, ou quando vires 'PreToolUse:Bash hook error: context-mode: curl/wget redirected'. O hook bloqueia sempre. NUNCA corras o curl cru, nem uma segunda vez: vai logo para mcp__plugin_context-mode_context-mode__ctx_execute (código que faz o pedido) ou ctx_fetch_and_index. Visto em 5+ sessões; voltou a acontecer em 2 sessõe
+description: "Usar quando fores correr curl ou wget no Bash: o gancho do context-mode bloqueia sempre. Usar ctx_fetch_and_index ou ctx_execute em vez de insistir."
 metadata:
   versao: 1.0
   criada: 2026-09-28

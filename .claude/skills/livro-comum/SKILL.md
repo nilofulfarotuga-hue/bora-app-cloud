@@ -1,6 +1,6 @@
 ---
 name: livro-comum
-description: "Antes de qualquer tarefa do Bora, dos sites, do Studio ou do Danilo, consultar o livro comum (Córtex e AGENTS.md): o que o Danilo falou com a Claude.ai está lá. Serve ao Claude Code e ao dsh. Usar no arranque de qualquer tarefa e sempre que faltar contexto sobre decisões, regras ou conversas do Danilo."
+description: "No arranque de qualquer tarefa do Bora, dos sites, do Studio ou do Danilo: consultar o livro comum (Córtex e AGENTS.md), onde está o que ele falou com a Claude.ai. Serve ao Claude Code e ao dsh."
 ---
 
 # Livro comum: ler antes de inventar

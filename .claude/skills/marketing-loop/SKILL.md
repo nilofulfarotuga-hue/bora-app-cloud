@@ -1,6 +1,6 @@
 ---
 name: marketing-loop
-description: Loop semanal de aprendizado de marketing — lê métricas do Postiz, compara variações/personas, grava aprendizados no Córtex (camada 14d) e sugere a próxima campanha com dados. Use quando o Danilo pedir "como foi o marketing esta semana" ou no cron semanal do Hermes (domingo à noite). Sem Postiz/contas/dados → modo no-op registado (nunca inventa métricas).
+description: "Loop semanal de marketing: lê métricas do Postiz, compara variações e personas, grava aprendizados no Córtex e sugere a próxima campanha. Usar para 'como foi a campanha'."
 metadata:
   type: marketing
   versao: 1

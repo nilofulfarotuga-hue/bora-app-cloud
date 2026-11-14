@@ -1,12 +1,6 @@
 ---
 name: painel-admin-limpo
-description: >
-  Regras do painel admin (PT-BR, só o Danilo) que já foram corrigidas mais de uma vez e
-  não podem voltar a partir: hora de Lisboa em todos os contadores, dados de demonstração
-  fora de contas e de dinheiro, um hub por assunto em vez de ecrãs duplicados, cada feature
-  nova com correspondência no painel, e nunca somar verticais diferentes no mesmo número.
-  Usar sempre que se cria ou altera um ecrã, um cartão, um RPC ou um relatório do painel
-  admin, e sempre que uma feature nova pede o gatilho de paridade (agente `admin`).
+description: "Regras do painel admin (PT-BR) já corrigidas mais de uma vez: hora de Lisboa em todos os contadores, demonstração fora das contas e do dinheiro, entre outras. Ler antes de mexer no painel."
 metadata:
   versao: 1.0
   execucoes: 1

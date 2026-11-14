@@ -1,7 +1,6 @@
 ---
 name: engenharia-reversa-metodo
-description: >
-  Usa SEMPRE que uma ferramenta for paga, tiver limite de créditos/quota, ou bloquear o trabalho (filme, Bora App, qualquer ferramenta do dia a dia), e ao avaliar funcionalidades de Uber/Glovo/iFood. Método fixo pedido pelo Danilo a 17/10/2026: primeiro perguntar se já existe grátis (GitHub, código aberto) ou se se recriam as funções olhando por fora.
+description: "Usar quando uma ferramenta for paga, tiver quota ou bloquear o trabalho, e ao avaliar funcionalidades de Uber/Glovo/iFood: método fixo pedido pelo Danilo."
 metadata:
   versao: 1.0
   criada: 2026-10-17

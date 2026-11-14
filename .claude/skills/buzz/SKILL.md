@@ -1,6 +1,6 @@
 ---
 name: buzz
-description: Poe varios modelos do plano OpenCode Go a debater a MESMA tarefa ate consenso (ronda 0 as cegas, depois concordar/refutar), e le o relatorio para tu decidires como juiz. Usa quando o Danilo disser "buzz", "poe os modelos a discutir", "debate isto", "segunda opiniao dos outros modelos", ou quando uma decisao for suficientemente importante para merecer mais do que uma cabeca. NAO aplica nada - so produz relatorio.
+description: "Põe vários modelos do OpenCode Go a debater a mesma tarefa até consenso e devolve o relatório para decidires. Usar com 'buzz', 'debate isto', 'segunda opinião' ou decisão importante. Não aplica nada."
 metadata:
   type: orchestration
 ---

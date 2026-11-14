@@ -1,6 +1,6 @@
 ---
 name: skills-doctor
-description: Meta-skill read-only que valida todas as skills em .claude/skills/ — frontmatter (name/description/type), name == pasta, depends_on bora-knowledge, py_compile de cada script, README/requirements presentes, indício de dry-run em skills que escrevem. Relatório PT-PT [OK]/[!]/[X]. Não altera nada.
+description: "Valida as skills de .claude/skills (frontmatter, name igual à pasta, scripts compilam, README, índice). Só leitura. Correr depois de mexer em skills."
 metadata:
   type: meta
   category: consolidation

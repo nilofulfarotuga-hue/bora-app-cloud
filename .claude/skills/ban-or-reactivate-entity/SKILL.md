@@ -1,6 +1,6 @@
 ---
 name: ban-or-reactivate-entity
-description: Bane ou reativa cliente, estafeta ou parceiro, com auditoria (quem/quando/razão/código). Driver via colunas ban; parceiro via is_active_admin; cliente via Supabase Auth ban_duration. Bloqueia ban com pedidos em curso. Dry-run por defeito; --commit escreve.
+description: "Bane ou reativa cliente, estafeta ou parceiro com auditoria (quem, quando, razão). Bloqueia ban com pedidos em curso. Dry-run por defeito; --commit escreve."
 metadata:
   type: operator
   category: moderation

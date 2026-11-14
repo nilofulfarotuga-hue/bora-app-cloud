@@ -1,6 +1,6 @@
 ---
 name: migrate-screen-to-design
-description: Re-skin de 1 ecrã para o design system (MODO A patch generator) — substitui hex de marca/semânticos por AppColors tokens, sinaliza AppBar custom→BoraScreenAppBar e accent rows. Gera diff em _preview/; NÃO toca lib/ sem --apply. Não altera lógica/Stripe/realtime.
+description: "Re-skin de um ecrã para o design system (modo patch): troca hex por tokens AppColors e sinaliza AppBar custom. Gera o diff em _preview/; não toca em lib/ sem --apply."
 metadata:
   type: design
   category: codegen

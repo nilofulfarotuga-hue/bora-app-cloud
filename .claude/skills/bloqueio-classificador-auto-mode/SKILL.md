@@ -1,7 +1,6 @@
 ---
 name: bloqueio-classificador-auto-mode
-description: >
-  Usa esta skill sempre que uma ação for bloqueada com 'Permission for this action was denied by the Claude Code auto mode classifier' (visto 6x em 2 sessões/2 dias, 2026-09). Regra: NÃO repetir a mesma ação bloqueada à espera que passe — o classificador não muda de ideia por insistência. Segue a própria mensagem do erro: se há outras tarefas que não dependem dessa ação, continua com elas; regista a ação bloqueada para o Danilo decidir; nunca contorna o bloqueio.
+description: "Usar quando uma ação for negada pelo 'auto mode classifier': não repetir nem contornar. Registar em docs/TRANCAS.md, seguir com o resto e deixar a decisão ao Danilo."
 metadata:
   versao: 1.0
   criada: 2026-09-21

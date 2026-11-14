@@ -1,6 +1,6 @@
 ---
 name: add-support-skill
-description: Cria um playbook (skill markdown) para o agente de suporte (tabela support_skills). Scaffold com frontmatter + validação de segurança — skills que tocam $/auth/Stripe/GDPR forçam mode=write_shadow + requires_human_handoff + active=false (nunca auto). Dry-run default.
+description: "Cria um playbook para o agente de suporte (tabela support_skills). Skills que tocam dinheiro, auth, Stripe ou RGPD ficam em write_shadow, com passagem a humano e desligadas. Dry-run por defeito."
 metadata:
   type: support
   category: knowledge

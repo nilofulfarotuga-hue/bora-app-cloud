@@ -1,6 +1,6 @@
 ---
 name: add-support-faq
-description: Adiciona uma FAQ ao RAG do support-chatbot (tabela support_knowledge_chunks) e dispara reindex-knowledge para gerar o embedding. Valida que a FAQ não contém promessas $ nem instruções de cancelamento/refund (essas escalam a humano). Dry-run default; --commit grava.
+description: "Adiciona uma FAQ ao RAG do support-chatbot (support_knowledge_chunks) e dispara o reindex. Recusa promessas de dinheiro e pedidos de cancelamento/refund. Dry-run por defeito; --commit grava."
 metadata:
   type: support
   category: knowledge

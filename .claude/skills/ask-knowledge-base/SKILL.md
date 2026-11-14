@@ -1,6 +1,6 @@
 ---
 name: ask-knowledge-base
-description: Skill do Robô B (Claude Code) para responder perguntas técnicas registadas pelo Robô A (chatbot Bora App) na tabela `robot_crosstalk` (a_to_b/pending). Use esta skill quando o utilizador pedir para verificar perguntas pendentes, consultar a knowledge base RAG (534 chunks), responder a perguntas crosstalk, ou quando referir o sistema de comunicação Robô A↔B (5F). Triggers comuns: "ver perguntas pendentes", "responder à pergunta crosstalk X", "consulta RAG sobre Y", "robot crosstalk", "ask-knowledge-base".
+description: "Robô B: responde às perguntas técnicas pendentes do Robô A (tabela robot_crosstalk, a_to_b/pending) com a base RAG. Usar para 'ver perguntas pendentes', 'robot crosstalk' ou consulta RAG."
 metadata:
   versao: 1.0
   execucoes: 0

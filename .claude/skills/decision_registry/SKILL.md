@@ -1,6 +1,6 @@
 ---
 name: decision_registry
-description: This skill should be used when the user says "SKILL: decision_registry", or before proposing any change that could conflict with a previously locked decision. Quick lookup of "what was already decided and why" — prevents reopening closed discussions.
+description: "Consulta rápida do que já foi decidido e porquê (espelho de business_rules), para não reabrir decisões fechadas. Usar com 'SKILL: decision_registry' ou antes de propor uma mudança."
 version: 1.2.0
 protection_mode: read-only
 ---

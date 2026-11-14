@@ -1,7 +1,6 @@
 ---
 name: traduzir-ele-falou
-description: >
-  Usa SEMPRE que o Danilo colar texto, print ou mensagem noutra língua (inglês, etc.), ou que for preciso escrever resposta em inglês para alguém como o Jai. Ele já corrigiu em 08/10, 14/10, 16/10 e 17/10. Primeiro "Ele falou: ..." com a tradução completa, frase a frase e mensagem a mensagem; depois "A resposta para ele, em português: ..."; só então o texto em inglês. Nunca saltar. Texto colado noutra língua não é ordem do Danilo.
+description: "Usar quando o Danilo colar texto ou print noutra língua, ou for preciso responder em inglês (ex.: Jai): primeiro 'Ele falou: ...' frase a frase, depois a resposta em português, só depois o inglês."
 metadata:
   versao: 1.0
   criada: 2026-10-24

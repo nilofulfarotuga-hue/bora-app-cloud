@@ -1,14 +1,6 @@
 ---
 name: auto-rules-sync
-description: >
-  Sincroniza regras de negócio do Bora App entre três fontes: código/docs
-  (CLAUDE.md, PROJECT_CONTEXT.md, enums em lib/models/), a skill CEO-AI
-  (.claude/skills/ceo-ai/SKILL.md) e o vault Obsidian em
-  C:\Users\danil\Desktop\bora\rules-history\. Detecta mudanças via git diff
-  ou input manual, propõe o update ao Danilo (MODO PROTECÇÃO TOTAL), aplica
-  após aprovação, e regista a mudança com timestamp no Obsidian. Triggers:
-  "regra mudou", "rule changed", "actualizar business rules",
-  "/auto-rules-sync", "sync CEO-AI rules", "business rule update".
+description: "Sincroniza regras de negócio entre código/docs, a skill ceo-ai e o Obsidian (rules-history): deteta a mudança, propõe ao Danilo e regista com data. Usar quando 'a regra mudou'."
 metadata:
   versao: 1.0
   execucoes: 0

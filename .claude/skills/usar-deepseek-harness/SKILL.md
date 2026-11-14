@@ -1,6 +1,6 @@
 ---
 name: usar-deepseek-harness
-description: "Como usar o DeepSeek Harness (dsh) no PC do Danilo: lançar uma tarefa ou uma conversa, o motor (Claude pelo porteiro da VPS desde 01/11, reservas grátis) e os seus limites, a frase que liga o motor pago, o que o dsh sabe do Claude Code (CLAUDE.md, skills, livro, Córtex, Google), que plugins estão provados, o que ele NÃO pode fazer e como se atualiza. Usar sempre que o Danilo falar em dsh, harness, Dipsy ou pedir uma tarefa para o motor grátis."
+description: "Como usar o DeepSeek Harness (dsh/Dipsy) no PC: lançar tarefa ou conversa, motores grátis e limites, o que pode e não pode fazer. Usar quando o Danilo falar em dsh, harness, Dipsy ou motor grátis."
 ---
 
 # Usar o DeepSeek Harness (dsh)

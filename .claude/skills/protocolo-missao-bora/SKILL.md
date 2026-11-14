@@ -1,12 +1,6 @@
 ---
 name: protocolo-missao-bora
-description: >
-  Protocolo para escrever, arrancar e fechar uma missão do Bora: formato do prompt de missão,
-  uma porta só (Claude Code; os outros motores são trabalhadores chamados por dentro pela skill
-  distribuir-trabalho; sites pelo perfil certo com a skill contas-e-navegadores), MCP-first, autonomia total
-  com carta, lei do pré-voo, observabilidade no e2e_log, paridade do painel admin, digest para
-  os outros motores em claude_ai_memoria, idiomas e regras de CI/build. Usar sempre que se vai
-  redigir uma ordem de missão, arrancar uma janela nova, ou fechar uma missão (Bloco F).
+description: "Escrever, arrancar e fechar uma missão do Bora: formato do prompt, uma porta só, MCP primeiro, pré-voo, e2e_log, paridade admin, digest, idiomas e CI. Usar ao redigir, abrir ou fechar uma missão."
 metadata:
   versao: 1.0
   execucoes: 7
@@ -141,7 +135,7 @@ Antes de deduzir, **verifica**. Ler a base de dados é melhor do que adivinhar p
 - **LOGIN NO NAVEGADOR (regra do Danilo, 13/09/2026):** quando precisares de um site ou painel onde
   não há sessão, ou não conseguires abrir/entrar em alguma janela, não tentes senhas nem peças
   token a ninguém — abre a página de login no próprio Chrome do PC **no perfil CERTO para esse
-  site** (skill do repo `navegadores-e-contas` — perfil SEMPRE pelo `deviceId`, nunca por
+  site** (skill do repo `contas-e-navegadores` — perfil SEMPRE pelo `deviceId`, nunca por
   "Browser 1/2", que trocam de nome; Cloudflare do domínio = perfil pessoal — e a skill global
   `contas-e-navegadores` → `~/.claude/contas/abrir-site.ps1 <site>`; ChatGPT
   Plus = perfil Danilo/`Default`, conta nilofulfaro@gmail.com; Gemini AI Plus = perfil Bora/`Profile 1`),

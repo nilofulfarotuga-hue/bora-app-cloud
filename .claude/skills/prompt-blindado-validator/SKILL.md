@@ -1,6 +1,6 @@
 ---
 name: prompt-blindado-validator
-description: Camada de verificação obrigatória invocada pelo CEO-AI antes de cada tarefa — valida que o prompt recebido respeita as regras do Bora App (MODO PROTECÇÃO TOTAL, CEO-AI, business_rules, git push, /ctx, admin, zonas protegidas). Se encontrar violações, reporta e pára; não executa.
+description: "Verificação chamada pelo ceo-ai antes de cada tarefa: confirma que o prompt respeita as regras do Bora (proteção, zonas, admin, envio). Se houver violação, reporta e para."
 metadata:
   type: validator
   category: governance

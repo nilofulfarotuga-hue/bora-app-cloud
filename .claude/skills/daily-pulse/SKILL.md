@@ -1,6 +1,6 @@
 ---
 name: daily-pulse
-description: Pulso diário do negócio (Sócio-AI Fase A) — lê as views KPI read-only (v_kpis_diarios, v_funil_checkout, v_drivers_online_agora) + os autologs de email/WhatsApp do Hermes e devolve um resumo PT com 1 leitura + sinais acionáveis. Read-only, sob demanda (sem cron nesta fase). Triggers: "pulso diário", "daily pulse", "como está o negócio", "KPIs de hoje", "resumo do dia".
+description: "Pulso diário do negócio: lê as views KPI read-only e os autologs do Hermes e devolve um resumo com uma leitura e sinais acionáveis. Usar para 'como está o negócio hoje'."
 metadata:
   type: reporting
   category: socio-ai

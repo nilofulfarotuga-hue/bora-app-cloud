@@ -1,20 +1,6 @@
 ---
 name: market-data-cleaner
-description: >
-  Limpa o catálogo de produtos por mercado (Continente, Lidl, Auchan, Pingo Doce,
-  Intermarché, Mercadona). Trata 5 critérios de qualidade: (a) produtos sem
-  imagem, (b) produtos sem marca detectável, (c) preços inválidos/NULL/zero/>€500,
-  (d) produtos não-supermercado (electrónicos, bijuteria, moda) a remover do
-  scraping do Pingo Doce, (e) tradução ES→PT de nomes da Mercadona. Usa SEMPRE
-  soft-delete (is_active=false) — NUNCA DELETE físico. Exige backup antes de
-  qualquer mutação e dry-run obrigatório em clean.py.
-
-  Triggers:
-    - "limpar catálogo do Lidl" / "limpar catálogo do Continente" / etc.
-    - "auditar produtos sem marca/imagem/preço"
-    - "traduzir produtos Mercadona"
-    - "remover electrónicos do Pingo Doce"
-    - "auditoria global de qualidade de produtos"
+description: "Limpa o catálogo por mercado (Continente, Lidl, Auchan, Pingo Doce, Intermarché, Mercadona): sem imagem, sem marca, preços inválidos, duplicados e categorias. Dry-run por defeito."
 metadata:
   versao: 1.0
   execucoes: 0

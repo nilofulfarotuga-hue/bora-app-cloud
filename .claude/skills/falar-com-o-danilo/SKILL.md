@@ -1,6 +1,6 @@
 ---
 name: falar-com-o-danilo
-description: Usa SEMPRE que fores mandar alguma coisa ao Danilo pelo Telegram (BoraHermesbot) — fim de missão, pedido de clique/autorizo, alerta, relatório — a partir de uma sessão do Claude Code, do Dipsy, de um script ou de uma rotina da VPS. Desde 31/10/2026 há UMA só porta para o chat dele: o PORTEIRO na VPS, que faz a triagem (URGENTE / RESULTADO / INFO), tira os repetidos e manda sempre texto + voz. Proibido chamar a API do bot diretamente (curl api.telegram.org, hermes send, sendMediaGroup por curl).
+description: "Usar sempre que fores mandar alguma coisa ao Danilo pelo Telegram (fim de missão, pedido de clique ou autorizo, alerta): pelo porteiro, numa linha, português simples."
 ---
 
 # Falar com o Danilo (o porteiro do Telegram)

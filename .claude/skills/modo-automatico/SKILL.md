@@ -1,6 +1,6 @@
 ---
 name: modo-automatico
-description: Modo automático seguro do Danilo, válido em todas as pastas e em projetos novos (bora_app, BoraStudio, jai-site, Em Dia, sites de clientes, cofre Obsidian). Usar SEMPRE em trabalho técnico num projeto: o agente analisa, faz, testa, corrige e entrega sozinho num ramo de ensaio ai/AAAA-MM-DD-descricao, abre pedido de revisão e NÃO publica. Quem verifica nas 3 plataformas e publica é o Claude.ai.
+description: "Modo automático seguro em qualquer projeto: analisar, fazer, testar e corrigir num ramo ai/AAAA-MM-DD-descricao, abrir pedido de revisão e NÃO publicar (publica o Claude.ai). Usar em todo o trabalho técnico."
 ---
 
 # Modo automático seguro

@@ -1,16 +1,6 @@
 ---
 name: category-mapper-v2
-description: >
-  Reclassifica produtos da tabela `products` em 22 categorias canónicas usando
-  regras de palavras-chave em Python puro. Sem API externa, sem LLM. Usa
-  precedência (Congelados > Bebé > Animais > Vinhos > Charcutaria > Fitness >
-  Conservas > Snacks > Pequenos-Almoços > Padaria > Peixaria > Talho >
-  Laticínios > Frutas & Legumes > Pronto a Comer > Mercearia > Bebidas >
-  Saúde > Higiene Pessoal > Higiene do Lar > Festa > Bio). Suporta PT+ES+EN+FR
-  (≥500 palavras-chave). Execução por fases com dry-run, aprovação manual do
-  Danilo e modo interactivo para produtos sem categoria clara.
-  Triggers: "reclassificar produtos", "mapear 22 categorias", "category-mapper-v2",
-  "dry-run Continente/Pingo Doce/Auchan/Mercadona/Lidl/Intermarché".
+description: "Reclassifica a tabela products em 22 categorias canónicas por palavras-chave (Python puro, sem LLM), por fases com dry-run e aprovação do Danilo. Usar para 'reclassificar produtos' ou 'mapear 22 categorias'."
 metadata:
   versao: 1.0
   execucoes: 1

@@ -1,6 +1,6 @@
 ---
 name: deploy-edge-function
-description: Deploy seguro de uma Edge Function — mostra o diff (local vs versão deployed) ANTES, preserva verify_jwt, e bloqueia funções protegidas (dispatch-engine/create-payment-intent/refund/stripe-webhook) sem --i-know-what-im-doing + --reason. Dry-run default.
+description: "Deploy seguro de uma Edge Function: mostra o diff local vs no ar, preserva verify_jwt e bloqueia as protegidas (dispatch, pagamentos, refund, stripe-webhook) sem confirmação explícita."
 metadata:
   type: devops
   category: edge-functions

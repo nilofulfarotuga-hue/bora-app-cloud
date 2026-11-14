@@ -1,6 +1,6 @@
 ---
 name: remote-control-duas-sessoes
-description: "Como ligar, retomar e vigiar o servidor de Remote Control do Claude Code no PC do Danilo para duas ou mais missões ao mesmo tempo sem se derrubarem (modo servidor, uma worktree por sessão). Usar quando uma sessão remota cair, quando o PC do Danilo aparecer offline em claude.ai/code, ou antes de abrir uma missão nova."
+description: "Ligar, retomar e vigiar o Remote Control do Claude Code no PC para duas ou mais missões ao mesmo tempo (modo servidor, uma worktree por sessão). Usar quando uma sessão remota cai."
 ---
 
 # Remote Control no PC do Danilo: várias sessões ao mesmo tempo

@@ -15,6 +15,13 @@ Medição: `claude -p "/context"` numa sessão nova na pasta `C:\BoraLocal\proje
 - Ferramentas MCP: já estão em modo adiado. Custo real ao arrancar ≈ 3 mil (647 de ferramentas + 2,3 mil de
   instruções dos servidores). Os 31,5 mil medidos antes eram de uma sessão sem a pesquisa de ferramentas.
 
+## Skills (bloco 2-bis, 14:00)
+
+- Repo: 153 → 133 skills; descrições 51 020 → 24 624 caracteres (≈ 12,8 mil → 6,2 mil tokens).
+- PC (`~/.claude/skills`): 157 → 137 skills; 53 076 → 26 080 caracteres (≈ 13,3 mil → 6,5 mil tokens).
+- O `/context` depois disto não se repetiu: a RAM livre do PC estava em 291 MB (abaixo do portão de 400 MB)
+  e a sessão de medição não arrancou. Repetir na próxima sessão com a RAM acima do portão.
+
 ## Defeito encontrado e corrigido
 
 O gancho de arranque do repo (`injeta-digest.sh`) emitia ~15 mil caracteres. Acima de ~10 mil, o Claude Code

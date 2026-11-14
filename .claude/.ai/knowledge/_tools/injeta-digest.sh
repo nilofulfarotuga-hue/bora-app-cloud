@@ -130,7 +130,7 @@ try:
         if cam_u and os.path.isfile(cam_u):
             with io.open(cam_u, "r", encoding="utf-8", errors="replace") as fu:
                 linhas_u = [l.rstrip() for l in fu.read().splitlines() if l.strip()]
-            corpo_u = [l if len(l) <= 300 else l[:297] + "..." for l in linhas_u[1:26]]
+            corpo_u = [l if len(l) <= 180 else l[:177] + "..." for l in linhas_u[1:26]]
             if corpo_u:
                 horas_u = (time.time() - os.path.getmtime(cam_u)) / 3600.0
                 ultimas = (
@@ -141,6 +141,14 @@ try:
                 )
     except Exception:
         ultimas = ""
+
+    # 14/11 (bloco 2.5, medido com /context): a saida de um gancho acima de ~10 000 caracteres vai
+    # para ficheiro e NAO entra no contexto (o digest de 15 KB estava a perder-se quase todo).
+    # Teto total de 9500 caracteres: as 25 linhas primeiro, o digest leva o que sobra.
+    TETO_TOTAL = 9500
+    sobra = TETO_TOTAL - len(ultimas) - len(cabecalho)
+    if sobra < len(corpo):
+        corpo = corpo[:max(sobra - 80, 0)] + "\n\n[... digest cortado para caber no contexto; ficheiro inteiro: .claude/.ai/knowledge/permanente/procedural/estado-atual-consolidado.md]"
 
     print(json.dumps({
         "hookSpecificOutput": {

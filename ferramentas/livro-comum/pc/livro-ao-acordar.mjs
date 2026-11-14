@@ -87,9 +87,11 @@ async function gerar() {
   if (!e) throw new Error('página erros-aprendidos não encontrada');
   const [d] = await pedir(env, 'select=pagina,conteudo,atualizado_em&pagina=like.digest-*&order=atualizado_em.desc&limit=1');
   try { gravarUltimas(e); } catch { /* nunca trava o resto */ }
-  const parteE = bloco(e, 7000, true);
+  // 14/11 (bloco 2.5, poupança medida com /context): 7000 -> 4500 caracteres do FIM dos erros e o
+  // digest no máximo 1500 (o resto lê-se no livro). Entra em todas as sessões, em todas as pastas.
+  const parteE = bloco(e, 4500, true);
   const resto = LIMITE - cab.length - parteE.length - 200;
-  return cab + parteE + (d ? '\n' + bloco(d, Math.max(600, resto)) : '');
+  return cab + parteE + (d ? '\n' + bloco(d, Math.max(600, Math.min(1500, resto))) : '');
 }
 
 let saida = '';

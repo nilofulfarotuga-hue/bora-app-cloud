@@ -35,6 +35,15 @@ class CartItem {
   /// match server-side por nome funcionar).
   final List<SelectedOption> selectedOptionsPriced;
 
+  /// fechar-app-15-11 (Bloco 3a): `selected_options_priced` tal como o
+  /// SERVIDOR o gravou ([{group, items:[{name, price_add}]}]), sem formatar.
+  /// Volta no [toJson] sem alterações, para o estafeta não o apagar ao gravar
+  /// o estado das compras (17 linhas perdidas em 60 dias: o preço de balcão
+  /// ficava sem as opções). Só existe em itens lidos de um pedido; itens
+  /// criados no carrinho não o têm. Ao criar um pedido o servidor recalcula-o
+  /// sempre a partir de `selected_options`, por isso a app nunca decide preço.
+  final List<dynamic>? selectedOptionsPricedRaw;
+
   /// 14/11/2026 (estafeta-lento B.6b): soma dos `price_add` das opções
   /// escolhidas, por UMA unidade, lida de `selected_options_priced`. O
   /// [basePrice] gravado é o do produto SEM as opções (pedido 7f527ceb:
@@ -88,6 +97,7 @@ class CartItem {
     this.basePrice,
     this.selectedOptions = const [],
     this.selectedOptionsPriced = const [],
+    this.selectedOptionsPricedRaw,
     this.optionsPriceAdd = 0,
     this.ageRestricted = false,
     this.variableWeight = false,
@@ -124,6 +134,7 @@ class CartItem {
     this.basePrice,
     this.selectedOptions = const [],
     this.selectedOptionsPriced = const [],
+    this.selectedOptionsPricedRaw,
     this.optionsPriceAdd = 0,
     this.ageRestricted = false,
     this.variableWeight = false,
@@ -152,6 +163,11 @@ class CartItem {
         if (selectedOptions.isNotEmpty)
           'selected_options':
               selectedOptions.map((o) => o.toJson()).toList(),
+        // Bloco 3a: devolve ao servidor o que ele próprio gravou (nunca a
+        // versão formatada para o ecrã). Ver [selectedOptionsPricedRaw].
+        if (selectedOptions.isNotEmpty &&
+            (selectedOptionsPricedRaw?.isNotEmpty ?? false))
+          'selected_options_priced': selectedOptionsPricedRaw,
       };
 
   factory CartItem.fromJson(Map<String, dynamic> json) {
@@ -177,6 +193,7 @@ class CartItem {
               .toList(),
       selectedOptionsPriced:
           rawPriced == null ? const [] : _parsePricedOptions(rawPriced),
+      selectedOptionsPricedRaw: rawPriced,
       optionsPriceAdd: rawPriced == null ? 0 : somaPriceAdd(rawPriced),
     );
   }

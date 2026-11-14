@@ -191,7 +191,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   @override
   Widget build(BuildContext context) {
     if (!_isAuthorized) {
-      return const AdminAcessoNegado();
+      return AdminAcessoNegado(
+        emailAtual: Supabase.instance.client.auth.currentUser?.email,
+      );
     }
 
     return Scaffold(
@@ -296,19 +298,43 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
 /// O que vê quem abre o painel sem ser administrador. Em PT-BR (o painel é
 /// brasileiro). Fora do `build` do painel para se poder testar sem rede.
+///
+/// fechar-app-15-11 (Bloco 6): a mensagem antiga dizia "Seu e-mail não está na
+/// lista de administradores", mas a app não tem lista nenhuma de e-mails — o
+/// portão olha para o perfil de administrador da conta (`app_metadata.role`).
+/// Agora diz com que conta a pessoa entrou e o que tem de fazer. O e-mail da
+/// conta de administrador NÃO aparece aqui: este ecrã é visto por quem não é
+/// administrador.
 class AdminAcessoNegado extends StatelessWidget {
-  const AdminAcessoNegado({super.key});
+  const AdminAcessoNegado({super.key, this.emailAtual});
+
+  /// E-mail da conta com sessão aberta (null = ninguém entrou).
+  final String? emailAtual;
+
+  /// Texto mostrado, fora do `build` para o teste o ler tal e qual.
+  static String mensagem(String? emailAtual) {
+    final email = emailAtual?.trim() ?? '';
+    if (email.isEmpty) {
+      return 'Acesso negado.\n'
+          'Você ainda não entrou em nenhuma conta.\n'
+          'Entre com a conta de administrador do Bora para abrir o painel.';
+    }
+    return 'Acesso negado.\n'
+        'Você entrou com $email, e essa conta não tem perfil de administrador.\n'
+        'Saia dessa conta e entre com a conta de administrador do Bora.';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: BoraScreenAppBar(title: 'Painel Admin'),
+      appBar: const BoraScreenAppBar(title: 'Painel Admin'),
       body: Center(
         child: Padding(
-          padding: EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
           child: Text(
-            'Acesso negado.\nSeu e-mail não está na lista de administradores.',
+            mensagem(emailAtual),
+            key: const Key('admin_acesso_negado_texto'),
             textAlign: TextAlign.center,
           ),
         ),

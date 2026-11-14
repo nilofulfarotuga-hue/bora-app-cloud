@@ -31,6 +31,13 @@ List<CartItem> copyOrderItemsForDriverSheet(List<CartItem> items) {
             basePrice: i.basePrice,
             selectedOptions: i.selectedOptions,
             selectedOptionsPriced: i.selectedOptionsPriced,
+            // fechar-app-15-11 (Bloco 3a): sem a versão crua do servidor o
+            // estado das compras gravava os itens SEM `selected_options_priced`
+            // e o preço de balcão perdia as opções. As marcas de maiores de 18
+            // e de produto ao quilo perdiam-se pelo mesmo caminho.
+            selectedOptionsPricedRaw: i.selectedOptionsPricedRaw,
+            ageRestricted: i.ageRestricted,
+            variableWeight: i.variableWeight,
             optionsPriceAdd: i.optionsPriceAdd,
             // Depósito Volta (09/11): sem isto o estado das compras gravava
             // `deposit_units: 0` por cima do que o servidor pôs no item.

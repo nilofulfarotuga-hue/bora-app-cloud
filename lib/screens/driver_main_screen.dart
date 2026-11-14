@@ -281,22 +281,57 @@ class PedidosEstafetaScreen extends StatelessWidget {
 /// os botões continuam no Início, onde sempre estiveram — daqui só se salta
 /// para lá) e o histórico das entregas feitas, da mais recente para a mais
 /// antiga, com o que cada uma rendeu.
-class PedidosEstafetaCorpo extends StatelessWidget {
+class PedidosEstafetaCorpo extends StatefulWidget {
   const PedidosEstafetaCorpo({
     super.key,
     required this.emCurso,
     required this.ofertas,
     required this.historico,
     required this.aoAbrirInicio,
+    this.haMaisNoServidor = false,
+    this.aCarregarMais = false,
+    this.aoPedirMaisAntigas,
   });
+
+  /// fechar-app-15-11 (Bloco 2): o histórico mostra-se às páginas de 20.
+  static const int porPagina = 20;
 
   final int emCurso;
   final int ofertas;
   final List<OrderModel> historico;
   final VoidCallback aoAbrirInicio;
 
+  /// Há entregas mais antigas que ainda não vieram do servidor.
+  final bool haMaisNoServidor;
+
+  /// Está a chegar mais uma página do servidor.
+  final bool aCarregarMais;
+
+  /// Pedir ao servidor a página seguinte (quando as que cá estão acabam).
+  final VoidCallback? aoPedirMaisAntigas;
+
+  @override
+  State<PedidosEstafetaCorpo> createState() => _PedidosEstafetaCorpoState();
+}
+
+class _PedidosEstafetaCorpoState extends State<PedidosEstafetaCorpo> {
+  int _visiveis = PedidosEstafetaCorpo.porPagina;
+
+  void _verMais() {
+    setState(() => _visiveis += PedidosEstafetaCorpo.porPagina);
+    if (_visiveis > widget.historico.length && widget.haMaisNoServidor) {
+      widget.aoPedirMaisAntigas?.call();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final emCurso = widget.emCurso;
+    final ofertas = widget.ofertas;
+    final aoAbrirInicio = widget.aoAbrirInicio;
+    final historico = widget.historico.take(_visiveis).toList();
+    final haMais =
+        widget.historico.length > _visiveis || widget.haMaisNoServidor;
     const titulo = TextStyle(fontWeight: FontWeight.bold, fontSize: 16);
     final String? resumo = emCurso > 0
         ? (emCurso == 1 ? '1 pedido em curso' : '$emCurso pedidos em curso')
@@ -375,6 +410,25 @@ class PedidosEstafetaCorpo extends StatelessWidget {
                 ],
               ),
             ),
+          if (haMais) ...[
+            const SizedBox(height: 8),
+            Center(
+              child: widget.aCarregarMais
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : TextButton(
+                      key: const Key('pedidos_estafeta_ver_mais'),
+                      onPressed: _verMais,
+                      child: const Text('Ver entregas mais antigas'),
+                    ),
+            ),
+          ],
         ],
       ),
     );

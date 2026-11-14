@@ -586,3 +586,11 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   `supabase/tests/compra_guardada_fila_prova.mjs` (45 casos, mutações apanhadas). Destrava: a Claude.ai aplica a
   migração tal como está no ramo `ai/2026-11-14-compra-guardada`. Sem ela a app funciona na mesma (o rascunho fica
   no telemóvel e a fila usa a regra do telemóvel), mas o servidor, o painel e o aviso ao cliente só ligam depois.
+
+- **14/11/2026 22:24, missão `fechar-app-15-11` (bloco 2, "autorizado aqui pelo Danilo só para isto" na caixa_guardados id 13)** —
+  a bora-tranca negou o Edit de `lib/stores/order_store.dart` ("zona vermelha: order_store.dart (finalizePurchase)"), uma
+  tentativa, não repetida nem contornada. A mudança inteira (um só carregamento em voo, 2 s para o estafeta, lista filtrada,
+  histórico às páginas) está em `docs/propostas/fechar-app-15-11/bloco2_order_store.patch` (`git apply --check` passa neste ramo)
+  com a explicação em `bloco2_order_store.md`. O que não precisava do ficheiro trancado já está no ramo: a regra de juntar
+  carregamentos (`lib/services/carregamento_unico.dart`), o botão "Ver entregas mais antigas" e os testes. Destrava: a Claude.ai
+  aplica o patch pelo GitHub, ou uma sessão aberta pelo Danilo com a tranca desligada.

@@ -1,0 +1,168 @@
+diff --git a/lib/stores/order_store.dart b/lib/stores/order_store.dart
+--- a/lib/stores/order_store.dart
++++ b/lib/stores/order_store.dart
+@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
+ import 'package:latlong2/latlong.dart';
+ import 'package:supabase_flutter/supabase_flutter.dart';
+ 
+ import '../auth/auth_store.dart';
++import '../services/carregamento_unico.dart';
+ import '../services/limite_dinheiro_service.dart';
+ import '../dispatch/dispatch_engine.dart';
+ import '../services/driver_location_service.dart';
+ import '../models/cart_item.dart';
+@@ -174,9 +175,123 @@ class OrderStore extends ChangeNotifier {
+       (_) => notifyListeners(),
+     );
+   }
+ 
+-  Future<void> loadOrders() async {
++  // fechar-app-15-11 (Bloco 2) — um só carregamento de pedidos em voo. Para o
++  // estafeta há ainda 2 s entre carregamentos e a lista vem filtrada (só os
++  // pedidos vivos dele, as ofertas e as páginas do histórico já abertas).
++  final CarregamentoUnico _carregamentoPedidos = CarregamentoUnico();
++  int _paginasHistoricoEstafeta = 1;
++  bool _haMaisHistoricoEstafeta = false;
++  bool _aCarregarHistoricoEstafeta = false;
++
++  /// Há entregas mais antigas por carregar no histórico do estafeta.
++  bool get haMaisHistoricoEstafeta => _haMaisHistoricoEstafeta;
++
++  /// Está a chegar mais uma página do histórico do estafeta.
++  bool get aCarregarHistoricoEstafeta => _aCarregarHistoricoEstafeta;
++
++  /// Sessão só de estafeta: é a única em que a lista vem filtrada. Cliente,
++  /// loja e painel continuam a carregar como sempre.
++  bool get _sessaoSoDeEstafeta =>
++      _authStore?.currentDriver != null &&
++      _authStore?.currentClient == null &&
++      _authStore?.currentPartner == null;
++
++  Future<void> loadOrders() {
++    if (_authStore == null) return Future<void>.value();
++    return _carregamentoPedidos.correr(
++      _loadOrdersAgora,
++      intervalo: _sessaoSoDeEstafeta
++          ? esperaEntreCarregamentosEstafeta
++          : Duration.zero,
++    );
++  }
++
++  /// Pedidos do estafeta: os vivos (atribuídos ou oferecidos a ele) e as
++  /// páginas do histórico já abertas. Junta-se ao que os canais ao vivo já
++  /// puseram na lista em vez de a apagar, para o histórico não piscar.
++  Future<void> _loadOrdersDoEstafeta(String uid) async {
++    final vivosFut = supabase
++        .from('orders')
++        .select()
++        .or(filtroPedidosDoEstafeta(uid))
++        .not('status', 'in', listaEstadosFinaisPostgrest())
++        .order('created_at', ascending: false)
++        .timeout(const Duration(seconds: 8));
++    // Pede-se uma linha a mais do que as páginas abertas: se vier, há mais.
++    final ate = intervaloDaPaginaHistorico(_paginasHistoricoEstafeta - 1).ate;
++    final historicoFut = supabase
++        .from('orders')
++        .select()
++        .eq('assigned_driver_id', uid)
++        .eq('status', OrderStatus.delivered.name)
++        .order('created_at', ascending: false)
++        .range(0, ate + 1)
++        .timeout(const Duration(seconds: 8));
++
++    final vivos = await vivosFut;
++    final historico = await historicoFut;
++    _haMaisHistoricoEstafeta = historico.length > ate + 1;
++
++    final frescos = <String, OrderModel>{};
++    for (final data in [...vivos, ...historico.take(ate + 1)]) {
++      final order = OrderModel.fromSupabase(data);
++      frescos[order.id] = order;
++    }
++    // Um pedido que a lista ainda dava como vivo e que o servidor já não
++    // devolve deixou de ser deste estafeta (passou a outro ou foi cancelado).
++    _orders.removeWhere((o) =>
++        !frescos.containsKey(o.id) &&
++        !estadosFinaisDoPedido.contains(o.status.name));
++    for (final order in frescos.values) {
++      final idx = _orders.indexWhere((o) => o.id == order.id);
++      if (idx >= 0) {
++        _orders[idx] = order;
++      } else {
++        _orders.add(order);
++      }
++    }
++  }
++
++  /// Traz mais uma página (20) do histórico de entregas do estafeta.
++  Future<void> carregarMaisHistoricoEstafeta() async {
++    final uid = _authStore?.userId;
++    if (uid == null || !_sessaoSoDeEstafeta) return;
++    if (_aCarregarHistoricoEstafeta || !_haMaisHistoricoEstafeta) return;
++    _aCarregarHistoricoEstafeta = true;
++    notifyListeners();
++    try {
++      final pagina = intervaloDaPaginaHistorico(_paginasHistoricoEstafeta);
++      final response = await supabase
++          .from('orders')
++          .select()
++          .eq('assigned_driver_id', uid)
++          .eq('status', OrderStatus.delivered.name)
++          .order('created_at', ascending: false)
++          .range(pagina.de, pagina.ate + 1)
++          .timeout(const Duration(seconds: 8));
++      _haMaisHistoricoEstafeta =
++          response.length > tamanhoPaginaHistoricoEstafeta;
++      for (final data in response.take(tamanhoPaginaHistoricoEstafeta)) {
++        final order = OrderModel.fromSupabase(data);
++        final idx = _orders.indexWhere((o) => o.id == order.id);
++        if (idx >= 0) {
++          _orders[idx] = order;
++        } else {
++          _orders.add(order);
++        }
++      }
++      _paginasHistoricoEstafeta++;
++    } catch (e) {
++      debugPrint('OrderStore: carregarMaisHistoricoEstafeta error => $e');
++    } finally {
++      _aCarregarHistoricoEstafeta = false;
++      notifyListeners();
++    }
++  }
++
++  Future<void> _loadOrdersAgora() async {
+     if (_authStore == null) return;
+ 
+     _isLoading = true;
+     notifyListeners();
+@@ -187,8 +302,14 @@ class OrderStore extends ChangeNotifier {
+       // Never fetch without an authenticated Supabase session — avoids
+       // unauthenticated requests that return empty via RLS and clear the list.
+       if (userId == null) return;
+ 
++      if (_sessaoSoDeEstafeta) {
++        await _loadOrdersDoEstafeta(userId);
++        notifyListeners();
++        return;
++      }
++
+       final response = await (isClient
+               ? supabase.from('orders').select().eq('user_id', userId)
+               : supabase.from('orders').select())
+           .order('created_at', ascending: false)
+diff --git a/lib/screens/driver_main_screen.dart b/lib/screens/driver_main_screen.dart
+--- a/lib/screens/driver_main_screen.dart
++++ b/lib/screens/driver_main_screen.dart
+@@ -272,8 +272,11 @@ class PedidosEstafetaScreen extends StatelessWidget {
+       emCurso: orderStore.myOrders.length,
+       ofertas: orderStore.availableOrders.length,
+       historico: feitos,
+       aoAbrirInicio: aoAbrirInicio,
++      haMaisNoServidor: orderStore.haMaisHistoricoEstafeta,
++      aCarregarMais: orderStore.aCarregarHistoricoEstafeta,
++      aoPedirMaisAntigas: orderStore.carregarMaisHistoricoEstafeta,
+     );
+   }
+ }
+ 

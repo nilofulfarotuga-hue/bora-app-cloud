@@ -267,6 +267,25 @@ class DriverStore extends ChangeNotifier {
     unawaited(_saveFcmToken());
   }
 
+  /// Marca de "esta sessão não tem estafeta": o resto da app (pedidos, avisos,
+  /// batimento) já a trata como "não é um estafeta a sério".
+  static const String semEstafeta = 'driver-main';
+
+  /// O id do estafeta desta sessão: o que foi dado, senão o da sessão aberta.
+  ///
+  /// fechar-app-15-11 (Bloco 3b): sem um nem outro NÃO se inventa id. Antes
+  /// fazia-se `driver-<telefone>` e, quando o telemóvel perdia a sessão (a
+  /// 14/11 saiu das duas contas guardadas), a app ficava a pedir ofertas e
+  /// pedidos por um id que não existe em lado nenhum: o `user_id` é que manda
+  /// em tudo o que o estafeta vê (`assigned_driver_id`,
+  /// `current_driver_offer_id`), e um id inventado nunca bate com ele.
+  @visibleForTesting
+  static String resolverIdDoEstafeta({String? driverId, String? authUid}) {
+    if (driverId != null && driverId.isNotEmpty) return driverId;
+    if (authUid != null && authUid.isNotEmpty) return authUid;
+    return semEstafeta;
+  }
+
   void configurePrimaryDriver({
     required String name,
     required String phone,
@@ -274,15 +293,10 @@ class DriverStore extends ChangeNotifier {
     String? licensePlate,
     String? driverId,
   }) {
-    // Priority: explicit driverId > auth UID > phone-derived (demo/test only).
-    // Never use a phone-derived ID when a real auth session exists — it would
-    // mismatch the 'drivers' table PK and cause all DB operations to fail silently.
-    final authUid = _client.auth.currentUser?.id;
-    final resolvedId = (driverId != null && driverId.isNotEmpty)
-        ? driverId
-        : (authUid != null && authUid.isNotEmpty)
-            ? authUid
-            : 'driver-${phone.replaceAll(RegExp(r'[^0-9a-zA-Z]'), '')}';
+    final resolvedId = resolverIdDoEstafeta(
+      driverId: driverId,
+      authUid: _client.auth.currentUser?.id,
+    );
 
     if (_primaryDriverId != resolvedId) {
       _drivers.removeWhere((d) => d.id == _primaryDriverId);

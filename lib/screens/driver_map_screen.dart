@@ -10,6 +10,7 @@ import '../utils/safe_image_picker.dart';
 import '../utils/euros.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../services/preco_balcao.dart';
 import '../services/talao_pendente_service.dart';
 import '../services/compra_rascunho_service.dart';
 import '../services/fila_estafeta.dart';
@@ -3555,14 +3556,15 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
     // chegou — a caixa real do Auchan cobrou €6,06. Se a base não viajou,
     // REVERTE-SE o markup (round(price÷1,15) recupera a base exata) em vez de
     // mostrar o preço do cliente. Extras: prateleira → sem markup.
-    double baseOf(CartItem i) {
-      final b = i.basePrice;
-      if (b != null) return b;
-      if (_isPartnerStore) return i.price; // parceiro não tem markup
-      return ((i.price / (1 + BRBusiness.NON_PARTNER_MARKUP_RATIO)) * 100)
-              .roundToDouble() /
-          100;
-    }
+    // 14/11/2026 (B.6b): fonte única do preço de balcão (base + price_add das
+    // opções escolhidas), igual ao cartão laranja e ao talão.
+    double baseOf(CartItem i) =>
+        precoBalcaoUnidade(i, parceiro: _isPartnerStore);
+    // Total a pagar na caixa pela lista inteira — o mesmo do cartão laranja.
+    // Os artigos marcados "não há" não passam na caixa.
+    final totalNaCaixa = totalBalcao(
+        canonicalItems.where((i) => i.purchaseStatus != 'unavailable'),
+        parceiro: _isPartnerStore);
 
     // 31/10/2026 (peso variável): linha ajustada = o total da etiqueta.
     double caixaDaLinha(CartItem i) {
@@ -3651,6 +3653,21 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              // 14/11/2026 (B.6b): o total de balcão logo no topo, igual ao
+              // cartão laranja "TENS DE FAZER A COMPRA".
+              if (totalNaCaixa > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    'Total a pagar na caixa: {0}'.trArgs([eur(totalNaCaixa)]),
+                    key: const Key('total_a_pagar_na_caixa'),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.orange.shade900,
+                    ),
+                  ),
+                ),
               // 28/10/2026 (Bloco B): a morada da loja, como na Glovo/Uber
               // Eats (há várias lojas com o mesmo nome na mesma cidade).
               if ((order.pickupAddress ?? '').trim().isNotEmpty)
@@ -3843,7 +3860,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                           padding:
                                               const EdgeInsets.only(top: 2),
                                           child: Text(
-                                            '${item.quantity} × ${eur(_isExtraItem(item) ? item.price : (item.basePrice ?? item.price))}',
+                                            '${item.quantity} × ${eur(_isExtraItem(item) ? item.price : precoBalcaoUnidade(item, parceiro: _isPartnerStore))}',
                                             style: TextStyle(
                                               fontSize: 12,
                                               color: Colors.grey.shade600,
@@ -3925,7 +3942,8 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                   // era base). Extras: preço digitado.
                                   final caixa = (_isExtraItem(item)
                                           ? item.price
-                                          : (item.basePrice ?? item.price)) *
+                                          : precoBalcaoUnidade(item,
+                                              parceiro: _isPartnerStore)) *
                                       item.quantity;
                                   final ajuste = _temPesoVariavel(item)
                                       ? _ajustesPeso[item.productId]
@@ -4767,7 +4785,16 @@ Future<(File, int)?> _captureReceiptForV2(
     backgroundColor: Colors.transparent,
     builder: (sheetCtx) {
       // Só chega aqui o não-parceiro (useV2): mostra o NIF da fatura.
-      return ReceiptCaptureSheet(isCash: isCash, orderId: order.id);
+      return ReceiptCaptureSheet(
+        isCash: isCash,
+        orderId: order.id,
+        // 14/11/2026 (B.6b): o mesmo número do cartão laranja e da lista.
+        valorEstimado: order.items.isEmpty
+            ? null
+            : totalBalcao(
+                order.items.where((i) => i.purchaseStatus != 'unavailable'),
+                parceiro: order.isPartnerStore),
+      );
     },
   );
 }
@@ -4781,8 +4808,13 @@ class ReceiptCaptureSheet extends StatefulWidget {
     required this.isCash,
     this.orderId,
     this.nifRpc,
+    this.valorEstimado,
   });
   final bool isCash;
+
+  /// 14/11/2026 (B.6b): valor de balcão estimado (base + opções), mostrado
+  /// como ajuda por baixo do campo — o estafeta escreve o que pagou de facto.
+  final double? valorEstimado;
 
   /// M1 08/11/2026: com o pedido, mostra o NIF da fatura (loja não-parceira).
   /// Sem ele (teste de widget) não chama o servidor.
@@ -5011,6 +5043,10 @@ class _ReceiptCaptureSheetState extends State<ReceiptCaptureSheet> {
               },
               decoration: InputDecoration(
                 labelText: 'Valor que pagaste de facto (€)',
+                helperText: widget.valorEstimado == null
+                    ? null
+                    : 'Valor estimado: {0}'
+                        .trArgs([eur(widget.valorEstimado!)]),
                 prefixIcon: const Icon(Icons.euro),
                 border: const OutlineInputBorder(),
                 errorText: _erroValor,

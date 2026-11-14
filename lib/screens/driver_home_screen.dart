@@ -13,7 +13,6 @@ import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
-import '../config/business_rules.dart' show BRBusiness;
 import '../widgets/order_edit/driver_order_edit_notice.dart';
 import '../services/compra_rascunho_service.dart';
 import '../services/fila_estafeta.dart';
@@ -39,6 +38,7 @@ import '../models/online_resultado.dart';
 import '../models/order_model.dart';
 import '../utils/mensagem_online_recusado.dart';
 import '../services/driver_location_ping_service.dart';
+import '../services/preco_balcao.dart';
 import '../services/navigation_service.dart';
 import '../services/heartbeat_service.dart';
 import '../services/bateria_por_marca.dart';
@@ -3430,17 +3430,7 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                         order.items.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Text(
-                        'Pagar ao balcão: ${eur(order.items
-                              .fold<double>(
-                                  0,
-                                  (s, i) =>
-                                      s +
-                                      (i.basePrice ??
-                                              i.price /
-                                                  (1 +
-                                                      BRBusiness
-                                                          .NON_PARTNER_MARKUP_RATIO)) *
-                                          i.quantity))}',
+                        'Pagar ao balcão: ${eur(totalBalcao(order.items))}',
                         style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w800,
                             color: Colors.orange.shade900),

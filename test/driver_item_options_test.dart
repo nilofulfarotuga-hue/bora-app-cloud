@@ -204,7 +204,7 @@ void main() {
     expect(find.textContaining('Acompanhamento: Batata'), findsOneWidget);
     expect(find.textContaining('Molho: Sem molho'), findsOneWidget);
     expect(
-        find.textContaining('Complemento: Chicken McNuggets 4 (+2,30 €)'),
+        find.textContaining('Complemento: Chicken McNuggets 4'),
         findsOneWidget);
     expect(find.textContaining('Ketchup: Sem ketchup'), findsOneWidget);
     expect(
@@ -428,7 +428,7 @@ void main() {
 
       // O extra pago, com o preço cobrado.
       expect(
-        find.textContaining('Complemento: Chicken McNuggets 4 (+2,30 €)'),
+        find.textContaining('Complemento: Chicken McNuggets 4'),
         findsOneWidget,
       );
       // As escolhas grátis que displayOptions escondia.

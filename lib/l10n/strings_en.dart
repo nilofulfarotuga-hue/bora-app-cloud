@@ -76,6 +76,8 @@ const Map<String, String> kStringsEn = <String, String>{
   'Preço de balcão. É só isto que pagas. Depois cobras ao cliente.': 'Counter price. This is all you pay. Then you collect from the customer.',
   'JÁ ESTÁ PAGO — não pagas nada na loja': 'ALREADY PAID — you pay nothing at the store',
   'TENS DE FAZER A COMPRA': 'YOU HAVE TO DO THE SHOPPING',
+  'Total a pagar na caixa: {0}': 'Total to pay at the till: {0}',
+  'Valor estimado: {0}': 'Estimated amount: {0}',
   'Paga na caixa e tira foto do talão.': 'Pay at the till and take a photo of the receipt.',
   'Paga na caixa e tira foto do talão. Valor estimado: {0}': 'Pay at the till and take a photo of the receipt. Estimated amount: {0}',
   'COBRA {0} AO CLIENTE': 'COLLECT {0} FROM THE CUSTOMER',

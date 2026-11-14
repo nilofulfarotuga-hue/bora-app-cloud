@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../config/app_colors.dart';
-import '../../config/business_rules.dart' show BRBusiness;
+import '../../services/preco_balcao.dart';
 import '../../l10n/tr.dart';
 import '../../models/order_model.dart';
 import '../../utils/euros.dart';
@@ -53,15 +53,11 @@ bool estafetaAoCliente(OrderModel o) =>
     o.status == OrderStatus.pickedUp || o.status == OrderStatus.onTheWay;
 
 /// Valor estimado da compra numa loja NÃO parceira — o mesmo número que a app
-/// já mostrava ("Pagar ao balcão"): preço da loja sem os 15 %. Só leitura.
+/// já mostrava ("Pagar ao balcão"): preço da loja sem os 15 %, com o preço
+/// das opções escolhidas (14/11, pedido 7f527ceb). Só leitura.
 double? estimativaCompraLoja(OrderModel o) {
   if (o.items.isEmpty) return null;
-  return o.items.fold<double>(
-      0,
-      (s, i) =>
-          s +
-          (i.basePrice ?? i.price / (1 + BRBusiness.NON_PARTNER_MARKUP_RATIO)) *
-              i.quantity);
+  return totalBalcao(o.items, parceiro: o.isPartnerStore);
 }
 
 /// Linha curta e igual em todo o lado: cartão da oferta e lista de pedidos (a

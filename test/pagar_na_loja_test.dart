@@ -16,6 +16,7 @@ import 'package:bora_app/models/cart_item.dart';
 import 'package:bora_app/models/order_model.dart';
 import 'package:bora_app/services/notification_service.dart'
     show textosNotificacaoOferta;
+import 'package:bora_app/widgets/driver_item_options.dart';
 import 'package:bora_app/widgets/partner/aviso_pagamento_estafeta.dart';
 import 'package:bora_app/widgets/payments/loja_pagamento.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -192,6 +193,105 @@ void main() {
     test('oferta: "Fazes a compra"; o parceiro não vê aviso', () {
       expect(linhaDinheiroEstafeta(p), 'Fazes a compra');
       expect(AvisoPagamentoEstafeta.texto(p), isNull);
+    });
+  });
+
+  // 14/11/2026 (estafeta-lento B.6b): pedido 7f527ceb, Jyosmi Sushi. O
+  // basePrice gravado não tem as opções; o balcão é 46,00 € e a app dizia 23.
+  group('B.6b — o valor estimado soma o preço das opções', () {
+    final itens = [
+      CartItem.fromJson({
+        'productId': 'sushi-fritos',
+        'name': 'Caixa de Sushi Fritos',
+        'price': 14.95,
+        'basePrice': 11,
+        'quantity': 1,
+        'selected_options_priced': [
+          {
+            'group': 'Tamanho',
+            'items': [
+              {'name': 'Média (18 peças)', 'price_add': 2}
+            ]
+          }
+        ],
+      }),
+      CartItem.fromJson({
+        'productId': 'combinado-fusao',
+        'name': 'Combinado de Fusão',
+        'price': 37.95,
+        'basePrice': 12,
+        'quantity': 1,
+        'selected_options_priced': [
+          {
+            'group': 'Tamanho',
+            'items': [
+              {'name': 'Grande (44 peças)', 'price_add': 21}
+            ]
+          }
+        ],
+      }),
+    ];
+    final p = _pedido(
+      estado: 'fazer_compra',
+      parceira: false,
+      itens: itens,
+    );
+
+    test('caso real: 46,00 € e não 23,00 €', () {
+      expect(estimativaCompraLoja(p), closeTo(46.0, 0.0001));
+      expect(FaixaDinheiroEstafeta.conteudo(p)!.sub,
+          'Paga na caixa e tira foto do talão. Valor estimado: 46,00 €');
+    });
+
+    test('a quantidade multiplica a base com as opções', () {
+      final dois = CartItem.fromJson({
+        'productId': 'x',
+        'name': 'X',
+        'price': 14.95,
+        'basePrice': 11,
+        'quantity': 2,
+        'selected_options_priced': [
+          {
+            'group': 'Tamanho',
+            'items': [
+              {'name': 'Média', 'price_add': 2},
+              {'name': 'Molho', 'price_add': 0.5}
+            ]
+          }
+        ],
+      });
+      expect(dois.basePriceWithOptions, closeTo(13.5, 0.0001));
+      expect(
+          estimativaCompraLoja(
+              _pedido(estado: 'fazer_compra', parceira: false, itens: [dois])),
+          closeTo(27.0, 0.0001));
+    });
+
+    test('sem basePrice o price já traz as opções (não soma duas vezes)', () {
+      final semBase = CartItem.fromJson({
+        'productId': 'y',
+        'name': 'Y',
+        'price': 14.95,
+        'quantity': 1,
+        'selected_options_priced': [
+          {
+            'group': 'Tamanho',
+            'items': [
+              {'name': 'Média', 'price_add': 2}
+            ]
+          }
+        ],
+      });
+      expect(semBase.basePriceWithOptions, isNull);
+      expect(
+          estimativaCompraLoja(_pedido(
+              estado: 'fazer_compra', parceira: false, itens: [semBase])),
+          closeTo(13.0, 0.0001));
+    });
+
+    test('a cópia da lista de compras do estafeta guarda as opções pagas', () {
+      final c = copyOrderItemsForDriverSheet(itens);
+      expect(c.map((i) => i.basePriceWithOptions), [13.0, 33.0]);
     });
   });
 

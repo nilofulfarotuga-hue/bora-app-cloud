@@ -35,6 +35,17 @@ class CartItem {
   /// match server-side por nome funcionar).
   final List<SelectedOption> selectedOptionsPriced;
 
+  /// 14/11/2026 (estafeta-lento B.6b): soma dos `price_add` das opções
+  /// escolhidas, por UMA unidade, lida de `selected_options_priced`. O
+  /// [basePrice] gravado é o do produto SEM as opções (pedido 7f527ceb:
+  /// base 11 € + Média 2 € = 13 € no balcão). Só leitura, nunca no toJson.
+  final double optionsPriceAdd;
+
+  /// Preço de balcão de uma unidade com as opções pagas, ou null quando o
+  /// [basePrice] não viajou (aí o [price] já traz as opções).
+  double? get basePriceWithOptions =>
+      basePrice == null ? null : basePrice! + optionsPriceAdd;
+
   /// Opções para exibição: com preço quando o servidor as gravou (histórico
   /// de pedidos), senão as escolhas locais (carrinho pré-checkout).
   List<SelectedOption> get displayOptions =>
@@ -77,6 +88,7 @@ class CartItem {
     this.basePrice,
     this.selectedOptions = const [],
     this.selectedOptionsPriced = const [],
+    this.optionsPriceAdd = 0,
     this.ageRestricted = false,
     this.variableWeight = false,
     this.depositUnits = 0,
@@ -112,6 +124,7 @@ class CartItem {
     this.basePrice,
     this.selectedOptions = const [],
     this.selectedOptionsPriced = const [],
+    this.optionsPriceAdd = 0,
     this.ageRestricted = false,
     this.variableWeight = false,
     this.depositUnits = 0,
@@ -164,7 +177,21 @@ class CartItem {
               .toList(),
       selectedOptionsPriced:
           rawPriced == null ? const [] : _parsePricedOptions(rawPriced),
+      optionsPriceAdd: rawPriced == null ? 0 : somaPriceAdd(rawPriced),
     );
+  }
+
+  /// Soma dos `price_add` de `selected_options_priced`
+  /// ([{group, items:[{name, price_add}]}]) — por uma unidade.
+  static double somaPriceAdd(List raw) {
+    var soma = 0.0;
+    for (final g in raw) {
+      if (g is! Map) continue;
+      for (final it in (g['items'] as List?) ?? const []) {
+        if (it is Map) soma += (it['price_add'] as num?)?.toDouble() ?? 0;
+      }
+    }
+    return soma;
   }
 
   // T1 (2026-06-11): selected_options_priced vem do servidor como

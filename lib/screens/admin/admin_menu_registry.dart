@@ -8,6 +8,7 @@ import 'admin_ajustes_peso_screen.dart';
 import 'admin_favor_diferencas_screen.dart';
 import 'admin_farmacias_screen.dart';
 import 'admin_porteiro_screen.dart';
+import 'admin_caixa_guardados_screen.dart';
 import 'admin_pedidos_agendados_screen.dart';
 import 'admin_acerto_unificado_screen.dart';
 import 'admin_menu_sub_screen.dart';
@@ -1598,6 +1599,17 @@ List<AdminMenuSection> adminMenuSections() => [
       color: AppColors.primary,
       builder: () => const AdminPorteiroScreen(),
       keywords: const ['porteiro', 'telegram', 'avisos', 'fila', 'voz', 'vps', 'reenviar', 'urgente', 'resultado', 'notificacao', 'alerta'],
+    ),
+    // [sistema-conteudo 14/11 · blocos 5.3 e 5.5] public.caixa_guardados + Quadro Sim/Não
+    // (caixa, radar, Córtex) + "Correr agora" (despacho agente-segunda).
+    AdminMenuItem(
+      id: 'robos_caixa_guardados',
+      title: 'Caixa de guardados',
+      subtitle: 'Quadro Sim/Não com tudo o que espera por você (caixa, opções do radar, propostas do Córtex); a caixa inteira para ler, editar, marcar feito ou rejeitar; e o agente de segunda a correr agora',
+      icon: Icons.inventory_2_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminCaixaGuardadosScreen(),
+      keywords: const ['caixa', 'guardados', 'guardado', 'missao', 'tarefa', 'video', 'ideia', 'agente', 'segunda', 'correr', 'despacho', 'conteudo', 'sim', 'nao', 'quadro', 'decidir', 'radar', 'cortex', 'propostas', 'esperando'],
     ),
     AdminMenuItem(
       id: 'robos_decisoes_jev',

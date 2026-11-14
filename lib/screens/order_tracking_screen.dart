@@ -14,6 +14,7 @@ import '../models/order_model.dart';
 import '../models/rating_model.dart';
 import '../models/restaurant_model.dart' show BusinessCategory;
 import '../widgets/order_edit/client_order_edit_banner.dart';
+import '../widgets/farmacia_chegada_cliente.dart';
 import '../widgets/address_text.dart';
 import '../widgets/ajustes_peso_pedido.dart';
 import '../widgets/bora_support_fab.dart';
@@ -679,6 +680,16 @@ class _BottomCardState extends State<_BottomCard> {
           ?.belongsTo(BusinessCategory.festas) ??
       false;
 
+  /// 14/11/2026 (farmácias): o cartão "um produto só chega às HH:MM" só se liga
+  /// em farmácias. Loja desconhecida conta como possível farmácia (não esconde
+  /// o aviso a quem tem de responder).
+  bool _podeSerFarmacia(BuildContext context, OrderModel order) =>
+      context
+          .read<RestaurantStore?>()
+          ?.restaurantById(order.restaurantId)
+          ?.belongsTo(BusinessCategory.pharmacy) ??
+      true;
+
   /// Client can cancel from any non-terminal state (BR §8.3).
   /// Fee tier is decided server-side based on current status.
   bool get _canCancel =>
@@ -746,6 +757,10 @@ class _BottomCardState extends State<_BottomCard> {
                 FavorDiferencaBanner(order: order),
                 // ── Loja parceira mudou o pedido (acrescentar/em falta) ──
                 ClientOrderEditBanner(order: order),
+                // ── Farmácia: "um produto só chega às HH:MM" (14/11/2026) ─
+                if (_podeSerFarmacia(context, order))
+                  ClienteChegadaTardiaCartao(
+                      key: ValueKey('chegada_${order.id}'), order: order),
                 // ── Foto de prova da entrega (adendo 4 · item 2) ─────────
                 FotoProvaEntregaCliente(
                     orderId: order.id, status: order.status),

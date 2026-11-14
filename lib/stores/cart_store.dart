@@ -475,10 +475,15 @@ class CartStore extends ChangeNotifier {
     final doServidor = (_quoteCache?['small_order_fee'] as num?)?.toDouble();
     if (doServidor != null) return doServidor;
     // Espelho do servidor (small_order_fee_calc, regra de 22/09): loja
-    // PARCEIRA nao leva taxa de pedido pequeno.
-    if (_isPartnerStore) return 0;
+    // PARCEIRA nao leva taxa de pedido pequeno — menos as farmácias (14/11).
+    if (_parceiraSemPedidoPequeno) return 0;
     return smallOrderFeeConfig.taxaPara(_serviceType, subtotal);
   }
+
+  /// Loja parceira que não leva taxa de pedido pequeno: todas menos as
+  /// farmácias parceiras (14/11/2026, espelho do `small_order_fee_calc`).
+  bool get _parceiraSemPedidoPequeno =>
+      _isPartnerStore && !SmallOrderFeeService.ehFarmacia(_vendorRestaurantId);
 
   /// `true` quando o valor acima veio do servidor, `false` quando e a
   /// estimativa local. So serve para diagnostico/testes.
@@ -486,7 +491,7 @@ class CartStore extends ChangeNotifier {
       _quoteCache?['small_order_fee'] != null;
 
   /// Quanto falta gastar para deixar de pagar a taxa. 0 quando ja nao paga.
-  double get faltaParaMinimo => _isPartnerStore
+  double get faltaParaMinimo => _parceiraSemPedidoPequeno
       ? 0
       : smallOrderFeeConfig.faltaPara(_serviceType, subtotal);
 
@@ -599,6 +604,32 @@ class CartStore extends ChangeNotifier {
     // `lib/services/remote_fees_service.dart`.
     final taxaNova = taxaServicoNaoParceiro;
     final mudaTaxa = taxaNova != null && taxaNova != base.serviceFee;
+
+    // Farmácia parceira (14/11/2026, AUTORIZO do Danilo): espelho do ramo
+    // farmácia do `pricing_calculate_loja` — taxa de serviço fixo + % numa
+    // linha só, sem saco e sem markup oculto. Só a conta antes do quote.
+    final farmacia = _isPartnerStore &&
+        _temEntregaDeLoja &&
+        SmallOrderFeeService.ehFarmacia(_vendorRestaurantId);
+    final taxaFarmacia =
+        farmacia ? SmallOrderFeeService.taxaServicoFarmacia(base.subtotal) : null;
+    if (farmacia) {
+      return OrderPricingBreakdown(
+        distanceKm: base.distanceKm,
+        subtotal: base.subtotal,
+        deliveryFee: base.deliveryFee,
+        serviceFee: taxaFarmacia ?? base.serviceFee,
+        // O pedido da farmácia não tem comissão: a parte da Bora é a taxa de
+        // serviço; os 10 % (depois dos 3 meses) vão no fecho semanal.
+        platformCommission: 0,
+        driverEarnings: base.driverEarnings,
+        apartmentSurcharge: base.apartmentSurcharge,
+        apartmentDelivery: base.apartmentDelivery,
+        bagFee: 0,
+        partnerMarkupHidden: 0,
+        isPartnerSelfDispatch: base.isPartnerSelfDispatch,
+      );
+    }
 
     if (!semSaco && !mudaTaxa) return base;
 

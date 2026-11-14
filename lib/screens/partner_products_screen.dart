@@ -295,6 +295,8 @@ class _PartnerProductsScreenState extends State<PartnerProductsScreen> {
                                   return _ProductTile(
                                     product: product,
                                     isPartnerStore: widget.restaurant.isPartner,
+                                    isFarmacia: widget.restaurant.category ==
+                                        BusinessCategory.pharmacy,
                                     onToggleAvailability: (value) =>
                                         _toggleAvailability(product, value),
                                     onEdit: () => _openEditProduct(product),
@@ -326,6 +328,7 @@ class _ProductTile extends StatelessWidget {
   const _ProductTile({
     required this.product,
     required this.isPartnerStore,
+    this.isFarmacia = false,
     required this.onToggleAvailability,
     required this.onEdit,
     required this.onDelete,
@@ -333,6 +336,9 @@ class _ProductTile extends StatelessWidget {
 
   final PartnerProduct product;
   final bool isPartnerStore;
+
+  /// 14/11/2026: na farmácia o cliente paga o preço e a farmácia recebe-o inteiro.
+  final bool isFarmacia;
   final ValueChanged<bool> onToggleAvailability;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -344,7 +350,10 @@ class _ProductTile extends StatelessWidget {
     // Loja parceira com balcão gravado: mostra o que ele recebe e o que o
     // cliente vê. Sem balcão (produto antigo) mostra só o preço do cliente —
     // o balcão fica gravado na primeira edição.
-    final showBothPrices = isPartnerStore && shelf != null;
+    // Farmácia com o balcão igual ao preço (ou sem balcão): um só preço.
+    final precoUnico = isFarmacia &&
+        (shelf == null || (shelf - product.price).abs() < 0.005);
+    final showBothPrices = isPartnerStore && shelf != null && !precoUnico;
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
@@ -401,11 +410,23 @@ class _ProductTile extends StatelessWidget {
                             ),
                           ],
                         )
-                      : Text(
-                          formatEurPt(product.price),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              formatEurPt(product.price),
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (precoUnico)
+                              Text(
+                                'O cliente paga e recebes este valor',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.textTheme.bodySmall?.color,
+                                ),
+                              ),
+                          ],
                         ),
                 ),
                 Row(

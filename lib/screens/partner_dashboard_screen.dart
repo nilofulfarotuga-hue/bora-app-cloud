@@ -53,6 +53,7 @@ import 'profile_screen.dart';
 import '../widgets/aviso_dados_fiscais_em_falta.dart';
 import '../widgets/bora/bora_barra_separadores.dart';
 import 'partner/farmacia/parceiro_prescricoes_screen.dart';
+import '../widgets/partner/farmacia_painel.dart';
 
 class PartnerDashboardScreen extends StatefulWidget {
   const PartnerDashboardScreen({super.key, required this.restaurant});
@@ -1248,6 +1249,26 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                 // 11/11/2026 (farmácias): receitas e pedidos especiais, com toque
                 // persistente enquanto houver algum por responder. Só farmácias.
                 FarmaciaReceitasCartao(restaurant: currentRestaurant),
+                // 14/11/2026 (farmácias, bloco 2.1): botão grande "Abrir/Fechar a
+                // loja agora" e atalho para o horário. Só farmácias.
+                FarmaciaAbrirFecharCartao(
+                  restaurant: currentRestaurant,
+                  aoMudar: (abrir) async {
+                    try {
+                      await restaurantStore.toggleRestaurantOnline(
+                          currentRestaurant.id, abrir);
+                      return true;
+                    } catch (_) {
+                      return false;
+                    }
+                  },
+                  aoAbrirHorario: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          PartnerHoursScreen(restaurant: currentRestaurant),
+                    ),
+                  ),
+                ),
                 // 10/11/2026 (missão fecho-contabilista, C3): barra vermelha
                 // quando faltam dados para as Finanças (DAC7); toque abre o
                 // ecrã "Dados fiscais". Bloco F: no 1.º separador, à vista.
@@ -1318,6 +1339,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   ),
                 _OrdersSection(
                   orders: activePartnerOrders,
+                  farmacia: eFarmacia(currentRestaurant),
                   recebe: _recebe,
                   fatura: (o) => _fatura.de(o.id),
                   onPedidoEditado: _refrescarPedido,
@@ -1421,6 +1443,17 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
               : const SizedBox.shrink(),
           // ── Separador "Ganhos" ─────────────────────────────────────────
           _paginaDoSeparador([
+            // 14/11/2026 (farmácias, bloco 2.5): condições à vista. Só farmácias.
+            FarmaciaCondicoesCartao(
+              restaurant: currentRestaurant,
+              aoVerExtrato: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => PartnerEarningsScreen(
+                    restaurant: widget.restaurant,
+                  ),
+                ),
+              ),
+            ),
             _EarningsSummary(
               todayAmount: todayEarnings,
               weekAmount: weekEarnings,
@@ -1756,6 +1789,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
 class _OrdersSection extends StatelessWidget {
   const _OrdersSection({
     required this.orders,
+    this.farmacia = false,
     required this.recebe,
     required this.fatura,
     required this.onPedidoEditado,
@@ -1766,6 +1800,9 @@ class _OrdersSection extends StatelessWidget {
   });
 
   final List<OrderModel> orders;
+
+  /// 14/11/2026: a loja é uma farmácia (WhatsApp do cliente e "chega mais tarde").
+  final bool farmacia;
   final double? Function(OrderModel) recebe;
   final FaturaDoPedido? Function(OrderModel) fatura;
   final void Function(OrderModel) onPedidoEditado;
@@ -1806,6 +1843,7 @@ class _OrdersSection extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 16),
               child: _PartnerOrderCard(
                 order: order,
+                farmacia: farmacia,
                 recebe: recebe(order),
                 fatura: fatura(order),
                 onPedidoEditado: onPedidoEditado,
@@ -1825,6 +1863,7 @@ class _OrdersSection extends StatelessWidget {
 class _PartnerOrderCard extends StatefulWidget {
   const _PartnerOrderCard({
     required this.order,
+    this.farmacia = false,
     required this.recebe,
     required this.fatura,
     required this.onPedidoEditado,
@@ -1836,6 +1875,9 @@ class _PartnerOrderCard extends StatefulWidget {
   });
 
   final OrderModel order;
+
+  /// 14/11/2026: pedido de uma farmácia (WhatsApp do cliente e "chega mais tarde").
+  final bool farmacia;
   /// A4: o que a loja recebe deste pedido (servidor). null = a carregar.
   final double? recebe;
 
@@ -2011,6 +2053,9 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
                   }
                 },
               ),
+            // 14/11/2026 (farmácias, bloco 2.4): WhatsApp do cliente.
+            if (widget.farmacia)
+              BotaoWhatsAppCliente(telefone: order.clientPhone),
             // Chat — sempre visível (não precisa de telefone). M11: badge.
             ChatBubbleButton(
               order: order,
@@ -2249,6 +2294,13 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
             ],
           ],
         ),
+        // 14/11/2026 (farmácias, bloco 3): "um produto só chega às HH:MM" — o
+        // cliente escolhe esperar, tirar o produto ou cancelar sem custo.
+        if (widget.farmacia)
+          FarmaciaChegadaParceiro(
+            key: ValueKey('chegada_${order.id}'),
+            order: order,
+          ),
         // C6 (29/10/2026): "Fica pronto às…" num pedido de entrega já aceite. Só se
         // desenha com o interruptor do modo ocupado ligado.
         if (order.status == OrderStatus.preparing && !order.isTakeaway)

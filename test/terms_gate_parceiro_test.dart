@@ -281,10 +281,17 @@ void main() {
             'is_partner': parceira,
             'approval_status': estado,
           };
-      for (final c in ['restaurant', 'sobremesa', 'festas', 'supermarket']) {
+      // 14/11/2026: as farmácias parceiras passaram a aceitar os termos.
+      for (final c in [
+        'restaurant',
+        'sobremesa',
+        'festas',
+        'supermarket',
+        'pharmacy'
+      ]) {
         expect(termosDoParceiroAplicam([loja(c)]), isTrue, reason: c);
       }
-      for (final c in ['beauty', 'pharmacy', 'store', '']) {
+      for (final c in ['beauty', 'store', '']) {
         expect(termosDoParceiroAplicam([loja(c)]), isFalse, reason: c);
       }
       expect(termosDoParceiroAplicam([loja('beauty', extra: ['restaurant'])]),

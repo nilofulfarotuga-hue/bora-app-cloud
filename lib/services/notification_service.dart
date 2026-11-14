@@ -28,6 +28,7 @@ import '../screens/notifications_screen.dart';
 import '../screens/order_details_screen.dart';
 import '../screens/partner/services/partner_agenda_screen.dart';
 import 'ajustes_peso_service.dart';
+import 'farmacia_chegada_service.dart' show kTipoFarmaciaChegada;
 import 'fcm_token_helper.dart';
 import 'foreground_service.dart' show BoraForegroundService;
 import 'incoming_job_alert.dart';
@@ -840,7 +841,10 @@ void _onLocalNotifTap(NotificationResponse response) {
     }
     // [08/11/2026 · m1-dinheiro-favores] Toque "Aprova o preço do teu Favor":
     // abre o pedido, onde está o cartão Aprovar / Comprar só até / Cancelar.
-    if (data['type'] == kTipoFavorAprovacao) {
+    // [14/11/2026 farmácias] "Um produto só chega às HH:MM": abre o pedido, onde
+    // está o cartão Esperar / Tirar / Cancelar sem custo.
+    if (data['type'] == kTipoFavorAprovacao ||
+        data['type'] == kTipoFarmaciaChegada) {
       final orderId = data['orderId']?.toString() ?? '';
       if (orderId.isNotEmpty) {
         unawaited(NotificationService.instance
@@ -1667,7 +1671,8 @@ void _abrirTrabalhoDoPush(RemoteMessage msg) {
   }
   // [08/11/2026 · m1-dinheiro-favores] Toque no push "Aprova o preço do teu
   // Favor" mostrado pelo sistema: abre o pedido com o cartão de aprovação.
-  if (type == kTipoFavorAprovacao) {
+  // [14/11/2026 farmácias] O mesmo para "um produto só chega às HH:MM".
+  if (type == kTipoFavorAprovacao || type == kTipoFarmaciaChegada) {
     final orderId = msg.data['orderId']?.toString() ?? '';
     if (orderId.isNotEmpty) {
       unawaited(NotificationService.instance

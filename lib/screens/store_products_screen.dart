@@ -66,6 +66,21 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   String? _rpcQuery;
   CartStore? _cart;
 
+  // 14/11/2026 (farmacias-loja B4): a capa (avisos + botões da farmácia) sai
+  // do ecrã ao descer e fica presa em cima uma barra fina com a lupa e as
+  // categorias, como no Glovo e na Uber Eats.
+  final ScrollController _scroll = ScrollController();
+  final FocusNode _searchFocus = FocusNode();
+  final GlobalKey _capaKey = GlobalKey();
+  final GlobalKey _botaoReceitaKey = GlobalKey();
+  // O servidor disse que esta farmácia mostra "Tenho receita".
+  bool _farmaciaVisivel = false;
+  // O botão grande "Tenho receita" já saiu do ecrã → o chip fica na barra fina.
+  bool _botaoReceitaEscondido = false;
+
+  /// Com 2+ letras a lista dá lugar aos resultados do servidor.
+  bool get _emPesquisa => _searchQuery.trim().length >= 2;
+
   // ── Normalise: remove accents + lowercase ──────────────────────────────────
   String _normalize(String text) {
     const accents = 'àáâãäåèéêëìíîïòóôõöùúûüýñçÀÁÂÃÄÅÈÉÊËÌÍÎÏÒÓÔÕÖÙÚÛÜÝÑÇ';
@@ -81,6 +96,7 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   void initState() {
     super.initState();
     _selectedCategory = widget.initialCategory ?? 'Todos';
+    _scroll.addListener(_aoRolar);
     // Hotfix (2026-06-12): carrega a loja INTEIRA ao abrir (full-load
     // on-demand). Necessário para o filtro/secções por categoria verem todas
     // as categorias. Idempotente (não recarrega se já carregada).
@@ -110,7 +126,106 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
     _rpcDebounce?.cancel();
     _registo.dispose();
     _searchController.dispose();
+    _scroll.removeListener(_aoRolar);
+    _scroll.dispose();
+    _searchFocus.dispose();
     super.dispose();
+  }
+
+  // ── Capa que encolhe (14/11/2026) ──────────────────────────────────────────
+
+  /// Altura da capa: o que sai do ecrã antes de a barra fina ficar presa.
+  double _alturaCapa() {
+    final caixa = _capaKey.currentContext?.findRenderObject();
+    return caixa is RenderBox && caixa.hasSize ? caixa.size.height : 0;
+  }
+
+  /// Fundo do botão grande "Tenho receita", contado a partir do topo da capa.
+  double? _fundoBotaoReceita() {
+    final botao = _botaoReceitaKey.currentContext?.findRenderObject();
+    final capa = _capaKey.currentContext?.findRenderObject();
+    if (botao is! RenderBox || capa is! RenderBox) return null;
+    if (!botao.attached || !capa.attached || !botao.hasSize) return null;
+    return botao
+        .localToGlobal(Offset(0, botao.size.height), ancestor: capa)
+        .dy;
+  }
+
+  void _aoRolar() {
+    if (!_scroll.hasClients) return;
+    final fundo = _farmaciaVisivel ? _fundoBotaoReceita() : null;
+    final escondido = fundo != null && fundo > 0 && _scroll.offset >= fundo;
+    if (escondido != _botaoReceitaEscondido) {
+      setState(() => _botaoReceitaEscondido = escondido);
+    }
+  }
+
+  void _aoVerFarmacia(bool visivel) {
+    if (!mounted || visivel == _farmaciaVisivel) return;
+    setState(() => _farmaciaVisivel = visivel);
+    _aoRolar();
+  }
+
+  /// Leva a lista até [alvo], sem passar do fim.
+  void _rolarPara(double alvo, {bool animar = false}) {
+    if (!_scroll.hasClients) return;
+    final pos = _scroll.position;
+    final destino =
+        alvo.clamp(pos.minScrollExtent, pos.maxScrollExtent).toDouble();
+    if ((pos.pixels - destino).abs() < 0.5) return;
+    if (animar) {
+      _scroll.animateTo(destino,
+          duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+    } else {
+      _scroll.jumpTo(destino);
+    }
+  }
+
+  /// Lupa da barra de cima: a caixa de pesquisa vem para o topo e abre-se o
+  /// teclado, esteja a lista onde estiver.
+  void _abrirPesquisa() {
+    if (!_emPesquisa) _rolarPara(_alturaCapa());
+    _searchFocus.requestFocus();
+  }
+
+  /// Ao entrar ou sair da pesquisa o conteúdo muda todo: recomeça em cima
+  /// (com a caixa de pesquisa à vista se o teclado continua aberto).
+  void _aposMudarModo() {
+    if (_emPesquisa) {
+      // A capa some e a caixa fica no topo: volta já a 0, antes do próximo
+      // desenho, para os resultados não aparecerem fora do sítio.
+      if (_scroll.hasClients) _scroll.jumpTo(0);
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      _rolarPara(_searchFocus.hasFocus ? _alturaCapa() : 0);
+      _aoRolar();
+    });
+  }
+
+  /// Com a barra presa em cima, a categoria escolhida começa logo por baixo
+  /// dela, em vez de a lista ficar a meio.
+  void _escolherCategoria(String cat) {
+    setState(() => _selectedCategory = cat);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      final inicio = _alturaCapa() + _BarraLojaDelegate.alturaCampo;
+      if (_scroll.offset > inicio) _rolarPara(inicio);
+    });
+  }
+
+  /// Limpa a pesquisa (cruz, secção ou produto escolhidos nos resultados).
+  void _limparPesquisa({String? categoria}) {
+    final antes = _emPesquisa;
+    _searchController.clear();
+    setState(() {
+      _searchQuery = '';
+      _rpcRows = const [];
+      _rpcLoading = false;
+      if (categoria != null) _selectedCategory = categoria;
+    });
+    if (antes) _aposMudarModo();
   }
 
   void _scheduleRpcSearch(String query) {
@@ -134,6 +249,9 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
     if (!mounted) return;
     setState(() => _rpcLoading = true);
     try {
+      // A pesquisa corre no servidor sobre a loja INTEIRA (867 produtos na
+      // Farmácia da Sé), não só sobre o que está carregado. Tempo limite
+      // (PADRAO 3.15.5): se o servidor não responder, cai no catch abaixo.
       final rows = await Supabase.instance.client.rpc(
         'search_products',
         params: {
@@ -141,7 +259,7 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
           'p_restaurant_id': widget.restaurantId,
           'max_results': 50,
         },
-      );
+      ).timeout(const Duration(seconds: 12));
       if (!mounted) return;
       final linhas = rows is List
           ? List<Map<String, dynamic>>.from(
@@ -232,6 +350,92 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
 
   bool get _showSections => _selectedCategory == 'Todos';
 
+  // ── Search bar (vive na barra fina presa em cima) ──────────────────────────
+  Widget _caixaPesquisa() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+      child: TextField(
+        controller: _searchController,
+        focusNode: _searchFocus,
+        // Ao tocar na caixa, a capa sai e a caixa sobe para o topo — o
+        // teclado nunca a tapa num telemóvel pequeno.
+        onTap: () {
+          if (!_emPesquisa) _rolarPara(_alturaCapa(), animar: true);
+        },
+        onChanged: (v) {
+          final antes = _emPesquisa;
+          setState(() => _searchQuery = v);
+          _scheduleRpcSearch(v);
+          _registo.aoEscrever(v);
+          if (antes != _emPesquisa) _aposMudarModo();
+        },
+        onSubmitted: _registo.registarJa,
+        decoration: InputDecoration(
+          hintText: 'Buscar produtos...'.tr,
+          hintStyle: TextStyle(color: Colors.grey.shade400),
+          prefixIcon: Icon(Icons.search, color: Colors.grey.shade400),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () => _limparPesquisa(),
+                )
+              : null,
+          filled: true,
+          fillColor: const Color(0xFFF0F0F0),
+          contentPadding: const EdgeInsets.symmetric(vertical: 0),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Category chips (+ "Tenho receita" fixo à esquerda nas farmácias) ───────
+  Widget _linhaCategorias(List<String> categories, bool receitaNaBarra) {
+    return Row(
+      children: [
+        if (receitaNaBarra)
+          Padding(
+            padding: const EdgeInsets.only(left: 16, right: 4),
+            child: FarmaciaReceitaChip(
+              restaurantId: widget.restaurantId,
+              storeName: widget.storeName,
+            ),
+          ),
+        if (!_emPesquisa)
+          Expanded(
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.fromLTRB(receitaNaBarra ? 8 : 16, 6, 16, 6),
+              itemCount: categories.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, i) {
+                final cat = categories[i];
+                final isSelected = cat == _selectedCategory;
+                return ChoiceChip(
+                  label: Text(cat),
+                  selected: isSelected,
+                  onSelected: (_) => _escolherCategoria(cat),
+                  selectedColor: Theme.of(context).colorScheme.primary,
+                  backgroundColor: const Color(0xFFF0F0F0),
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : Colors.black87,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20)),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cartStore = context.watch<CartStore>();
@@ -247,6 +451,11 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
         _searchQuery.trim().length >= 2 ? _getSuggestions(products) : <PartnerProduct>[];
     final isFruit = _isFruitCategory(_selectedCategory);
     final grouped = _showSections ? _groupByCategory(filtered) : null;
+    final emPesquisa = _emPesquisa;
+    // "Tenho receita" nunca desaparece: em cima é o botão grande da capa;
+    // quando ele sai do ecrã (ou durante a pesquisa) fica o chip na barra fina.
+    final receitaNaBarra =
+        _farmaciaVisivel && (emPesquisa || _botaoReceitaEscondido);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
@@ -254,172 +463,145 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
       appBar: BoraScreenAppBar(
         title: widget.storeName,
         actions: [
+          // 14/11/2026: a lupa fica sempre à mão, mesmo com a capa encolhida.
+          IconButton(
+            tooltip: 'Pesquisar'.tr,
+            icon: const Icon(Icons.search),
+            onPressed: _abrirPesquisa,
+          ),
           _CartBadge(cartStore: cartStore),
         ],
       ),
       body: Column(
         children: [
-          // "Em breve": banner por baixo do cabeçalho. Produtos e preços
-          // continuam todos visíveis.
-          if (cartStore.vendorComingSoon)
-            ComingSoonBanner(text: cartStore.vendorComingSoonText),
-          // Entrega grátis a partir de X € (28/10/2026), quando a loja tem o mínimo.
-          if (!cartStore.isTakeaway)
-            EntregaGratisDaLoja(
-              restaurantId: widget.restaurantId,
-              fundo: Colors.white,
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            ),
-          // Farmácias (11/11/2026): "Tenho receita", "Peça aqui" e "Repetir todos os meses".
-          // O servidor decide se aparecem (categoria + modo da receita + lista de permissão).
-          FarmaciaBotoesTopo(restaurantId: widget.restaurantId, storeName: widget.storeName),
-          // ── Search bar ─────────────────────────────────────────────────────
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (v) {
-                setState(() => _searchQuery = v);
-                _scheduleRpcSearch(v);
-                _registo.aoEscrever(v);
-              },
-              onSubmitted: _registo.registarJa,
-              decoration: InputDecoration(
-                hintText: 'Buscar produtos...'.tr,
-                hintStyle: TextStyle(color: Colors.grey.shade400),
-                prefixIcon: Icon(Icons.search, color: Colors.grey.shade400),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {
-                            _searchQuery = '';
-                            _rpcRows = const [];
-                            _rpcLoading = false;
-                          });
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: const Color(0xFFF0F0F0),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+          Expanded(
+            // 14/11/2026 (farmacias-loja B4): era uma coluna FIXA (avisos +
+            // botões da farmácia + pesquisa + categorias ≈ 370 px num
+            // telemóvel) e só a grelha rolava. Agora tudo rola junto: a capa
+            // sai por cima e ficam presas só a pesquisa (que encolhe também)
+            // e a barra de categorias, com a grelha a ocupar o ecrã.
+            child: CustomScrollView(
+              controller: _scroll,
+              // Em pesquisa a caixa fica presa em cima e só os resultados rolam.
+              physics: emPesquisa
+                  ? const NeverScrollableScrollPhysics()
+                  : const BouncingScrollPhysics(),
+              slivers: [
+                // ── Capa: avisos da loja + botões da farmácia ────────────────
+                // SliverOffstage (e não um `if`): durante a pesquisa a capa
+                // some mas fica viva — os botões da farmácia não voltam a
+                // perguntar ao servidor a cada letra.
+                SliverOffstage(
+                  offstage: emPesquisa,
+                  sliver: SliverToBoxAdapter(
+                    child: Column(
+                      key: _capaKey,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // "Em breve": banner por baixo do cabeçalho. Produtos
+                        // e preços continuam todos visíveis.
+                        if (cartStore.vendorComingSoon)
+                          ComingSoonBanner(
+                              text: cartStore.vendorComingSoonText),
+                        // Entrega grátis a partir de X € (28/10/2026), quando a loja tem o mínimo.
+                        if (!cartStore.isTakeaway)
+                          EntregaGratisDaLoja(
+                            restaurantId: widget.restaurantId,
+                            fundo: Colors.white,
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                          ),
+                        // Farmácias (11/11/2026): "Tenho receita", "Peça aqui" e "Repetir todos os meses".
+                        // O servidor decide se aparecem (categoria + modo da receita + lista de permissão).
+                        FarmaciaBotoesTopo(
+                          restaurantId: widget.restaurantId,
+                          storeName: widget.storeName,
+                          chaveBotaoReceita: _botaoReceitaKey,
+                          onVisivel: _aoVerFarmacia,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+
+                // ── Barra fina presa em cima: pesquisa + categorias ──────────
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _BarraLojaDelegate(
+                    caixa: _caixaPesquisa(),
+                    linha: _linhaCategorias(categories, receitaNaBarra),
+                    campoFixo: emPesquisa,
+                    comLinha: !emPesquisa || receitaNaBarra,
+                  ),
+                ),
+
+                // ── Search mode: RPC results fill screen / Browse mode: grid ─
+                // 2026-06-05: antes os resultados RPC só apareciam num painel 360px
+                // que desaparecia ao pressionar Enter. A lista principal usava apenas
+                // filtro local (contains), falhando em queries fuzzy (ex: "aguas" →
+                // "Água"). Agora quando há query ≥ 2 chars, o painel RPC ocupa o
+                // resto do ecrã — funciona para TODAS as lojas, mesmo sem produtos
+                // em memória (RPC sintetiza PartnerProduct do row DB directamente).
+                if (emPesquisa)
+                  SliverFillRemaining(
+                    hasScrollBody: true,
+                    child: _SuggestionsPanel(
+                      rpcRows: _rpcRows,
+                      rpcLoading: _rpcLoading,
+                      respondida: _rpcQuery != null &&
+                          _rpcQuery == _searchQuery.trim(),
+                      termo: _searchQuery,
+                      loja: widget.storeName,
+                      localFallback: suggestions,
+                      loadedProducts: products,
+                      isPartnerStore: widget.isPartnerStore,
+                      onPickSection: (categoryRoot) {
+                        _registo.registarJa(_searchQuery);
+                        _limparPesquisa(categoria: _capitalize(categoryRoot));
+                      },
+                      onPickProduct: (p) {
+                        _registo.registarJa(_searchQuery);
+                        _limparPesquisa();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => ProductDetailScreen(
+                                    product: p,
+                                    isPartnerStore: widget.isPartnerStore,
+                                  )),
+                        );
+                      },
+                    ),
+                  )
+                // Hotfix (2026-06-12): a loja é carregada inteira ao abrir
+                // (loadFullStoreProducts). Enquanto carrega e ainda não há
+                // produtos da categoria → spinner; vazio real → _EmptyState.
+                else if (filtered.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: restaurantStore
+                            .storeProductsLoading(widget.restaurantId)
+                        ? const Center(child: CircularProgressIndicator())
+                        : _EmptyState(
+                            hasSearch: _searchQuery.isNotEmpty,
+                            searchQuery: _searchQuery,
+                            onRefresh: () => setState(() {}),
+                          ),
+                  )
+                else if (_showSections)
+                  _SectionedView(
+                    grouped: grouped!,
+                    isFruitCategory: _isFruitCategory,
+                    isPartnerStore: widget.isPartnerStore,
+                  )
+                else
+                  _FlatGridView(
+                    products: filtered,
+                    showPerKg: isFruit,
+                    isPartnerStore: widget.isPartnerStore,
+                  ),
+              ],
             ),
           ),
-
-          // ── Search mode: RPC results fill screen / Browse mode: chips + grid ─
-          // 2026-06-05: antes os resultados RPC só apareciam num painel 360px
-          // que desaparecia ao pressionar Enter. A lista principal usava apenas
-          // filtro local (contains), falhando em queries fuzzy (ex: "aguas" →
-          // "Água"). Agora quando há query ≥ 2 chars, o painel RPC ocupa o
-          // Expanded completo — funciona para TODAS as lojas, mesmo sem produtos
-          // em memória (RPC sintetiza PartnerProduct do row DB directamente).
-          if (_searchQuery.trim().length >= 2) ...[
-            Expanded(
-              child: _SuggestionsPanel(
-                rpcRows: _rpcRows,
-                rpcLoading: _rpcLoading,
-                respondida: _rpcQuery != null &&
-                    _rpcQuery == _searchQuery.trim(),
-                termo: _searchQuery,
-                loja: widget.storeName,
-                localFallback: suggestions,
-                loadedProducts: products,
-                isPartnerStore: widget.isPartnerStore,
-                onPickSection: (categoryRoot) {
-                  _registo.registarJa(_searchQuery);
-                  _searchController.clear();
-                  setState(() {
-                    _searchQuery = '';
-                    _rpcRows = const [];
-                    _rpcLoading = false;
-                    _selectedCategory = _capitalize(categoryRoot);
-                  });
-                },
-                onPickProduct: (p) {
-                  _registo.registarJa(_searchQuery);
-                  _searchController.clear();
-                  setState(() {
-                    _searchQuery = '';
-                    _rpcRows = const [];
-                    _rpcLoading = false;
-                  });
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => ProductDetailScreen(
-                              product: p,
-                              isPartnerStore: widget.isPartnerStore,
-                            )),
-                  );
-                },
-              ),
-            ),
-          ] else ...[
-            // ── Browse mode: category chips + sectioned/flat grid ───────────
-            Container(
-              color: Colors.white,
-              height: 50,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                itemCount: categories.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (_, i) {
-                  final cat = categories[i];
-                  final isSelected = cat == _selectedCategory;
-                  return ChoiceChip(
-                    label: Text(cat),
-                    selected: isSelected,
-                    onSelected: (_) =>
-                        setState(() => _selectedCategory = cat),
-                    selectedColor: Theme.of(context).colorScheme.primary,
-                    backgroundColor: const Color(0xFFF0F0F0),
-                    labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black87,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20)),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 4),
-            Expanded(
-              // Hotfix (2026-06-12): a loja é carregada inteira ao abrir
-              // (loadFullStoreProducts). Enquanto carrega e ainda não há
-              // produtos da categoria → spinner; vazio real → _EmptyState.
-              child: filtered.isEmpty
-                  ? (restaurantStore.storeProductsLoading(widget.restaurantId)
-                      ? const Center(child: CircularProgressIndicator())
-                      : _EmptyState(
-                          hasSearch: _searchQuery.isNotEmpty,
-                          searchQuery: _searchQuery,
-                          onRefresh: () => setState(() {}),
-                        ))
-                  : _showSections
-                      ? _SectionedView(
-                          grouped: grouped!,
-                          isFruitCategory: _isFruitCategory,
-                          isPartnerStore: widget.isPartnerStore,
-                        )
-                      : _FlatGridView(
-                          products: filtered,
-                          showPerKg: isFruit,
-                          isPartnerStore: widget.isPartnerStore,
-                        ),
-            ),
-          ],
 
           // ── Fixed "Ver carrinho" button ────────────────────────────────────
           if (cartStore.items.isNotEmpty)
@@ -451,6 +633,71 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
       ),
     );
   }
+}
+
+// ─── Barra fina presa em cima (14/11/2026) ─────────────────────────────────────
+//
+// Por cima: a caixa de pesquisa, que ao descer encolhe até sumir (a lupa da
+// barra verde traz-a de volta). Por baixo: a barra de categorias, sempre à
+// vista, com o chip "Tenho receita" à esquerda nas farmácias. Em pesquisa a
+// caixa não encolhe e a linha de baixo só leva o chip (se houver).
+
+class _BarraLojaDelegate extends SliverPersistentHeaderDelegate {
+  const _BarraLojaDelegate({
+    required this.caixa,
+    required this.linha,
+    required this.campoFixo,
+    required this.comLinha,
+  });
+
+  static const double alturaCampo = 60;
+  static const double alturaLinha = 50;
+
+  final Widget caixa;
+  final Widget linha;
+  final bool campoFixo;
+  final bool comLinha;
+
+  @override
+  double get maxExtent => alturaCampo + (comLinha ? alturaLinha : 0);
+
+  @override
+  double get minExtent =>
+      campoFixo || !comLinha ? maxExtent : alturaLinha;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final campo = campoFixo || !comLinha
+        ? alturaCampo
+        : (alturaCampo - shrinkOffset).clamp(0.0, alturaCampo).toDouble();
+    return Material(
+      color: Colors.white,
+      elevation: shrinkOffset > 0 || overlapsContent ? 2 : 0,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: campo,
+            child: ClipRect(
+              child: OverflowBox(
+                alignment: Alignment.bottomCenter,
+                minHeight: alturaCampo,
+                maxHeight: alturaCampo,
+                child: caixa,
+              ),
+            ),
+          ),
+          if (comLinha) SizedBox(height: alturaLinha, child: linha),
+        ],
+      ),
+    );
+  }
+
+  // Leva widgets novos a cada build do ecrã (texto, categoria escolhida,
+  // chip da receita): reconstrói sempre — é só uma barra.
+  @override
+  bool shouldRebuild(covariant _BarraLojaDelegate oldDelegate) => true;
 }
 
 // ─── Empty state ───────────────────────────────────────────────────────────────
@@ -712,12 +959,7 @@ class _SectionedView extends StatelessWidget {
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 3 / 4,
-              ),
+              gridDelegate: _gradeProdutos,
               delegate: SliverChildBuilderDelegate(
                 (context, i) => _BoraProductCardTile(
                   product: noVariants[i],
@@ -765,12 +1007,22 @@ class _SectionedView extends StatelessWidget {
 
     slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 16)));
 
-    return CustomScrollView(
-      physics: const BouncingScrollPhysics(),
-      slivers: slivers,
-    );
+    // 14/11/2026: devolve slivers (já não é um CustomScrollView próprio) —
+    // rola junto com a capa e a barra fina do ecrã da loja.
+    return SliverMainAxisGroup(slivers: slivers);
   }
 }
+
+/// Grelha dos produtos: 2 colunas no telemóvel (360 a 430 px, igual a antes),
+/// mais colunas em tablet e na web larga — antes eram sempre 2 e na web cada
+/// cartão ocupava meio ecrã.
+const SliverGridDelegate _gradeProdutos =
+    SliverGridDelegateWithMaxCrossAxisExtent(
+  maxCrossAxisExtent: 220,
+  mainAxisSpacing: 12,
+  crossAxisSpacing: 12,
+  childAspectRatio: 3 / 4,
+);
 
 // ─── Flat grid view (uma categoria seleccionada) ──────────────────────────────
 
@@ -798,19 +1050,14 @@ class _FlatGridView extends StatelessWidget {
       }
     }
 
-    return CustomScrollView(
-      physics: const BouncingScrollPhysics(),
+    // 14/11/2026: slivers soltos (ver _SectionedView).
+    return SliverMainAxisGroup(
       slivers: [
         if (noVariants.isNotEmpty)
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 3 / 4,
-              ),
+              gridDelegate: _gradeProdutos,
               delegate: SliverChildBuilderDelegate(
                 (context, i) => _BoraProductCardTile(
                   product: noVariants[i],

@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/ios_launch_flags.dart';
 
 import '../models/saved_card.dart';
+import '../utils/mensagem_mbway.dart';
 import 'folha_cartao.dart';
 import 'stripe_contas.dart';
 import 'web_checkout.dart';
@@ -275,11 +276,13 @@ class PaymentService {
   ///         à espera de confirmação MBWay e utilizadores fechavam → cancel.
   ///   v21 — server-confirm com billing_details.phone (parâmetro correcto).
   ///
-  /// Retorna paymentIntentId em sucesso, null em erro do Edge Function.
+  /// Retorna paymentIntentId em sucesso, null em erro do Edge Function. Quando
+  /// devolve null, [ultimoErroMbway] fica com a frase para o cliente.
   Future<String?> initiateMbwayPayment({
     required String orderId,
     required String phone,
   }) async {
+    ultimoErroMbway = null;
     // Web (2026-07-20): MB Way funciona no browser sem alteração nenhuma —
     // este método não usa o SDK do Stripe, só invoca a Edge Function, que
     // confirma o PaymentIntent server-side e faz o Stripe empurrar a
@@ -294,21 +297,41 @@ class PaymentService {
       final body = response.data as Map<String, dynamic>?;
       if (body?['ok'] != true) {
         debugPrint('[PaymentService] initiateMbwayPayment failed: $body');
+        ultimoErroMbway = mensagemErroMbway(
+          status: response.status,
+          erro: body?['error']?.toString(),
+        );
         return null;
       }
       final piId = body!['paymentIntentId'] as String?;
       if (piId == null) {
         debugPrint('[PaymentService] initiateMbwayPayment incomplete: $body');
+        ultimoErroMbway = mensagemErroMbway(status: response.status);
         return null;
       }
       debugPrint('[PaymentService] MBWay PI confirmed server-side: $piId '
           'status=${body['status']}');
       return piId;
+    } on FunctionException catch (e) {
+      // O servidor respondeu com erro (4xx/5xx): `details` traz o corpo.
+      debugPrint('[PaymentService] initiateMbwayPayment error: $e');
+      final d = e.details;
+      ultimoErroMbway = mensagemErroMbway(
+        status: e.status,
+        erro: d is Map ? d['error']?.toString() : d?.toString(),
+      );
+      return null;
     } catch (e) {
       debugPrint('[PaymentService] initiateMbwayPayment error: $e');
+      ultimoErroMbway = mensagemErroMbway(erro: e.toString());
       return null;
     }
   }
+
+  /// fechar-app-15-11 (Bloco 5): porque é que o último [initiateMbwayPayment]
+  /// falhou, já em frase para o cliente (porque falhou e o que fazer). Antes
+  /// o motivo ia só para o registo e o cliente via um erro sem explicação.
+  String? ultimoErroMbway;
 
   Future<bool> payWithCash(double amount) async {
     await Future.delayed(const Duration(milliseconds: 150));

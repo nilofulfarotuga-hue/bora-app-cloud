@@ -30,6 +30,7 @@ import '../services/payment_service.dart';
 import '../services/stripe_contas.dart';
 import '../services/tip_service.dart';
 import '../utils/hora_lisboa.dart';
+import '../utils/mensagem_mbway.dart';
 import '../utils/nota_do_pedido.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora/maior_18.dart';
@@ -1256,7 +1257,12 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   /// failure. If [orderId] is provided, also calls `client-cancel-order` Edge
   /// Function to mark the orphan order as cancelled in DB (avoids stuck
   /// status='preparing' / payment_status='pending' rows).
-  Future<void> _bailOutAndCancel(String? orderId) async {
+  ///
+  /// [ficarNoPagamento] (Bloco 5, 14/11/2026): o cliente fica neste ecrã, com
+  /// o carrinho, para tentar outra vez ou escolher outro meio. Sem isso volta
+  /// ao início, como sempre.
+  Future<void> _bailOutAndCancel(String? orderId,
+      {bool ficarNoPagamento = false}) async {
     var cancelFalhou = false;
     if (orderId != null) {
       try {
@@ -1273,7 +1279,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     // 2026-10-03: se não deu para cancelar, o cliente tem de saber — o pedido
     // pode continuar activo à espera de pagamento.
     final messenger = ScaffoldMessenger.of(context);
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    if (!ficarNoPagamento) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
     if (cancelFalhou) {
       messenger.showSnackBar(SnackBar(
         duration: const Duration(seconds: 6),
@@ -1681,6 +1689,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           customerName: authStore.currentClient?.name,
           notes: _orderNote,
           tokensUsed: tokensUsed,
+          // fechar-app-15-11 (Bloco 5): o carrinho só se limpa depois de o
+          // MB WAY ser confirmado. Se falhar, o cliente fica neste ecrã com
+          // o carrinho inteiro e pode tentar outra vez ou escolher outro meio
+          // (antes ficava sem carrinho e era mandado para o início).
+          manterCarrinho: true,
         );
         if (!mounted) return;
         if (!mbwayOrdered) {
@@ -1716,22 +1729,31 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         if (!mounted) return;
         setState(() => _isProcessing = false);
         if (piId == null) {
+          // Diz PORQUE falhou (número sem MB WAY, sem rede, valor mínimo…)
+          // e o que fazer; o pedido que ficou criado é cancelado sem custo.
           messenger.showSnackBar(SnackBar(
-            content: Text('Não foi possível iniciar o pagamento MBWay.'.tr),
+            key: const Key('mbway_falhou_ao_iniciar'),
+            duration: const Duration(seconds: 9),
+            content: Text(
+                paymentService.ultimoErroMbway ?? mensagemErroMbway()),
           ));
-          await _bailOutAndCancel(mbwayOrderId);
+          await _bailOutAndCancel(mbwayOrderId, ficarNoPagamento: true);
           return;
         }
         final mbwayPaid = await _showMBWayWaitingDialog(mbwayOrderId, amount);
         if (!mounted) return;
         if (!mbwayPaid) {
-          messenger.showSnackBar(SnackBar(
-            content: Text('Pagamento MBWay não confirmado ou expirou.'.tr),
+          messenger.showSnackBar(const SnackBar(
+            key: Key('mbway_nao_confirmado'),
+            duration: Duration(seconds: 9),
+            content: Text(mbwayNaoConfirmado),
           ));
-          await _bailOutAndCancel(mbwayOrderId);
+          await _bailOutAndCancel(mbwayOrderId, ficarNoPagamento: true);
           return;
         }
         await _persistErrandHomeStop(favorMbway, mbwayOrderId);
+        // Pago: agora sim, o carrinho já não é preciso.
+        cartStore.limparDepoisDoPedido();
         await _consumeTokensAndNavigate(tokensUsed);
         return;
       case PaymentMethod.cash:

@@ -1601,6 +1601,12 @@ class CartStore extends ChangeNotifier {
     // Tokens applied as a discount at checkout. Stored for future consumption
     // phase (FIFO) — not yet deducted from bora_tokens table.
     int tokensUsed = 0,
+    // fechar-app-15-11 (Bloco 5): no MB WAY o pedido nasce ANTES de o
+    // cliente confirmar o pagamento na app do banco. Com `true`, o carrinho
+    // fica como está até quem chamou dizer que o pagamento entrou
+    // ([limparDepoisDoPedido]); se o pagamento falhar, o cliente continua
+    // com o carrinho e escolhe outro meio. Por omissão nada muda.
+    bool manterCarrinho = false,
   }) async {
     _erroAgendamento = null;
     // Items are required for shopping-type orders; logistics orders (carry
@@ -1761,6 +1767,15 @@ class CartStore extends ChangeNotifier {
       await AgendarPedidoEstado.instance
           .gravarEscolha(newOrderId, restaurantId: _vendorRestaurantId);
     }
+    if (!manterCarrinho) limparDepoisDoPedido();
+    return true;
+  }
+
+  /// Limpa tudo o que o pedido acabado de criar já levou (carrinho, favor,
+  /// fotos, gorjeta, saldo aplicado). O [finishOrder] chama-o sozinho, menos
+  /// quando lhe pedem `manterCarrinho` — aí chama-o quem pediu, DEPOIS de o
+  /// pagamento estar confirmado.
+  void limparDepoisDoPedido() {
     _festasQuando = null;
     _packagePhotoUrl = null;
     _groceriesPhotoUrl = null;
@@ -1770,7 +1785,6 @@ class CartStore extends ChangeNotifier {
     _tipCents = 0;
     _walletAppliedCents = 0;
     clearCart();
-    return true;
   }
 
   // ── CARRINHO ABANDONADO (05/10/2026) ─────────────────────────────────────

@@ -1,10 +1,6 @@
 ---
 name: hermes-remote-delegation-gate
-description: >
-  Pre-flight gate for delegating work to a remote PC (via pc / Tailscale SSH /
-  bridged Claude Code). Verifies the delegation channel is live BEFORE dispatching
-  a task; attempts idempotent repair; and when the channel is irreparably offline,
-  reports truthfully and proposes alternatives instead of fabricating results.
+description: "Antes de delegar trabalho ao PC remoto (Tailscale SSH, Claude Code em ponte): confirma que o canal está vivo, tenta reparar e, se não der, não despacha e avisa."
 version: 1.0.0
 author: Hermes Agent
 license: MIT

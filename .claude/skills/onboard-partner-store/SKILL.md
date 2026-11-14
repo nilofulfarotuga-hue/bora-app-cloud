@@ -1,6 +1,6 @@
 ---
 name: onboard-partner-store
-description: Onboarda loja parceira (retail — electrónica, vestuário, casa, beleza, brinquedos) a partir de pasta com info.yaml + produtos.csv + fotos. Trata imagens, gera descrições PT-PT estilo retail, categoriza, insere via Edge Fn register-partner (category=store). Dry-run por defeito.
+description: "Onboarda loja parceira de retalho (eletrónica, roupa, casa, beleza, brinquedos) a partir de pasta (info.yaml, produtos.csv, fotos): imagens, descrições PT-PT, categorias. Dry-run."
 metadata:
   type: onboarder
   category: partner

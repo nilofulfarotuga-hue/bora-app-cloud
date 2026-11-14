@@ -1,6 +1,6 @@
 ---
 name: bora-knowledge
-description: Referência viva do projeto BORA — design system, regras de negócio, categorias home, widgets, fluxos, DB, Edge Functions. CONSULTA OBRIGATÓRIA por todas as outras skills antes de agir. Atualiza apenas esta skill quando algo mudar no projeto — as filhas leem daqui.
+description: "Referência viva do Bora: design system, regras de negócio, categorias, widgets, fluxos, base de dados, Edge Functions. Consultar antes de agir; só esta skill se atualiza quando o projeto muda."
 metadata:
   type: foundation
   version: 1.0.0

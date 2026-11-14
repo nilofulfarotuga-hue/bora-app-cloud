@@ -1,6 +1,6 @@
 ---
 name: hermes-multi-asset-web-project
-description: Use when the user asks for multiple HTML/CSS/JS artifacts in one request such as creating 10 websites for 10 businesses. Complements claude-design for project structure, per-category design differentiation, and ZIP archive output. Treat as a project with structured directories.
+description: "Usar quando pedirem vários sites ou artefactos HTML/CSS/JS num só pedido (ex.: 10 sites para 10 negócios): estrutura do projeto e design diferente por categoria."
 version: 1.0.0
 author: Hermes Agent
 license: MIT

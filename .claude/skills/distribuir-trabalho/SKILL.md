@@ -1,20 +1,11 @@
 ---
 name: distribuir-trabalho
-description: >
-  OBRIGATÓRIA em toda a missão, prompt, ordem do carteiro ou lista de tarefas do Bora (e de qualquer
-  projeto do Danilo). O Danilo abre SÓ o Claude Code: o Claude é o CHEFE e reparte o trabalho pelos
-  outros motores por dentro da sessão — ChatGPT Plus (opencode run / codex), GLM e Qwen (plano Go),
-  Gemini (CLI ou perfil Bora do Chrome), modelos grátis do Zen — pelo script ~/.claude/motores/delegar.ps1,
-  com a cascata de ~/.claude/motores/MOTORES.json. Dispara sempre que houver mais do que uma peça de
-  trabalho, código a escrever, refactor, testes, scripts, Edge Functions, traduções, telas, rascunhos,
-  documentos longos para ler, imagens ou vídeo para gerar, ou quando alguém pensar em mandar o Danilo
-  "abrir o OpenCode/ChatGPT/Gemini" ou "colar" alguma coisa noutra ferramenta (proibido). Dinheiro,
-  dispatch, wallet, RLS, git push e publicação NUNCA se delegam. Quem faz não verifica.
+description: "OBRIGATÓRIA em toda a missão ou lista de tarefas: o Claude é o chefe e reparte pelos outros motores (delegar.ps1). Dinheiro, dispatch, carteira, RLS, push e publicação nunca se delegam."
 metadata:
   versao: 1.0
   criada: 2026-09-17
   criada_por: missão uma-porta-2026-09-17 (Claude Code, Opus)
-  origem_da_queixa: "Não quero ficar a comandar OpenCode, ChatGPT e Claude Code. Mando o prompt ao Claude e ele distribui a tarefa por cada um. Não quero copiar e colar." — Danilo, 14/09 e 17/09/2026
+  origem_da_queixa: '"Não quero ficar a comandar OpenCode, ChatGPT e Claude Code. Mando o prompt ao Claude e ele distribui a tarefa por cada um. Não quero copiar e colar." — Danilo, 14/09 e 17/09/2026'
   execucoes: 1
   sucessos: 1
   falhas: 0

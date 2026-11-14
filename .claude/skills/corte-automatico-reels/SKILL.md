@@ -1,6 +1,6 @@
 ---
 name: corte-automatico-reels
-description: Antes da montagem de reels com pessoas reais (Bora e Em Dia), corta pausas longas do vídeo bruto com ffmpeg silencedetect (margem 0,15 s) e valida o roteiro pela regra de 2,5 palavras/segundo. Passo ANTES do fiscal. Não publica nada, não toca em código das apps nem em preços.
+description: "Antes de montar reels com pessoas reais (Bora, Em Dia): corta pausas longas com ffmpeg silencedetect (margem 0,15 s) e valida o roteiro a 2,5 palavras/segundo. Não publica nada."
 metadata:
   type: marketing
   versao: 1

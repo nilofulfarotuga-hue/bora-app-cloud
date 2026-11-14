@@ -1,12 +1,11 @@
 ---
 name: contas-e-navegadores
-description: >
-  OBRIGATÓRIA antes de abrir QUALQUER site, painel ou página web. Dispara sempre que a tarefa falar de site, painel, login, sessão, navegador, Chrome, Edge, "entra em", "abre o", perfil, conta, ChatGPT, Gemini, Veo, Flow, Nano Banana, AI Studio, Google Ads, Search Console, Play Console, Firebase, Google Cloud, Gmail, Drive, Stripe, painel do Supabase, Cloudflare, Hostinger, hPanel, GitHub, Codemagic, Meta, Facebook, Instagram, WhatsApp Web, Apple, App Store Connect, Bing Webmaster, Wikidata, Canva, Resend, Postiz, claude.ai ou qualquer URL. O Danilo tem DOIS perfis do Chrome (Danilo = nilofulfarotuga; Bora = boraappbora) com contas diferentes em cada um, e o executor já abriu sites no perfil errado três vezes (14/09, 17/09 x2). Esta skill é o mapa: usa-se SEMPRE o abrir-site.ps1 e nunca se escolhe perfil ao calhas. Também para o agente de clique (extensão Claude in Chrome): escolher o navegador pelo deviceId, nunca pelo nome "Browser 1/2". REFORCO 17/09 (vigia): confirmar a conta e o plano no ecrã mesmo que a memória diga que já sabes; timeouts de CDP/screenshot e "0 width" são esperados — esperar e usar find/read_page em vez de declarar falha. REFORCO 25/09: CONTAS E NAVEGADORES — cada site no seu perfil. OBRIGATÓRIA antes de abrir QUALQUER site, painel ou página web. REFORÇO 25/09: se a aba estiver em segundo plano, 'esperar' não chega — o JavaScript pode ficar congelado e o CDP (Runtime.evaluate) estoura em timeout de 45s com 'renderer frozen or unresponsive'. Gatilho: CDP timeout, aba sem resposta, clique em botão (ex.: Enviar do Gemini modo Vídeos REFORCO 08/10: CONTAS E NAVEGADORES — cada site no seu perfil. Usa SEMPRE antes de abrir qualquer site, painel ou login. Também quando a captura de ecrã do navegador expira (Page.captureScreenshot timed out, renderer congelado): não repetir a mesma captura às cegas.
+description: "OBRIGATÓRIA antes de abrir qualquer site, painel ou login: escolhe o perfil certo do Chrome pelo deviceId (nunca 'Browser 1/2') com ~/.claude/contas/abrir-site.ps1. Login é o último recurso."
 metadata:
   versao: 1.0
   criada: 2026-09-17
   criada_por: missão uma-porta-2026-09-17 (Claude Code, Opus)
-  origem_da_queixa: "O Claude Code não sabe entrar no navegador correto. Tenho dois perfis, o Nilo Fufaro Tuga e o Bora App; umas coisas estão num, outras no outro, e ele confunde-se. Isso já devia ter virado uma skill." — Danilo, 17/09/2026
+  origem_da_queixa: '"O Claude Code não sabe entrar no navegador correto. Tenho dois perfis, o Nilo Fufaro Tuga e o Bora App; umas coisas estão num, outras no outro, e ele confunde-se. Isso já devia ter virado uma skill." — Danilo, 17/09/2026'
   execucoes: 1
   sucessos: 1
   falhas: 0
@@ -105,3 +104,22 @@ O que fazer:
 3. Se o separador estiver congelado, abrir um separador novo no perfil certo com `~/.claude/contas/abrir-site.ps1 <site>` e esperar a página renderizar. O separador da extensão nasce em segundo plano e apps Google precisam de tempo.
 4. O PC tem 4 GB. Antes de insistir, medir `(Get-CimInstance Win32_PerfFormattedData_PerfOS_Memory).AvailableMBytes`. Se estiver baixo, fechar separadores e MCPs que não servem (playwright, nano-banana).
 5. Se continuar a falhar, regista-se o separador e o perfil, e segue-se com as outras tarefas. Não se muda de perfil ao calhas.
+
+## Absorvido de `navegadores-e-contas` (14/11/2026)
+
+A skill gémea foi arquivada (`_arquivo/navegadores-e-contas/`); o que só ela tinha:
+
+- **Protocolo Danilo 15/10 (manda sobre o mapa antigo)**: perfil **Bora** (`d9e862e0-a5ea-486f-b054-f333ef51b46a`)
+  = Supabase, Play Console, App Store Connect, Meta, Instagram, Facebook da Bora, Resend, painel admin;
+  perfil **Pessoal** (`5b260cdd-9d4f-49d6-842b-ebfbfea69c75`) = GitHub (repo `bora-app-cloud`),
+  claude.ai/code, Gemini, ChatGPT, DeepSeek, Gmail pessoal. Se não houver sessão no Bora, experimentar
+  o pessoal antes de abrir login.
+- **21/10**: Cloudflare = perfil **pessoal** (a conta do perfil Bora não tem zonas); Kaggle = pessoal;
+  Colab = Bora; YouTube do radar = pessoal com `?authuser=1`.
+- ChatGPT **Plus** = `nilofulfaro@gmail.com` no aplicativo do Windows (o do Chrome é Free).
+- JavaScript bloqueado em Google Ads, Meta e App Store Connect: usar `find` / `read_page`.
+- O Chrome do Bora aparece como página ("Aderir ao grupo"): confirmar o autor na caixa "Criar publicação"
+  antes de publicar. Texto entra por `insertText` + `click()`; fechar a janela pelo título mata a extensão.
+- **Sem conector do Chrome na sessão**: não fingir. Passo `bloqueado` no `e2e_log`, o resto pronto
+  para um clique, uma linha ao Danilo.
+- Nunca sair de uma conta iniciada. Nunca tentar senhas.

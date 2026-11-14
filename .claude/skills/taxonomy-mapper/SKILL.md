@@ -1,17 +1,6 @@
 ---
 name: taxonomy-mapper
-description: >
-  Classifica produtos de supermercado em 18 secções canónicas Bora
-  (Padaria, Frutas & Legumes, Talho, Peixaria, Laticínios & Ovos, Congelados,
-  Mercearia, Bebidas, Bebé, Animais, Higiene Pessoal, Higiene do Lar,
-  Saúde & Bem-Estar, Bio & Saudável, Fitness & Proteínas, Pronto a Comer,
-  Festa & Ocasiões, Outros). Use esta skill sempre que for preciso normalizar
-  categorias vindas de Continente, Lidl, Auchan, Pingo Doce, Intermarché,
-  Mercadona ou outros retalhistas, mapear 784+ `category_root` históricas
-  para secções unificadas, ou popular/actualizar `products.taxonomy_section`.
-  Triggers: "mapear produtos para taxonomia", "classificar produtos de
-  supermercado", "aplicar 18 secções canónicas", "normalizar categorias do
-  Continente/Lidl/Auchan/Pingo Doce/Mercadona/Intermarché".
+description: "Classifica produtos de supermercado nas 18 secções canónicas do Bora (Padaria, Talho, Peixaria, Laticínios, Congelados, Mercearia, Bebidas...). Usar ao arrumar o catálogo de um mercado."
 metadata:
   versao: 1.0
   execucoes: 0

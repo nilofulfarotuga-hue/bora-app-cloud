@@ -48,6 +48,7 @@ import 'screens/admin/admin_crosstalk_screen.dart';
 import 'screens/admin/admin_whatsapp_screen.dart';
 import 'screens/admin/admin_agentes_email_screen.dart';
 import 'screens/admin/admin_decisoes_screen.dart';
+import 'screens/admin/admin_caixa_guardados_screen.dart';
 import 'screens/admin/admin_motores_screen.dart';
 import 'screens/admin/admin_maiores_18_screen.dart';
 import 'screens/admin/admin_tvde_conformidade_screen.dart';
@@ -1064,6 +1065,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/motores': (_) => const AdminMotoresScreen(),
           // Missão jev-decisor-2026-09-23 — Decisor (Jev/Gemini): lista, custo do dia, sombra/ativo.
           '/admin/decisoes': (_) => const AdminDecisoesScreen(),
+          // Missão sistema-conteudo-14-11 (bloco 5.3) — Caixa de guardados + "Correr agora" do agente de segunda.
+          '/admin/caixa-guardados': (_) => const AdminCaixaGuardadosScreen(),
           // Missão tvde-conformidade-lei-59-2026 — avisos de conformidade/queixas/SOS apontam para aqui.
           '/admin/tvde-conformidade': (_) => const AdminTvdeConformidadeScreen(),
           // 5G — métricas detalhadas das propostas IA

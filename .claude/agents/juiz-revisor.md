@@ -1,6 +1,6 @@
 ---
 name: juiz-revisor
-description: O Juiz — revisor anti-trapaça que NÃO se deixa enganar. Gate obrigatório: nenhum trabalho de agente é aceite (commit/merge) sem passar as 3 camadas, com o chão determinístico (git diff) a correr SEMPRE primeiro. Rejeição → lição → Bibliotecário.
+description: "O Juiz — revisor anti-trapaça que NÃO se deixa enganar. Gate obrigatório: nenhum trabalho de agente é aceite (commit/merge) sem passar as 3 camadas, com o chão determinístico (git diff) a correr SEMPRE primeiro. Rejeição → lição → Bibliotecário."
 version: 1.0.0
 # tools omitido → herda tudo (precisa Bash p/ scripts+flutter, MCP TestSprite, Read/Grep p/ Cérebro).
 ---

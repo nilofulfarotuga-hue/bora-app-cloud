@@ -1,6 +1,6 @@
 ---
 name: identidade-estafeta
-description: Regra fixa da identidade do estafeta (e dos outros papéis) — user_id manda em tudo, drivers.id só para tried_driver_ids e matching interno — com um verificador que falha se aparecer `.eq('id', <auth uid>)` ou `on_conflict=id` numa tabela de papéis. Usar antes de qualquer commit que toque em drivers/cleaners/washers/restaurants no Flutter, e ao rever migrações que escrevam nessas tabelas.
+description: "Regra fixa da identidade do estafeta e dos outros papéis: user_id manda em tudo, drivers.id só para tried_driver_ids e matching. Tem verificador. Usar ao mexer em código de estafeta."
 metadata:
   type: guardrail
   zona: verde

@@ -1,6 +1,6 @@
 ---
 name: dedupe-market-products
-description: Identifica e limpa produtos de mercado duplicados (mesmo search_normalized + mesma loja) com merge inteligente — mantém o mais completo, soft-delete dos restantes via is_available=false (NUNCA hard delete). Backup CSV antes. Não toca parceiros. Dry-run default.
+description: "Limpa produtos de mercado duplicados (mesmo search_normalized e loja): fica o mais completo, os outros vão a is_available=false (nunca hard delete), com backup. Dry-run por defeito."
 metadata:
   type: data
   category: market

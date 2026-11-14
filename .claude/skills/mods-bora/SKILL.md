@@ -1,6 +1,6 @@
 ---
 name: mods-bora
-description: Os mods do Claude Code do Bora (plugin bora-mods, 02/10/2026) — tranca que proíbe zonas vermelhas por código, vigia de missão parada, contador de gasto, painel do CI e contexto de missão. Ler antes de mexer em .claude/plugins/bora-mods, quando a tranca negar um comando, ou quando alguém quiser instalar um mod.
+description: "Os mods do Claude Code do Bora (plugin bora-mods): tranca das zonas vermelhas, vigia de missão parada, contador de gasto, painel do CI. Ler antes de lhes mexer ou quando a tranca negar um comando."
 ---
 
 # mods-bora

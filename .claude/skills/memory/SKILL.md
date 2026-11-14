@@ -1,6 +1,6 @@
 ---
 name: memory
-description: This skill should be used when the user says "SKILL: memory", asks to save an important decision, record a confirmed pattern, update the operational rules, or preserve knowledge that must persist across sessions.
+description: "Guarda decisões importantes, padrões confirmados e regras de operação que têm de durar entre sessões (só acrescenta). Usar com 'SKILL: memory' ou 'guarda esta decisão'."
 version: 1.1.0
 protection_mode: read-write-append-only
 ---
@@ -25,7 +25,7 @@ Reads and writes (append-only) to `.claude/.ai/memory/memory_store.md`.
 - Pricing rates and business rules (sempre com ref BR §X)
 - Operational patterns and flows
 - Technical decisions with reasoning
-- Patterns detected by learning_engine
+- Patterns detected by aprender
 
 ❌ Never store:
 - Temporary debug output
@@ -73,7 +73,7 @@ DATA: <YYYY-MM-DD>
 PADRÃO: <pattern name>
 ONDE: <files/areas>
 PREVENÇÃO: <how to avoid>
-DETECTADO POR: learning_engine | manual
+DETECTADO POR: aprender | manual
 ```
 
 ### For operational rules:
@@ -159,7 +159,7 @@ A skill falha se guardar só "botão não funcionava" sem causa-raíz ou ficheir
 | `.claude/.ai/business_rules.md` v2 | Sempre cruzar antes de escrever — se BR cobre, referenciar §X em vez de copiar |
 | `lib/` (qualquer ficheiro referenciado num BUG) | Confirmar que a correcção existe realmente antes de guardar "resolved" |
 | `git log` | Confirmar data real da correcção (pode estar diferente da data do pedido de guardar) |
-| skill `learning_engine` | Delega aqui a persistência de padrões que detectou |
+| skill `aprender` | Delega aqui a persistência de padrões que detectou |
 | skill `decision_engine` | Pode delegar aqui para persistir decisão após aprovação |
 | skill `decision_registry` | Memory NÃO substitui — registry é índice travado, memory é histórico cronológico |
 
@@ -193,7 +193,7 @@ A skill falha se guardar só "botão não funcionava" sem causa-raíz ou ficheir
 - ❌ Armazenar tentativas falhadas, output de debug ou dados temporários
 - ❌ Armazenar dados que mudam frequentemente (usar Supabase)
 - ❌ Duplicar conteúdo que já existe em BR v2 — preferir uma referência §X
-- ❌ Interpretar ou tomar decisões baseadas no conteúdo (delegar a `learning_engine`)
+- ❌ Interpretar ou tomar decisões baseadas no conteúdo (delegar a `aprender`)
 - ❌ Escrever em qualquer outro ficheiro
 
 ## FRONTEIRAS
@@ -201,7 +201,7 @@ A skill falha se guardar só "botão não funcionava" sem causa-raíz ou ficheir
 | Situação | Skill correta |
 |---|---|
 | Persistir decisão confirmada / bug resolvido / padrão | **memory** (eu) |
-| Análise de padrões históricos | `learning_engine` |
+| Análise de padrões históricos | `aprender` |
 | Consultar decisões travadas na BR | `decision_registry` |
 | Decisões de design de feature | `product_analyst` |
 | Avaliar risco antes de persistir | `decision_engine` |

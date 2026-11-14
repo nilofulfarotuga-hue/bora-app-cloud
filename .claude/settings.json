@@ -149,6 +149,17 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /c/Users/danil/Desktop/projetosflutter/bora_app/.claude/.ai/knowledge/_tools/aprender-detector.sh",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   },
   "enableAllProjectMcpServers": true,

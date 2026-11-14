@@ -1,6 +1,6 @@
 ---
 name: site-premio
-description: O manual de construir sites que se vendem. Use SEMPRE que a tarefa for criar, refazer, avaliar ou orçamentar um site — para um cliente, para um parceiro do Bora, ou para o próprio Bora. Cobre o funil de 6 passos (referência → design system → prompt longo → construir → imagens reais → segunda ronda), o classificador de 3 perguntas, os 4 níveis de site que decidem o preço, os blocos obrigatórios por nicho, o Livro de Reclamações Eletrónico obrigatório no rodapé de todo o site que vende (ícone oficial da DGC; quem leva e quem não leva), o que reprova um site, a regra anti-genérico, e as regras já pagas com erro real. Triggers - "fazer um site para X", "site do cliente Y", "refaz o site", "que nível é este site", "quanto cobrar por este site", "proposta de site", "mini-site do parceiro", "livro de reclamações no site".
+description: "Manual de sites que vendem: criar, refazer, avaliar ou orçamentar um site (cliente, parceiro do Bora ou o próprio Bora), com o funil de 6 passos. Usar em qualquer trabalho de site."
 metadata:
   type: procedural
   zona: verde

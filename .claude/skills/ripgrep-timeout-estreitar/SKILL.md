@@ -1,7 +1,6 @@
 ---
 name: ripgrep-timeout-estreitar
-description: >
-  Usa quando a pesquisa Grep/Ripgrep devolve 'Ripgrep search timed out after 20 seconds'. Não repitas a mesma pesquisa larga: restringe path e glob, exclui node_modules/build/.dart_tool/.git, ou usa ctx_execute para filtrar. Visto 4x em 4 sessões/2 dias (05-06/10/2026).
+description: "Usar quando o Grep der 'Ripgrep search timed out after 20 seconds': restringir path e glob, excluir node_modules/build/.dart_tool/.git; não repetir a pesquisa larga."
 metadata:
   versao: 1.0
   criada: 2026-10-06

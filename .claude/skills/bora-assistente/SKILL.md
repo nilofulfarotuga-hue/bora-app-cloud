@@ -1,6 +1,6 @@
 ---
 name: bora-assistente
-description: Regras e mapa do "Bora Assistente" — o assistente de compras do cliente (Edge Function client-assistant + RPCs assistant_* + UI Flutter). Ler antes de mexer no assistente, nas suas ferramentas, no catálogo/embeddings, no painel admin do assistente, ou quando o Danilo pedir "o agente virtual do cliente".
+description: "Regras e mapa do Bora Assistente (assistente de compras do cliente: Edge Function client-assistant, RPCs assistant_*, UI Flutter, catálogo/embeddings, painel). Ler antes de lhe mexer."
 metadata:
   versao: 1.0
   criada_por: Claude Code Fable, missão da noite 07/10/2026

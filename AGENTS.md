@@ -74,7 +74,7 @@ select public.livro_aprender('claude-code', 'o que errei', 'a regra certa');
 
 ## 5. NAVEGADOR E CONTAS
 
-Escolher sempre pelo `deviceId`, nunca pelo nome "Browser 1/2" (skill `navegadores-e-contas`):
+Escolher sempre pelo `deviceId`, nunca pelo nome "Browser 1/2" (skill `contas-e-navegadores`):
 
 - Bora (boraappbora) `d9e862e0-a5ea-486f-b054-f333ef51b46a` — Supabase, Play, Apple, Meta,
   Instagram, Cloudflare, Resend, painel admin.

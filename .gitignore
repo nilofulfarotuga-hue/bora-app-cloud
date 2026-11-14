@@ -180,3 +180,10 @@ boraapp-d2bea-*.json
 
 # Chave do Google Maps escrita pelo CI (ver ios/Flutter/Release.xcconfig)
 ios/Flutter/BoraSecrets.xcconfig
+
+# 14/11/2026 (missao sistema-conteudo-14-11, bloco 0): o repo e' PUBLICO.
+# Config local de MCP com chave (TestSprite) — nunca versionar.
+.claude/mcp_settings.json
+# Espelho do livro (claude_ai_memoria): vive no repo PRIVADO nilofulfarotuga-hue/bora-livro.
+# A pasta continua a existir no disco do Cortex (VPS), mas nao entra no git daqui.
+.claude/.ai/knowledge/permanente/memoria-claude-ai/

@@ -1,7 +1,6 @@
 ---
 name: gh-cli-nao-encontrado
-description: >
-  Usa esta skill sempre que um comando invocar `gh` (GitHub CLI) no PC do Danilo e devolver 'Exit code 127 ... gh: command not found'. Visto 3x em 3 sessões/2 dias. O gh CLI não está instalado neste PC — não repetir o mesmo comando à espera que passe a funcionar.
+description: "Usar quando gh der 'command not found' no PC do Danilo: o GitHub CLI não está instalado. Não repetir o comando; a skill diz o caminho alternativo."
 metadata:
   versao: 1.0
   criada: 2026-09-23

@@ -1,7 +1,6 @@
 ---
 name: tab-group-mcp-nao-existe
-description: >
-  Usa esta skill sempre que uma ferramenta de aba/navegador devolver 'No tab group exists for this session yet' ao chamar tabs_context_mcp ou equivalente. Visto 3x em 3 sessões/2 dias (23-25/09/2026). Regra: antes de qualquer outra chamada de aba nesta sessão, chamar tabs_context_mcp com createIfEmpty: true primeiro — isso cria o grupo da sessão e devolve os tab IDs. Não repetir a chamada original sem esse passo. REFORCO 18/10: Usa esta skill sempre que uma ferramenta de aba/navegador devolver 'No tab group exists for this session yet', 'Tab N is not in Claude's tab group for this session' ou 'not in the same group as the current...'. Primeiro chama tabs_context_mcp para listar as abas válidas, ou cria uma aba nova dentro do grupo. Nunca repitas navigate ou screenshot com o id de aba antigo.
+description: "Usar quando uma ferramenta do navegador der 'No tab group exists for this session yet': a skill diz a ordem certa antes de qualquer ação; não repetir a chamada igual."
 metadata:
   versao: 1.0
   criada: 2026-09-25

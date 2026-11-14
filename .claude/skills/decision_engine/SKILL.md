@@ -1,6 +1,6 @@
 ---
 name: decision_engine
-description: This skill should be used when the user says "SKILL: decision_engine", before implementing a complex feature, when evaluating whether to proceed with a change, or when the risk/impact of a task needs to be assessed before execution.
+description: "Avalia risco e impacto antes de uma funcionalidade complexa ou mudança e recomenda avançar ou não. Só leitura. Usar com 'SKILL: decision_engine' ou antes de mudanças arriscadas."
 version: 1.1.0
 protection_mode: read-only
 ---

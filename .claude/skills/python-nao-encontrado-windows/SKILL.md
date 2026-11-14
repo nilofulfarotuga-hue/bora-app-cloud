@@ -1,7 +1,6 @@
 ---
 name: python-nao-encontrado-windows
-description: >
-  Usa esta skill sempre que um comando ou script invocar `python`/`python3` no PC do Danilo (Windows) e devolver 'Exit code 49 ... Python was not found; run without arguments to install from the Microsoft Store'. É o atalho (App Execution Alias) do Windows a interceptar o comando porque não há `python.exe` real no PATH — nunca é falta de instalação de verdade se já houve Python instalado antes. REFORCO 23/09: Reforço: usa também esta skill quando um script Python no PC do Danilo (Windows) rebentar com traceback a meio de 'Lib\\encod...' (UnicodeEncodeError) ao tentar imprimir texto em PT com acentos — não só quando o Python 'não é encontrado'. REFORCO 06/10: Reforço: o Bash deste PC pode arrancar sem PATH. 'ls: command not found' ou 'python: command not found' (exit 127) significa PATH vazio. Faz export PATH="/usr/bin:/bin:/mingw64/bin:$PATH" e repete; não reenvies o mesmo comando.
+description: "Usar quando 'python' der 'Exit code 49 ... Python was not found' no PC: usar o caminho completo C:/Users/danil/AppData/Local/Programs/Python/Python312/python.exe."
 metadata:
   versao: 1.0
   criada: 2026-09-18

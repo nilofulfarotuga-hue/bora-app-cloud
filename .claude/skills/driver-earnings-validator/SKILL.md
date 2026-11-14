@@ -1,6 +1,6 @@
 ---
 name: driver-earnings-validator
-description: Valida driver_earnings de um pedido contra fórmula pricing_service. Detecta discrepâncias, identifica root cause (distance errada vs markup errado vs base wrong) e reporta com matemática completa. Útil quando estafeta reclama pagamento ou Danilo suspeita de bug financeiro.
+description: "Valida driver_earnings de um pedido contra a fórmula do pricing_service, encontra a causa (distância, markup ou base) e mostra a conta completa. Só leitura."
 triggers:
   - "validar driver_earnings"
   - "auditar pagamento estafeta"

@@ -1,7 +1,6 @@
 ---
 name: mensagem-para-fora-nome-dele
-description: >
-  Usa SEMPRE antes de redigir ou enviar mensagem, email, WhatsApp ou carta para pessoa de fora (cliente, parceiro, advogada, contabilista, banco, entidades). O Danilo já corrigiu isto em 10/10, 13/10, 15/10, 21/10 e 22/10. Regra: curta, humana, no nome dele quando já fala com a pessoa, só o que ele mandou dizer; nunca o raciocínio dele, nunca perguntas ou datas inventadas, nunca cargo ou NIPC a quem já o conhece.
+description: "Usar antes de redigir ou enviar mensagem, email ou WhatsApp a alguém de fora: sai no nome do Danilo quando ele já fala com a pessoa, curta, humana, só o que ele mandou dizer."
 metadata:
   versao: 1.0
   criada: 2026-10-24

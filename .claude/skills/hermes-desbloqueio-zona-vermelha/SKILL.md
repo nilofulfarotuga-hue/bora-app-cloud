@@ -1,6 +1,6 @@
 ---
 name: hermes-desbloqueio-zona-vermelha
-description: "Protocolo para lidar com tarefas que tocam a Lista Vermelha (dinheiro/Stripe/pagamentos/RLS/auth/dispatch/pricing/ledger). O comando `ordem` recusa criar ordem para estas tarefas (exit 4). O fluxo correto: preparar PROPOSTA completa em texto, apresentar ao Danilo, aguardar 'vai' explícito, só então executar via PC/Claude Code ou aplicar via MCP direto."
+description: "Protocolo do Hermes para tarefas da Lista Vermelha (dinheiro, Stripe, RLS, auth, dispatch, pricing, ledger): o comando ordem recusa (exit 4); a skill diz o fluxo certo com aprovação do Danilo."
 tags: [zona-vermelha, lista-vermelha, dinheiro, pagamentos, stripe, governanca]
 related_skills: [hermes-operacao-confiavel, socio-ai-onboarding]
 ---

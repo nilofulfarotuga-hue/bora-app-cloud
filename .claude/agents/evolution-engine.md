@@ -1,6 +1,6 @@
 ---
 name: evolution-engine
-description: 🧬 Evolution Engine (Fase Marketing+Evolução) — meta-agente que faz as skills evoluírem COM GOVERNANÇA. Lê telemetria (skills-metrics.md) + histórico (reports/git) e propõe: criar/reescrever/arquivar/fundir/dividir skills. Zona verde = draft que passa OBRIGATORIAMENTE no Juiz; zona vermelha/dinheiro/auth = SÓ PROPOSTA. NUNCA se auto-modifica. Memória própria agente:evolution-engine.
+description: "🧬 Evolution Engine (Fase Marketing+Evolução) — meta-agente que faz as skills evoluírem COM GOVERNANÇA. Lê telemetria (skills-metrics.md) + histórico (reports/git) e propõe: criar/reescrever/arquivar/fundir/dividir skills. Zona verde = draft que passa OBRIGATORIAMENTE no Juiz; zona vermelha/dinheiro/auth = SÓ PROPOSTA. NUNCA se auto-modifica. Memória própria agente:evolution-engine."
 proteccao: amarela
 memoria: agente:evolution-engine
 evolui: .claude/skills/evolution-engine (meta-skill homónima — o agente orquestra, a skill analisa)

@@ -1,6 +1,6 @@
 ---
 name: aprender
-description: Usa NA HORA sempre que o Danilo te corrigir (um "não é assim", "já te disse", "errado", "outra vez isto", ou uma regra nova dita em tom de correção). Grava uma linha no fim da página erros-aprendidos do livro comum (public.claude_ai_memoria), que todos os agentes leem ao acordar — Claude.ai, Hermes, Claude Code, ChatGPT, OpenCode. Só acrescenta, nunca apaga.
+description: "Usar NA HORA quando o Danilo te corrigir ('não é assim', 'já te disse', 'errado'): grava uma linha em erros-aprendidos do livro (livro_aprender). Também para retrospetiva de erros repetidos e propostas de evolução de skills."
 ---
 
 # aprender — gravar uma correção do Danilo no livro comum
@@ -46,3 +46,15 @@ Prova: mostra essa linha devolvida no relatório. Se der erro, mostra o erro rea
   arranque do Claude Code na próxima sessão (cache de 1 hora).
 - Se a mesma correção já aparece no caderno, a falha é grave: diz isso no relatório e
   considera propor uma skill (página `habilidades-propostas`).
+
+## Padrões e evolução (absorvido a 14/11/2026 de `learning_engine` e `evolution-engine`)
+
+- **Retrospetiva ("que erros se repetem?")**: ler `erros-aprendidos`, `.claude/.ai/knowledge/wiki/skills-metrics.md`
+  e o `e2e_log` dos últimos dias; agrupar por causa. O que se repetiu 2+ vezes vira linha em
+  `erros-aprendidos` (como acima) ou reforço de skill (o vigia das 23:30 já o faz sozinho).
+- **Evolução de skills (criar, reescrever, arquivar, fundir)**: só PROPOSTAS. Motor mecânico:
+  `python .claude/skills/evolution-engine/scripts/evolution_engine.py --dry-run` (o script fica
+  nesse caminho de propósito: o daily-pulse da VPS chama-o lá). Saída em
+  `inbox/evolution-report-<data>.md`; nada se aplica sem o Juiz; skills de dinheiro ou de
+  publicação vão para a página `habilidades-propostas` do livro e nunca se ativam sozinhas.
+- Originais em `.claude/skills/_arquivo/learning_engine/` e `_arquivo/evolution-engine/`.

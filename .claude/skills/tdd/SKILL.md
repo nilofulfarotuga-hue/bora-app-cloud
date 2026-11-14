@@ -36,3 +36,13 @@ When the shape of that interface is itself in question (how deep the module is, 
 - **Red before green.** Write the failing test first, then only enough code to pass it. Don't anticipate future tests or add speculative features.
 - **One slice at a time.** One seam, one test, one minimal implementation per cycle.
 - **Refactoring is not part of the loop.** It belongs to the review stage (see the `code-review` skill), not the red → green implementation cycle.
+
+## Absorvido de `test-driven-development` (14/11/2026)
+
+- **Bug relatado = teste vermelho primeiro** (Prove-It): reproduzir o bug num teste que falha, só
+  depois corrigir; o teste fica como guarda.
+- Pirâmide: muitos unitários, alguns de integração, poucos ponta-a-ponta. Testar comportamento,
+  não a implementação.
+- Correr os comandos do próprio repo (no Bora: `flutter analyze` e `flutter test -r json`, que prova
+  que cada ficheiro correu).
+- Bora: obrigatória em Edge Functions e RPC de dinheiro. Original em `_arquivo/test-driven-development/`.

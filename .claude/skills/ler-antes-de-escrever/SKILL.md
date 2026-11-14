@@ -1,7 +1,6 @@
 ---
 name: ler-antes-de-escrever
-description: >
-  Usa SEMPRE antes de Edit ou Write num ficheiro que já existe. Se aparecer 'File has not been read yet. Read it first before writing to it', faz Read desse ficheiro e repete a escrita. Não repitas o Edit/Write sem ler (visto 14x em 3 sessões/2 dias, 05-06/10/2026). REFORCO 17/10: Usa SEMPRE, SEM EXCEÇÃO, antes de qualquer Edit ou Write num ficheiro que já existe: faz Read primeiro nessa sessão. Erro 'File has not been read yet. Read it first before writing to it' visto 30x em 5 sessões/3 dias (15-17/10/2026), mesmo com esta skill ativa.
+description: "Usar antes de Edit ou Write num ficheiro existente: se der 'File has not been read yet', fazer Read e repetir. Não repetir a escrita sem ler."
 metadata:
   versao: 1.0
   criada: 2026-10-06

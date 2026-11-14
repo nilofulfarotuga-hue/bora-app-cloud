@@ -1,6 +1,6 @@
 ---
 name: paint
-description: Paint an original image in a watercolor style by writing code, not by calling an image model. Use when the user asks you to draw, paint, sketch, or make a picture of something and there is no image-generation tool available, or when they ask for a painting, watercolor, or illustration you can iterate on. Do not use for charts, diagrams, UI mockups, or requests to edit an existing photograph.
+description: "Pinta uma imagem original em aguarela escrevendo código, sem modelo de imagem. Usar quando pedirem para desenhar ou pintar algo e não houver ferramenta de geração de imagens."
 license: Complete terms in LICENSE.txt
 ---
 

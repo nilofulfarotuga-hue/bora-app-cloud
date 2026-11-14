@@ -1,6 +1,6 @@
 ---
 name: trocar-chaves-servidor
-description: Usa SEMPRE antes de trocar, criar, desligar ou rodar QUALQUER chave ou segredo do servidor do Bora (chaves da Supabase — sb_secret, publishable, service_role/anon legadas —, segredos do cofre, chave da Stripe, Firebase, VPS) e antes de mexer na forma como uma Edge Function confirma quem a chama. Varre quem chama quem e com que chave, corre o varredor, prova cada caminho de dinheiro e só então dá por fechado. Nasceu de 31/10/2026: um cliente pagou 18,41 € e ficou sem pedido porque a troca de 16/10 deixou funções a recusar a chave do servidor durante 15 dias, sem ninguém saber.
+description: "Usar antes de trocar, criar, desligar ou rodar qualquer chave ou segredo do servidor do Bora (Supabase, cofre, Stripe): protocolo para não partir nada calado."
 ---
 
 # trocar-chaves-servidor — trocar uma chave sem partir nada calado

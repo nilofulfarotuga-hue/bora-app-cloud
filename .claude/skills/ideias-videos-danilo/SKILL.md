@@ -1,7 +1,6 @@
 ---
 name: ideias-videos-danilo
-description: >
-  Usa SEMPRE que o Danilo mandar um vídeo, transcrição ou link de ideias, ou antes de propor funcionalidades novas, propostas a clientes ou automações. Ele não quer ter de pedir duas vezes: tira-se o que presta, grava-se na página 'ideias-videos-danilo' (claude_ai_memoria + Córtex) e consulta-se antes de propor.
+description: "Usar quando o Danilo mandar um vídeo, transcrição ou link de ideias, ou antes de propor funcionalidades, propostas a clientes ou automações: tirar o que presta e aplicar sem ele pedir duas vezes."
 metadata:
   versao: 1.0
   criada: 2026-10-01

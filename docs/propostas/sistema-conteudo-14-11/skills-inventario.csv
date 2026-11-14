@@ -1,0 +1,165 @@
+nome,usos_transcricoes,leituras_skill_md,ultima_data,execucoes_frontmatter,falhas,metricas_linhas,refs_ficheiros,bytes_da_descricao,criada_em,existe_no_repo,existe_no_pc,bytes_descricao_depois,acao
+add-home-category,0,0,,,,0,9,234,2026-05-29,sim,sim,234,mantida
+add-support-faq,0,2,2026-11-08,,,0,3,269,2026-05-29,sim,sim,190,descricao encurtada
+add-support-skill,0,8,2026-10-21,,,0,2,273,2026-05-29,sim,sim,194,descricao encurtada
+agent-reach,0,0,,,,0,8,247,2026-10-25,sim,sim,247,mantida
+anti-falso-positivo-involucro,0,6,2026-09-17,,,0,10,442,2026-10-25,sim,sim,178,descricao encurtada
+api-and-interface-design,0,0,,,,0,2,251,2026-10-25,sim,sim,169,descricao encurtada
+apple-conta-e-loja,0,36,2026-10-22,,,0,6,458,2026-09-16,sim,sim,206,descricao encurtada
+aprender,0,20,2026-11-14,,,0,19,369,2026-10-25,sim,sim,230,descricao encurtada
+ask-knowledge-base,0,0,,,,0,10,518,2026-05-06,sim,sim,191,descricao encurtada
+audit-driver-application,0,0,,,,0,7,213,2026-05-29,sim,sim,213,mantida
+audit-ledger-entries,0,0,,,,0,4,246,2026-05-29,sim,sim,246,mantida
+audit-orange-rule,0,6,2026-11-01,,,0,9,251,2026-05-29,sim,sim,251,mantida
+audit-partner-application,0,0,,,,0,4,242,2026-05-29,sim,sim,242,mantida
+audit-protected-zones,0,0,,,,0,2,274,2026-05-29,sim,sim,178,descricao encurtada
+auditoria-seguranca-bora,0,0,,,,0,3,440,2026-10-30,sim,nao,204,descricao encurtada
+auto-rules-sync,0,0,,,,0,7,553,2026-04-27,sim,sim,180,descricao encurtada
+backup-restore-table,0,0,,,,0,6,246,2026-05-29,sim,sim,246,mantida
+ban-or-reactivate-entity,0,0,,,,0,3,258,2026-05-29,sim,sim,157,descricao encurtada
+bash-heredoc-aspas-windows,0,0,,,,0,15,564,2026-10-25,sim,sim,201,descricao encurtada
+bloqueio-classificador-auto-mode,0,0,,,,0,52,483,2026-10-25,sim,sim,169,descricao encurtada
+bora-assistente,1,67,2026-11-11,,,0,9,307,2026-10-08,sim,sim,184,descricao encurtada
+bora-knowledge,0,0,,,,0,47,271,2026-05-29,sim,sim,195,descricao encurtada
+bora-studio-decupagem,0,0,,,,0,0,335,2026-10-25,sim,sim,193,descricao encurtada
+browser-testing-with-devtools,0,0,,,,0,1,326,2026-10-25,sim,sim,165,descricao encurtada
+browser-use,0,0,,,,0,11,235,2026-10-25,sim,sim,235,mantida
+buzz,0,0,,,,0,5,415,2026-10-25,sim,sim,206,descricao encurtada
+cancel-unsubscribe,0,0,,,,0,0,299,2026-10-25,sim,sim,182,descricao encurtada
+canvas-design,0,0,,,,0,0,289,2026-10-25,sim,sim,0,arquivada (morta)
+category-mapper-v2,0,4,2026-11-01,,,1,17,738,2026-04-27,sim,sim,210,descricao encurtada
+ceo-ai,159,382,2026-11-14,,,45,147,280,2026-04-20,sim,sim,280,mantida
+ci-cd-and-automation,0,0,,,,0,0,207,2026-10-25,sim,sim,0,arquivada (morta)
+code-review-and-quality,0,0,,,,0,3,237,2026-10-25,sim,sim,237,mantida
+code-simplification,0,0,,,,0,0,244,2026-10-25,sim,sim,0,arquivada (morta)
+consertar-ja-o-que-achas,0,0,,,,0,7,554,,nao,sim,202,descricao encurtada
+contas-e-navegadores,2,44,2026-11-14,,,1,204,1873,2026-10-25,sim,sim,193,descricao encurtada + frontmatter corrigido
+context-engineering,0,0,,,,0,1,198,2026-10-25,sim,sim,198,mantida
+context-mode-curl-bloqueado,0,0,,,,0,49,676,2026-10-25,sim,sim,148,descricao encurtada
+corte-automatico-reels,0,37,2026-11-11,,,0,0,281,2026-10-25,sim,sim,178,descricao encurtada
+cortex-mcp-reauth-apos-redeploy,1,3,2026-10-30,,,0,15,443,2026-10-25,sim,sim,191,descricao encurtada
+daily-pulse,0,0,,,,0,32,381,2026-07-07,sim,sim,175,descricao encurtada
+danilo-como-trabalhar,2,77,2026-11-14,,,0,23,106,2026-09-23,sim,sim,106,mantida
+debugging-and-error-recovery,0,0,,,,0,4,249,2026-10-25,sim,sim,0,fundida em diagnosing-bugs
+decision_engine,0,6,2026-10-29,,,0,59,232,2026-10-25,sim,sim,182,descricao encurtada + frontmatter corrigido
+decision_registry,0,6,2026-10-29,,,0,29,252,2026-10-25,sim,sim,186,descricao encurtada + frontmatter corrigido
+dedupe-market-products,0,0,2026-11-01,,,1,6,265,2026-05-29,sim,sim,182,descricao encurtada
+deploy-edge-function,0,4,2026-09-21,,,0,35,258,2026-05-29,sim,sim,187,descricao encurtada
+deprecation-and-migration,0,0,,,,0,2,208,2026-10-25,sim,sim,208,mantida
+diagnosing-bugs,0,0,,,,0,1,156,2026-10-25,sim,sim,156,mantida
+diretor-criativo,0,8,2026-11-08,,,1,20,391,2026-07-10,sim,sim,207,descricao encurtada
+distribuir-trabalho,2,48,2026-11-14,,,0,107,903,2026-10-25,sim,sim,190,descricao encurtada + frontmatter corrigido
+documentation-and-adrs,0,0,,,,0,0,224,2026-10-25,sim,sim,0,arquivada (morta)
+domain-modeling,0,0,,,,0,3,150,2026-10-25,sim,sim,150,mantida
+doubt-driven-development,0,0,,,,0,3,339,2026-10-25,sim,sim,193,descricao encurtada
+driver-earnings-validator,0,2,2026-10-22,,,0,8,277,2026-05-11,sim,sim,159,descricao encurtada
+engenharia-reversa-metodo,0,0,,,,0,4,358,2026-10-25,sim,sim,155,descricao encurtada
+evolution-engine,0,0,2026-07-13,,,13,84,496,2026-07-10,sim,sim,0,fundida em aprender
+falar-com-o-danilo,2,19,2026-11-14,,,0,3,508,2026-10-31,sim,nao,168,descricao encurtada
+file-form,0,0,,,,0,0,174,2026-10-25,sim,sim,0,arquivada (morta)
+financial-calculator,0,0,,,,0,0,199,2026-10-25,sim,sim,199,mantida
+force-driver-logout,0,0,,,,0,3,243,2026-05-29,sim,sim,243,mantida
+frontend-design,0,0,,,,0,3,204,2026-10-25,sim,sim,204,mantida
+frontend-ui-engineering,0,0,,,,0,0,306,2026-10-25,sim,sim,0,arquivada (morta)
+ganho-motorista-numero-grande,0,8,2026-11-07,,,0,18,392,2026-10-25,sim,sim,151,descricao encurtada
+generate-release-notes,0,0,,,,0,2,239,2026-05-29,sim,sim,239,mantida
+generate-skills-readme,0,0,,,,0,0,297,2026-05-30,sim,sim,0,arquivada (morta)
+gh-cli-nao-encontrado,0,0,,,,0,4,268,2026-10-25,sim,sim,149,descricao encurtada
+git-add-por-caminho,0,0,,,,0,8,318,2026-10-25,sim,sim,158,descricao encurtada
+git-guardrails-claude-code,0,0,,,,0,10,243,2026-10-25,sim,sim,243,mantida
+git-workflow-and-versioning,0,0,,,,0,1,283,2026-10-25,sim,sim,150,descricao encurtada
+grill-me,0,2,2026-11-14,,,0,1,51,2026-10-25,sim,sim,0,fundida em entrevista
+grill-with-docs,0,2,2026-11-14,,,0,1,106,2026-10-25,sim,sim,0,fundida em entrevista
+grilling,0,0,,,,0,7,152,2026-10-25,sim,sim,0,fundida em entrevista
+handoff,0,0,,,,0,75,86,2026-10-25,sim,sim,86,mantida
+hermes-competitive-feature-audit,0,0,,,,0,1,212,2026-10-25,sim,sim,212,mantida
+hermes-desbloqueio-zona-vermelha,0,0,,,,0,0,357,2026-10-25,sim,sim,194,descricao encurtada
+hermes-email-management-himalaya,0,0,,,,0,1,80,2026-10-25,sim,sim,80,mantida
+hermes-multi-asset-web-project,0,0,,,,0,0,278,2026-10-25,sim,sim,164,descricao encurtada
+hermes-remote-delegation-gate,0,0,,,,0,1,315,2026-10-25,sim,sim,163,descricao encurtada
+hermes-web-content-extraction,0,0,,,,0,1,201,2026-10-25,sim,sim,201,mantida
+idea-refine,0,0,,,,0,1,335,2026-10-25,sim,sim,162,descricao encurtada
+ideias-videos-danilo,3,8,2026-10-27,,,0,95,319,2026-10-25,sim,sim,200,descricao encurtada
+identidade-estafeta,0,22,2026-11-01,,,2,9,399,2026-09-17,sim,sim,185,descricao encurtada
+impeccable,0,0,,,,0,1,895,2026-10-25,sim,sim,159,descricao encurtada
+improve-codebase-architecture,0,0,,,,0,1,125,2026-10-25,sim,sim,125,mantida
+incremental-implementation,0,0,,,,0,3,221,2026-10-25,sim,sim,221,mantida
+interview-me,0,0,,,,0,1,485,2026-10-25,sim,sim,0,fundida em entrevista
+juiz-dsh,0,0,,,,0,2,336,2026-10-30,sim,nao,149,descricao encurtada
+juiz-revisor-inexistente,0,0,,,,0,4,225,2026-10-25,sim,sim,225,mantida
+lancar-missao-claude-code,0,18,2026-11-08,,,0,8,234,2026-09-23,sim,sim,234,mantida
+learning_engine,0,6,2026-10-29,,,0,25,216,2026-10-25,sim,sim,0,fundida em aprender
+ler-antes-de-escrever,0,0,,,,0,25,549,2026-10-25,sim,sim,142,descricao encurtada
+livro-comum,0,5,2026-10-30,,,0,3,307,2026-10-30,sim,sim,196,descricao encurtada
+livro-sql-colunas-claude-ai-memoria,0,0,,,,0,12,685,,nao,sim,168,descricao encurtada
+manage-promo-codes,0,0,,,,0,7,257,2026-05-29,sim,sim,174,descricao encurtada
+market-data-cleaner,0,0,,,,0,12,533,2026-04-20,sim,sim,183,descricao encurtada + frontmatter corrigido
+market-data-sync,0,0,,,,0,12,746,2026-04-27,sim,sim,159,descricao encurtada
+marketing-loop,0,3,2026-11-08,,,0,8,368,2026-07-10,sim,sim,176,descricao encurtada
+mcp-builder,0,0,,,,0,0,277,2026-10-25,sim,sim,0,arquivada (morta)
+memory,0,0,,,,0,75,212,2026-10-25,sim,sim,176,descricao encurtada + frontmatter corrigido
+mensagem-para-fora-nome-dele,0,0,,,,0,9,419,2026-10-25,sim,sim,177,descricao encurtada
+migrate-screen-to-design,0,0,,,,0,4,271,2026-05-29,sim,sim,168,descricao encurtada
+modo-automatico,1,90,2026-11-11,,,1,22,402,2026-11-11,sim,sim,211,descricao encurtada
+mods-bora,2,44,2026-11-08,,,0,28,318,2026-10-02,sim,sim,197,descricao encurtada
+navegadores-e-contas,2,70,2026-10-21,,,1,16,282,2026-09-24,sim,sim,0,fundida em contas-e-navegadores
+notify-broadcast,0,2,2026-11-09,,,0,4,225,2026-05-29,sim,sim,225,mantida
+observability-and-instrumentation,0,0,,,,0,1,307,2026-10-25,sim,sim,176,descricao encurtada
+onboard-partner-pharmacy,0,0,,,,0,5,332,2026-05-29,sim,sim,195,descricao encurtada
+onboard-partner-restaurant,0,0,,,,0,47,241,2026-05-29,sim,sim,241,mantida
+onboard-partner-store,0,0,,,,0,5,283,2026-05-29,sim,sim,182,descricao encurtada
+painel-admin-limpo,0,28,2026-11-14,,,1,12,531,2026-09-14,sim,sim,191,descricao encurtada
+paint,0,0,,,,0,11,394,2026-10-25,sim,sim,178,descricao encurtada
+pasta-fora-da-sessao-bloqueada,0,0,,,,0,4,479,,nao,sim,170,descricao encurtada + frontmatter corrigido
+pc-sempre-ligado,0,8,2026-10-06,,,0,4,303,2026-10-06,sim,sim,165,descricao encurtada
+performance-optimization,0,0,,,,0,2,295,2026-10-25,sim,sim,172,descricao encurtada
+planning-and-task-breakdown,0,0,,,,0,3,237,2026-10-25,sim,sim,237,mantida
+powershell-comandos-simples-sem-bloqueio,0,0,,,,0,7,542,,nao,sim,184,descricao encurtada
+pre-launch-checklist,0,0,,,,0,3,275,2026-05-29,sim,sim,171,descricao encurtada
+prompt-blindado-validator,3,0,2026-10-29,,,3,6,290,2026-05-18,sim,sim,177,descricao encurtada
+proposta-diaria,0,7,2026-10-03,,,0,1,423,2026-10-25,sim,sim,190,descricao encurtada
+protocolo-missao-bora,15,326,2026-11-09,,,13,68,572,2026-09-13,sim,sim,199,descricao encurtada
+prova-fix-cenario-real,0,10,2026-09-17,,,0,15,504,2026-10-25,sim,sim,154,descricao encurtada
+python-nao-encontrado-windows,0,0,,,,0,13,911,2026-10-25,sim,sim,162,descricao encurtada
+refund-assistant,0,0,,,,0,4,273,2026-05-29,sim,sim,178,descricao encurtada
+remote-control-duas-sessoes,0,15,2026-10-30,,,0,4,322,2026-10-30,sim,nao,182,descricao encurtada
+reservation-ops,0,0,,,,0,3,240,2026-05-29,sim,sim,240,mantida
+return-refund,0,0,,,,0,0,171,2026-10-25,sim,sim,171,mantida
+reverse-engineer-anything,0,0,,,,0,3,403,,nao,sim,181,descricao encurtada
+ripgrep-timeout-estreitar,0,0,,,,0,9,270,2026-10-25,sim,sim,166,descricao encurtada
+roteador,0,6,2026-09-18,,,0,42,491,2026-10-25,sim,sim,161,descricao encurtada
+run-weekly-payouts,0,0,,,,0,5,248,2026-05-29,sim,sim,248,mantida
+security-and-hardening,0,0,,,,0,6,316,2026-10-25,sim,sim,194,descricao encurtada
+seed-demo-data,0,2,2026-11-08,,,0,1,227,2026-05-29,sim,sim,227,mantida
+setup-matt-pocock-skills,0,0,,,,0,0,180,2026-10-25,sim,sim,0,arquivada (morta)
+shipping-and-launch,0,0,,,,0,3,213,2026-10-25,sim,sim,213,mantida
+site-premio,0,96,2026-11-11,,,0,20,857,2026-10-25,sim,sim,182,descricao encurtada
+skill-creator,0,0,,,,0,0,319,2026-10-25,sim,sim,0,arquivada (morta)
+skills-doctor,0,2,2026-11-14,,,0,6,300,2026-05-30,sim,sim,152,descricao encurtada
+smoke-test-critical-paths,0,0,,,,0,4,248,2026-05-29,sim,sim,248,mantida
+social-publisher,0,75,2026-11-14,,,0,15,359,2026-07-10,sim,sim,192,descricao encurtada
+source-driven-development,0,0,,,,0,2,219,2026-10-25,sim,sim,219,mantida
+spec-driven-development,0,0,,,,0,2,356,2026-10-25,sim,sim,145,descricao encurtada
+sql-regex-postgres-repeticao,0,0,,,,0,9,384,,nao,sim,181,descricao encurtada
+storage-bucket-validator,0,4,2026-10-20,,,0,6,230,2026-05-11,sim,sim,230,mantida
+storeshopping-v2-debugger,0,0,,,,0,8,280,2026-05-11,sim,sim,150,descricao encurtada
+subagente-sem-update-plan,0,0,,,,0,4,325,,nao,sim,154,descricao encurtada
+sync-market-photos,0,2,2026-11-11,,,0,5,261,2026-05-29,sim,sim,187,descricao encurtada
+tab-group-mcp-nao-existe,0,0,,,,0,32,807,2026-10-25,sim,sim,169,descricao encurtada
+taxonomy-mapper,0,0,,,,0,16,793,2026-04-20,sim,sim,190,descricao encurtada
+tdd,0,2,2026-11-14,,,0,0,149,2026-10-25,sim,sim,149,mantida
+test-driven-development,0,0,,,,0,5,231,2026-10-25,sim,sim,0,fundida em tdd
+testsprite-onboard,0,0,,,,0,2,585,,nao,sim,585,mantida
+testsprite-verify,0,0,,,,0,2,511,,nao,sim,511,mantida
+theme-factory,0,0,,,,0,0,262,2026-10-25,sim,sim,0,arquivada (morta)
+traduzir-ele-falou,0,0,,,,0,7,446,2026-10-25,sim,sim,201,descricao encurtada
+trocar-chaves-servidor,1,4,2026-11-02,,,1,3,594,2026-11-02,sim,nao,159,descricao encurtada
+update-bora-knowledge,0,0,,,,0,3,394,2026-05-30,sim,sim,164,descricao encurtada
+update-design-token,0,0,,,,0,3,241,2026-05-29,sim,sim,241,mantida
+update-platform-setting,0,3,2026-10-24,,,0,6,264,2026-05-29,sim,sim,192,descricao encurtada
+usar-deepseek-harness,2,185,2026-11-11,,,0,3,453,2026-10-30,sim,sim,200,descricao encurtada
+using-agent-skills,0,0,,,,0,0,218,2026-10-25,sim,sim,0,arquivada (morta)
+web-artifacts-builder,0,0,,,,0,0,288,2026-10-25,sim,sim,0,arquivada (morta)
+weekly-market-prices,0,0,,,,0,8,270,2026-05-29,sim,sim,159,descricao encurtada
+entrevista,0,0,,,,0,0,0,2026-11-14,sim,sim,225,nova
+quadro-sim-nao,0,0,,,,0,0,0,2026-11-14,sim,sim,188,nova

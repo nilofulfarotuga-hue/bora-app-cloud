@@ -1,6 +1,6 @@
 ---
 name: manage-promo-codes
-description: Cria/lista/desativa códigos promocionais via RPCs admin existentes (admin_create_promo_code / admin_list_promo_codes / admin_deactivate_promo_code). Dry-run default; --commit chama a RPC com JWT de admin. Avisa impacto na margem. NÃO toca pricing_service.
+description: "Cria, lista ou desativa códigos promocionais pelas RPCs admin existentes. Dry-run por defeito; --commit chama a RPC com JWT de admin. Toca dinheiro: só com ordem do Danilo."
 metadata:
   type: operacoes
   category: promo

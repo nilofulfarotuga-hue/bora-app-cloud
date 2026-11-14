@@ -1,6 +1,6 @@
 ---
 name: refund-assistant
-description: SHADOW MODE — prepara uma PROPOSTA de refund para aprovação humana. Lê o pedido, calcula refund elegível (cancel_fee_* por escalão) e split wallet 80% / tokens 20%. Gera proposta em _preview/ + admin_audit_log 'refund_proposed'. NUNCA executa refund nem toca Stripe.
+description: "Modo sombra: prepara uma PROPOSTA de refund (cancel_fee por escalão, 80% carteira e 20% tokens) para aprovação humana, em _preview/ e admin_audit_log. Nunca reembolsa sozinho."
 metadata:
   type: financeiro
   category: refund

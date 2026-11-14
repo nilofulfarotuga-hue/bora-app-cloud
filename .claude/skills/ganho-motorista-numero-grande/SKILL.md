@@ -1,7 +1,6 @@
 ---
 name: ganho-motorista-numero-grande
-description: >
-  Usa sempre que fores mexer num ecrã, aviso, notificação ou diálogo do lado do motorista ou do estafeta que mostre euros (agenda de reservas, cartão de oferta, fim de corrida, avisos push). Regra de ouro do Danilo: o número grande é sempre o que o prestador vai receber; o total do cliente só aparece em pequeno, como lembrete de quanto cobrar, e só quando o pagamento é em dinheiro.
+description: "Usar ao mexer em ecrã, aviso ou notificação do motorista/estafeta que mostre euros: o ganho dele aparece em número grande. Regra de ouro do Danilo."
 metadata:
   versao: 1.0
   criada: 2026-09-17

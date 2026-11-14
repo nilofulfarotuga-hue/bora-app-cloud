@@ -1,6 +1,6 @@
 ---
 name: observability-and-instrumentation
-description: Instruments code so production behavior is visible and diagnosable. Use when adding logging, metrics, tracing, or alerting. Use when shipping any feature that runs in production and you need evidence it works. Use when production issues are reported but you can't tell what happened from the available data.
+description: "Instrumenta código para o comportamento em produção ser visível: logs, métricas, tracing, alertas. Usar ao lançar algo em produção que precisa de prova de que funciona."
 ---
 
 # Observability and Instrumentation
@@ -18,7 +18,7 @@ Code you can't observe is code you can't operate. Observability is the ability t
 - Reviewing a PR that adds I/O, retries, queues, or cross-service calls
 
 **NOT for:**
-- Diagnosing a failure happening right now — use the `debugging-and-error-recovery` skill (observability is what makes that skill fast next time)
+- Diagnosing a failure happening right now — use the `diagnosing-bugs` skill (observability is what makes that skill fast next time)
 - Profiling and optimizing measured slowness — use the `performance-optimization` skill
 - Launch-day monitoring checklists and rollback triggers — see the `shipping-and-launch` skill; this skill covers the instrumentation that feeds them
 

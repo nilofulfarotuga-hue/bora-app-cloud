@@ -1,7 +1,6 @@
 ---
 name: prova-fix-cenario-real
-description: >
-  Usa esta skill SEMPRE que vais declarar 'corrigido', 'pronto' ou 'fechado' um bug relatado pelo Danilo. Gatilho: a prova de fecho é um teste diferente do cenário original (ex.: testaste no Chrome/web um bug relatado no telemóvel/app real, ou testaste um endereço genérico em vez do endereço exato citado). Nunca fechar sem reproduzir a MESMA entrada, no MESMO ambiente do relato original. Se não conseguires reproduzir esse ambiente exato, dizer isso no relatório em vez de fechar como resolvido.
+description: "Usar antes de declarar 'corrigido' um bug do Danilo: a prova tem de repetir o cenário original (mesmo aparelho, conta e passos), não um teste diferente."
 metadata:
   versao: 1.0
   criada: 2026-09-17

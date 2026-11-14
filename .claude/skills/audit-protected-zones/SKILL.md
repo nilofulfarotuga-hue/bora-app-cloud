@@ -1,6 +1,6 @@
 ---
 name: audit-protected-zones
-description: Meta-skill de segurança read-only — verifica que as zonas protegidas continuam intactas (pricing_service, dispatch, bora_tokens triggers, Stripe, ficheiros-chave) comparando com um baseline de hashes/contagens. Relatório PT-BR ✅/⚠️/❌. Correr ANTES de cada build.
+description: "Verificação read-only de que as zonas protegidas (pricing, dispatch, triggers de bora_tokens, Stripe) continuam intactas face ao baseline de hashes. Correr antes de cada build."
 metadata:
   type: qa
   category: readiness

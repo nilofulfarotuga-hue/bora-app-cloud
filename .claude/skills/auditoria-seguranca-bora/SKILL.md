@@ -1,6 +1,6 @@
 ---
 name: auditoria-seguranca-bora
-description: "Auditoria de segurança, só de leitura, às NOSSAS coisas: o site boraguarda.com, o APK pt.boraapp.bora e as Edge Functions do Bora. Método da skill security-audit da Cloudflare (reconhecimento, hipóteses, validação, relatório) com o script auditar-site.mjs e o REA pela linha de comandos. Nunca aponta a apps ou sites de terceiros. Usar quando o Danilo pedir uma auditoria, um teste de segurança ou perguntar se o site está seguro."
+description: "Auditoria de segurança só de leitura às coisas NOSSAS (boraguarda.com, APK pt.boraapp.bora, Edge Functions). Nunca a terceiros. Usar quando o Danilo pedir auditoria ou perguntar se o site está seguro."
 ---
 
 # Auditoria de segurança do Bora (só leitura)

@@ -1,6 +1,6 @@
 ---
 name: bora-studio-decupagem
-description: Transforma um roteiro (roteiros/*.md) na decupagem estruturada do BoraStudio — atos -> cenas -> shots com falas, emoções, câmera — emitindo um <roteiro>.decupagem.json que o carregar_decupagem.py insere na bíblia de produção (producao.db). Use quando o Danilo disser "PRODUZIR roteiros/x.md" ou pedir para decupar um roteiro.
+description: "Transforma um roteiro (roteiros/*.md) na decupagem do BoraStudio (atos, cenas, shots com falas, emoções e câmara) em <roteiro>.decupagem.json. Usar com 'PRODUZIR roteiros/x.md' ou 'decupar'."
 type: producao
 ---
 

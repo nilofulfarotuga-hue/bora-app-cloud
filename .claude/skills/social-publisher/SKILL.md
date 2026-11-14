@@ -1,6 +1,6 @@
 ---
 name: social-publisher
-description: Agenda a publicação de uma campanha aprovada nas redes do Bora via Postiz (API/MCP). Use quando o Danilo aprovar uma campanha do diretor-criativo e pedir para agendar/publicar. Sem contas OAuth ligadas ou sem Postiz no ar, corre em dry-run (payloads JSON em marketing/fila-publicacao/). NUNCA cria contas; NUNCA publica sem aprovação explícita do Danilo.
+description: "Agenda a publicação de uma campanha aprovada nas redes do Bora pelo Postiz. Usar quando o Danilo aprovar uma campanha do diretor-criativo e pedir para agendar. Nunca publica sem aprovação."
 metadata:
   type: marketing
   versao: 1

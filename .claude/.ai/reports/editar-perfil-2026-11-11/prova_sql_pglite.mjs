@@ -13,8 +13,8 @@ const PGLITE = 'C:/Users/danil/AppData/Local/Temp/claude/e2669589ce73d1a9/fae7e9
 const { PGlite } = require(PGLITE);
 
 const repo = process.argv[2];
-const MIG1 = path.join(repo, 'supabase/migrations/20261111180000_editar_perfil_cliente.sql');
-const MIG2 = path.join(repo, 'supabase/migrations/20261111180100_aprovar_account_update_pelo_nucleo.sql');
+const MIG1 = path.join(repo, 'supabase/migrations/20261115010000_editar_perfil_cliente.sql');
+const MIG2 = path.join(repo, 'supabase/migrations/20261115010100_aprovar_account_update_pelo_nucleo.sql');
 const OLD = path.join(repo, 'supabase/migrations/20260507070100_5f_beta_alpha_b3_other_functions.sql');
 const PROD_MD5_APPROVE = '4ca3a167f4e82d5158ceb37e71b628c3';
 

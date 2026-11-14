@@ -1,6 +1,6 @@
 ---
 name: flutter-ui
-description: Ofício de UI — aplica o design system Bora (Verde #16A34A / Laranja #F97316 / Inter) nos ecrãs Flutter. NUNCA altera foto real de produto. Evolui design-system-applier.
+description: "Ofício de UI — aplica o design system Bora (Verde #16A34A / Laranja #F97316 / Inter) nos ecrãs Flutter. NUNCA altera foto real de produto. Evolui design-system-applier."
 version: 2.0.0
 protecao: 🟢
 ---

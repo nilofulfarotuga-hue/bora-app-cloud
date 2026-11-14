@@ -46,11 +46,31 @@ async function pedir(env, query) {
   } finally { clearTimeout(t); }
 }
 
-function bloco(r, max) {
+function bloco(r, max, doFim = false) {
   if (!r) return '';
   let txt = (r.conteudo || '').trim();
-  if (txt.length > max) txt = txt.slice(0, max) + '\n[... cortado; lê a página inteira no livro]';
+  if (txt.length > max) {
+    // 14/11 (sistema-conteudo-14-11, bloco 1.2): erros-aprendidos cresce no FIM (livro_aprender acrescenta);
+    // cortar o fim escondia as correções mais recentes. Com doFim guarda-se o fim, a partir de uma linha inteira.
+    if (doFim) {
+      const corte = txt.slice(txt.length - max);
+      txt = '[... início cortado; as linhas mais recentes estão abaixo — página inteira no livro]\n' +
+        corte.slice(corte.indexOf('\n') + 1);
+    } else {
+      txt = txt.slice(0, max) + '\n[... cortado; lê a página inteira no livro]';
+    }
+  }
   return `## [livro] ${r.pagina} — atualizada ${String(r.atualizado_em || '').slice(0, 16)}\n\n${txt}\n`;
+}
+
+// 14/11 (bloco 1.2): as últimas 25 linhas de erros-aprendidos, para o gancho SessionStart do repo
+// (injeta-digest.sh) as juntar ao digest. Ficheiro à parte: ~/.claude/cache/livro/erros-ultimas.md.
+function gravarUltimas(e) {
+  const linhas = (e.conteudo || '').split(/\r?\n/).filter((l) => l.trim() !== '');
+  const ult = linhas.slice(-25).join('\n');
+  const txt = `# erros-aprendidos — últimas 25 linhas (livro, lidas às ${new Date().toISOString().slice(0, 16)}Z)\n\n${ult}\n`;
+  fs.mkdirSync(DIR, { recursive: true });
+  fs.writeFileSync(path.join(DIR, 'erros-ultimas.md'), txt, 'utf8');
 }
 
 async function gerar() {
@@ -66,7 +86,8 @@ async function gerar() {
   const [e] = await pedir(env, 'select=pagina,conteudo,atualizado_em&pagina=eq.erros-aprendidos');
   if (!e) throw new Error('página erros-aprendidos não encontrada');
   const [d] = await pedir(env, 'select=pagina,conteudo,atualizado_em&pagina=like.digest-*&order=atualizado_em.desc&limit=1');
-  const parteE = bloco(e, 7000);
+  try { gravarUltimas(e); } catch { /* nunca trava o resto */ }
+  const parteE = bloco(e, 7000, true);
   const resto = LIMITE - cab.length - parteE.length - 200;
   return cab + parteE + (d ? '\n' + bloco(d, Math.max(600, resto)) : '');
 }

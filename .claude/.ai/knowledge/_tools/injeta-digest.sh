@@ -22,6 +22,13 @@ AQUI="$(cd "$(dirname "$0")" && pwd)"
 DIGEST="$AQUI/../permanente/procedural/estado-atual-consolidado.md"
 LOG="$AQUI/../inbox/_reports/injecao-digest.log"
 MAX_BYTES=14336          # teto de seguranca; o digest ja tem teto proprio de 12 KB
+# 14/11/2026 (missao sistema-conteudo-14-11, bloco 1.2): as ultimas 25 linhas da pagina
+# erros-aprendidos do livro entram NO TOPO (antes do digest, para nao serem cortadas se a
+# saida do gancho passar do limite). Copia local renovada de hora a hora pela tarefa
+# agendada BoraRenovarLivro (~/.claude/livro/renovar-livro.cmd -> livro-ao-acordar.mjs).
+# Caminho absoluto de reserva porque o executor do loop corre como outro utilizador (hermes).
+ULTIMAS="$HOME/.claude/cache/livro/erros-ultimas.md"
+[ -s "$ULTIMAS" ] || ULTIMAS="/c/Users/danil/.claude/cache/livro/erros-ultimas.md"
 
 # O proprio log e' best-effort: se a pasta nao existir, nem uma linha de erro
 # pode escapar para o stderr do hook.
@@ -67,7 +74,7 @@ fi
 [ -n "$PY" ] || { registra "SEM-PYTHON-UTIL (fail-open)"; exit 0; }
 
 # O python monta o JSON — escapar markdown a mao e' como se parte um hook.
-saida=$("$PY" - "$DIGEST" "$MAX_BYTES" <<'PYEOF' 2>/dev/null
+saida=$("$PY" - "$DIGEST" "$MAX_BYTES" "$ULTIMAS" <<'PYEOF' 2>/dev/null
 import hashlib, io, json, os, sys, time
 
 # ARMADILHA WINDOWS (apanhada 2026-07-20, 3a vez no mesmo dia): o stdout nasce
@@ -116,10 +123,29 @@ try:
         "---\n\n"
     ) % (canario, frescura)
 
+    # 14/11 (bloco 1.2): ultimas 25 linhas de erros-aprendidos, no TOPO. Falha aqui = sem o bloco.
+    ultimas = ""
+    try:
+        cam_u = sys.argv[3] if len(sys.argv) > 3 else ""
+        if cam_u and os.path.isfile(cam_u):
+            with io.open(cam_u, "r", encoding="utf-8", errors="replace") as fu:
+                linhas_u = [l.rstrip() for l in fu.read().splitlines() if l.strip()]
+            corpo_u = [l if len(l) <= 300 else l[:297] + "..." for l in linhas_u[1:26]]
+            if corpo_u:
+                horas_u = (time.time() - os.path.getmtime(cam_u)) / 3600.0
+                ultimas = (
+                    "# ERROS-APRENDIDOS - ULTIMAS 25 LINHAS DO LIVRO (copia local de ha %.1fh)\n\n"
+                    "Correcoes do Danilo a todos os agentes. Nao repitas nenhuma. Quando ele te "
+                    "corrigir, grava NA HORA com a skill aprender (select public.livro_aprender(...)).\n\n"
+                    "%s\n\n---\n\n" % (horas_u, "\n".join(corpo_u))
+                )
+    except Exception:
+        ultimas = ""
+
     print(json.dumps({
         "hookSpecificOutput": {
             "hookEventName": "SessionStart",
-            "additionalContext": cabecalho + corpo,
+            "additionalContext": ultimas + cabecalho + corpo,
         }
     }, ensure_ascii=True))
     sys.stderr.write("canario=%s bytes=%d\n" % (canario, len(corpo.encode("utf-8"))))

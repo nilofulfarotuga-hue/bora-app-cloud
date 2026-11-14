@@ -111,3 +111,4 @@ confianca: auto
 | ceo-ai | 2026-11-05 | modo-automatico-seguro-2026-11-05 (PC, Opus) | inventário, trava testada em sessões reais, skill, CI e remendo preparados; ativação pendente do clique do Danilo (zonas da tranca) | parcial |
 | modo-automatico | 2026-11-05 | modo-automatico-seguro-2026-11-05 (criada) | skill nova a partir da missão | ok |
 | ceo-ai | 2026-11-14 | missão sistema-conteudo-14-11: v3 (§0-ter entrevista, §2.3 motor, §3 estado vivo, §6 fluxo real) | 1 | sucesso |
+| ceo-ai | 2026-11-14 | compra-guardada-2026-11-14 + adenda 1 fila (PC, Opus 5.5) | rascunho da compra + fila do estafeta + painel + aviso ao cliente; 48 provas SQL (PGlite) e 26 testes app; migração e envio bloqueados pela tranca (Claude.ai publica) | parcial |

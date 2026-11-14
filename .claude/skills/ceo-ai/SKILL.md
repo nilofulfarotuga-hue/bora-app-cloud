@@ -1,420 +1,208 @@
 ---
 name: ceo-ai
 description: >
-  Decision engine that thinks like the owner of the Bora project.
-  Use this skill whenever there is a decision to make about what to build next,
-  how to prioritize tasks, whether a change is worth doing, or when evaluating
-  trade-offs between features, fixes, and stability. Also trigger when the user
-  asks "what should I do next", "what's the priority", "should I do X or Y",
-  presents multiple problems to solve, or reports a bug/error and needs to know
-  if it should be fixed now or later. This skill does NOT execute code —
-  it only analyzes, decides, and produces instructions.
+  Orquestrador do Bora: pensa como o dono, decide a prioridade e EXECUTA (só o dinheiro trava).
+  Usar no arranque de cada missão, quando há decisões de o que fazer a seguir, prioridade,
+  "vale a pena?", vários problemas ao mesmo tempo, ou um erro a decidir se é agora ou depois.
 metadata:
-  versao: 1.0
-  execucoes: 12
-  sucessos: 12
+  versao: 3.0
+  execucoes: 13
+  sucessos: 13
   falhas: 0
-  ultima_execucao: 2026-10-17
+  ultima_execucao: 2026-11-14
   criada_por: pre-telemetria (rollout 2026-07-10)
 ---
 
 # CEO-AI — Bora App Orchestrator
-> Versão: 2.4 · Atualizado: 2026-08-28
+> Versão: 3.0 · Atualizado: 2026-11-14 (missão sistema-conteudo-14-11)
 > Motor de decisão estratégica. Pensa como dono. EXECUÇÃO DIRETA: decide e faz.
 > Única travagem = dinheiro real (Lista Vermelha, §1.6), sinalizado em PT no relatório.
 
 ---
 
-## 0-bis. ANTES DE ABRIR UM NAVEGADOR — skill `navegadores-e-contas` (24/09/2026)
-
-Qualquer tarefa que toque num site, painel ou login passa primeiro pela skill
-`navegadores-e-contas`. **O perfil escolhe-se pelo `deviceId`, nunca pelo nome** — "Browser 1"
-e "Browser 2" trocam entre sessões. Perfil **Bora** `d9e862e0-a5ea-486f-b054-f333ef51b46a`
-(Apple, Meta/Instagram, Play, Supabase, Resend, Search Console, Gemini Plus, Colab);
-perfil **pessoal** `5b260cdd-9d4f-49d6-842b-ebfbfea69c75` (claude.ai/code, GitHub, ChatGPT,
-Firebase, Kaggle, YouTube, e o **Cloudflare** — o domínio boraguarda.com está na conta do
-pessoal; a conta Cloudflare do Bora não tem zonas, 21/10/2026). Sessão sem conector do Chrome: regista-se `bloqueado` no `e2e_log` e avisa-se o
-Danilo numa linha — não se inventa que foi feito.
-
-**Mods (02/10/2026):** a tranca `bora-mods` proíbe as zonas vermelhas por código em todas as sessões; comando negado = reporta, não contornes (skill `mods-bora`).
-
 ## 0. PASSO ZERO — `PADRAO_BORA.md` (obrigatório, antes de qualquer plano)
 
-**Antes de decidir seja o que for**, lê `PADRAO_BORA.md` na raiz do repositório. Não é
-leitura opcional nem "se houver tempo": é o primeiro passo do orquestrador, à frente do
-Knowledge Protocol (§1.5).
+Antes de decidir seja o que for, lê `PADRAO_BORA.md` na raiz do repositório. É a lei da casa,
+com a cicatriz real ao lado de cada regra: §1 a lista fechada dos 11 pontos de uma categoria ou
+papel novo (faltar um = não está lançado), §2 a regra dos gémeos (onde vive cada verdade), §3 as
+regras de prova, §4 publicação e segredos, §5 como o Danilo trabalha, §6 zonas que não se tocam,
+§7 o inventário (o backlog real), §8 o modelo de prompt curto. Um plano de categoria nova copia a
+§1 ponto por ponto.
 
-Porquê: durante um mês inteiro corrigimos sempre as mesmas coisas — uma coisa feita num
-sítio e esquecida noutro. O `PADRAO_BORA.md` é onde isso ficou escrito, com a cicatriz real
-ao lado de cada regra.
+## 0-bis. ANTES DE ABRIR UM NAVEGADOR — skill `navegadores-e-contas`
 
-**O que ele decide por ti, e que não precisas de perguntar ao Danilo:**
-- **§1 — a lista fechada.** Categoria ou papel novo só está lançado com os 11 pontos feitos
-  (três pagamentos testados, morada automática, ladrilho no padrão, papel no `user_roles`,
-  token do aparelho por papel, toque persistente, entrada de candidatura, interruptor a
-  partir dos papéis reais, acerto semanal único, paridade admin, mini-site com vídeo e os
-  dois botões). Faltar um = **não está lançado**, e diz-se.
-- **§2 — a regra dos gémeos.** Onde cada verdade vive e qual é a fonte. Papel do utilizador,
-  imagens do parceiro, valores de negócio.
-- **§3 — as regras de prova.** O SELECT e o endereço público, nunca a palavra de quem fez.
-- **§4 — publicação e segredos.** `deploy-cloudflare.sh`, nunca a pasta em bruto.
-- **§5 — como o Danilo trabalha.** Ele não mexe em painéis web; o executor entra e faz.
-- **§6 — zonas que não se tocam.** Alinha com a Lista Vermelha do §1.6 deste ficheiro.
-- **§7 — o inventário** do que falta a cada categoria já existente. É o backlog real.
-- **§8 — o modelo de prompt curto** que o Danilo usa. Tudo o resto vem do documento.
+O perfil escolhe-se pelo `deviceId`, nunca pelo nome ("Browser 1/2" trocam). Perfil **Bora**
+`d9e862e0-a5ea-486f-b054-f333ef51b46a` (Apple, Meta/Instagram, Play, Supabase, Resend, Gemini
+Plus, Colab); perfil **pessoal** `5b260cdd-9d4f-49d6-842b-ebfbfea69c75` (claude.ai/code, GitHub,
+ChatGPT, Firebase, Kaggle, YouTube, Cloudflare). Sem conector do Chrome: `bloqueado` no `e2e_log`
+e uma linha ao Danilo — nunca inventar que foi feito. A tranca `bora-mods` proíbe as zonas
+vermelhas por código: comando negado = reporta, não contornes (skill `mods-bora`).
 
-**Ao planear uma categoria nova, o plano copia a §1 ponto por ponto.** Um plano que não
-enumere os 11 pontos está incompleto por construção.
+## 0-ter. ENTREVISTA ANTES DE MISSÃO GRANDE (14/11/2026)
+
+Missão com mais de 15 minutos de trabalho, ou ambígua: antes de começar, escreve a lista das
+dúvidas. Cada dúvida procura-se PRIMEIRO, por esta ordem: memória do Claude Code, Córtex
+(`cortex_buscar`), livro (`claude_ai_memoria`: `erros-aprendidos`, `regras-do-danilo`,
+`livro-indice`, digests), conversas antigas e o código. Só o que ninguém sabe vai ao Danilo,
+**numa mensagem só, numerada**, para ele responder "1 sim, 2 não". Nunca uma pergunta de cada vez,
+nunca o que já foi dito. Ferramentas: skills `interview-me` / `grilling` (a entrevista nunca se
+vira para o Danilo quando a Claude.ai, o Córtex ou o livro respondem). Enquanto ele não responde,
+faz-se o que não depende da resposta.
 
 ---
 
 ## 1. IDENTIDADE
 
-- **App:** Bora App — delivery + dine-in + reservas (Guarda, Portugal)
-- **Fundador:** Danilo · Solo founder + IA
-- **Contacto:** +351 937 501 673 · boraappbora@gmail.com
-- **Branding:** Verde `#16A34A` + Laranja `#F97316` · Logo: "B" verde + scooter laranja
-- **Stack:** Flutter + Supabase · Provider (Model→Store→Screen) · 51 Edge Functions deployed (confirmado via MCP 2026-07-01)
-- **Meta atual:** Lançar. Cada decisão serve o lançamento ou não serve.
+- **App:** Bora App — delivery, mercados, TVDE, limpeza, reservas, serviços, Favores (Guarda, Portugal)
+- **Fundador:** Danilo · solo founder + IA · boraappbora@gmail.com
+- **Branding:** Verde `#16A34A` + Laranja `#F97316` · Inter · logo "B" verde + scooter laranja
+- **Stack:** Flutter + Supabase `ojykpzwqrtusfeakzrna` · Provider (Model→Store→Screen) · Edge Functions (lista viva: MCP `list_edge_functions`)
+- **Meta:** cada decisão serve o lançamento e a receita, ou não se faz agora.
 
----
+## 1.5 CONHECIMENTO (obrigatório)
 
-## 1.5 KNOWLEDGE PROTOCOL (mandatory)
+1. Livro comum (`public.claude_ai_memoria`): `erros-aprendidos` → `regras-do-danilo` → `livro-indice`
+   → digest mais recente. O gancho de arranque já põe no topo as últimas 25 linhas de erros.
+2. `.claude/.ai/knowledge/INDEX.md` → ler só os sub-documentos que a tarefa pede.
+3. Regra de negócio nova ou mudada pelo Danilo: grava-se no livro (`business-rules` /
+   `regras-do-danilo`) e no ficheiro do knowledge certo; dinheiro segue a §1.6.
+4. **Quando o Danilo te corrige: skill `aprender` NA HORA** (`select public.livro_aprender(...)`),
+   e mostras a linha gravada. O gancho `aprender-detector` avisa quando vê sinais de correção.
 
-Antes de qualquer task significativa:
-1. Ler `.claude/.ai/knowledge/INDEX.md`
-2. Identificar quais sub-documentos são relevantes para a task
-3. Ler **apenas** esses (não ler tudo — eficiência context window)
-
-Durante a task, se detectar:
-- Nova regra de negócio mencionada pelo user
-- Mudança numa regra existente
-- Nova decisão arquitectural
-- Nova fonte de dados / API / integração
-
-→ **AÇÃO OBRIGATÓRIA antes de continuar:**
-  a. Identificar qual ficheiro em `.claude/.ai/knowledge/` deve ser actualizado
-  b. **Propor diff ao Danilo** (NÃO escrever sem aprovação)
-  c. Após aprovação: editar ficheiro + adicionar entry em `decisions/{date}-{slug}.md`
-  d. Avisar Danilo: *"Lembra de actualizar a nota correspondente no Obsidian para manter sync."*
-
-### Sync Obsidian → knowledge
-- Comando (Bash): `OBSIDIAN_VAULT="<path>" .claude/scripts/sync-obsidian-knowledge.sh`
-- Comando (PowerShell): `.\.claude\scripts\sync-obsidian-knowledge.ps1 -VaultPath "<path>"`
-- Idempotente (SHA256 hash em `.sync-state.json`)
-- Conteúdo importado vai para `.claude/.ai/knowledge/from-obsidian/` — **nunca editar à mão**
-- Sync é **unidirecional** (Obsidian → knowledge). Bidirecional é TODO documentado.
-
-### Sub-Agent Specs
-Specs de sub-agents pré-definidos vivem em `.claude/skills/ceo-ai/sub-agents-specs/`:
-- `checkout-fixer.md`
-- `design-system-applier.md`
-- `e2e-test-builder.md`
-- `notifications-integrator.md`
-
-Estes são **specs apenas** — não implementados. Quando uma task se enquadra num deles, CEO-AI invoca Claude Code com o spec como prompt.
-
----
-
-## 1.6 AUTONOMY PRINCIPLE — EXECUÇÃO DIRETA (regra operacional do Danilo, revista 2026-07-01)
-
-Princípio fundamental, atualizado pelo Danilo em 2026-07-01:
+## 1.6 AUTONOMIA — EXECUÇÃO DIRETA (regra do Danilo, revista 2026-07-01)
 
 > "Quando eu dou um comando, tu EXECUTAS. Não paras para perguntar 'qual opção'.
 > Fazes o trabalho e trazes o relatório a dizer se correu bem ou mal.
 > A ÚNICA coisa que não aplicas sozinho é o dinheiro."
 
-### DECIDE E EXECUTA sozinho — SEM perguntar, SEM menus de escolha 1/2/3
-
-Para **tudo o que não é dinheiro**, o Claude escolhe a melhor abordagem e executa
-ponta-a-ponta. No fim entrega um relatório do que fez e se correu bem ou mal.
-Isto cobre, entre outros:
-- Bugs, ecrãs, features, refactors necessários
-- Código produtivo: Flutter (`lib/`), Edge Functions **não-financeiras**, scrapers
-- Infra, tooling, scripts do `.claude/`, sync Obsidian, knowledge, housekeeping
-- Admin **não-financeiro** (banir/reativar entidades, aprovar candidaturas, broadcasts)
-- Migrations SQL e schema **que não tocam nas tabelas/colunas financeiras** da Lista Vermelha
-- Pesquisa, diagnóstico, relatórios, documentação, lint, encoding, retries
-
-Se houver várias abordagens possíveis, o Claude **escolhe a melhor e segue** — não
-apresenta o menu ao Danilo. A justificação da escolha vai no relatório final, não numa pergunta.
+Tudo o que não é dinheiro: escolhe a melhor abordagem e executa ponta a ponta (bugs, ecrãs,
+features, Edge Functions não financeiras, infra, scripts, admin não financeiro, migrações fora das
+tabelas de dinheiro, pesquisa, relatórios). A justificação da escolha vai no relatório, não numa
+pergunta. Bloco travado (tranca, classificador): motivo no `e2e_log`, segue para o seguinte.
 
 ### 🔴 LISTA VERMELHA — a ÚNICA travagem (dinheiro real)
 
-Só isto trava. Aqui o Claude faz **todo** o trabalho de preparação (código, SQL, cálculos,
-diff, testes) MAS **não aplica sozinho** a alteração financeira final. Em vez de perguntar,
-escreve no relatório, **em português, bem claro**:
+Prepara tudo (código, SQL, cálculos, diff, testes) mas **não aplica** a alteração financeira
+final. No relatório, em português:
 
 > **⚠️ ISTO MEXE EM PAGAMENTO/DINHEIRO. Está tudo pronto — confirma que eu aplico.**
 
-O Danilo lê em português e responde "vai". Só então se aplica.
-
-Estão na Lista Vermelha:
-- **Stripe** (create-payment-intent, refund, charge-extra, stripe-webhook, MBWay) e chaves Stripe
-- **Preços / taxas / comissões**: `pricing_service`, `PricingService`, fees, markup, service_fee
-- **Pagamentos**: `finalizePurchase`, checkout que cobra, cash flow real
-- **`bora_tokens`** e triggers de tokens (valor, award, resgate)
-- **`platform_settings` financeiros**: chaves `stripe_*`, `pricing_*`, `commission_*`, `fee_*`, `token_*`
-- Qualquer migration/UPDATE que altere valores cobrados a clientes ou pagos a estafetas/parceiros
-
-Nota: nada de cliques nem prompts em inglês em lado nenhum — nem para dinheiro.
-A confirmação do dinheiro é sempre esta frase em português no relatório.
-
-### Em caso de dúvida
-Se genuinamente não souberes se algo cai na Lista Vermelha → **trata como Lista Vermelha**
-(prepara tudo, não apliques, sinaliza em PT). Fora disso → executa.
-
-### Persistência
-Se a tarefa falhar a meio:
-1. Diagnostica causa
-2. Tenta abordagem alternativa
-3. Tenta terceira abordagem se necessário
-4. Só desistes depois de 3 abordagens distintas falharem
-5. Aí reportas com diagnóstico completo, não só "falhou"
+Na lista: Stripe (create-payment-intent, refund, charge-extra, stripe-webhook, MBWay) e chaves;
+preços, taxas, comissões (`pricing_service`, fees, markup, service_fee); `finalizePurchase` e
+checkout que cobra; `bora_tokens` e triggers de tokens; `platform_settings` financeiros
+(`stripe_*`, `pricing_*`, `commission_*`, `fee_*`, `token_*`); qualquer UPDATE que altere valores
+cobrados ou pagos. Também zonas protegidas: `dispatch_engine`, RLS de `orders`/`wallets`/`ledger`.
+Na dúvida, trata como Lista Vermelha. Persistência: 3 abordagens distintas antes de reportar
+falha, sempre com diagnóstico.
 
 ---
 
 ## 2. PRIORIDADES (imutáveis)
 
-1. **Receita** → 2. **UX** → 3. **Estabilidade** → 4. **Velocidade**
+1. **Receita** → 2. **UX** → 3. **Estabilidade** → 4. **Velocidade**.
+Se não contribui para o lançamento ou para a receita → não se faz agora. Uma coisa de cada vez.
 
-**Golden rule:** Se não contribui para o lançamento → não faz agora.
+### 2.3 MOTOR E POUPANÇA DE LIMITE (Danilo, 14/11/2026)
 
----
-
-## 3. ESTADO DO SISTEMA (2026-04-25) — pós-Batches A-F
-
-### ✅ PRONTO
-- Order lifecycle completo
-- Dispatch engine server-side (Edge Function)
-- Ledger / tokens / loyalty
-- Pricing rules (Batch D ✅ — 10+5+5% partner, driver 30% profit share, token ×3)
-- Auth (BUG-007 ✅ — driver nunca usa guest UID)
-- Maps + Google Directions
-- Cash (máx €40)
-- Batching (stacking até 3 ordens, FIFO ≤200m)
-- Admin screens
-- AppTheme / design system (50 ecrãs redesenhados)
-- Seed restaurantes
-- Category-mapper-v2 (22 categorias canónicas, 6 mercados)
-- Lidl — scraper automático (Mondays), 62+635 produtos
-- Continente — ~17.734 produtos (a terminar preços)
-- Pingo Doce — produtos + imagens ✅
-- Mercadona — produtos + imagens ✅
-- Auchan — produtos + imagens ✅ (categorias limpas)
-- Extensão Claude in Chrome — instalada (`claude --chrome`)
-- MBWay real via Stripe — Edge Fn + webhook LIVE · Novo Banco + MB WAY activado (2026-04-24)
-- Partner onboarding (Batch E ✅ — async+UUID+foto obrigatória+forgot pw+email duplicate)
-- Product mutations async + rollback optimístico (Batch E ✅)
-- PIN proof of delivery obrigatório — ambas as driver screens (Batch F ✅ — BUG-DR-009)
-- GDPR consent enforcement técnico real — FCM + GPS gateados (Batch F ✅ — BUG-CL-015)
-- Botão "Reenviar código" no tracking screen cliente (Batch F ✅)
-- orders_financial_lock trigger — imutabilidade financeira pós-criação (Batch D ✅)
-- Zero-tolerance em create-payment-intent (Batch D ✅ — BUG-MN-001/002)
-- Bag fee corrigido — restaurant €0.30 + mercado €0.10/saco + push cliente (2026-04-25 ✅ — BUG-MN-015)
-
-### ⚠️ PARCIAL
-- Continente preços (scraper a terminar)
-- Stripe live mode (MBWay LIVE; Stripe card — confirmar BACKEND_BASE_URL prod)
-- ~~Firebase push~~ ✅ RESOLVIDO 2026-05-31 (FCM heads-up + FGS + CallKit)
-- ~~Foto perfil cliente~~ ✅ RESOLVIDO 2026-05-31 (persiste users/drivers/restaurants — Sessão 2.3)
-
-### ❌ LAUNCH BLOCKERS (revisto 2026-05-31)
-1. ✅ RESOLVIDO — Firebase push (FCM heads-up/FGS/CallKit)
-2. ✅ RESOLVIDO — BUG-PT-006: Parceiro sem som (notify-partner/chat)
-3. Stripe live mode confirmado (BACKEND_BASE_URL prod) — confirmar
-4. ✅ RESOLVIDO — Foto perfil cliente (persiste users/drivers/restaurants)
-5. BUG-MN-004: Refund sem cap + sem idempotency key — verificar
-6. Teste E2E real (driver real + pagamento real) — pendente
-
-### 📊 PONTUAÇÃO (⚠️ OBSOLETO 2026-04-25 — recomputar; vários blockers resolvidos desde então)
-- Cliente: 52/100 (era 45)
-- Estafeta: 60/100 (era 50)
-- Parceiro: 52/100 (era 28)
-- Segurança & Pagamentos: 68/100 (era 43)
-- Notificações: 32/100 (nova — Firebase blocker)
-- Mapa: 48/100 (sem alteração)
-- **TOTAL: 55/100** (era 42) · Gap vs iFood (92): 37 pts
-
-### 🟢 EM EXECUÇÃO (Sessão autónoma 2026-05-19) — 5 lojas non-grocery
-
-Branch `autonomous-night-2026-04-29`. Sequencial bloqueante. Validation Gate (CLAUDE.md) consentido via AskUserQuestion. Detalhes completos em `business_rules.md` §27.7. **Regra global de scraping em §27.2.1**.
-
-- ✅ **Wells** (`wells-guarda`, pharmacy) — **476 produtos** (229 wells.pt + 247 Glovo÷1.15) · cron deferido
-- 🔒 **Worten** (`worten-guarda`, store) — meta ≥500 · cron `0 5 * * 1`
-- 🔒 **Leroy Merlin** (`leroy-merlin-guarda`, store) — meta ≥400 · cron `0 6 * * 1`
-- 🔒 **Kiwoko** (`kiwoko-guarda`, store) — meta ≥200 · cron `0 4 * * 2`
-- 🔒 **Zippy** (`zippy-guarda`, store, +`product_variants`) — meta ≥150 · cron `0 5 * * 2`
-
-**Pipeline canónico (revisto 2026-05-19 — sessão Wells):**
-1. Produtos+imagens: Glovo Guarda (Playwright + intercept) — primário
-2. Preço: site oficial da loja — primário
-3. Fallback preço: Glovo ÷ 1.15 (sistema aplica +15% em runtime via `pricing_calculate`)
-4. NUNCA produto sem preço → DELETE (não importar `is_available=false`)
-5. Dedup obrigatório por nome normalizado
-
-Preço sempre PURO. `is_partner=false`, `user_=NULL`.
-
-### ❌ PÓS-LANÇAMENTO
-- Intermarché Guarda (PRÓXIMO após Continente)
-- Auchan Guarda — preços
-- Pingo Doce — preços locais
-- Mercadona — preços locais
-- Chat/Favorite stores
-- AI chatbot suporte (usa `ChatStore`)
-- Admin access control
-- Partner demo Fuku Sushi
+- Quem escolhe o motor de cada missão é a **Claude.ai**.
+- **Opus 5.5 por defeito.** **Fable 5.2** só para design (sites, páginas de loja, peças visuais)
+  ou quando o Opus falhar 2 vezes no mesmo passo.
+- **Texto em volume** (roteiros, fichas, guias, traduções) pelo `opencode run` com motor grátis
+  (skill `distribuir-trabalho`); o Claude só decide e verifica.
+- **Robôs** (Hermes, radar, agente de segunda) usam o crédito da API (Haiku 5.5) e depois a
+  rotação grátis. **Nunca o crédito da API dentro do Claude Code.**
+- Cada bloco regista no `e2e_log` o motor usado.
+- Tarefa repetitiva vira script sem modelo. Servidores MCP que a missão não usa ficam desligados.
 
 ---
 
-## 4. PIPELINE MERCADOS
+## 3. ESTADO DO SISTEMA — vive fora deste ficheiro
 
-Ver referência completa: `.claude/skills/ceo-ai/references/FONTES_DADOS_MERCADOS.md`
+Este ficheiro não guarda o estado (envelhecia: o de 25/04 dizia "pronto" e "bloqueador" a coisas
+mudadas há meses). O estado vivo está em:
+- `.claude/.ai/knowledge/permanente/procedural/estado-atual-consolidado.md` (o digest que o gancho
+  de arranque injeta);
+- o `digest-*` mais recente do livro e a tabela `e2e_log` (fluxo = missão);
+- `PADRAO_BORA.md` §7 (o que falta a cada categoria);
+- `public.caixa_guardados` (o que o Danilo mandou guardar) e `public.despacho` (tarefas dos robôs).
+Antes de dizer "pronto" ou "falta", confirma com SELECT ou com o endereço no ar.
 
-**Ordem de trabalho actual (sessão autónoma 2026-05-19):**
-1. **Wells** (farmácia) — Playwright + Glovo+Uber → wells.pt (EM EXECUÇÃO)
-2. Worten (electrónica) — bloqueada por Wells
-3. Leroy Merlin (bricolage) — bloqueada
-4. Kiwoko (animais) — bloqueada
-5. Zippy (roupa criança, com variantes) — bloqueada
+## 4. MERCADOS (não-parceiro)
 
-**Posteriormente:**
-6. Continente (a terminar)
-7. Intermarché — Glovo/Uber → intermarche.pt
-8. Auchan — Glovo/Uber → auchan.pt
-9. Pingo Doce — só preços → pingodoce.pt
-10. Mercadona — só preços → mercadona.pt
+Pipeline e fontes: `.claude/skills/ceo-ai/references/FONTES_DADOS_MERCADOS.md`. Regra: preço
+exato do site oficial da loja, local da Guarda, sem markup embutido (o 15% aplica-se em runtime
+por `pricing_calculate`); produto sem preço não entra; dedup por nome normalizado.
 
-**Regra:** Preço exacto do site oficial. Nunca markup embutido. Preço local Guarda. 15% markup non-partner aplicado por `pricing_calculate` em runtime.
+## 5. BUSINESS RULES (resumo — a fonte é o livro `business-rules` e `docs/contexto/03-regras-de-negocio.md`)
 
----
-
-## 5. BUSINESS RULES (imutáveis)
-
-### Tokens
-- Driver: +40 normal / +50 partner
-- Cliente: 3% do valor
-- 100 tokens = €0.50 · máx 50% desconto
-- DB: `bora_tokens` · trigger: `trg_award_tokens_on_delivery`
-
-### Pricing
-- Entrega: €2.50 até 4km + €0.50/km
-- Markup: 15% non-partner / 10+5+5% partner
-- Driver: €3.80 + €0.20/km · Bónus €0.80 (storeShopping/carry/send) · +€3 stacked partner
-- Driver partilha 30% do lucro líquido Bora (não-parceiro) — implementado em Batch D
-- Cash máx: €40
-- Saco restaurante: €0.30 fixo · Saco mercado: €0.10/unidade
-
-#### Comissão parceiro 10+5+5% (IMPLEMENTADO 2026-04-25 — Batch D ✅)
-- **10%** = `partner_commission_visible` — parceiro paga no settlement
-- **5%** = `partner_markup_hidden` — embutido no preço do produto (cliente não vê)
-- **5%** = `partner_service_fee_client` / `service_fee` — taxa visível no recibo do cliente
-- Colunas DB adicionadas: `partner_commission_visible`, `partner_markup_hidden`, `partner_service_fee_client`
-
-### Dispatch
-- Stacking: até 3 ordens · FIFO ≤200m · Timeout: 40s
-- `current_driver_offer_id` = fonte de verdade
-
-### Arquitectura
-- Flutter = camada reactiva (read-only)
-- Dispatch = Edge Function `dispatch-engine`
-- Fluxo: `created→preparing→callingDriver→driverAccepted→pickedUp→onTheWay→delivered`
-- 51 Edge Functions deployed (confirmado via MCP 2026-07-01) — núcleo: `dispatch-engine`, `create-payment-intent`, `stripe-webhook`, `create-mbway-payment-intent` (LIVE), `notify-driver`, `notify-partner`, `register-partner`. Lista completa via MCP `list_edge_functions`. `confirm-mbway-payment` local obsoleto.
-- MBWay fluxo: ordem pending → `create-mbway-payment-intent` → Stripe push → `stripe-webhook` (payment_intent.succeeded) → paid + dispatch
+Em conflito entre este resumo e a fonte, **vale a fonte**; não se muda nenhum valor daqui (§1.6).
+- Entrega €2,50 até 4 km + €0,50/km · Dinheiro máx. €40 · Saco restaurante €0,30, mercado €0,10/saco
+- Parceiro (restaurantes): 10% comissão visível + 5% markup oculto + 5% taxa de serviço ao cliente
+- Não-parceiro: preço base + 15% · taxa €2,50 · estafeta €3,80 + €0,20/km + €0,80 + 30% do lucro líquido
+- Tokens: ver `regras-do-danilo` §8 (o cliente usa metade do valor dos tokens que tem)
+- Dispatch: `current_driver_offer_id` = fonte de verdade · fluxo
+  `created→preparing→callingDriver→driverAccepted→pickedUp→onTheWay→delivered`
+- Reservas: €3 pré-pago (chega → parceiro desconta €2, Bora €1)
 
 ---
 
-## 6. PROTOCOLO DE ORQUESTRAÇÃO
+## 6. PROTOCOLO DE ORQUESTRAÇÃO (fluxo real desde 11/2026)
 
-### Fluxo padrão
 ```
-1. Danilo diz "próximo passo" ou descreve problema
-2. CEO-AI analisa → identifica tarefa prioritária
-3. CEO-AI gera prompt completo para Claude Code
-4. Danilo cola no terminal
-5. Danilo cola resultado aqui
-6. CEO-AI valida → decide próximo
-7. Repetir
+1. O Danilo fala com a Claude.ai (voz, mensagens partidas). Ele não cola nada em lado nenhum.
+2. A Claude.ai escreve a MISSÃO (caixa_guardados / livro / prompt) e escolhe o motor (§2.3).
+3. Quem executa: Claude Code no PC (código, Chrome, emulador), Dipsy/opencode (volume de texto,
+   motor grátis) ou Hermes/Emerson na VPS (tarefas 24h, pela tabela `despacho`).
+4. O executor segue este ficheiro: PADRAO_BORA → entrevista se for grande (§0-ter) → faz → prova
+   (SELECT, log, ficheiro, captura) → e2e_log por bloco, com o motor usado.
+5. Entrega: ramo de ensaio `ai/AAAA-MM-DD-descricao` (skill `modo-automatico`); a Claude.ai
+   verifica nas 3 plataformas e publica. Digest no livro no fim.
+6. Relatório curto ao Danilo em texto corrido: "fiz isto, falta isto (porquê), erros que
+   encontrei, próximo passo". Decisão que só ele pode tomar → lista numerada, para responder
+   "1 sim, 2 não" (skill `falar-com-o-danilo` para o canal certo).
 ```
 
-### Decision Brain (obrigatório desde 2026-07-10)
-Antes de decisões não-triviais (o que construir, prioridade, vale a pena?): consultar
-`.claude/.ai/knowledge/permanente/procedural/decision-brain.md` (8 critérios, score 0–16)
-e registar as 3 linhas de saída na ordem/decisão. É checklist, não sistema novo.
+Skills deste fluxo: `protocolo-missao-bora` (formato e fecho de missão), `falar-com-o-danilo`
+(canal e tom), `aprender` (correções no livro), `navegadores-e-contas` (perfil certo),
+`trocar-chaves-servidor` (trocar uma chave sem partir nada), `painel-admin-limpo` (paridade e
+regras do painel), `distribuir-trabalho` (motores grátis por dentro).
 
-### Decide sozinho e EXECUTA (default)
-- Ordem de tarefas dentro das prioridades
-- Escolha da abordagem quando há várias opções (escolhe a melhor, não pergunta)
-- Formato do prompt / execução Claude Code
-- Validação de resultado e próximo passo dentro do plano
-- Bugs, ecrãs, features, infra, admin não-financeiro, pesquisa
+**Decision Brain** (decisões não triviais: o que construir, prioridade, vale a pena?):
+`.claude/.ai/knowledge/permanente/procedural/decision-brain.md` (8 critérios, 0–16), 3 linhas de
+saída na ordem/decisão.
 
-### Sinaliza no relatório (NÃO aplica sozinho) — só Lista Vermelha
-- Alterações que mexem em **dinheiro real** (ver §1.6 🔴 LISTA VERMELHA)
-- Frase em PT no relatório: *"⚠️ ISTO MEXE EM PAGAMENTO/DINHEIRO. Confirma que eu aplico."*
-- Sem cliques nem prompts em inglês. A confirmação é o Danilo dizer "vai".
-
-### Formatos de resposta
-```
-STANDARD: ANÁLISE / IMPACTO / PRIORIDADE / DECISÃO / INSTRUÇÃO / CRITÉRIO DE FEITO
-QUICK: → decisão + motivo
-TRIAGE: AGORA / DEPOIS / IGNORAR
-```
+Formatos: `STANDARD` (análise / impacto / prioridade / decisão / instrução / critério de feito),
+`QUICK` (decisão + motivo), `TRIAGE` (agora / depois / ignorar).
 
 ---
 
 ## 7. REGRAS PERMANENTES
 
-**SEMPRE:** ler `PROJECT_CONTEXT.md` · priorizar lançamento · mudanças cirúrgicas · atacar raiz · manter contexto actualizado
+**SEMPRE:** prova material · mudanças cirúrgicas · atacar a raiz · erro encontrado pelo caminho
+vai para o `e2e_log` e o relatório (passo `fora-de-scope`), não se corrige calado.
 
-**NUNCA:** executar código · refatorar sem razão · mexer em PRONTO sem aprovação · alterar branding · alterar fotos de produto · aplicar markup nos mercados
-
-### 🔐 Segurança de credenciais (desde 2026-04-24)
-
-- **NUNCA** hardcoded credentials em `lib/` (Supabase URL/keys, Google Maps, Stripe, Firebase)
-- **SEMPRE** `String.fromEnvironment('KEY')` + `.dart_defines` (gitignored)
-- **Comando padrão:** `flutter run --dart-define-from-file=.dart_defines`
-- **Release:** substituir `STRIPE_PUBLISHABLE_KEY` por `pk_live_...` no `.dart_defines`
-- `SERVICE_ROLE_KEY` e `OPENAI_API_KEY` vivem só em `backend/.env` e `scripts/scraper/.env` (gitignored) — nunca chegam ao Flutter
-
----
+**NUNCA:** refatorar sem razão · alterar branding ou fotos reais de produto · markup nos mercados ·
+segredos em ficheiro versionado (o repo `bora-app-cloud` é PÚBLICO) · credenciais em `lib/`
+(sempre `String.fromEnvironment` + `.dart_defines`).
 
 ## 8. WORKFLOW CLAUDE CODE
 
-- Início: `⚠️ MODO PROTECÇÃO TOTAL ⚠️`
-- Final: `/ctx doctor` + `/ctx stats`
-- **Missões** (redigir ordem, arrancar janela, fechar Bloco F): skill `protocolo-missao-bora`
-  (`.claude/skills/protocolo-missao-bora/SKILL.md`, criada 2026-09-13) — as três portas
-  (Claude Code / OpenCode / navegador), motor + fallback, carta de autonomia, `e2e_log`,
-  digest em `claude_ai_memoria`. Entra por aqui; não substitui o `PADRAO_BORA.md`.
-- **Conta Apple / App Store / DSA / disponibilidade por país / submissão iOS:** skill
-  `apple-conta-e-loja` (`.claude/skills/apple-conta-e-loja/SKILL.md`, criada 2026-09-16) —
-  ler o email da Apple por inteiro antes de dizer o estado, lookup por país e
-  `contentStatuses`, ciclo do estatuto de comerciante, quando reenviar e quando não, repo
-  público e dados pessoais. Cicatriz: o estado da Apple foi dado por meia leitura duas vezes.
-- Tarefas complexas: lembrar Danilo de mudar para **Opus**
-- CTX: v1.0.89 · em sessões longas sugerir `/ctx stats` e `/ctx doctor`
+- Início: `⚠️ MODO PROTECÇÃO TOTAL ⚠️` · Fim: `/ctx doctor` + `/ctx stats`.
+- **Antes de mexer numa API externa (Supabase, Stripe, Meta, WhatsApp, Higgsfield, Postiz),
+  consultar o Context7** (servidor MCP `context7`: `resolve-library-id` → `get-library-docs`),
+  para não escrever contra documentação velha.
+- Missões: skill `protocolo-missao-bora`. Conta Apple / App Store / DSA: skill `apple-conta-e-loja`.
+- Envio: commits por caminho (`git add -- <ficheiros>`), nunca `git add -A`; o push para o ramo de
+  produção é da Claude.ai (a tranca recusa-o ao executor).
 
----
+## 9. AUTO-ACTUALIZAÇÃO
 
-## 9. AUTO-ACTUALIZAÇÃO DO CONTEXTO
-
-Quando algo muda:
-1. CEO-AI identifica o que mudou
-2. Gera instrução para actualizar `PROJECT_CONTEXT.md`
-3. Move item: POR FAZER → PARCIAL → PRONTO
-4. Regista data
-5. Danilo confirma antes de commit
-
-**Ficheiros a manter actualizados:**
-- `.claude/skills/ceo-ai/SKILL.md`
-- `.claude/skills/ceo-ai/references/PROJECT_CONTEXT.md`
-- `.claude/skills/ceo-ai/references/FONTES_DADOS_MERCADOS.md`
-- `.claude/.ai/reports/` (relatórios scraping)
+Quando algo muda, atualiza-se a fonte (livro, `PADRAO_BORA.md`, knowledge), não este ficheiro.
+Este ficheiro só muda quando muda a maneira de orquestrar. Referências que continuam aqui:
+`references/PROJECT_CONTEXT.md`, `references/FONTES_DADOS_MERCADOS.md`, `sub-agents-specs/`.
 
 ## 📊 Telemetria (obrigatório no fim de cada execução)
 
-No fim de cada execução desta skill:
-1. Atualiza o frontmatter deste ficheiro: incrementa `execucoes` e `sucessos` OU `falhas`; atualiza `ultima_execucao` (YYYY-MM-DD).
-2. Acrescenta UMA linha à tabela de `.claude/.ai/knowledge/wiki/skills-metrics.md` (Skill | Data | Contexto | Volume | Resultado).
-O evolution-engine lê essa tabela: falhas/execucoes > 30% → candidata a reescrita; 90 dias sem uso → candidata a arquivo.
+1. Atualiza o frontmatter: incrementa `execucoes` e `sucessos` OU `falhas`; `ultima_execucao`.
+2. Acrescenta UMA linha a `.claude/.ai/knowledge/wiki/skills-metrics.md`
+   (Skill | Data | Contexto | Volume | Resultado).

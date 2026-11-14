@@ -110,3 +110,4 @@ confianca: auto
 | ceo-ai | 2026-11-10 | pagar-na-loja-2026-11-10 (PC, Opus 5.5) | acerto do pedido 6d38f5e5 + regra 2.4.2 no servidor (gatilho, fechos, recibos, RPC admin, notify-driver v45) + faixa do estafeta, aviso do parceiro, admin; prova R1-R5 em transacção desfeita; 3332 testes (só os 6 do ListTile 3.47) | sucesso parcial: servidor aplicado e provado; app no ramo ai/ + PR #10, publicação bloqueada pela tranca → Claude.ai |
 | ceo-ai | 2026-11-05 | modo-automatico-seguro-2026-11-05 (PC, Opus) | inventário, trava testada em sessões reais, skill, CI e remendo preparados; ativação pendente do clique do Danilo (zonas da tranca) | parcial |
 | modo-automatico | 2026-11-05 | modo-automatico-seguro-2026-11-05 (criada) | skill nova a partir da missão | ok |
+| ceo-ai | 2026-11-14 | missão sistema-conteudo-14-11: v3 (§0-ter entrevista, §2.3 motor, §3 estado vivo, §6 fluxo real) | 1 | sucesso |

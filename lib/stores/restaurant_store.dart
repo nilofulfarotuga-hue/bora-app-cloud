@@ -110,6 +110,25 @@ class RestaurantStore extends ChangeNotifier {
   final Map<String, bool> _storeLoading = {};
   final Map<String, bool> _storeFullyLoaded = {};
 
+  /// Bloco 3c: última linha recebida de cada loja a meio do carregamento
+  /// (`sort_order` e `id`), para pedir a página seguinte por cursor.
+  final Map<String, ({int? sortOrder, String id})> _storeCursor = {};
+
+  /// Filtro `or` do PostgREST para "as linhas que vêm DEPOIS de
+  /// ([sortOrder], [id])" na ordem `sort_order` crescente (vazios no fim),
+  /// depois `id` crescente: maior `sort_order`, ou o mesmo com `id` maior, ou
+  /// sem `sort_order` (esses vêm todos depois dos que têm). Conferido em
+  /// produção a 14/11 com o Continente: depois da linha 1000 ficam 18 808 e a
+  /// primeira é a 1001. Quando a última linha já não tem `sort_order` o
+  /// filtro é outro (só `id` maior entre os vazios) e não passa por aqui.
+  @visibleForTesting
+  static String filtroDepoisDoCursor(int sortOrder, String id) {
+    final idSeguro = id.replaceAll(r'\', r'\\').replaceAll('"', r'\"');
+    return 'sort_order.gt.$sortOrder,'
+        'and(sort_order.eq.$sortOrder,id.gt."$idSeguro"),'
+        'sort_order.is.null';
+  }
+
   bool storeProductsLoading(String restaurantId) =>
       _storeLoading[restaurantId] ?? false;
 
@@ -142,27 +161,66 @@ class RestaurantStore extends ChangeNotifier {
       final list = _productsByRestaurant.putIfAbsent(
           restaurantId, () => <PartnerProduct>[]);
       final seen = <String>{for (final e in list) e.id};
-      int offset = list.length;
+      // fechar-app-15-11 (Bloco 3c): páginas por CURSOR, não por offset. Com
+      // offset o Continente (19 808 produtos) fazia o servidor ordenar a loja
+      // inteira 20 vezes e a última página saltava 19 000 linhas; a 14/11 isso
+      // acabou em erro 500 (statement timeout). Agora cada página pede "o que
+      // vem depois da última linha que recebi", na mesma ordem de sempre.
+      // O cursor fica guardado por loja: se a rede cair a meio, a próxima
+      // tentativa continua de onde ficou (antes recomeçava por contagem, que
+      // falha quando há linhas repetidas ou ignoradas).
+      // Lista vazia = começa-se do princípio (alguém limpou os produtos desta
+      // loja entretanto; continuar a meio deixava a primeira parte de fora).
+      if (list.isEmpty) _storeCursor.remove(restaurantId);
+      var cursor = _storeCursor[restaurantId];
+      var tentativas = 0;
       while (true) {
-        final List<dynamic> page = await _lerProdutos((projecao) => supabase
-            .from('products')
-            .select(projecao)
-            .eq('restaurant_id', restaurantId)
-            .eq('is_available', true)
-            .order('sort_order', ascending: true, nullsFirst: false)
-            .order('id', ascending: true)
-            .range(offset, offset + _storePageSize - 1));
+        final List<dynamic> page;
+        try {
+          page = await _lerProdutos((projecao) {
+            var consulta = supabase
+                .from('products')
+                .select('$projecao,sort_order')
+                .eq('restaurant_id', restaurantId)
+                .eq('is_available', true);
+            final c = cursor;
+            if (c != null) {
+              consulta = c.sortOrder == null
+                  ? consulta.isFilter('sort_order', null).gt('id', c.id)
+                  : consulta.or(filtroDepoisDoCursor(c.sortOrder!, c.id));
+            }
+            return consulta
+                .order('sort_order', ascending: true, nullsFirst: false)
+                .order('id', ascending: true)
+                .limit(_storePageSize);
+          });
+          tentativas = 0;
+        } catch (e) {
+          // Uma página que falha (rede, servidor ocupado) tenta-se mais uma
+          // vez antes de desistir; o que já chegou fica no ecrã.
+          if (++tentativas > 1) rethrow;
+          await Future<void>.delayed(const Duration(seconds: 1));
+          continue;
+        }
         for (final record in page) {
           final product = _productFromRow(record as Map<String, dynamic>);
           if (product == null) continue;
           if (!seen.add(product.id)) continue; // dedupe O(1)
           list.add(product);
         }
+        if (page.isNotEmpty) {
+          final ultima = page.last as Map<String, dynamic>;
+          cursor = (
+            sortOrder: (ultima['sort_order'] as num?)?.toInt(),
+            id: ultima['id'].toString(),
+          );
+          _storeCursor[restaurantId] = cursor;
+        }
         notifyListeners(); // carrosséis preenchem à medida que chegam páginas
         if (page.length < _storePageSize) break;
-        offset += _storePageSize;
       }
       _storeFullyLoaded[restaurantId] = true;
+      _storeCursor.remove(restaurantId);
     } catch (e) {
       debugPrint(
           'RestaurantStore: loadFullStoreProducts($restaurantId) error => $e');

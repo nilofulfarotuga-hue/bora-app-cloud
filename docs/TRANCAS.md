@@ -564,3 +564,17 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   abre; não se voltou a correr o DESLIGAR-M11 (com a janela já aberta ele regravaria o bak-20261109-m11 com o estado aberto e falharia).
   Não contornado. Destrava: a Claude.ai aplica `docs/propostas/fechar-tudo-2026-11-11/R7_order_store_patch.md` pelo GitHub, ou uma
   sessão `claude --safe-mode` aberta pelo Danilo.
+
+- **14/11/2026 ~13:10, missão `farmacias-loja-2026-11-14` (bloco 1, dinheiro das farmácias, AUTORIZO do Danilo 13/11 e 14/11
+  11:44/11:48)** — a bora-tranca negou o Write de `supabase/migrations/20261114150000_farmacias_loja_01_dinheiro.sql`
+  ("migration que toca tokens/wallet/pagamentos/ledger"; o fecho semanal lê `ledger_entries`). Não contornado (nem a partir o
+  ficheiro, nem pelo MCP). A proposta inteira, provada com funções temporárias contra os dados reais (outras lojas iguais ao
+  cêntimo), está em `.claude/.ai/missoes/farmacias-loja-2026-11-14/bloco1-proposta-dinheiro.md`; o pedido de aplicação foi para
+  a Claude.ai pelo livro (página `pedido-claude-ai-farmacias-loja-2026-11-14`). e2e_log 8746.
+
+- **14/11/2026, missão `farmacias-loja-2026-11-14` (blocos 2 e 3, ajudante parceiro-restaurante)** — a bora-tranca negou o
+  Write de `supabase/migrations/20261114160100_farmacias_loja_a2_chegada_tardia.sql` ("migration que toca
+  tokens/wallet/pagamentos/ledger"): a tranca leu os nomes wallets/ledger/Stripe do comentário que diz o que a migração NÃO
+  toca; além disso o "cancelar sem custo" dispara o reembolso automático que já existe (`trg_reembolso_cancelado_pelo_sistema`).
+  Não contornado (nem renomeado nem partido). O SQL inteiro está em
+  `.claude/.ai/missoes/farmacias-loja-2026-11-14/a2_chegada_tardia.PROPOSTA.sql`; o líder da missão revê, aplica e copia.

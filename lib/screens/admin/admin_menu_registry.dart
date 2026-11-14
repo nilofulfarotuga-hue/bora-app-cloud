@@ -331,11 +331,21 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'farmacias',
       title: 'Farmácias',
-      subtitle: 'Farmácia da Sé e Teixeira: quem vê a loja (lista de permissão), receita ligada ou não, comissão extra depois dos meses grátis, abrir ao público',
+      subtitle: 'Farmácia da Sé e Teixeira: e-mail de login e link de senha, dados da empresa (NIF, IBAN, certidão), horário e preços, receita, lista de permissão, comissão extra, abrir ao público, extrato semanal',
       icon: Icons.local_pharmacy,
       color: Colors.green,
       builder: () => const AdminFarmaciasScreen(),
-      keywords: const ['farmacia', 'farmácia', 'receita', 'prescricao', 'prescrição', 'se', 'sé', 'teixeira', 'lista de permissao', 'escondida', 'comissao extra'],
+      keywords: const ['farmacia', 'farmácia', 'receita', 'prescricao', 'prescrição', 'se', 'sé', 'teixeira', 'lista de permissao', 'escondida', 'comissao extra', 'email', 'e-mail', 'login', 'senha', 'nif', 'iban', 'certidao', 'certidão', 'horario', 'horário', 'extrato', 'receitas reais'],
+    ),
+    // 14/11/2026 (farmacias-loja): extrato semanal só de leitura das farmácias, com CSV.
+    AdminMenuItem(
+      id: 'farmacias_extrato',
+      title: 'Extrato das farmácias',
+      subtitle: 'Por semana e por farmácia: vendas na app, comissão, parte da farmácia, dinheiro em mão, comissão extra, saldo; exportar CSV',
+      icon: Icons.receipt,
+      color: Colors.green,
+      builder: () => const AdminFarmaciasScreen(abaInicial: 2),
+      keywords: const ['extrato', 'farmacia', 'farmácia', 'acerto', 'semana', 'csv', 'comissao extra'],
     ),
     AdminMenuItem(
       id: 'pedidos_receita',

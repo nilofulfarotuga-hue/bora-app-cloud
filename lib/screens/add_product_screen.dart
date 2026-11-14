@@ -89,6 +89,15 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   bool get _isPartnerStore => widget.restaurant.isPartner;
 
+  /// 14/11/2026 (farmácias, bloco 2.2): na farmácia o preço do cliente é o preço
+  /// do catálogo e a farmácia recebe o valor inteiro — o número escrito grava-se
+  /// igual em `price` e em `partner_shelf_price`, sem a regra de balcão.
+  bool get _isFarmacia =>
+      widget.restaurant.category == BusinessCategory.pharmacy;
+
+  /// Lojas parceiras que usam a regra de balcão ([PartnerPriceRules]).
+  bool get _usaRegraDeBalcao => _isPartnerStore && !_isFarmacia;
+
   @override
   void initState() {
     super.initState();
@@ -111,7 +120,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       }
       _preselectCategory(product.category.trim());
     }
-    if (_isPartnerStore) _loadRules();
+    if (_usaRegraDeBalcao) _loadRules();
   }
 
   /// Campo do preço pré-preenchido com o balcão; se o produto antigo ainda não
@@ -122,7 +131,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     if (product.soldByWeight && product.shelfPricePerKg != null) {
       return product.shelfPricePerKg!.toStringAsFixed(2).replaceAll('.', ',');
     }
-    final value = _isPartnerStore
+    final value = _usaRegraDeBalcao
         ? (product.partnerShelfPrice ?? product.price)
         : product.price;
     return value.toStringAsFixed(2).replaceAll('.', ',');
@@ -212,7 +221,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
     // recusar do que gravar um preço que engana o parceiro.
     double priceToSave = parsedPrice;
     double? shelfToSave;
-    if (_isPartnerStore) {
+    if (_isFarmacia) {
+      // Farmácia: o cliente paga este preço e a farmácia recebe-o inteiro.
+      shelfToSave = parsedPrice;
+    } else if (_isPartnerStore) {
       final rules = _rules;
       if (rules == null) {
         if (AuthStore.falhaPorSessao()) {
@@ -242,7 +254,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         );
         return;
       }
-      final rules = _isPartnerStore ? _rules : null;
+      final rules = _usaRegraDeBalcao ? _rules : null;
       priceToSave = WeightPortions.clientPriceFor(
           parsedPrice, WeightPortions.kBaseGrams, rules);
       shelfToSave = _isPartnerStore
@@ -563,7 +575,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: _priceController,
       builder: (context, value, _) {
-        if (_isPartnerStore && _rules == null) {
+        if (_usaRegraDeBalcao && _rules == null) {
           if (_rulesLoading) {
             return Text('A preparar o preço para o cliente…',
                 style: theme.textTheme.bodySmall?.copyWith(color: subtle));
@@ -588,7 +600,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           return Text('Escreve o preço do quilo para veres as porções.',
               style: theme.textTheme.bodySmall?.copyWith(color: subtle));
         }
-        final rules = _isPartnerStore ? _rules : null;
+        final rules = _usaRegraDeBalcao ? _rules : null;
         final clientPerKg = WeightPortions.clientPriceFor(perKg, 1000, rules);
         final portions = WeightPortions.preview(perKg, rules);
         final strong = theme.textTheme.bodyMedium
@@ -889,6 +901,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   const SizedBox(height: 16),
                   // Venda ao peso: fruta, legumes, carne, queijo… O parceiro
                   // escreve o preço do quilo e a app faz as porções sozinha.
+                  // 14/11/2026: a farmácia não vende ao peso (as porções do
+                  // servidor usam a regra de balcão das outras lojas).
+                  if (!_isFarmacia || _soldByWeight)
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Vendido ao peso'),
@@ -908,14 +923,17 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           ? (_isPartnerStore
                               ? 'Preço por kg que recebes'
                               : 'Preço por kg')
-                          : (_isPartnerStore ? 'Preço que recebes' : 'Preço'),
+                          : (_usaRegraDeBalcao ? 'Preço que recebes' : 'Preço'),
                       helperText: _soldByWeight
                           ? 'O preço do quilo. As porções e o preço para o '
                               'cliente são calculados sozinhos.'
-                          : (_isPartnerStore
-                              ? 'O preço de balcão da tua loja. A app soma a '
-                                  'comissão por cima, sozinha.'
-                              : null),
+                          : (_isFarmacia
+                              ? 'O cliente paga este preço e a farmácia '
+                                  'recebe o valor inteiro.'
+                              : (_isPartnerStore
+                                  ? 'O preço de balcão da tua loja. A app soma a '
+                                      'comissão por cima, sozinha.'
+                                  : null)),
                       helperMaxLines: 2,
                       prefixIcon: const Icon(Icons.euro),
                     ),
@@ -936,7 +954,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   if (_soldByWeight) ...[
                     const SizedBox(height: 8),
                     _buildWeightPreview(theme),
-                  ] else if (_isPartnerStore) ...[
+                  ] else if (_usaRegraDeBalcao) ...[
                     const SizedBox(height: 8),
                     _buildPricePreview(theme),
                   ],
@@ -1022,7 +1040,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   if (widget.isEditing && !_soldByWeight)
                     PromocaoParceiroForm(
                       product: widget.product!,
-                      lojaParceira: _isPartnerStore,
+                      // Farmácia: preço direto (sem regra de balcão).
+                      lojaParceira: _usaRegraDeBalcao,
                       regras: _rules,
                     ),
                   const SizedBox(height: 24),

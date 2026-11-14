@@ -169,6 +169,10 @@ final RouteObserver<PageRoute<dynamic>> routeObserver =
 String? _currentRouteName;
 final NavigatorObserver crashRouteObserver = _CrashRouteObserver();
 
+// [14/11/2026 estafeta-lento] Última conta vista pelo OrderStore no
+// ProxyProvider: só se recarregam os pedidos quando ela muda.
+final Expando<String> _orderStoreAuthKey = Expando<String>('orderStoreAuthKey');
+
 class _CrashRouteObserver extends NavigatorObserver {
   void _set(Route<dynamic>? route) {
     final n = route?.settings.name;
@@ -985,7 +989,19 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           ),
           update: (_, AuthStore authStore, DriverStore driverStore,
               RestaurantStore restaurantStore, OrderStore? orderStore) {
-            orderStore!.updateAuthStore(authStore);
+            // [14/11/2026 estafeta-lento] Este update corre a cada aviso do
+            // AuthStore, do DriverStore (cada posição GPS do estafeta) e do
+            // RestaurantStore. updateAuthStore recarrega TODOS os pedidos, por
+            // isso só se chama quando a conta muda — antes saíam até 59 GET
+            // /orders por minuto durante uma entrega.
+            final authKey = '${authStore.userId}|'
+                '${authStore.currentClient != null}|'
+                '${authStore.currentDriver != null}|'
+                '${authStore.currentPartner != null}';
+            if (_orderStoreAuthKey[orderStore!] != authKey) {
+              _orderStoreAuthKey[orderStore] = authKey;
+              orderStore.updateAuthStore(authStore);
+            }
             orderStore.updateDriverStore(driverStore);
             orderStore.updateRestaurantStore(restaurantStore);
             return orderStore;

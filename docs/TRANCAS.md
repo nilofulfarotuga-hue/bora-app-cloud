@@ -578,3 +578,11 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   toca; além disso o "cancelar sem custo" dispara o reembolso automático que já existe (`trg_reembolso_cancelado_pelo_sistema`).
   Não contornado (nem renomeado nem partido). O SQL inteiro está em
   `.claude/.ai/missoes/farmacias-loja-2026-11-14/a2_chegada_tardia.PROPOSTA.sql`; o líder da missão revê, aplica e copia.
+
+- **14/11/2026 ~17:20, missão `compra-guardada-2026-11-14` (+ adenda 1, fila de pedidos)** — a bora-tranca negou o
+  `apply_migration` de `supabase/migrations/20261114190000_compra_guardada_e_fila_estafeta.sql` ("migration é publicar:
+  publica o Claude.ai"), e a trava do modo automático negou a prova em rollback na produção ("DO com EXECUTE em
+  produção"). Não contornado (nem pelo CLI `db query`). A migração foi provada no PGlite com
+  `supabase/tests/compra_guardada_fila_prova.mjs` (45 casos, mutações apanhadas). Destrava: a Claude.ai aplica a
+  migração tal como está no ramo `ai/2026-11-14-compra-guardada`. Sem ela a app funciona na mesma (o rascunho fica
+  no telemóvel e a fila usa a regra do telemóvel), mas o servidor, o painel e o aviso ao cliente só ligam depois.

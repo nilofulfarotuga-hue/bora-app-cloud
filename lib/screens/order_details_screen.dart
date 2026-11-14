@@ -14,6 +14,7 @@ import '../services/weight_portions.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
 import '../widgets/ajustes_peso_pedido.dart';
+import '../widgets/aviso_estafeta_noutro_pedido.dart';
 import '../widgets/bora/bora_bottom_action_bar.dart';
 import '../widgets/reportar_problema_pedido.dart';
 import '../widgets/order_edit/client_order_edit_banner.dart';
@@ -66,6 +67,9 @@ class OrderDetailsScreen extends StatelessWidget {
           _StatusCard(order: liveOrder),
 
           const SizedBox(height: 16),
+
+          // ── Adenda 1 (14/11): o estafeta está a acabar outro pedido ──
+          AvisoEstafetaNoutroPedido(order: liveOrder),
 
           // ── 8.2 Banner de autorização de orçamento (errand pending) ───
           ErrandBudgetBanner(order: liveOrder),

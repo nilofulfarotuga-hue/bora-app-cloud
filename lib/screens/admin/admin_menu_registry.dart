@@ -5,6 +5,7 @@ import '../../config/app_colors.dart';
 import 'admin_order_edits_screen.dart';
 import 'admin_pesquisas_sem_resultado_screen.dart';
 import 'admin_ajustes_peso_screen.dart';
+import 'admin_filas_estafetas_screen.dart';
 import 'admin_favor_diferencas_screen.dart';
 import 'admin_farmacias_screen.dart';
 import 'admin_porteiro_screen.dart';
@@ -327,6 +328,17 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.teal,
       builder: () => const AdminAjustesPesoScreen(),
       keywords: const ['peso', 'peso variavel', 'balanca', 'quilo', 'kg', 'ajuste', 'etiqueta', 'diferenca', 'mercado', 'nao parceiro', 'continente', 'auchan'],
+    ),
+    // 14/11/2026 (compra-guardada + adenda 1): fila de cada entregador e o
+    // rascunho da compra (o que ele já marcou) de cada pedido em andamento.
+    AdminMenuItem(
+      id: 'operacao_filas_entregadores',
+      title: 'Filas dos entregadores',
+      subtitle: 'Pedido em andamento e os que esperam (stand-by) de cada entregador; rascunho da compra com o que já foi marcado e a hora da última marcação',
+      icon: Icons.queue,
+      color: Colors.teal,
+      builder: () => const AdminFilasEstafetasScreen(),
+      keywords: const ['fila', 'filas', 'espera', 'stand-by', 'standby', 'entregador', 'estafeta', 'rascunho', 'compra', 'marcado', 'favor', 'urgente', 'talao', 'cupom'],
     ),
     // 11/11/2026 (farmácias): visibilidade por lista de permissão, receita e comissão extra.
     AdminMenuItem(

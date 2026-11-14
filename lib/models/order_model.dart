@@ -260,6 +260,10 @@ class OrderModel {
   final int? errandPasso;
   /// 'normal' | 'express'
   final String? errandSpeed;
+
+  /// Hora em que o estafeta aceitou (orders.driver_assigned_at). Ordena a
+  /// fila do estafeta (lib/services/fila_estafeta.dart, 14/11/2026).
+  final DateTime? driverAssignedAt;
   final bool errandHasPurchase;
   /// Estimativa do cliente em cents. 0 quando errandHasPurchase=false.
   final int errandEstimatedPurchaseCents;
@@ -436,6 +440,7 @@ class OrderModel {
     this.errandLeg = 0,
     this.errandPasso,
     this.errandSpeed,
+    this.driverAssignedAt,
     this.errandHasPurchase = false,
     this.errandEstimatedPurchaseCents = 0,
     this.errandRequestPhotoUrl,
@@ -724,6 +729,9 @@ class OrderModel {
       errandLeg: (data['errand_leg'] as num?)?.toInt() ?? 0,
       errandPasso: (data['errand_passo'] as num?)?.toInt(),
       errandSpeed: data['errand_speed'] as String?,
+      driverAssignedAt: data['driver_assigned_at'] != null
+          ? DateTime.tryParse(data['driver_assigned_at'].toString())
+          : null,
       errandHasPurchase: data['errand_has_purchase'] as bool? ?? false,
       errandEstimatedPurchaseCents:
           (data['errand_estimated_purchase_cents'] as num?)?.toInt() ?? 0,

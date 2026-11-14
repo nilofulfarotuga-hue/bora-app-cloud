@@ -14,6 +14,7 @@ import '../models/order_model.dart';
 import '../models/rating_model.dart';
 import '../models/restaurant_model.dart' show BusinessCategory;
 import '../widgets/order_edit/client_order_edit_banner.dart';
+import '../widgets/aviso_estafeta_noutro_pedido.dart';
 import '../widgets/farmacia_chegada_cliente.dart';
 import '../widgets/address_text.dart';
 import '../widgets/ajustes_peso_pedido.dart';
@@ -757,6 +758,8 @@ class _BottomCardState extends State<_BottomCard> {
                 FavorDiferencaBanner(order: order),
                 // ── Loja parceira mudou o pedido (acrescentar/em falta) ──
                 ClientOrderEditBanner(order: order),
+                // ── Adenda 1 (14/11): estafeta a acabar outro pedido ─────
+                AvisoEstafetaNoutroPedido(order: order),
                 // ── Farmácia: "um produto só chega às HH:MM" (14/11/2026) ─
                 if (_podeSerFarmacia(context, order))
                   ClienteChegadaTardiaCartao(

@@ -594,3 +594,11 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   com a explicação em `bloco2_order_store.md`. O que não precisava do ficheiro trancado já está no ramo: a regra de juntar
   carregamentos (`lib/services/carregamento_unico.dart`), o botão "Ver entregas mais antigas" e os testes. Destrava: a Claude.ai
   aplica o patch pelo GitHub, ou uma sessão aberta pelo Danilo com a tranca desligada.
+
+- **14/11/2026 ~23:35, missão `fechar-app-15-11` (bloco 8, parte E: tirar as notas internas do alcance dos robôs)** — a
+  bora-tranca negou o Write de `supabase/migrations/20261115024000_robos_sem_notas_internas.sql` ("migration que toca
+  tokens/wallet/pagamentos/ledger"). A migração só troca a função de pesquisa `match_knowledge`; a tranca leu palavras dos
+  comentários. Uma tentativa, não repetida, não renomeada nem partida. O SQL inteiro está em
+  `docs/propostas/fechar-app-15-11/8e_robos_sem_notas_internas.PROPOSTA.sql`, provado no PGlite com pgvector
+  (`supabase/tests/fechar_app_8e_prova.mjs`: 26 certos, 2 sabotagens apanhadas). Destrava: a Claude.ai aplica-o com o nome
+  `20261115024000_robos_sem_notas_internas`.

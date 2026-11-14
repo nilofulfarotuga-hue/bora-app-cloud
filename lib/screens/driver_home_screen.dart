@@ -15,6 +15,9 @@ import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
 import '../config/business_rules.dart' show BRBusiness;
 import '../widgets/order_edit/driver_order_edit_notice.dart';
+import '../services/compra_rascunho_service.dart';
+import '../services/fila_estafeta.dart';
+import '../widgets/fila_estafeta_widgets.dart';
 import '../widgets/background_location_disclosure.dart';
 import '../widgets/cliente_nome_destaque.dart';
 import '../widgets/bora_support_fab.dart';
@@ -144,6 +147,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   @override
   void initState() {
     super.initState();
+    // Adenda 1 (14/11/2026): a fila lembra-se do pedido em curso depois de a
+    // app reiniciar; as compras a meio (rascunho no telemóvel) contam.
+    unawaited(CompraRascunhoService.reenviarPendentes().then((_) async {
+      if (await FilaEstafeta.carregarMemoria() && mounted) setState(() {});
+    }));
     // Só o ecrã TVDE empurra este ecrã; na raiz (_RootNavigator) não há
     // nada por baixo para voltar.
     // E só conta se já estava online ao abrir (então o TVDE já tem o seu
@@ -961,7 +969,16 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       (s) => s.tokenBalance,
     );
     final availableOrders = orderStore.availableOrders;
-    final myOrders = orderStore.myOrders;
+    // Adenda 1 (14/11/2026): só o pedido em curso tem cartão; os aceites por
+    // cima esperam na fila e abrem quando ele entregar.
+    final fila = FilaEstafeta.doEstafeta(orderStore.myOrders);
+    final myOrders = fila.ativos;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (await FilaEstafeta.atualizarDoServidor(orderStore.myOrders) &&
+          mounted) {
+        setState(() {});
+      }
+    });
     final isAvailable = orderStore.isDriverAvailable;
     final highlightedOrder =
         _findOrderById(availableOrders, _highlightedOrderId);
@@ -1080,6 +1097,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               ),
             ),
             if (myOrders.isNotEmpty) ...[
+              if (fila.emEspera.isNotEmpty) ...[
+                FilaEmEsperaContador(emEspera: fila.emEspera),
+                const SizedBox(height: 8),
+              ],
               Expanded(
                 child: ListView.builder(
                   // [08/10] Os botões do último cartão ("Tratar do favor",

@@ -57,6 +57,17 @@ def log(msg):
         f.write(linha + "\n")
 
 
+def instante_para_url(instante):
+    """Data e hora prontas para ir dentro de um endereco.
+
+    Missao fechar-app-15-11 (14/11/2026): `isoformat()` da '2026-11-14T22:35:00.123456+00:00' e o '+' do
+    fuso, num endereco, le-se como um espaco. A API recusava o filtro (400) e a vigia dos pedidos presos
+    ficou cega sem avisar: 173 pedidos recusados em 24 h. Aqui o instante vai em UTC com 'Z' no fim e sem
+    nenhum caracter que precise de ser trocado.
+    """
+    return instante.astimezone(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def http_get(url, headers=None, timeout=15):
     # Sem User-Agent de navegador o Cloudflare do site responde 403 ao Python (visto 29/10 na VPS).
     h = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) BoraVigia/1.0"}
@@ -90,7 +101,7 @@ def main():
     if st != 200:
         problemas.append(f"API da base responde {st or 'nada'}")
     else:
-        limite = (agora - dt.timedelta(minutes=25)).isoformat()
+        limite = instante_para_url(agora - dt.timedelta(minutes=25))
         st2, corpo2 = http_get(
             f"{url}/rest/v1/orders?select=id,status,created_at,vendor_name"
             f"&status=in.(created,preparing,callingDriver)&is_test_order=eq.false&created_at=lt.{limite}"
@@ -100,11 +111,15 @@ def main():
             for p in presos:
                 minutos = int((agora - dt.datetime.fromisoformat(p["created_at"].replace("Z", "+00:00"))).total_seconds() // 60)
                 problemas.append(f"pedido {p['id'][:8]} ({p.get('vendor_name') or 'loja'}) preso em '{p['status']}' ha {minutos} min")
+        else:
+            # 15/11/2026: uma vigia que nao consegue ver tem de o dizer. Antes ficava calada e parecia
+            # que nao havia pedidos presos (a API devolveu 400 em 173 pedidos em 24 h, ver instante_para_url).
+            problemas.append(f"vigia cega: nao consegui ver os pedidos presos (a API respondeu {st2 or 'nada'})")
 
         local = agora.astimezone(LISBOA)
         hora = local.hour
         if any(a <= hora < b for a, b in PICO):
-            desde7 = (agora - dt.timedelta(days=7)).isoformat()
+            desde7 = instante_para_url(agora - dt.timedelta(days=7))
             st3, corpo3 = http_get(
                 f"{url}/rest/v1/orders?select=created_at&is_test_order=eq.false&created_at=gte.{desde7}&limit=2000", h)
             if st3 == 200:

@@ -595,7 +595,7 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   carregamentos (`lib/services/carregamento_unico.dart`), o botão "Ver entregas mais antigas" e os testes. Destrava: a Claude.ai
   aplica o patch pelo GitHub, ou uma sessão aberta pelo Danilo com a tranca desligada.
 
-- **14/11/2026 ~23:35, missão `fechar-app-15-11` (bloco 8, parte E: tirar as notas internas do alcance dos robôs)** — a
+- **14/11/2026 ~23:20, missão `fechar-app-15-11` (bloco 8, parte E: tirar as notas internas do alcance dos robôs)** — a
   bora-tranca negou o Write de `supabase/migrations/20261115024000_robos_sem_notas_internas.sql` ("migration que toca
   tokens/wallet/pagamentos/ledger"). A migração só troca a função de pesquisa `match_knowledge`; a tranca leu palavras dos
   comentários. Uma tentativa, não repetida, não renomeada nem partida. O SQL inteiro está em

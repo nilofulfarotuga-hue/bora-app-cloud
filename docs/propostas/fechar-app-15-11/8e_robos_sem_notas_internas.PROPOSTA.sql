@@ -1,5 +1,5 @@
 -- PROPOSTA (não é migração aplicada nem está em supabase/migrations): a bora-tranca recusou a
--- escrita deste ficheiro em supabase/migrations a 14/11/2026 ~23:35 ("migration que toca
+-- escrita deste ficheiro em supabase/migrations a 14/11/2026 ~23:20 ("migration que toca
 -- tokens/wallet/pagamentos/ledger") por causa de palavras nos comentários. Não se contornou.
 -- Quem aplica é a Claude.ai, com o nome 20261115024000_robos_sem_notas_internas.
 --

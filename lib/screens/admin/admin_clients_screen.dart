@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/admin_export_service.dart';
+import '../../utils/hora_lisboa.dart';
 import '../../widgets/admin/admin_fatura_nif_section.dart';
 import '../../widgets/admin/admin_user_roles_sheet.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
@@ -614,8 +615,13 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
       final m = res is Map ? Map<String, dynamic>.from(res) : const {};
       if (!mounted) return;
       if (m['ok'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Contato atualizado.')));
+        // Editar perfil (11/11/2026): a RPC só grava o que mudou, guarda o
+        // antes/depois e avisa o cliente na app.
+        final mudou = m['alterado'] != false;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(mudou
+                ? 'Contato atualizado. O cliente recebeu um aviso na app.'
+                : 'Nada mudou: o nome e o telefone já eram estes.')));
         _load();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -627,6 +633,101 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
           .showSnackBar(SnackBar(content: Text('Erro ao salvar: $e')));
     }
   }
+
+  /// Histórico das mudanças de nome/telefone de um cliente (editar-perfil,
+  /// 11/11/2026). Vem da RPC `admin_get_profile_changes`: quem mudou, de onde
+  /// (o próprio cliente na app, o painel, ou um pedido do robô aprovado), o
+  /// antes e o depois. As linhas antigas, de antes da auditoria (log de
+  /// auditoria = registo de quem fez o quê), aparecem sem o "antes".
+  Future<void> _mostrarMudancasPerfil(Map<String, dynamic> client) async {
+    final userId = client['user_id']?.toString() ?? '';
+    if (userId.isEmpty) return;
+    try {
+      final res = await Supabase.instance.client.rpc(
+        'admin_get_profile_changes',
+        params: {'p_user_id': userId, 'p_limit': 50},
+      );
+      if (!mounted) return;
+      final linhas = (res as List? ?? const [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.7,
+          builder: (_, ctrl) => ListView(
+            controller: ctrl,
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text('Mudanças do perfil — ${_displayNameFor(client)}',
+                  style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 4),
+              const Text(
+                'Nome e telefone: quem mudou, quando, antes e depois.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 12),
+              if (linhas.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(child: Text('Nenhuma mudança registada.')),
+                ),
+              ...linhas.map((l) => Card(
+                    child: ListTile(
+                      leading: Icon(_iconeOrigem(l['origem']?.toString())),
+                      title: Text(_resumoMudanca(l)),
+                      subtitle: Text(
+                          '${_rotuloOrigem(l['origem']?.toString())} · ${l['quem'] ?? '—'}\n'
+                          '${_quandoLisboa(l['quando']?.toString())}'),
+                      isThreeLine: true,
+                    ),
+                  )),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Erro ao carregar o histórico: $e')));
+      }
+    }
+  }
+
+  static String _rotuloOrigem(String? origem) => switch (origem) {
+        'cliente' => 'O próprio cliente (app)',
+        'admin' => 'Painel admin',
+        'robo_aprovado' => 'Pedido no Suporte, aprovado',
+        'admin (antigo)' => 'Painel admin (antes da auditoria)',
+        'robo (feito à mão)' => 'Pedido no Suporte, feito à mão',
+        _ => origem ?? '—',
+      };
+
+  static IconData _iconeOrigem(String? origem) => switch (origem) {
+        'cliente' => Icons.phone_iphone,
+        'robo_aprovado' || 'robo (feito à mão)' => Icons.smart_toy_outlined,
+        _ => Icons.admin_panel_settings_outlined,
+      };
+
+  static String _resumoMudanca(Map<String, dynamic> l) {
+    final antes = l['antes'] is Map ? Map<String, dynamic>.from(l['antes'] as Map) : const <String, dynamic>{};
+    final depois = l['depois'] is Map ? Map<String, dynamic>.from(l['depois'] as Map) : const <String, dynamic>{};
+    final partes = <String>[];
+    for (final campo in const ['name', 'full_name', 'phone']) {
+      if (!depois.containsKey(campo)) continue;
+      final rotulo = campo == 'phone' ? 'Telefone' : 'Nome';
+      final de = antes[campo];
+      partes.add(de == null && !antes.containsKey(campo)
+          ? '$rotulo: ${depois[campo] ?? '—'}'
+          : '$rotulo: ${de ?? '(vazio)'} → ${depois[campo] ?? '—'}');
+    }
+    return partes.isEmpty ? 'Mudança de contato' : partes.join('\n');
+  }
+
+  /// Hora de Lisboa, como em todo o painel.
+  static String _quandoLisboa(String? iso) => dataHoraLisboa(iso);
 
   /// Item 20 (paridade-admin-360): exportar a lista visível para CSV.
   Future<void> _exportCsv() async {
@@ -836,6 +937,9 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                               trailing: PopupMenuButton<String>(
                                 onSelected: (action) {
                                   if (action == 'edit_contact') _editarContato(c);
+                                  if (action == 'profile_changes') {
+                                    _mostrarMudancasPerfil(c);
+                                  }
                                   if (action == 'history') _showHistory(c);
                                   if (action == 'faturacao') {
                                     // Fatura com NIF (28/10/2026).
@@ -887,6 +991,11 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
                                   const PopupMenuItem(
                                       value: 'edit_contact',
                                       child: Text('Editar nome e telefone')),
+                                  if (userId.isNotEmpty)
+                                    const PopupMenuItem(
+                                        value: 'profile_changes',
+                                        child: Text(
+                                            'Histórico de mudanças do perfil')),
                                   const PopupMenuItem(value: 'history', child: Text('Histórico')),
                                   if (userId.isNotEmpty)
                                     const PopupMenuItem(

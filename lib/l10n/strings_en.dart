@@ -16,6 +16,31 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 11/11/2026 Editar perfil do cliente (nome e telemóvel; o email não muda). À mão.
+  'Editar perfil':
+      'Edit profile',
+  'Perfil atualizado.':
+      'Profile updated.',
+  'O email é o teu acesso e não se altera.':
+      'Your email is how you sign in and cannot be changed.',
+  'O nome tem de ter entre 2 e 60 caracteres.':
+      'Your name must be between 2 and 60 characters.',
+  'Escreve o teu nome com letras.':
+      'Write your name using letters.',
+  'Telemóvel inválido. Usa 9 dígitos a começar por 9 (ex.: 912345678).':
+      'Invalid mobile number. Use 9 digits starting with 9 (e.g. 912345678).',
+  'A tua sessão terminou. Entra outra vez na tua conta.':
+      'Your session has ended. Please sign in to your account again.',
+  'Cria uma conta para poderes guardar os teus dados.':
+      'Create an account to save your details.',
+  'Já mudaste os teus dados muitas vezes hoje. Tenta amanhã ou fala com o Suporte.':
+      'You have changed your details too many times today. Try again tomorrow or contact Support.',
+  'A ligação está lenta. Verifica a internet e tenta de novo.':
+      'The connection is slow. Check your internet and try again.',
+  'Não foi possível guardar. Verifica a ligação e tenta de novo.':
+      'Could not save. Check your connection and try again.',
+  'Conta não encontrada.':
+      'Account not found.',
   // 11/11/2026 Amigo: botão Voltar bem visível, etiqueta "assistente virtual" no cabeçalho e saudação
   // de reserva sem o aviso de IA na fala. À mão.
   'assistente virtual':

@@ -42,6 +42,7 @@ import 'orders_screen.dart';
 import 'client_addresses_screen.dart';
 import 'client_billing_screen.dart';
 import 'client_promo_code_screen.dart';
+import 'edit_profile_screen.dart';
 import 'client/checkin_premios_screen.dart';
 import 'connect/connect_payments_screen.dart';
 import 'connect/connect_statement_screen.dart';
@@ -93,6 +94,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _ensureDriverLoaded();
     _loadRoles();
     _loadMarketingOptIn();
+    // Editar perfil (11/11/2026): uma mudança feita no painel ou aprovada no
+    // Suporte aparece aqui logo, sem sair e voltar a entrar.
+    final authStore = context.read<AuthStore>();
+    if (authStore.role == AuthRole.client) {
+      unawaited(authStore.syncClientContactFromServer());
+    }
+  }
+
+  Future<void> _abrirEditarPerfil() async {
+    final gravou = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+    );
+    if (gravou == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Perfil atualizado.'.tr)),
+      );
+    }
   }
 
   Future<void> _loadRoles() async {
@@ -516,6 +534,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       color: Colors.white.withValues(alpha: 0.8),
                     ),
                   ),
+                  // Editar perfil (11/11/2026): nome e telemóvel, como na
+                  // Uber e na Glovo. Antes só se mudava a foto.
+                  if (role == AuthRole.client) ...[
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      key: const Key('perfil_editar_perfil'),
+                      onPressed: _abrirEditarPerfil,
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: Text('Editar perfil'.tr),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white70),
+                        shape: const StadiumBorder(),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

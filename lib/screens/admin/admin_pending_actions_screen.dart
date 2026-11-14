@@ -53,7 +53,7 @@ class _AdminPendingActionsScreenState
     'CANCEL_DURING_PURCHASE': 'Cancelar pedido (entregador envolvido)',
     'RESERVATION_CANCEL': 'Cancelar reserva',
     'PASSWORD_RESET': 'Reset password',
-    'ACCOUNT_UPDATE': 'Actualizar dados conta',
+    'ACCOUNT_UPDATE': 'Atualizar dados da conta (nome/telefone)',
   };
 
   @override
@@ -178,7 +178,13 @@ class _AdminPendingActionsScreenState
               ? 'Falhou: ${r['error']}'
               : isDispatch
                   ? 'Validado · aguarda dispatch (${r['target']})'
-                  : 'Acção executada com sucesso'),
+                  // Editar perfil (11/11/2026): aprovar ACCOUNT_UPDATE muda
+                  // users e o login, guarda o antes/depois e avisa o cliente.
+                  : action['action_type'] == 'ACCOUNT_UPDATE'
+                      ? (r?['alterado'] == false
+                          ? 'Nada mudou: o cliente já tinha estes dados.'
+                          : 'Dados do cliente atualizados e cliente avisado na app.')
+                      : 'Acção executada com sucesso'),
         ),
       );
       await _load();

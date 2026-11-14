@@ -9,11 +9,15 @@ import '../config/app_colors.dart';
 /// Categorias de loja (`restaurants.category` / `extra_categories`) que têm de
 /// aceitar os Termos do Parceiro de 28/10/2026: comida e mercado. A mesma
 /// lista está no servidor (`_categoria_com_termos_parceiro`, proposta F3).
+/// 14/11/2026 (farmácias, bloco 2.6): as farmácias parceiras também aceitam os
+/// termos no 1.º login; o "Aceito" preenche a autocertificação da farmácia
+/// (`legal_terms_accept`, migração farmacias_loja_a1).
 const Set<String> kCategoriasComTermosDoParceiro = {
   'restaurant',
   'sobremesa',
   'festas',
   'supermarket',
+  'pharmacy',
 };
 
 /// F3 (28/10/2026): true se alguma das [lojas] do dono é parceira, está

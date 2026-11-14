@@ -32,10 +32,15 @@ class AdminPartnerDetailScreen extends StatefulWidget {
     super.key,
     required this.restaurantId,
     required this.initialName,
+    this.abaInicial = 0,
   });
 
   final String restaurantId;
   final String initialName;
+
+  /// Aba que abre primeiro (0 Dados, 1 Horários, 2 Estado, 3 Datas, 4 Vendas, 5 Catálogo).
+  /// 14/11/2026: o ecrã Farmácias abre direto nos Horários ou no Catálogo (preços).
+  final int abaInicial;
 
   @override
   State<AdminPartnerDetailScreen> createState() =>
@@ -97,7 +102,7 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tab = TabController(length: 6, vsync: this);
+    _tab = TabController(length: 6, vsync: this, initialIndex: widget.abaInicial.clamp(0, 5));
     _loadAll();
   }
 

@@ -86,6 +86,45 @@ class SmallOrderFeeService {
 
   static int? get deliveryBaseFeeCents => _deliveryBaseFeeCents;
 
+  // ── FARMÁCIAS PARCEIRAS (14/11/2026, AUTORIZO do Danilo) ──────────────────
+  // Espelho do ramo farmácia do `pricing_calculate_loja` e do
+  // `small_order_fee_calc`: taxa de serviço = fixo
+  // (`pharmacy_service_fee_fixed_cents`) + `client_service_fee_pct` do
+  // subtotal, sem saco, e a taxa de pedido pequeno conta (as outras lojas
+  // parceiras não a levam). O servidor manda; isto é só a conta antes do quote.
+  static final Set<String> _farmacias = {};
+  static int? _farmaciaTaxaFixaCents;
+  static double? _taxaServicoPct;
+
+  /// `true` quando a loja é uma farmácia parceira (`category = 'pharmacy'` e
+  /// `is_partner`), lida em [carregarLoja].
+  static bool ehFarmacia(String? restaurantId) =>
+      restaurantId != null && _farmacias.contains(restaurantId);
+
+  /// Taxa de serviço da farmácia para este subtotal, em euros, arredondada ao
+  /// cêntimo. `null` enquanto as definições não foram lidas (o carrinho fica
+  /// então com o valor do `PricingService` até chegar o quote).
+  static double? taxaServicoFarmacia(double subtotal) {
+    final fixo = _farmaciaTaxaFixaCents;
+    final pct = _taxaServicoPct;
+    if (fixo == null || pct == null) return null;
+    return (fixo + subtotal * pct * 100).round() / 100;
+  }
+
+  /// Só para testes: marca/desmarca uma loja como farmácia parceira e fixa as
+  /// definições da taxa de serviço.
+  @visibleForTesting
+  static void definirFarmaciaParaTeste(String restaurantId,
+      {bool farmacia = true, int? taxaFixaCents, double? taxaPct}) {
+    if (farmacia) {
+      _farmacias.add(restaurantId);
+    } else {
+      _farmacias.remove(restaurantId);
+    }
+    _farmaciaTaxaFixaCents = taxaFixaCents;
+    _taxaServicoPct = taxaPct;
+  }
+
   /// Só para testes: a entrega grátis desta loja (`null` = sem oferta).
   @visibleForTesting
   static void definirEntregaGratisParaTeste(String restaurantId, int? cents) {
@@ -121,6 +160,8 @@ class SmallOrderFeeService {
         'small_order_fee_cents',
         'small_order_fee_enabled',
         'delivery_base_fee_cents',
+        'pharmacy_service_fee_fixed_cents',
+        'client_service_fee_pct',
       ]);
       if (valores.isEmpty) {
         // `platform_settings` só se lê autenticado: sem sessão a resposta é
@@ -140,6 +181,12 @@ class SmallOrderFeeService {
       );
       final base = _comoInt(valores['delivery_base_fee_cents']);
       _deliveryBaseFeeCents = base > 0 ? base : null;
+      // Farmácias (14/11/2026): só com as duas chaves lidas; senão fica null.
+      final fixo = valores['pharmacy_service_fee_fixed_cents'];
+      final pct = valores['client_service_fee_pct'];
+      _farmaciaTaxaFixaCents = fixo == null ? null : _comoInt(fixo);
+      _taxaServicoPct =
+          pct == null ? null : (pct is num ? pct.toDouble() : double.tryParse('$pct'));
       _globalCarregado = true;
       debugPrint('[SmallOrderFee] global: enabled=${_global.enabled} '
           'min=${_global.minCents} fee=${_global.feeCents}');
@@ -157,10 +204,15 @@ class SmallOrderFeeService {
       final linha = await Supabase.instance.client
           .from('restaurants')
           .select('min_order_cents_override, small_order_fee_cents_override, '
-              'free_delivery_min_cents')
+              'free_delivery_min_cents, category, is_partner')
           .eq('id', restaurantId)
           .maybeSingle();
       if (linha == null) return;
+      if (linha['category'] == 'pharmacy' && linha['is_partner'] == true) {
+        _farmacias.add(restaurantId);
+      } else {
+        _farmacias.remove(restaurantId);
+      }
       final gratis = (linha['free_delivery_min_cents'] as num?)?.toInt();
       if (gratis != null) {
         _entregaGratisMin[restaurantId] = gratis;
@@ -189,6 +241,7 @@ class SmallOrderFeeService {
     _globalCarregado = false;
     _porLoja.clear();
     _entregaGratisMin.clear();
+    _farmacias.clear();
   }
 
   static int _comoInt(dynamic v) {

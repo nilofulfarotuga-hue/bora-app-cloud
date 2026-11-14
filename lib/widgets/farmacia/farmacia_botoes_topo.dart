@@ -18,6 +18,8 @@ class FarmaciaBotoesTopo extends StatefulWidget {
     required this.storeName,
     this.service,
     this.visivelParaTeste,
+    this.onVisivel,
+    this.chaveBotaoReceita,
   });
 
   final String restaurantId;
@@ -26,6 +28,14 @@ class FarmaciaBotoesTopo extends StatefulWidget {
 
   /// Só para testes: força o resultado de `farmacia_botoes_visiveis`.
   final bool? visivelParaTeste;
+
+  /// 14/11/2026 (loja da farmácia): avisa o ecrã quando o servidor responde,
+  /// para a barra fina mostrar o chip "Tenho receita" (ver [FarmaciaReceitaChip]).
+  final ValueChanged<bool>? onVisivel;
+
+  /// 14/11/2026: chave do botão grande "Tenho receita" — o ecrã da loja mede
+  /// quando ele sai do ecrã para pôr o chip na barra fina no lugar dele.
+  final Key? chaveBotaoReceita;
 
   @override
   State<FarmaciaBotoesTopo> createState() => _FarmaciaBotoesTopoState();
@@ -41,6 +51,11 @@ class _FarmaciaBotoesTopoState extends State<FarmaciaBotoesTopo> {
     super.initState();
     if (widget.visivelParaTeste != null) {
       _visivel = widget.visivelParaTeste!;
+      if (widget.onVisivel != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) widget.onVisivel?.call(_visivel);
+        });
+      }
     } else {
       _verificar();
     }
@@ -50,6 +65,7 @@ class _FarmaciaBotoesTopoState extends State<FarmaciaBotoesTopo> {
     final v = await _svc.botoesVisiveis(widget.restaurantId);
     if (!mounted) return;
     setState(() => _visivel = v);
+    widget.onVisivel?.call(v);
     if (v) {
       try {
         final l = await _svc.meus(restaurantId: widget.restaurantId, limite: 30);
@@ -100,6 +116,7 @@ class _FarmaciaBotoesTopoState extends State<FarmaciaBotoesTopo> {
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         SizedBox(
+          key: widget.chaveBotaoReceita,
           height: 54,
           child: ElevatedButton.icon(
             key: const ValueKey('farmacia_tenho_receita'),
@@ -139,6 +156,45 @@ class _FarmaciaBotoesTopoState extends State<FarmaciaBotoesTopo> {
             label: Text('Os meus pedidos à farmácia ($_pedidos)'),
           ),
       ]),
+    );
+  }
+}
+
+/// 14/11/2026 (loja da farmácia): "Tenho receita" em pequeno, preso na barra
+/// fina da loja quando o botão grande já saiu do ecrã (e durante a pesquisa).
+/// Só o ecrã da loja o mostra, e só depois de [FarmaciaBotoesTopo] confirmar
+/// com o servidor que a farmácia recebe receitas.
+class FarmaciaReceitaChip extends StatelessWidget {
+  const FarmaciaReceitaChip({
+    super.key,
+    required this.restaurantId,
+    required this.storeName,
+  });
+
+  final String restaurantId;
+  final String storeName;
+
+  @override
+  Widget build(BuildContext context) {
+    return ActionChip(
+      key: const ValueKey('farmacia_tenho_receita_chip'),
+      avatar: const Icon(Icons.receipt_long, size: 18, color: Colors.white),
+      label: const Text('Tenho receita'),
+      labelStyle: const TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w800,
+        fontSize: 13,
+      ),
+      backgroundColor: AppColors.primary,
+      side: BorderSide.none,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => PrescricaoEnviarScreen(
+          restaurantId: restaurantId,
+          farmaciaNome: storeName,
+        ),
+      )),
     );
   }
 }

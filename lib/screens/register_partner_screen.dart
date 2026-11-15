@@ -340,7 +340,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
     }
     if (_phoneController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Informe o telefone')),
+        const SnackBar(content: Text('Indique o telefone')),
       );
       return false;
     }
@@ -1171,7 +1171,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                   ),
                   const SizedBox(height: Spacing.xl),
                   Text(
-                    'Ao submeter, sua conta ficará pendente de análise (24-48h).',
+                    'Ao submeter, a sua conta ficará pendente de análise (24-48h).',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey.shade600,

@@ -1835,7 +1835,7 @@ class AuthStore extends ChangeNotifier {
         return {
           'error': (backendError != null && backendError.trim().isNotEmpty)
               ? backendError
-              : 'A tua conta de acesso foi criada, mas houve um erro ao registar o estabelecimento. Contacta o suporte — não precisas de repetir o email/senha.',
+              : 'A tua conta de acesso foi criada, mas houve um erro ao registar o estabelecimento. Contacta o suporte — não precisas de repetir o email e a palavra-passe.',
           'isDuplicateEmail': false,
         };
       }
@@ -1851,7 +1851,7 @@ class AuthStore extends ChangeNotifier {
       debugPrint('[AuthStore] _submitRestaurantEdgeFunction failed => $e');
       return {
         'error':
-            'A tua conta de acesso foi criada, mas houve um erro de ligação ao registar o estabelecimento. Contacta o suporte — não precisas de repetir o email/senha.',
+            'A tua conta de acesso foi criada, mas houve um erro de ligação ao registar o estabelecimento. Contacta o suporte — não precisas de repetir o email e a palavra-passe.',
         'isDuplicateEmail': false,
       };
     }

@@ -196,7 +196,7 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Informe o email do parceiro.';
+                    return 'Indique o email do parceiro.';
                   }
                   if (!value.contains('@')) {
                     return 'Email inválido.';
@@ -233,7 +233,7 @@ class _PartnerLoginScreenState extends State<PartnerLoginScreen> {
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Informe a palavra-passe.';
+                    return 'Indique a palavra-passe.';
                   }
                   return null;
                 },

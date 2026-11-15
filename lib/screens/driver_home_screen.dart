@@ -1885,7 +1885,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  "Entrega em andamento",
+                  "Entrega em curso",
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

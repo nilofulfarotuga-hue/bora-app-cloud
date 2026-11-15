@@ -2565,7 +2565,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'Ask the establishment for allergen information.',
   'Conta apagada.':
       'Account deleted.',
-  'Conta criada com sucesso. Faça login.':
+  'Conta criada com sucesso. Inicia sessão.':
       'Account created successfully. Please sign in.',
   'Conta criada!':
       'Account created!',
@@ -3203,7 +3203,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'Information about the fees ',
   'Informe a nova palavra-passe.':
       'Enter the new password.',
-  'Informe a palavra-passe.':
+  'Indique a palavra-passe.':
       'Enter the password.',
   'Informe o seu email.':
       'Enter your email.',

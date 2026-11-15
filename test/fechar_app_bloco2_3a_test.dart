@@ -82,6 +82,51 @@ void main() {
       expect(c.emVoo, isFalse);
     });
 
+    // [15/11/2026, revisão] Os dois casos em que a versão anterior ficava
+    // presa para sempre (lia o próprio `Future` antes de ele existir).
+    test('um erro lançado logo à entrada, sem nenhuma espera, não prende nada',
+        () async {
+      final c = CarregamentoUnico();
+      var corridas = 0;
+      // De propósito NÃO é `async`: rebenta antes de devolver um Future.
+      Future<void> rebentaAEntrada() {
+        corridas++;
+        throw StateError('rebentou à entrada');
+      }
+
+      await c.correr(rebentaAEntrada);
+      expect(c.emVoo, isFalse);
+      await c.correr(() async => corridas++);
+      expect(corridas, 2);
+      expect(c.emVoo, isFalse);
+      expect(c.aEspera, isFalse);
+    });
+
+    test('o intervalo acaba entre as duas contas: corre na mesma e não prende',
+        () async {
+      // O relógio salta entre a 1.ª conta ("falta 1 s") e a 2.ª ("já passou").
+      final base = DateTime(2026, 11, 15, 10);
+      const saltos = <int>[0, 1, 3];
+      var leituras = 0;
+      DateTime relogio() {
+        final s = saltos[leituras < saltos.length ? leituras : saltos.length - 1];
+        leituras++;
+        return base.add(Duration(seconds: s));
+      }
+
+      final c = CarregamentoUnico(agora: relogio);
+      const dois = Duration(seconds: 2);
+      var corridas = 0;
+      await c.correr(() async => corridas++, intervalo: dois);
+      await c.correr(() async => corridas++, intervalo: dois);
+      expect(corridas, 2);
+      expect(c.aEspera, isFalse);
+      // E o seguinte também corre: não ficou nenhum Future falhado guardado.
+      await c.correr(() async => corridas++);
+      expect(corridas, 3);
+      expect(c.emVoo, isFalse);
+    });
+
     // testWidgets corre com relógio falso: `tester.pump(duração)` avança os
     // temporizadores, e o teste falha sozinho se ficar algum por disparar.
     testWidgets('estafeta: dois carregamentos seguidos ficam a 2 s um do outro',

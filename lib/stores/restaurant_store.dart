@@ -640,6 +640,10 @@ class RestaurantStore extends ChangeNotifier {
         ..addAll(porLoja);
       _storeFullyLoaded.clear();
       _storeLoading.clear();
+      // [15/11/2026, revisão] As listas recomeçam do princípio, por isso o
+      // ponto onde cada mercado grande ia também: com o ponto antigo, uma
+      // nova tentativa retomava mais à frente e saltava produtos.
+      _storeCursor.clear();
       _requiredOptionProductIds
         ..clear()
         ..addAll(obrigatorios);

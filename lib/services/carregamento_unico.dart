@@ -50,19 +50,32 @@ class CarregamentoUnico {
       return _arrancar(operacao);
     }
 
-    late final Future<void> marcado;
-    marcado = () async {
-      if (emVoo != null) {
-        await emVoo;
-      }
-      final falta = _faltaEsperar(intervalo);
-      if (falta > Duration.zero) {
-        await Future<void>.delayed(falta);
-      }
-      if (identical(_aEspera, marcado)) _aEspera = null;
-      await _arrancar(operacao);
-    }();
+    // [15/11/2026, revisão] O `Future` devolvido nasce de um `Completer` e fica
+    // guardado ANTES de o trabalho começar. Antes era um `late final` lido
+    // dentro da própria função: se não houvesse nenhuma espera pelo caminho
+    // (o intervalo acabava entre as duas contas), a leitura rebentava, o
+    // `Future` ficava falhado em `_aEspera` e nenhum carregamento voltava a
+    // correr até reiniciar a app.
+    final fim = Completer<void>();
+    final marcado = fim.future;
     _aEspera = marcado;
+    unawaited(() async {
+      try {
+        if (emVoo != null) {
+          await emVoo;
+        }
+        final falta = _faltaEsperar(intervalo);
+        if (falta > Duration.zero) {
+          await Future<void>.delayed(falta);
+        }
+        if (identical(_aEspera, marcado)) _aEspera = null;
+        await _arrancar(operacao);
+      } finally {
+        // Aconteça o que acontecer, quem espera é solto e a vaga fica livre.
+        if (identical(_aEspera, marcado)) _aEspera = null;
+        fim.complete();
+      }
+    }());
     return marcado;
   }
 
@@ -74,8 +87,13 @@ class CarregamentoUnico {
   }
 
   Future<void> _arrancar(Future<void> Function() operacao) {
-    late final Future<void> corrida;
-    corrida = () async {
+    // Mesmo cuidado que em [correr]: o `Future` existe e está guardado antes de
+    // a operação começar, para um erro lançado logo à entrada (sem nenhuma
+    // espera) não deixar `_emVoo` preso num `Future` falhado.
+    final fim = Completer<void>();
+    final corrida = fim.future;
+    _emVoo = corrida;
+    unawaited(() async {
       try {
         await operacao();
       } catch (_) {
@@ -83,9 +101,9 @@ class CarregamentoUnico {
       } finally {
         _ultimoFim = _agora();
         if (identical(_emVoo, corrida)) _emVoo = null;
+        fim.complete();
       }
-    }();
-    _emVoo = corrida;
+    }());
     return corrida;
   }
 }

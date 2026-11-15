@@ -106,6 +106,15 @@ class _PartnerNoRestaurantRouterState
   @override
   void initState() {
     super.initState();
+    _ler();
+  }
+
+  /// app-15-11: também serve para "Tentar de novo" e para depois de o
+  /// parceiro enviar o registo (o ecrã de análise aparece aqui, no sítio,
+  /// sem tirar o _RootNavigator da árvore).
+  void _recarregar() => setState(_ler);
+
+  void _ler() {
     // BUG (parceiro-serviços preso em "Submetido para Análise", 2026-07-18):
     // `force: true` — este router decide entre o hub de gestão e o ecrã de
     // análise, por isso NUNCA pode confiar num `service_providers` cacheado
@@ -161,6 +170,27 @@ class _PartnerNoRestaurantRouterState
             if (statusSnap.connectionState != ConnectionState.done) {
               return const _PartnerLoading();
             }
+            // app-15-11: sem rede não se sabe se a loja existe — não se manda
+            // um parceiro aprovado criar outra.
+            if (statusSnap.hasError) {
+              return Scaffold(
+                body: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      const Text('Não foi possível ver o estado da sua loja. Verifique a internet.',
+                          textAlign: TextAlign.center),
+                      const SizedBox(height: 16),
+                      OutlinedButton(
+                        key: const Key('parceiro_entrada_tentar_de_novo'),
+                        onPressed: _recarregar,
+                        child: const Text('Tentar de novo'),
+                      ),
+                    ]),
+                  ),
+                ),
+              );
+            }
             if (statusSnap.data == 'pending') {
               return const PendingApprovalScreen();
             }
@@ -181,7 +211,7 @@ class _PartnerNoRestaurantRouterState
               });
               return const _PartnerLoading();
             }
-            return const RegisterPartnerScreen();
+            return RegisterPartnerScreen(aoSubmeter: _recarregar);
           },
         );
       },

@@ -852,7 +852,8 @@ class _OrderInfoCard extends StatelessWidget {
               value: eur(order.deliveryFee)),
           _Row(
               label: 'Pagamento'.tr,
-              value: order.paymentMethod.name.toUpperCase()),
+              // app-15-11: "Cartão", "MB Way", "Dinheiro" — não CARD/MBWAY/CASH.
+              value: order.paymentMethod.label),
           // Fatura com NIF (28/10/2026): só aparece se houver pedido de fatura.
           FaturaNifLinha(orderId: order.id),
           if (order.vendorName != null)

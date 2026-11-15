@@ -22,7 +22,13 @@ import '../widgets/terms_link_text.dart';
 import 'pending_approval_screen.dart';
 
 class RegisterPartnerScreen extends StatefulWidget {
-  const RegisterPartnerScreen({super.key});
+  const RegisterPartnerScreen({super.key, this.aoSubmeter});
+
+  /// app-15-11: quando o registo é o ecrã de entrada (dentro do
+  /// _RootNavigator), não se substitui a si próprio — avisa quem o mostrou
+  /// para reler o estado. Vazio = foi aberto por cima (do login) e segue
+  /// para o ecrã de análise como antes.
+  final VoidCallback? aoSubmeter;
 
   @override
   State<RegisterPartnerScreen> createState() => _RegisterPartnerScreenState();
@@ -670,6 +676,11 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
   // Navega para PendingApprovalScreen (não muda role aqui — PendingApprovalScreen
   // oferece opção de "Gerir a Minha Loja" que chama setRole quando necessário)
   void _irParaPendente() {
+    final aoSubmeter = widget.aoSubmeter;
+    if (aoSubmeter != null) {
+      aoSubmeter();
+      return;
+    }
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) =>

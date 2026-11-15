@@ -749,7 +749,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
       _shownDispatchModalForOrderIds.remove(orderId);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erro a registar decisão: $e'),
+          content: Text(_semDetalhe(e, 'Não foi possível registar a decisão. Tente outra vez.')),
           backgroundColor: AppColors.error,
         ),
       );
@@ -1037,7 +1037,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao aceitar: $e'),
+            content: Text(_semDetalhe(e, 'Não foi possível aceitar o pedido. Tente outra vez.')),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -2449,7 +2449,7 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao aceitar pedido: $e'),
+            content: Text(_semDetalhe(e, 'Não foi possível aceitar o pedido. Tente outra vez.')),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -2486,7 +2486,7 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro: $e'),
+            content: Text(_semDetalhe(e, 'Não foi possível marcar como pronto. Tente outra vez.')),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -2520,7 +2520,7 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro: $e'),
+            content: Text(_semDetalhe(e, 'Não foi possível marcar como levantado. Tente outra vez.')),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -3533,4 +3533,11 @@ class _PausaLojaCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// app-15-11: ao parceiro vai uma frase simples; o erro técnico
+/// (PostgrestException, SocketException…) fica só no registo da app.
+String _semDetalhe(Object e, String frase) {
+  debugPrint('[partner_dashboard] $e');
+  return frase;
 }

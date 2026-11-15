@@ -1746,7 +1746,8 @@ class _WalletCardsBlock extends StatelessWidget {
                 iconColor: iconColor,
                 title: 'Saldo Bora'.tr,
                 subtitle: subtitle,
-                value: loading ? null : (b?.freeFormatted ?? '€0.00'),
+                // app-15-11: sem leitura não se mostra "0,00 €" como se fosse o saldo.
+                value: loading ? null : (b?.freeFormatted ?? '—'),
                 valueColor: valueColor,
               ),
               if (!loading && isBlocked) ...[
@@ -1887,7 +1888,7 @@ class _TokenBalanceRow extends StatefulWidget {
 class _TokenBalanceRowState extends State<_TokenBalanceRow>
     with WidgetsBindingObserver {
   final _client = Supabase.instance.client;
-  late Future<int> _balanceFuture;
+  late Future<int?> _balanceFuture;
 
   @override
   void initState() {
@@ -1909,7 +1910,9 @@ class _TokenBalanceRowState extends State<_TokenBalanceRow>
     }
   }
 
-  Future<int> _fetch() async {
+  /// app-15-11: `null` = não se conseguiu ler (falha de rede). Antes dava 0
+  /// e o perfil dizia "0 tokens" a quem tinha tokens.
+  Future<int?> _fetch() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return 0;
     try {
@@ -1917,7 +1920,7 @@ class _TokenBalanceRowState extends State<_TokenBalanceRow>
           .rpc('get_user_tokens', params: {'p_user_id': userId});
       return (v as num?)?.toInt() ?? 0;
     } catch (_) {
-      return 0;
+      return null;
     }
   }
 
@@ -1927,10 +1930,10 @@ class _TokenBalanceRowState extends State<_TokenBalanceRow>
 
     if (userId == null) return const SizedBox.shrink();
 
-    return FutureBuilder<int>(
+    return FutureBuilder<int?>(
       future: _balanceFuture,
       builder: (context, snapshot) {
-        final balance = snapshot.data ?? 0;
+        final balance = snapshot.data;
         final isLoading = snapshot.connectionState == ConnectionState.waiting;
 
         return Container(
@@ -1965,7 +1968,7 @@ class _TokenBalanceRowState extends State<_TokenBalanceRow>
                           ),
                         )
                       : Text(
-                          '{0} tokens'.trArgs([balance]),
+                          balance == null ? '—' : '{0} tokens'.trArgs([balance]),
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,

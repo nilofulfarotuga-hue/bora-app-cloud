@@ -438,7 +438,10 @@ class RestaurantStore extends ChangeNotifier {
       return record?['approval_status'] as String?;
     } catch (e) {
       debugPrint('RestaurantStore: ownRestaurantApprovalStatus error => $e');
-      return null;
+      // app-15-11: um erro de rede NÃO é "sem loja" — antes devolvia null e o
+      // parceiro aprovado ia parar ao assistente de criar loja. Quem chama
+      // mostra "Tentar de novo".
+      rethrow;
     }
   }
 

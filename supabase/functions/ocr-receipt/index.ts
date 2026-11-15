@@ -42,6 +42,13 @@
 // e na resposta; so vai a revisao quando e OUTRA loja conhecida); (3) uma linha repetida que
 // faz a soma passar o total impresso conta uma vez (lines_check). Regras em talao_regras.ts.
 // Nao muda o total do talao nem nenhum valor cobrado ou pago; nao precisa de migracao.
+//
+// v16 (missao fechar-tudo-15-11, 15/11/2026): (1) o texto ao modelo ja nao manda a soma das linhas
+// dar o total_cents: manda copiar cada preco tal como esta impresso, mesmo sem a soma bater (os
+// precos unitarios alimentam catalog_price_update_from_receipt; um acerto inventado estragava o
+// catalogo). Nenhum codigo daqui mexe num preco para a soma bater: tirarLinhasRepetidas so tira uma
+// linha repetida inteira ou deixa o aviso. (2) as linhas de deposito reconhecem-se com a mesma
+// regra do servidor (eDeposito = public._talao_e_deposito), para nunca sair uma como "repetida".
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { exigirCallerOk, secretKey } from '../_shared/keys.ts'
@@ -307,8 +314,9 @@ async function lerTalao(b64: string, mime: string, modeloClaude: 'claude-haiku-5
     'de depósito de embalagens (DEPOSITO, VALOR DE DEPOSITO, VASILHAME, SDR, VOLTA) e de sacos, cada ' +
     'uma como linha própria; ignora linhas de traços. lines pode ser [] se não conseguires distinguir produtos. ' +
     'Cada linha impressa entra UMA só vez: não repitas a mesma linha, e uma linha que só explica outra ' +
-    '(a taxa de um saco que já está contado na linha do saco) não é um artigo. A soma de qty × ' +
-    'unit_price_cents de todas as lines tem de dar o total_cents. ' +
+    '(a taxa de um saco que já está contado na linha do saco) não é um artigo. ' +
+    'Copia cada preço exatamente como está impresso no talão, mesmo que a soma de qty × unit_price_cents ' +
+    'das lines não dê o total_cents: nunca alteres nem inventes um preço para a soma bater. ' +
     'store é o nome da loja/farmácia/supermercado (sem morada), copiado tal como está impresso no ' +
     'cabeçalho do talão; nunca o adivinhes pelos artigos nem por este texto; se não se lê, null. ' +
     'datetime usa hora local do talão se visível. ' +

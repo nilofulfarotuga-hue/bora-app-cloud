@@ -151,3 +151,24 @@ Deno.test('pela fonte: o texto enviado ao modelo já não dá nomes de lojas com
   if (!texto.includes('nunca o adivinhes')) throw new Error('falta a regra de não adivinhar a loja')
   if (!texto.includes('UMA só vez')) throw new Error('falta a regra de não repetir linhas')
 })
+
+Deno.test('pela fonte (15/11): o texto manda copiar os preços como estão, sem forçar a soma ao total', async () => {
+  // Os preços de cada linha alimentam catalog_price_update_from_receipt: um preço "acertado" pelo
+  // modelo para a soma bater com o total estragava o catálogo.
+  const fonte = await Deno.readTextFile(new URL('./index.ts', import.meta.url))
+  const ini = fonte.indexOf('const sistema =')
+  const fim = fonte.indexOf('const r = await pedirIa(')
+  if (ini < 0 || fim < ini) throw new Error('não achei o texto do sistema')
+  // O texto tal como chega ao modelo: os pedaços entre plicas, colados.
+  const texto = [...fonte.slice(ini, fim).matchAll(/'([^']*)'/g)].map((m) => m[1]).join('')
+  if (!texto.startsWith('Lê este talão de compra')) throw new Error('não consegui juntar o texto')
+  if (texto.includes('tem de dar o total_cents')) throw new Error('o texto ainda manda a soma dar o total')
+  if (/tem de (dar|bater)/.test(texto)) throw new Error('o texto ainda obriga alguma soma a bater')
+  const regra = 'Copia cada preço exatamente como está impresso no talão, mesmo que a soma de qty × ' +
+    'unit_price_cents das lines não dê o total_cents: nunca alteres nem inventes um preço para a soma bater.'
+  if (!texto.includes(regra)) throw new Error('falta a regra de copiar os preços tal como estão impressos')
+  // O resto do texto continua lá.
+  for (const resto of ['divide pela quantidade', 'Inclui as linhas a 0,00', 'buyer_nif é o NIF do CLIENTE']) {
+    if (!texto.includes(resto)) throw new Error(`desapareceu do texto: "${resto}"`)
+  }
+})

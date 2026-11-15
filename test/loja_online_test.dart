@@ -2,7 +2,7 @@
 // Sem rede nem Supabase: o serviço recebe funções falsas.
 //  - modelo tolerante, preço "12,90 €", frase do prazo, vitrine (nicho da semana);
 //  - serviço: interruptor desligado / chave em falta / tabelas por instalar / erro;
-//  - ecrã do cliente: "Em breve", vitrine, ficha com preço, prazo e botão desligado;
+//  - ecrã do cliente: "Em breve", vitrine, ficha com preço, prazo e botão Encomendar (checkup-15-11);
 //  - painel: "Esta parte ainda não foi instalada no servidor.", motivo obrigatório;
 //  - l10n: toda frase .tr dos ecrãs novos tem inglês; o painel não usa .tr.
 import 'dart:io';
@@ -392,7 +392,7 @@ void main() {
     });
 
     testWidgets(
-        'vitrine: Novidade da semana no topo, grelha do nicho, abre a ficha com o botão desligado',
+        'vitrine: Novidade da semana no topo, grelha do nicho, abre a ficha com o botão Encomendar',
         (tester) async {
       _ecraGrande(tester);
       await tester.pumpWidget(MaterialApp(
@@ -422,8 +422,9 @@ void main() {
       expect(find.text('Cama para gato'), findsOneWidget);
       final botao = tester.widget<FilledButton>(
           find.byKey(const Key('loja_online_encomendar')));
-      expect(botao.onPressed, isNull, reason: 'sem pagamento nesta versão');
-      expect(find.text('Os pagamentos desta loja abrem em breve.'),
+      expect(botao.onPressed, isNotNull,
+          reason: 'checkup-15-11: Encomendar abre o pagamento (MB WAY ou cartão)');
+      expect(find.text('Pagas com MB WAY ou cartão e recebes pelo correio.'),
           findsOneWidget);
     });
   });

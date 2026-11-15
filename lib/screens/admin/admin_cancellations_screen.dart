@@ -3,6 +3,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '_admin_rpc_errors.dart';
+
+/// [15/11/2026] `admin_list_cancellations` só lê `cancellation_requests`
+/// (nesse dia: 2 linhas, contra 58 pedidos com status cancelled): a tela diz
+/// isso e aponta para a lista completa, em vez de parecer que faltam
+/// cancelamentos.
+const String kAvisoAlcanceCancelamentos =
+    'Aqui aparecem só os cancelamentos pedidos pelo cliente com taxa ou '
+    'reembolso; a lista de todos os pedidos cancelados está em Pedidos '
+    '(filtro Cancelado).';
 
 /// Bloco 4 — Histórico de cancelamentos (PT-BR). Lista cancellation_requests +
 /// orders, com filtros (estágio/status/falhados) e reprocessamento idempotente
@@ -25,9 +35,9 @@ class _AdminCancellationsScreenState extends State<AdminCancellationsScreen> {
 
   static const _stageLabels = {
     'grace': 'E1 · Cortesia (grátis)',
-    'before_dispatch': 'E2 · Antes do dispatch',
-    'after_accept': 'E3 · Após estafeta aceitar',
-    'after_pickup': 'E4 · Após pickup',
+    'before_dispatch': 'E2 · Antes de chamar o entregador',
+    'after_accept': 'E3 · Depois que o entregador aceitou',
+    'after_pickup': 'E4 · Depois da coleta na loja',
   };
 
   @override
@@ -53,7 +63,7 @@ class _AdminCancellationsScreenState extends State<AdminCancellationsScreen> {
           .toList();
       if (mounted) setState(() => _rows = list);
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = humanizeAdminRpcError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -95,8 +105,8 @@ class _AdminCancellationsScreenState extends State<AdminCancellationsScreen> {
       await _load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Erro: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(humanizeAdminRpcError(e))));
       }
     } finally {
       if (mounted) setState(() => _busy.remove(orderId));
@@ -115,14 +125,25 @@ class _AdminCancellationsScreenState extends State<AdminCancellationsScreen> {
       appBar: const BoraScreenAppBar(title: 'Cancelamentos'),
       body: Column(
         children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(12, 10, 12, 0),
+            child: Text(
+              kAvisoAlcanceCancelamentos,
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ),
           _filtersBar(),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _error != null
                     ? Center(
-                        child: Text(_error!,
-                            style: const TextStyle(color: AppColors.error)))
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(_error!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: AppColors.error)),
+                        ))
                     : RefreshIndicator(
                         onRefresh: _load,
                         child: _rows.isEmpty

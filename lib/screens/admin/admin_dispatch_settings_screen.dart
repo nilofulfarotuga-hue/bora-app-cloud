@@ -433,10 +433,11 @@ class _HeaderBanner extends StatelessWidget {
                       fontSize: 14),
                 ),
                 const SizedBox(height: 4),
+                // 15/11/2026: a frase dizia "5 parâmetros" e prometia mais do
+                // que a tela faz; distâncias não se mudam aqui.
                 Text(
-                  'Estes 5 parâmetros regem como o sistema escolhe entregadores, '
-                  'quando re-tenta, e quando pede decisão ao parceiro. '
-                  'Mudanças aplicam-se em tempo real.',
+                  'Aqui só há tempos e a chamada de reforço; distâncias não se '
+                  'configuram nesta tela. Mudanças aplicam-se em tempo real.',
                   style: TextStyle(
                       fontSize: 12, color: Colors.amber.shade900),
                 ),

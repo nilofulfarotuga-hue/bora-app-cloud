@@ -7,6 +7,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 
+/// [15/11/2026] O que o "Reimportar" faz: a Edge Function grava por cima
+/// (upsert por osm_id) o nome, a categoria e o endereço do mapa; não mexe em
+/// is_visible. Mostra-se antes de reimportar.
+const String kReimportarComerciosExplicacao =
+    'Reimportar traz de novo os dados do mapa e desfaz correções de nome, '
+    'categoria e endereço feitas à mão; os escondidos continuam escondidos.';
+
 class AdminBusinessesScreen extends StatefulWidget {
   const AdminBusinessesScreen({super.key});
 
@@ -75,6 +82,22 @@ class _AdminBusinessesScreenState extends State<AdminBusinessesScreen> {
   }
 
   Future<void> _reimport() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reimportar comércios da Guarda?'),
+        content: const Text(kReimportarComerciosExplicacao),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Reimportar')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
     setState(() => _reimporting = true);
     try {
       final res = await Supabase.instance.client.functions

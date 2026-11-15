@@ -7,6 +7,7 @@ import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
 import '../../widgets/admin/meio_pagamento_acerto.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '_admin_rpc_errors.dart';
 import 'admin_acerto_unificado_screen.dart';
 import 'admin_appointments_payouts_screen.dart';
 import 'admin_cleaner_settlements_screen.dart';
@@ -20,6 +21,21 @@ import 'admin_partner_settlements_screen.dart';
 import 'admin_payments_cards_screen.dart';
 import 'admin_receipts_screen.dart';
 import 'admin_settlements_screen.dart';
+
+/// Explicação do campo "MB Way da Bora" (o valor vem do servidor).
+const String kMbwayBoraExplicacao =
+    'Número que aparece nos recibos e lembretes de quem deve à Bora.';
+
+/// Pedidos no vermelho dos Avisos do fecho, em palavras simples.
+const String kAvisoPedidosVermelho =
+    'Pedidos em que a Bora perdeu dinheiro: o cliente pagou menos que a '
+    'compra mais o entregador. Corrija o preço em Preços por talão.';
+
+/// Ecrãs de "Mais ferramentas" que leem tabelas sem leitura de admin
+/// (driver_transactions, restaurant_menu_credits): no painel mostram zero.
+const String kSemLeituraAdmin =
+    'Ainda mostra zero: falta permissão de leitura de admin no servidor '
+    '(proposta enviada).';
 
 /// Painel admin "Acertos da semana" (PT-BR, só o Danilo).
 ///
@@ -47,6 +63,11 @@ import 'admin_settlements_screen.dart';
 ///    fechada — mais antigo está travado. No estafeta, recalcula a seguir.
 ///  · Avisos do fecho no topo: linha travada com valor diferente (o fecho
 ///    não reescreve linhas pagas) e pedidos que fecharam no vermelho.
+///
+/// 2026-11-15 (painel, textos do dinheiro): "Pagar" passou a "Copiar MB Way e
+/// valor" (só copia; paga-se no app do banco), "Reenviar recibos" pergunta
+/// antes de mandar a TODOS, e os textos explicam o MB Way da Bora, o
+/// "Reabrir" e os pedidos no vermelho. Nenhum valor nem conta mudou.
 class AdminAcertosSemanaScreen extends StatefulWidget {
   const AdminAcertosSemanaScreen({
     super.key,
@@ -129,7 +150,7 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = humanizeAdminRpcError(e);
           _loading = false;
         });
       }
@@ -178,9 +199,11 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
 
   // ------------------------------------------------------------------ ações
 
-  /// Copia o MB Way e o valor, e tenta abrir o MB Way. Não existe deep link
-  /// universal do MB Way — por isso o que conta mesmo é o "copiado", e a
-  /// abertura da app é só uma tentativa que nunca trava o resto.
+  /// Botão "Copiar MB Way e valor" (antes "Pagar"): copia o MB Way, mostra o
+  /// valor e tenta abrir o MB Way. NÃO paga nada — o pagamento faz-se no app
+  /// do banco. Não existe deep link universal do MB Way — por isso o que
+  /// conta mesmo é o "copiado", e a abertura da app é só uma tentativa que
+  /// nunca trava o resto.
   Future<void> _pagar(Map<String, dynamic> r) async {
     final mbway = (r['mbway'] as String?) ?? '';
     final valor = _eur((r['net_cents'] as num?) ?? 0);
@@ -189,7 +212,8 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
       return;
     }
     await Clipboard.setData(ClipboardData(text: mbway));
-    _aviso('MB Way $mbway copiado · $valor. Abre o MB Way e cola.');
+    _aviso('MB Way $mbway copiado · valor $valor. '
+        'O pagamento você faz no app do banco.');
     try {
       final uri = Uri.parse('mbway://');
       if (await canLaunchUrl(uri)) {
@@ -234,7 +258,7 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
           : '${r['name']}: pago. O comprovativo vai a caminho.');
       await _load();
     } catch (e) {
-      _aviso('Erro: $e', erro: true);
+      _aviso(humanizeAdminRpcError(e), erro: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -328,6 +352,31 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
 
   Future<void> _resend() async {
     if (_busy) return;
+    // 15/11/2026: o servidor manda force:true — reenvia a TODOS desta semana,
+    // mesmo a quem já recebeu. Pergunta-se antes de mandar.
+    final semana =
+        _weekEnd == null ? _dm(_week) : '${_dm(_week)} a ${_dm(_weekEnd)}';
+    final emEspera = _emailsEnabled
+        ? ''
+        : '\n\nOs emails estão desligados nas configurações: só você recebe; '
+            'os outros ficam em espera.';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reenviar o recibo desta semana por email para TODOS?'),
+        content: Text('Semana $semana: vai para todas as pessoas desta semana, '
+            'mesmo para quem já recebeu.$emEspera'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Reenviar para todos')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
     setState(() => _busy = true);
     try {
       // O servidor manda force:true: reenvia a TODOS desta semana, mesmo aos
@@ -336,7 +385,7 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
           .rpc('admin_resend_weekly_digest', params: {'p_week_start': _week});
       _aviso('Recibos da semana ${_dm(_week)} a reenviar a todos (força o reenvio).');
     } catch (e) {
-      _aviso('Erro: $e', erro: true);
+      _aviso(humanizeAdminRpcError(e), erro: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -378,7 +427,7 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
         subject: 'Acertos da semana $_week',
       );
     } catch (e) {
-      _aviso('Erro a exportar: $e', erro: true);
+      _aviso('Não consegui exportar. ${humanizeAdminRpcError(e)}', erro: true);
     }
   }
 
@@ -391,10 +440,12 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
         content: TextField(
           controller: ctrl,
           keyboardType: TextInputType.phone,
+          // 15/11/2026: exemplo neutro (antes era um número pessoal).
           decoration: const InputDecoration(
             labelText: 'Número MB Way',
-            hintText: '931992662',
-            helperText: 'Vai escrito em todos os recibos de quem deve.',
+            hintText: '9XX XXX XXX',
+            helperText: kMbwayBoraExplicacao,
+            helperMaxLines: 2,
             border: OutlineInputBorder(),
           ),
         ),
@@ -416,7 +467,7 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
       await _client.rpc('admin_update_weekly_closeout_settings', params: params);
       await _load();
     } catch (e) {
-      _aviso('Erro: $e', erro: true);
+      _aviso(humanizeAdminRpcError(e), erro: true);
     }
   }
 
@@ -574,6 +625,12 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
       ('Reembolsos a estafetas (talões)', Icons.receipt_long_outlined,
           () => const AdminReceiptsScreen()),
     ];
+    // 15/11/2026: estes dois leem tabelas que só deixam ler a própria pessoa
+    // (sem leitura de admin no servidor) e por isso mostram zero.
+    const notas = <String, String>{
+      'Saques dos estafetas': kSemLeituraAdmin,
+      'Reservas de mesa': kSemLeituraAdmin,
+    };
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text('Mais ferramentas de dinheiro',
           style: TextStyle(fontWeight: FontWeight.w700)),
@@ -586,14 +643,29 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
       Wrap(
         spacing: 8,
         runSpacing: 8,
-        children: itens
-            .map((it) => ActionChip(
-                  avatar: Icon(it.$2, size: 16),
-                  label: Text(it.$1),
-                  onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => it.$3())),
-                ))
-            .toList(),
+        children: itens.map<Widget>((it) {
+          final chip = ActionChip(
+            avatar: Icon(it.$2, size: 16),
+            label: Text(it.$1),
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => it.$3())),
+          );
+          final nota = notas[it.$1];
+          if (nota == null) return chip;
+          return ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 260),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                chip,
+                Text(nota,
+                    style: const TextStyle(
+                        fontSize: 11, color: AppColors.textSecondary)),
+              ],
+            ),
+          );
+        }).toList(),
       ),
     ]);
   }
@@ -685,16 +757,26 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
                     const Icon(Icons.account_balance_wallet_outlined, size: 16),
                     const SizedBox(width: 6),
                     Expanded(
-                      child: Text(
-                        _boraMbway.isEmpty
-                            ? 'MB Way da Bora: definir (é preciso para cobrar)'
-                            : 'MB Way da Bora: $_boraMbway',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _boraMbway.isEmpty
-                              ? AppColors.error
-                              : AppColors.textSecondary,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _boraMbway.isEmpty
+                                ? 'MB Way da Bora: definir (é preciso para cobrar)'
+                                : 'MB Way da Bora: $_boraMbway',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _boraMbway.isEmpty
+                                  ? AppColors.error
+                                  : AppColors.textSecondary,
+                            ),
+                          ),
+                          const Text(
+                            kMbwayBoraExplicacao,
+                            style: TextStyle(
+                                fontSize: 11, color: AppColors.textSecondary),
+                          ),
+                        ],
                       ),
                     ),
                     const Icon(Icons.edit_outlined, size: 14),
@@ -774,6 +856,12 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
           ],
           if (_pedidosVermelho.isNotEmpty) ...[
             const SizedBox(height: 8),
+            const Text(
+              kAvisoPedidosVermelho,
+              key: ValueKey('aviso_pedidos_vermelho'),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
             const Text(
               'Pedidos no vermelho — loja não-parceira entregue sem sobrar nada '
               'para a Bora (o que o cliente pagou − a mercadoria do talão − o '
@@ -978,27 +1066,42 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
                   size: 18),
               label: Text(aberto ? 'Fechar' : 'Detalhe'),
             ),
-            const Spacer(),
-            if (!tratado && !owes)
-              TextButton(
-                onPressed: _busy ? null : () => _pagar(r),
-                child: const Text('Pagar'),
+            // Wrap: com o texto mais comprido os botões descem de linha no
+            // telemóvel em vez de saírem do cartão.
+            Expanded(
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 4,
+                runSpacing: 4,
+                children: [
+                  // 15/11/2026: o botão só copia o número (antes dizia "Pagar").
+                  if (!tratado && !owes)
+                    Tooltip(
+                      message: 'O pagamento você faz no app do banco',
+                      child: TextButton(
+                        onPressed: _busy ? null : () => _pagar(r),
+                        child: const Text('Copiar MB Way e valor'),
+                      ),
+                    ),
+                  if (!tratado)
+                    FilledButton(
+                      onPressed: _busy ? null : () => _marcar(r),
+                      child: Text(owes ? 'Marcar recebido' : 'Marcar pago'),
+                    ),
+                  if (tratado)
+                    Tooltip(
+                      message: reabrirPermitido
+                          ? 'Voltar para pendente e recalcular com os dados de hoje'
+                          : 'Semana travada: só se reabre a semana em curso ou a última fechada',
+                      child: TextButton(
+                        onPressed: (_busy || !reabrirPermitido) ? null : () => _reabrir(r),
+                        child: Text(reabrirPermitido ? 'Reabrir' : 'Travado'),
+                      ),
+                    ),
+                ],
               ),
-            if (!tratado)
-              FilledButton(
-                onPressed: _busy ? null : () => _marcar(r),
-                child: Text(owes ? 'Marcar recebido' : 'Marcar pago'),
-              ),
-            if (tratado)
-              Tooltip(
-                message: reabrirPermitido
-                    ? 'Volta a pendente, com motivo, e recalcula'
-                    : 'Semana travada: só se reabre a semana em curso ou a última fechada',
-                child: TextButton(
-                  onPressed: (_busy || !reabrirPermitido) ? null : () => _reabrir(r),
-                  child: Text(reabrirPermitido ? 'Reabrir' : 'Travado'),
-                ),
-              ),
+            ),
           ]),
         ]),
       ),

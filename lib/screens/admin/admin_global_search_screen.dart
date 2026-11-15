@@ -8,7 +8,9 @@
 //
 // Sources:
 //   • Clientes: admin_list_clients(p_search, p_limit=10)
-//   • Entregadores: admin_live_drivers() filtrado client-side
+//   • Entregadores: tabela drivers, nome ou telefone ILIKE (15/11/2026 · S5;
+//     antes admin_live_drivers(), que só tem quem mandou GPS nos últimos
+//     5 minutos — a busca quase nunca achava ninguém)
 //   • Parceiros: admin_partners_with_counts() filtrado client-side
 //   • Pedidos: from('orders') select por id_curto OU customer_name ILIKE
 
@@ -19,10 +21,51 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_primary_button.dart';
+import '_admin_rpc_errors.dart';
 import 'admin_clients_screen.dart';
 import 'admin_driver_detail_screen.dart';
 import 'admin_order_detail_screen.dart';
 import 'admin_partner_detail_screen.dart';
+
+/// Dica da lupa desta tela (15/11/2026).
+const String kTooltipBuscaGlobal = 'Buscar pessoas e pedidos';
+
+/// Filtro `or` do PostgREST para achar entregadores pelo nome ou pelo
+/// telefone. O texto vai entre aspas (uma vírgula ou um parêntese partiam o
+/// filtro) e o telefone sem espaços ("912 345" acha "+351912345...").
+String filtroBuscaEntregadores(String busca) {
+  String entreAspas(String s) =>
+      '"%${s.replaceAll(r'\', r'\\').replaceAll('"', r'\"')}%"';
+  final texto = busca.trim();
+  final telefone = texto.replaceAll(RegExp(r'\s+'), '');
+  return 'name.ilike.${entreAspas(texto)},'
+      'phone.ilike.${entreAspas(telefone)}';
+}
+
+/// Linhas de `drivers` no formato que a lista e a abertura do detalhe já
+/// usam (`driver_id` = `drivers.id`, o id que `AdminDriverDetailScreen`
+/// espera), uma vez por id.
+List<Map<String, dynamic>> entregadoresDaBusca(
+    Iterable<Map<String, dynamic>> linhas) {
+  final vistos = <String>{};
+  final saida = <Map<String, dynamic>>[];
+  for (final linha in linhas) {
+    final id = '${linha['id'] ?? ''}';
+    if (id.isEmpty || !vistos.add(id)) continue;
+    saida.add({
+      'driver_id': id,
+      'driver_name': linha['name'],
+      'driver_phone': linha['phone'],
+      'vehicle_type': linha['vehicle_type'],
+      'is_online': linha['is_online'] == true,
+    });
+  }
+  return saida;
+}
+
+/// Resultado de uma parte da busca: as linhas e, se falhou, o erro já em
+/// português (antes o erro era engolido e parecia "nenhum resultado").
+typedef _Secao = ({List<Map<String, dynamic>> linhas, String? erro});
 
 class AdminGlobalSearchScreen extends StatefulWidget {
   const AdminGlobalSearchScreen({super.key});
@@ -46,8 +89,10 @@ class _AdminGlobalSearchScreenState extends State<AdminGlobalSearchScreen> {
   List<Map<String, dynamic>> _partners = const [];
   List<Map<String, dynamic>> _orders = const [];
 
-  // Cache dos drivers e partners (não filtrados — filtramos client-side).
-  List<Map<String, dynamic>>? _allDriversCache;
+  /// Partes da busca que falharam (ex.: "Pedidos: ..."), mostradas na tela.
+  List<String> _avisos = const [];
+
+  // Cache dos partners (não filtrados — filtramos client-side).
   List<Map<String, dynamic>>? _allPartnersCache;
 
   @override
@@ -66,6 +111,7 @@ class _AdminGlobalSearchScreenState extends State<AdminGlobalSearchScreen> {
         _drivers = const [];
         _partners = const [];
         _orders = const [];
+        _avisos = const [];
         _error = null;
         _lastQuery = q;
       });
@@ -83,24 +129,30 @@ class _AdminGlobalSearchScreenState extends State<AdminGlobalSearchScreen> {
     });
     try {
       // Cargas em paralelo.
-      final results = await Future.wait([
+      final results = await Future.wait<Object>([
         _searchClients(q),
-        _searchDriversAndPartners(q),
+        _searchDrivers(q),
+        _searchPartners(q),
         _searchOrders(q),
       ]);
       if (!mounted || _lastQuery != q) return; // outdated response
+      final drivers = results[1] as _Secao;
+      final orders = results[3] as _Secao;
       setState(() {
         _clients = results[0] as List<Map<String, dynamic>>;
-        final dp = results[1] as Map<String, List<Map<String, dynamic>>>;
-        _drivers = dp['drivers'] ?? const [];
-        _partners = dp['partners'] ?? const [];
-        _orders = results[2] as List<Map<String, dynamic>>;
+        _drivers = drivers.linhas;
+        _partners = results[2] as List<Map<String, dynamic>>;
+        _orders = orders.linhas;
+        _avisos = [
+          if (drivers.erro != null) 'Entregadores: ${drivers.erro}',
+          if (orders.erro != null) 'Pedidos: ${orders.erro}',
+        ];
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = humanizeAdminRpcError(e);
         _loading = false;
       });
     }
@@ -123,19 +175,31 @@ class _AdminGlobalSearchScreenState extends State<AdminGlobalSearchScreen> {
     }
   }
 
-  Future<Map<String, List<Map<String, dynamic>>>> _searchDriversAndPartners(
-      String q) async {
-    // Carrega caches uma vez (sessão de pesquisa).
-    if (_allDriversCache == null) {
-      try {
-        final res = await _supabase.rpc('admin_live_drivers');
-        _allDriversCache = (res as List? ?? const [])
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList();
-      } catch (_) {
-        _allDriversCache = const [];
-      }
+  /// [15/11/2026 · S5] Entregadores pela tabela `drivers` (o admin lê pela
+  /// RLS `admin_select_all_drivers`): nome ou telefone, online ou não.
+  Future<_Secao> _searchDrivers(String q) async {
+    try {
+      final res = await _supabase
+          .from('drivers')
+          .select('id, name, phone, vehicle_type, is_online')
+          .or(filtroBuscaEntregadores(q))
+          .order('name')
+          .limit(10);
+      return (
+        linhas: entregadoresDaBusca(
+            (res as List).map((e) => Map<String, dynamic>.from(e as Map))),
+        erro: null,
+      );
+    } catch (e) {
+      return (
+        linhas: const <Map<String, dynamic>>[],
+        erro: humanizeAdminRpcError(e),
+      );
     }
+  }
+
+  Future<List<Map<String, dynamic>>> _searchPartners(String q) async {
+    // Carrega o cache uma vez (sessão de pesquisa).
     if (_allPartnersCache == null) {
       try {
         final res = await _supabase.rpc('admin_partners_with_counts');
@@ -147,21 +211,14 @@ class _AdminGlobalSearchScreenState extends State<AdminGlobalSearchScreen> {
       }
     }
     final lq = q.toLowerCase();
-    final drivers = _allDriversCache!.where((d) {
-      final name = (d['driver_name'] as String? ?? '').toLowerCase();
-      final phone = (d['driver_phone'] as String? ?? '').toLowerCase();
-      final id = (d['driver_id'] as String? ?? '').toLowerCase();
-      return name.contains(lq) || phone.contains(lq) || id.startsWith(lq);
-    }).take(10).toList();
-    final partners = _allPartnersCache!.where((p) {
+    return _allPartnersCache!.where((p) {
       final name = (p['name'] as String? ?? '').toLowerCase();
       final id = (p['id']?.toString() ?? '').toLowerCase();
       return name.contains(lq) || id.startsWith(lq);
     }).take(10).toList();
-    return {'drivers': drivers, 'partners': partners};
   }
 
-  Future<List<Map<String, dynamic>>> _searchOrders(String q) async {
+  Future<_Secao> _searchOrders(String q) async {
     try {
       // Estratégia: tenta uuid prefix (id) + customer_name ILIKE + vendor_name ILIKE.
       final like = '%$q%';
@@ -172,11 +229,18 @@ class _AdminGlobalSearchScreenState extends State<AdminGlobalSearchScreen> {
           .or('customer_name.ilike.$like,vendor_name.ilike.$like,id.ilike.$q%')
           .order('created_at', ascending: false)
           .limit(10);
-      return (res as List)
-          .map((e) => Map<String, dynamic>.from(e as Map))
-          .toList();
-    } catch (_) {
-      return const [];
+      return (
+        linhas: (res as List)
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList(),
+        erro: null,
+      );
+    } catch (e) {
+      // [15/11/2026] O erro aparece na tela em vez de parecer "sem pedidos".
+      return (
+        linhas: const <Map<String, dynamic>>[],
+        erro: humanizeAdminRpcError(e),
+      );
     }
   }
 
@@ -256,7 +320,10 @@ class _AdminGlobalSearchScreenState extends State<AdminGlobalSearchScreen> {
               hintText: 'Buscar clientes, entregadores, parceiros, pedidos...',
               hintStyle: TextStyle(color: Colors.white70, fontSize: 14),
               border: InputBorder.none,
-              prefixIcon: Icon(Icons.search, color: Colors.white70),
+              prefixIcon: Tooltip(
+                message: kTooltipBuscaGlobal,
+                child: Icon(Icons.search, color: Colors.white70),
+              ),
             ),
           ),
         ),
@@ -337,6 +404,7 @@ class _AdminGlobalSearchScreenState extends State<AdminGlobalSearchScreen> {
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: AppColors.textSecondary),
               ),
+              for (final aviso in _avisos) _aviso(aviso),
             ],
           ),
         ),
@@ -345,6 +413,7 @@ class _AdminGlobalSearchScreenState extends State<AdminGlobalSearchScreen> {
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 8),
       children: [
+        for (final aviso in _avisos) _aviso(aviso),
         if (_clients.isNotEmpty)
           _buildSection(
             'Clientes',
@@ -380,6 +449,16 @@ class _AdminGlobalSearchScreenState extends State<AdminGlobalSearchScreen> {
       ],
     );
   }
+
+  /// Uma parte da busca que falhou (ex.: "Pedidos: ...").
+  Widget _aviso(String texto) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        child: Text(
+          texto,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 12, color: AppColors.error),
+        ),
+      );
 
   Widget _buildSection(
     String title,
@@ -451,16 +530,19 @@ class _AdminGlobalSearchScreenState extends State<AdminGlobalSearchScreen> {
   }
 
   Widget _driverTile(Map<String, dynamic> d) {
-    final isAvailable = d['is_available'] == true;
+    // [15/11/2026 · S5] `is_online` da tabela drivers (antes lia
+    // `is_available`, que a função antiga nem devolvia: ficava sempre cinza).
+    final online = d['is_online'] == true;
     return ListTile(
       dense: true,
       leading: CircleAvatar(
         radius: 16,
-        backgroundColor: isAvailable ? Colors.green : Colors.grey,
+        backgroundColor: online ? Colors.green : Colors.grey,
         child: const Icon(Icons.two_wheeler, color: Colors.white, size: 16),
       ),
       title: Text((d['driver_name'] as String?) ?? '—'),
       subtitle: Text(
+        '${online ? 'Online agora' : 'Offline'} · '
         '${d['driver_phone'] ?? '—'} · ${d['vehicle_type'] ?? '—'}',
         style: const TextStyle(fontSize: 11),
       ),

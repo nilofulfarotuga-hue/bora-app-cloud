@@ -13,6 +13,24 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '_admin_rpc_errors.dart';
+
+/// [15/11/2026] O painel ainda não pode ler `stripe_webhook_events` (o
+/// servidor responde "permission denied", 42501); a permissão foi proposta à
+/// parte. Antes caía numa segunda leitura que dizia, errado, que faltava uma
+/// coluna (a coluna `stripe_account` já existe).
+const String kAvisoEventosWebhookSemPermissao =
+    'O painel ainda não tem permissão para ler os eventos do webhook '
+    '(proposta enviada ao servidor).';
+
+/// Frase para quando a leitura dos eventos do webhook falha. Função pura.
+String mensagemErroEventosWebhook(Object erro) {
+  final semPermissao = (erro is PostgrestException && erro.code == '42501') ||
+      erro.toString().toLowerCase().contains('permission denied');
+  if (semPermissao) return kAvisoEventosWebhookSemPermissao;
+  return 'Não deu para ler os eventos do webhook: '
+      '${humanizeAdminRpcError(erro)}';
+}
 
 class AdminStripeContasScreen extends StatefulWidget {
   const AdminStripeContasScreen({super.key});
@@ -102,18 +120,8 @@ class _AdminStripeContasScreenState extends State<AdminStripeContasScreen> {
       _eventos = (res as List).map((e) => (e as Map).cast<String, dynamic>()).toList();
       _erroEventos = null;
     } catch (e) {
-      // A coluna stripe_account só existe depois da migração; sem ela mostra-se o que houver.
-      try {
-        final res = await _sb
-            .from('stripe_webhook_events')
-            .select('event_id, type, received_at, processed_at, last_error')
-            .order('received_at', ascending: false)
-            .limit(40);
-        _eventos = (res as List).map((e) => (e as Map).cast<String, dynamic>()).toList();
-        _erroEventos = 'Coluna da conta ainda não existe no banco (migração por aplicar): todos os eventos aparecem como Pessoal.';
-      } catch (e2) {
-        _erroEventos = 'Não deu para ler os eventos do webhook: $e2';
-      }
+      _eventos = const [];
+      _erroEventos = mensagemErroEventosWebhook(e);
     }
   }
 
@@ -305,7 +313,8 @@ class _AdminStripeContasScreenState extends State<AdminStripeContasScreen> {
   Widget _cartaoEventos() {
     return _cartao(titulo: 'Últimos eventos dos webhooks (o que a Stripe mandou ao servidor)', filhos: [
       if (_erroEventos != null) _aviso(_erroEventos!, cor: Colors.orange.shade800),
-      if (_eventos.isEmpty) const Text('Sem eventos.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+      // Com erro de leitura não se sabe se há eventos: não dizer "Sem eventos".
+      if (_erroEventos == null && _eventos.isEmpty) const Text('Sem eventos.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
       for (final e in _eventos.take(40))
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 3),

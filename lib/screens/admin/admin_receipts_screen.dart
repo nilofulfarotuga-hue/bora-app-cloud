@@ -15,6 +15,18 @@ import '../../config/app_spacing.dart';
 import '../../widgets/bora_foto_ecra_inteiro.dart';
 import '../../widgets/private_bucket_image.dart';
 import '../../widgets/admin/talao_motivos.dart';
+import '_admin_rpc_errors.dart';
+
+/// [15/11/2026] O painel ainda não lê `orders` (não há política de leitura de
+/// admin): o filtro por entregador e o nome do entregador de cada talão
+/// dependem disso. Diz-se por palavras em vez de mostrar vazio.
+const String kTalaoFiltroEntregadorSemLeitura =
+    'O filtro por entregador ainda não funciona: o servidor não deixa o painel '
+    'ler os pedidos (falta permissão de leitura de admin). Escolha "Todos" '
+    'para ver os talões.';
+const String kTalaoEntregadorSemLeitura =
+    'Entregador: o painel ainda não consegue ler este pedido (falta permissão '
+    'de leitura de admin no servidor).';
 
 class AdminReceiptsScreen extends StatefulWidget {
   const AdminReceiptsScreen({super.key});
@@ -154,7 +166,7 @@ class _ReceiptsListState extends State<_ReceiptsList> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = humanizeAdminRpcError(e);
           _loading = false;
         });
       }
@@ -165,7 +177,7 @@ class _ReceiptsListState extends State<_ReceiptsList> {
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null) {
-      return Center(child: Text('Erro: $_error'));
+      return Center(child: Text(_error!));
     }
     if (_rows.isEmpty) {
       return Center(
@@ -220,6 +232,10 @@ class _HistoricoTabState extends State<_HistoricoTab> {
   List<Map<String, dynamic>> _rows = [];
   bool _loading = false;
   String? _error;
+
+  /// [15/11/2026] true quando o filtro por entregador não leu nenhum pedido
+  /// dos talões encontrados: o servidor ainda não deixa o painel ler `orders`.
+  bool _filtroSemLeitura = false;
 
   static const _statusOptions = {
     'todos': 'Todos',
@@ -281,6 +297,7 @@ class _HistoricoTabState extends State<_HistoricoTab> {
       // Driver filter via JOIN orders: filtramos client-side por simplicidade
       final data = await q.order('created_at', ascending: false).limit(200);
       var rows = List<Map<String, dynamic>>.from(data);
+      var semLeitura = false;
 
       if (_driverIdFilter != null && _driverIdFilter!.isNotEmpty) {
         // Lookup driver assignments
@@ -290,6 +307,8 @@ class _HistoricoTabState extends State<_HistoricoTab> {
               .from('orders')
               .select('id, assigned_driver_id')
               .inFilter('id', orderIds);
+          // Há talões mas nenhum pedido voltou: o servidor não deixou ler.
+          semLeitura = orders.isEmpty;
           final keepIds = (orders as List)
               .where((o) => o['assigned_driver_id'] == _driverIdFilter)
               .map((o) => o['id'] as String)
@@ -301,13 +320,14 @@ class _HistoricoTabState extends State<_HistoricoTab> {
       if (mounted) {
         setState(() {
           _rows = rows;
+          _filtroSemLeitura = semLeitura;
           _loading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = humanizeAdminRpcError(e);
           _loading = false;
         });
       }
@@ -423,12 +443,19 @@ class _HistoricoTabState extends State<_HistoricoTab> {
           child: _loading
               ? const Center(child: CircularProgressIndicator())
               : _error != null
-                  ? Center(child: Text('Erro: $_error'))
+                  ? Center(child: Text(_error!))
                   : _rows.isEmpty
                       ? Center(
-                          child: Text('Sem resultados.',
-                              style: TextStyle(
-                                  color: AppColors.textSecondary)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Text(
+                                _filtroSemLeitura
+                                    ? kTalaoFiltroEntregadorSemLeitura
+                                    : 'Sem resultados.',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    color: AppColors.textSecondary)),
+                          ),
                         )
                       : RefreshIndicator(
                           onRefresh: _load,
@@ -465,6 +492,10 @@ class _ReceiptCardState extends State<_ReceiptCard> {
   String? _driverMbway;
   String? _driverName;
 
+  /// [15/11/2026] true quando o pedido do talão não veio (o servidor ainda
+  /// não deixa o painel ler `orders`): mostra-se a nota em vez de nada.
+  bool _pedidoSemLeitura = false;
+
   @override
   void initState() {
     super.initState();
@@ -498,7 +529,11 @@ class _ReceiptCardState extends State<_ReceiptCard> {
           .select('assigned_driver_id')
           .eq('id', orderId)
           .maybeSingle();
-      final driverId = ord?['assigned_driver_id'] as String?;
+      if (ord == null) {
+        if (mounted) setState(() => _pedidoSemLeitura = true);
+        return;
+      }
+      final driverId = ord['assigned_driver_id'] as String?;
       if (driverId != null && driverId.isNotEmpty) {
         // IDENTIDADE (16/09): assigned_driver_id é o user_id (id ≠ user_id
         // nas contas registadas pela app) — por `id` o nome vinha vazio.
@@ -561,7 +596,7 @@ class _ReceiptCardState extends State<_ReceiptCard> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e')),
+          SnackBar(content: Text(humanizeAdminRpcError(e))),
         );
       }
     } finally {
@@ -673,7 +708,7 @@ class _ReceiptCardState extends State<_ReceiptCard> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e')),
+          SnackBar(content: Text(humanizeAdminRpcError(e))),
         );
       }
     } finally {
@@ -726,7 +761,7 @@ class _ReceiptCardState extends State<_ReceiptCard> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e')),
+          SnackBar(content: Text(humanizeAdminRpcError(e))),
         );
       }
     } finally {
@@ -814,7 +849,7 @@ class _ReceiptCardState extends State<_ReceiptCard> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e')),
+          SnackBar(content: Text(humanizeAdminRpcError(e))),
         );
       }
     } finally {
@@ -981,6 +1016,12 @@ class _ReceiptCardState extends State<_ReceiptCard> {
                     ],
                   ),
                 ),
+            ],
+            if (_pedidoSemLeitura) ...[
+              const SizedBox(height: 8),
+              const Text(kTalaoEntregadorSemLeitura,
+                  style:
+                      TextStyle(fontSize: 12, color: AppColors.textSecondary)),
             ],
             if (status == 'pending_admin') ...[
               const Divider(),

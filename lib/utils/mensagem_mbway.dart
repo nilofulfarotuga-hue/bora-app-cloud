@@ -41,6 +41,17 @@ String get mbwayNaoConfirmado {
 /// A frase é a do MB WAY desligado? (aí não vale a pena "Tentar outra vez").
 bool eMbwayDesligado(String frase) => frase == mbwayDesligado;
 
+/// manha-15-11 bloco C2: o servidor respondeu "Order already processed" (409)
+/// ao pedir o MB WAY. O pedido já não está à espera — pode até já estar PAGO —
+/// por isso a app não o cancela como `payment_failed`: vai ver o estado dele.
+bool mbwayJaTratado({int? status, String? erro}) =>
+    status == 409 || (erro ?? '').toLowerCase().contains('already processed');
+
+/// manha-15-11 bloco C2: o `client-cancel-order` recusou cancelar porque o
+/// pagamento já entrou na Stripe (`already_paid`). O pedido segue pago.
+bool cancelamentoRecusadoPorPagamento(int? status, String? erro) =>
+    (erro ?? '').toLowerCase().contains('already_paid');
+
 /// Traduz a resposta do servidor numa frase para o cliente.
 ///
 /// [status] é o código HTTP (null quando nem houve resposta, p. ex. sem rede)

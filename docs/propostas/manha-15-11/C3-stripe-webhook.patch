@@ -1,0 +1,26 @@
+diff --git a/supabase/functions/stripe-webhook/index.ts b/supabase/functions/stripe-webhook/index.ts
+index bf64709..3eceb9b 100644
+--- a/supabase/functions/stripe-webhook/index.ts
++++ b/supabase/functions/stripe-webhook/index.ts
+@@ -455,6 +455,21 @@ async function reviveOrderCancelledByPaymentFailed(orderId: string, intentId: st
+   }
+   console.warn('[stripe-webhook] PEDIDO REATIVADO (cancelado por payment_failed, MB Way pago depois):',
+     orderId, intentId);
++  // manha-15-11 bloco C3 (autorizo do Danilo 15/11/2026 08:50): o cancelamento devolveu os
++  // tokens do pedido; ao reativar, gastam-se outra vez (como no pagamento normal). Sem tokens
++  // chega, o pedido segue na mesma e o painel avisa (decisao de dinheiro fica com o Danilo).
++  const { data: tok, error: tokErr } = await supabase.rpc('reconsumir_tokens_pedido_reativado', { p_order_id: orderId });
++  if (tokErr || (tok && tok.ok === false)) {
++    console.error('[stripe-webhook] revive: tokens nao voltaram a ser gastos:', tokErr?.message ?? tok, orderId);
++    await supabase.rpc('notify_admin_urgent_push', {
++      p_event_type: 'tokens_pedido_reativado',
++      p_summary: `Pedido ${orderId.slice(0, 8)} reativado (MB Way pago tarde) mas os tokens nao foram todos gastos outra vez (${tokErr?.message ?? JSON.stringify(tok)}). Ver a mao.`,
++      p_entity_type: 'order',
++      p_entity_id: orderId,
++      p_payload: { payment_intent_id: intentId, tokens: tok ?? null, erro: tokErr?.message ?? null },
++      p_deep_link: `/admin/orders/${orderId}`,
++    }).then(({ error }) => { if (error) console.error('[stripe-webhook] notify_admin_urgent_push failed:', error.message); });
++  }
+   await supabase.rpc('notify_admin_urgent_push', {
+     p_event_type: 'pedido_reativado_pos_pagamento',
+     p_summary: `Pedido ${orderId.slice(0, 8)} tinha sido cancelado pela app (payment_failed) mas o MB Way foi pago — reativado e a chamar estafeta.`,

@@ -1279,7 +1279,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
   /// [ficarNoPagamento] (Bloco 5, 14/11/2026): o cliente fica neste ecrã, com
   /// o carrinho, para tentar outra vez ou escolher outro meio. Sem isso volta
   /// ao início, como sempre.
-  Future<void> _bailOutAndCancel(String? orderId,
+  ///
+  /// Devolve true quando o servidor recusou cancelar porque o pagamento JÁ
+  /// entrou (`already_paid`, manha-15-11 bloco C2): o pedido segue pago e o
+  /// ecrã abre os pedidos em vez de mostrar a falha.
+  Future<bool> _bailOutAndCancel(String? orderId,
       {bool ficarNoPagamento = false}) async {
     var cancelFalhou = false;
     if (orderId != null) {
@@ -1288,12 +1292,20 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
           'client-cancel-order',
           body: {'order_id': orderId, 'reason': 'payment_failed'},
         );
+      } on FunctionException catch (e) {
+        final d = e.details;
+        final erro = d is Map ? d['error']?.toString() : d?.toString();
+        // Quem chama trata o pedido como pago (limpa o carrinho e desconta
+        // os tokens como no pagamento normal — bloco C3).
+        if (cancelamentoRecusadoPorPagamento(e.status, erro)) return true;
+        debugPrint('[Checkout] _bailOutAndCancel error (non-fatal): $e');
+        cancelFalhou = true;
       } catch (e) {
         debugPrint('[Checkout] _bailOutAndCancel error (non-fatal): $e');
         cancelFalhou = true;
       }
     }
-    if (!mounted) return;
+    if (!mounted) return false;
     // 2026-10-03: se não deu para cancelar, o cliente tem de saber — o pedido
     // pode continuar activo à espera de pagamento.
     final messenger = ScaffoldMessenger.of(context);
@@ -1307,6 +1319,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
             'Não conseguimos cancelar o pedido por falta de rede. Vê em "Pedidos" e cancela-o lá se ainda aparecer.'),
       ));
     }
+    return false;
   }
 
   /// Revisão 15/11 (achado 1): o MB WAY anterior deste carrinho continua vivo?
@@ -1838,28 +1851,46 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
         // Revisão 15/11 (achado 5): o botão continua ocupado até o pedido
         // antigo estar cancelado — antes ficava ativo logo aqui e um toque
         // criava outro pedido com o primeiro ainda por cancelar.
-        if (piId == null) {
+        // manha-15-11 bloco C2: 409 "já foi tratado" = o pedido já não está à
+        // espera e pode estar PAGO. Antes cancelava-se logo como falha; agora
+        // espera-se pelo estado real (o mesmo diálogo do MB WAY) e só se
+        // cancela se não entrar — e aí o servidor recusa se já estiver pago.
+        var pagoTarde = false;
+        if (piId == null && paymentService.ultimoMbwayJaTratado) {
+          pagoTarde = await _showMBWayWaitingDialog(mbwayOrderId, amount);
+          if (!mounted) return;
+        }
+        if (piId == null && !pagoTarde) {
           // Diz PORQUE falhou (número sem MB WAY, sem rede, valor mínimo…)
           // e o que fazer; o pedido que ficou criado é cancelado sem custo.
           final frase = paymentService.ultimoErroMbway ?? mensagemErroMbway();
-          await _bailOutAndCancel(mbwayOrderId, ficarNoPagamento: true);
+          pagoTarde =
+              await _bailOutAndCancel(mbwayOrderId, ficarNoPagamento: true);
           if (!mounted) return;
-          setState(() => _isProcessing = false);
-          await _mostrarFalhaMbway(frase, amount, tokensUsed);
-          return;
+          if (!pagoTarde) {
+            setState(() => _isProcessing = false);
+            await _mostrarFalhaMbway(frase, amount, tokensUsed);
+            return;
+          }
         }
-        final mbwayPaid = await _showMBWayWaitingDialog(mbwayOrderId, amount);
+        var mbwayPaid = pagoTarde ||
+            await _showMBWayWaitingDialog(mbwayOrderId, amount);
+        if (!mbwayPaid && mounted) {
+          // C3: o servidor recusa cancelar se o pagamento entrou entretanto;
+          // aí o pedido segue como pago, com os tokens descontados.
+          mbwayPaid =
+              await _bailOutAndCancel(mbwayOrderId, ficarNoPagamento: true);
+          if (!mbwayPaid) {
+            if (!mounted) return;
+            setState(() => _isProcessing = false);
+            await _mostrarFalhaMbway(mbwayNaoConfirmado, amount, tokensUsed);
+            return;
+          }
+        }
         // Pago: o carrinho limpa-se JÁ, mesmo que o ecrã tenha saído
         // entretanto (revisão 15/11, achado 2). Antes só depois do `mounted`.
         if (mbwayPaid) cartStore.limparDepoisDoPedido();
         if (!mounted) return;
-        if (!mbwayPaid) {
-          await _bailOutAndCancel(mbwayOrderId, ficarNoPagamento: true);
-          if (!mounted) return;
-          setState(() => _isProcessing = false);
-          await _mostrarFalhaMbway(mbwayNaoConfirmado, amount, tokensUsed);
-          return;
-        }
         await _persistErrandHomeStop(favorMbway, mbwayOrderId);
         await _consumeTokensAndNavigate(tokensUsed,
             mensagem:

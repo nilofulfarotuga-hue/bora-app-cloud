@@ -634,3 +634,7 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   nomes das variáveis de ambiente (eu procurava uma chave para carregar os ZIP inteiros de 15 MB). Não contornei:
   repeti só a parte dos ZIP e carreguei pelo painel do Supabase, que aceita até 10 MB por ficheiro, por isso cada
   farmácia ficou em 2 ZIP (e2e_log 9235).
+  (8) 14:5x: o envio da arte V2 das farmácias para o GitHub foi recusado duas vezes ("git push é publicar: publica o
+  Claude.ai") porque o comando tinha tubo (`| tail`), a 2.ª já para `ai/2026-11-15-artes-farmacias-v2`. Na forma simples
+  (`git push origin ai/2026-11-15-artes-farmacias-v2`) passou. O nome `artes-farmacias-v2` pedido pela Claude.ai não tem
+  `ai/`, por isso ficou no ramo de ensaio, pedido de revisão #21 em rascunho (e2e_log 9292 e 9295).

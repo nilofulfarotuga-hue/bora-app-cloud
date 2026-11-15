@@ -130,6 +130,11 @@ class _PartnerNoRestaurantRouterState
     _restaurantStatusFuture = userId == null
         ? Future.value(null)
         : context.read<RestaurantStore>().ownRestaurantApprovalStatus(userId);
+    // app-15-11 (Juiz): o FutureBuilder deste estado só começa a ouvir depois
+    // de o primeiro acabar; um erro de rede rápido ficava "sem dono". Este
+    // ouvinte só o marca como tratado — o ecrã continua a mostrar
+    // "Tentar de novo" pelo próprio FutureBuilder.
+    _restaurantStatusFuture.catchError((Object _) => null);
   }
 
   @override

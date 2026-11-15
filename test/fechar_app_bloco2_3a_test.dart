@@ -268,6 +268,9 @@ void main() {
 
     testWidgets('enquanto a página chega mostra a roda e não o botão',
         (t) async {
+      // app-15-11: o seletor de período e o total grande empurraram a roda para
+      // fora dos 800×600 de origem; como nos outros testes deste grupo.
+      ecraAlto(t);
       await t.pumpWidget(app(PedidosEstafetaCorpo(
         emCurso: 0,
         ofertas: 0,

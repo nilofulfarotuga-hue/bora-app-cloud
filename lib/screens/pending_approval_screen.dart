@@ -211,7 +211,7 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
 
               // Botão secundário: Voltar ao Login
               // app-15-11: igual ao "Terminar sessão" do Perfil. Antes fazia
-              // pushReplacement do login a partir do ecrã de entrada, tirava o
+              // a troca de rota do login a partir do ecrã de entrada, tirava o
               // _RootNavigator da árvore e o parceiro ficava preso no login.
               OutlinedButton(
                 onPressed: () async {

@@ -3613,12 +3613,34 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              order.serviceType.label,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+            // app-15-11 (Juiz): regra do ganho em número grande — o ganho vai
+            // aqui, grande, e sai do botão Aceitar e do rótulo pequeno.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Text(
+                    order.serviceType.label,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '+${eur(order.driverEarnings)}',
+                    key: const Key('oferta_lista_ganho'),
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange.shade900,
+                    ),
+                  ),
+                ),
+              ],
             ),
             if (order.hasAgeRestricted) ...[
               const SizedBox(height: 4),
@@ -3654,11 +3676,6 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
                   icon: Icons.euro,
                   label: "Total",
                   value: eur(order.total),
-                ),
-                _InfoChip(
-                  icon: Icons.payments,
-                  label: "Ganhos",
-                  value: "+${eur(order.driverEarnings)}",
                 ),
                 _InfoChip(
                   icon: Icons.storefront,
@@ -3768,7 +3785,7 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
                             width: 16,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        // app-15-11: o ganho já está no "Ganhos" de cima.
+                        // app-15-11: o ganho já está em número grande no topo do cartão.
                         : const Text('Aceitar'),
                   ),
                 ),

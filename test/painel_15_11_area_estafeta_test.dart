@@ -1,6 +1,9 @@
 // Área do estafeta (15/11/2026, missão app-15-11 — ordem do Danilo): o admin
 // escolhe um entregador e faz por ele o que ele faz no app, tudo registrado.
-// Sem rede: o serviço é falso e o Supabase nunca é inicializado.
+// Sem rede: o ecrã usa um serviço falso e o Supabase nunca é inicializado; as
+// chamadas verdadeiras (nome da função e parâmetros) provam-se com o SDK
+// verdadeiro e um servidor de mentira (MockClient). Dados inventados.
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:bora_app/screens/admin/admin_area_estafeta_screen.dart';
@@ -12,11 +15,52 @@ import 'package:bora_app/widgets/admin/escolher_estafeta_sheet.dart'
     show EstafetaParaAtribuir;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'
+    show AuthClientOptions, SupabaseClient;
 
 const _userId = '11111111-1111-4111-8111-111111111111';
 const _driverId = '22222222-2222-4222-8222-222222222222';
 const _idDele = 'aaaaaaaa-0000-4000-8000-000000000001';
 const _idEspera = 'bbbbbbbb-0000-4000-8000-000000000002';
+const _idAceito = 'cccccccc-0000-4000-8000-000000000003';
+const _idACaminho = 'dddddddd-0000-4000-8000-000000000004';
+
+/// A resposta de admin_fatura_mes_estafeta (inventada): com entregas em
+/// novembro, sem entregas em outubro.
+Map<String, dynamic> _faturaJson({
+  bool comEntregas = true,
+  Map<String, dynamic> extra = const <String, dynamic>{},
+}) =>
+    <String, dynamic>{
+      'ano': 2026,
+      'mes': comEntregas ? 11 : 10,
+      'nome_mes': comEntregas ? 'novembro' : 'outubro',
+      'user_id': _userId,
+      'driver_id': _driverId,
+      'tem_entregas': comEntregas,
+      'estafeta': comEntregas
+          ? <String, dynamic>{
+              'user_id': _userId,
+              'nome': 'João Teste',
+              'nif': '123456789',
+              'atividade_aberta': true,
+              'entregas': 5,
+              'total_a_faturar': 24.9,
+              'cliente': 'Bora Teste Lda',
+              'cliente_nif': '500000000',
+              'texto_recibo': 'Serviços prestados em novembro de 2026 através da '
+                  'plataforma Bora (5 entregas)',
+              'iva': 'IVA: depende do seu regime.',
+              'retencao': 'Retenção: o contabilista confirma.',
+              'prazo': 'Fatura-recibo até ao 5.º dia útil.',
+              'recibo_passado': false,
+              ...extra,
+            }
+          : null,
+      'adquirente': <String, dynamic>{'nome': 'Bora Teste Lda', 'nif': '500000000'},
+    };
 
 List<PedidoAberto> _pedidos() => [
       const PedidoAberto(
@@ -61,20 +105,40 @@ class _Falso extends AdminAreaEstafetaService {
     List<PedidoAberto>? pedidos,
     List<TrabalhoGanho>? trabalhos,
     this.modo = const ModoTrabalho(modo: 'everything', veiculo: 'carro_passageiros'),
+    this.ligado = true,
+    this.respostaLigar = const <String, dynamic>{
+      'ok': true,
+      'antes': true,
+      'depois': false,
+      'pedidos_em_curso': 1,
+      'avisos': <String>[],
+    },
+    this.respostaAvancar = const <String, dynamic>{
+      'ok': true,
+      'status': 'pickedUp',
+      'de': 'driverAccepted',
+    },
   })  : pedidos = pedidos ?? _pedidos(),
         trabalhos = trabalhos ?? _trabalhosDeAgora();
 
   final List<PedidoAberto> pedidos;
   final List<TrabalhoGanho> trabalhos;
   final ModoTrabalho modo;
+
+  /// O botão "ligado" dele (is_online) que a presença devolve.
+  final bool ligado;
+
+  /// O que admin_set_driver_online e admin_estafeta_avancar respondem.
+  final Map<String, dynamic> respostaLigar;
+  final Map<String, dynamic> respostaAvancar;
   final List<String> chamadas = [];
 
   @override
   Future<PresencaEstafeta?> presenca(String driverId) async {
     chamadas.add('presenca:$driverId');
     return PresencaEstafeta(
-      ligado: true,
-      ligadoAgora: true,
+      ligado: ligado,
+      ligadoAgora: ligado,
       ultimoSinal: DateTime.now().toUtc(),
       temNotificacoes: true,
       aparelhos: 1,
@@ -146,6 +210,16 @@ class _Falso extends AdminAreaEstafetaService {
   }
 
   @override
+  Future<Map<String, dynamic>> avancarPedido({
+    required String orderId,
+    required String status,
+    required String motivo,
+  }) async {
+    chamadas.add('avancar:$orderId:$status:$motivo');
+    return Map<String, dynamic>.from(respostaAvancar);
+  }
+
+  @override
   Future<Map<String, dynamic>> avisarGps(String driverId) async {
     chamadas.add('aviso_gps:$driverId');
     return <String, dynamic>{'ok': true};
@@ -155,6 +229,24 @@ class _Falso extends AdminAreaEstafetaService {
   Future<Map<String, dynamic>> avisarSemSinal(String userId) async {
     chamadas.add('aviso_sem_sinal:$userId');
     return <String, dynamic>{'ok': true};
+  }
+
+  @override
+  Future<Map<String, dynamic>> ligarDesligar({
+    required String driverId,
+    required bool ligar,
+    required String motivo,
+  }) async {
+    chamadas.add('online:$driverId:$ligar:$motivo');
+    return Map<String, dynamic>.from(respostaLigar);
+  }
+
+  @override
+  Future<FaturaDoMes> faturaDoMes({required String userId, required DateTime mes}) async {
+    chamadas.add('fatura:$userId:${mesParaServidor(mes)}');
+    // O mês passado (pelo calendário de Lisboa) não teve entregas.
+    final passado = mes == primeiroDiaDoMes(MesFatura.mesPassado, DateTime.now());
+    return FaturaDoMes.fromJson(_faturaJson(comEntregas: !passado));
   }
 
   @override
@@ -276,7 +368,26 @@ Future<void> _tocar(WidgetTester t, Finder alvo) async {
 ButtonStyleButton _botao(WidgetTester t, String chave) =>
     t.widget<ButtonStyleButton>(find.byKey(Key(chave)));
 
+/// O SDK verdadeiro contra um servidor de mentira: guarda cada pedido e
+/// responde o JSON que [responder] devolver.
+SupabaseClient _servidorDeMentira(
+  List<http.Request> pedidos,
+  Object? Function(http.Request pedido) responder,
+) =>
+    SupabaseClient(
+      'http://127.0.0.1:1',
+      'teste',
+      httpClient: MockClient((r) async {
+        pedidos.add(r);
+        return http.Response(jsonEncode(responder(r)), 200,
+            headers: {'content-type': 'application/json; charset=utf-8'}, request: r);
+      }),
+      authOptions: const AuthClientOptions(autoRefreshToken: false),
+    );
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('presença numa frase', () {
     final agora = DateTime.utc(2026, 11, 15, 12);
 
@@ -573,6 +684,211 @@ void main() {
       expect(linha, contains('por admin@bora.pt'));
       expect(linha, contains('motivo: cliente confirmou'));
     });
+
+    test('ligado/desligado e "Recolhi"/"A caminho" pelo painel', () {
+      const ids = {_userId, _driverId};
+      expect(
+          rotuloRegistoAdmin(
+              const RegistoAdmin(acao: 'driver_set_online', detalhes: {'depois': true}),
+              idsDele: ids),
+          'Ligado pelo painel');
+      expect(
+          rotuloRegistoAdmin(
+              const RegistoAdmin(acao: 'driver_set_online', detalhes: {'depois': false}),
+              idsDele: ids),
+          'Desligado pelo painel');
+      expect(
+          rotuloRegistoAdmin(
+              const RegistoAdmin(
+                  acao: 'order_estafeta_avancar',
+                  detalhes: {'de': 'driverAccepted', 'para': 'pickedUp'}),
+              idsDele: ids),
+          'Pedido marcado "Recolhi" (painel)');
+      expect(
+          rotuloRegistoAdmin(
+              const RegistoAdmin(
+                  acao: 'order_estafeta_avancar',
+                  detalhes: {'de': 'pickedUp', 'para': 'onTheWay'}),
+              idsDele: ids),
+          'Pedido marcado "A caminho" (painel)');
+    });
+  });
+
+  group('ligar, desligar, "Recolhi" e "A caminho": respostas do servidor', () {
+    test('recusas em palavras simples, sem nomes técnicos', () {
+      expect(
+        mensagemDaRecusa(const {
+          'ok': false,
+          'error': 'SEM_SINAL',
+          'ultimo_sinal': '2026-11-15T13:58:00+00:00',
+          'mensagem': 'O celular dele não deu sinal nos últimos 2 minutos.',
+        }),
+        'O celular dele não está mandando sinal agora: peça para ele abrir o app. '
+        'Último sinal: 15/11 13:58 (hora de Lisboa).',
+      );
+      expect(
+          mensagemDaRecusa(
+              const {'ok': false, 'error': 'SEM_SINAL', 'ultimo_sinal': null}),
+          endsWith('Ele nunca mandou sinal.'));
+      expect(
+        mensagemDaRecusa(const {
+          'ok': false,
+          'error': 'CONTA_NAO_APROVADA',
+          'faltas': ['foto do documento', 'matrícula'],
+        }),
+        'O cadastro dele ainda não foi aprovado. Falta: foto do documento, matrícula.',
+      );
+      expect(
+        mensagemDaRecusa(const {
+          'ok': false,
+          'error': 'DOCUMENTO_EXPIRADO',
+          'mensagem': 'O servidor recusou: Carta de condução expirada.',
+        }),
+        startsWith('Ele tem um documento vencido (Carta de condução expirada):'),
+      );
+      expect(
+          mensagemDaRecusa(
+              const {'ok': false, 'error': 'invalid_status', 'status': 'cancelled'}),
+          'O pedido agora está em "Cancelado". Atualize a lista e veja de novo.');
+      expect(
+        mensagemDaRecusa(const {
+          'ok': false,
+          'error': 'sem_estafeta',
+          'mensagem': 'Este pedido não tem entregador. Use "Passar pedido" '
+              '(nome_tecnico_da_funcao).',
+        }),
+        'Este pedido não tem entregador.',
+      );
+      expect(
+        mensagemDaRecusa(const {
+          'ok': false,
+          'error': 'concurrent_transition',
+          'mensagem': 'O pedido mudou nesse meio tempo (nome_tecnico_da_funcao). '
+              'Atualize e tente de novo.',
+        }),
+        'O pedido mudou nesse meio tempo. Atualize e tente de novo.',
+        reason: 'sem frase própria: a do servidor, sem o nome técnico',
+      );
+      expect(mensagemDaRecusa(const {'ok': false, 'error': 'resposta_vazia'}),
+          'O servidor não respondeu.');
+    });
+
+    test('o que se diz depois de ligar ou desligar', () {
+      expect(
+        textoLigouDesligou(
+            const {'ok': true, 'antes': true, 'depois': false, 'pedidos_em_curso': 2},
+            nome: 'João',
+            ligar: false),
+        'João foi desligado: não recebe pedidos novos. Ele tem 2 pedido(s) em '
+        'andamento: continuam com ele.',
+      );
+      expect(
+          textoLigouDesligou(const {'ok': true, 'antes': false, 'depois': false},
+              nome: 'João', ligar: false),
+          'João já estava desligado.');
+      expect(
+          textoLigouDesligou(
+              const {'ok': true, 'antes': true, 'depois': true, 'nada_mudou': true},
+              nome: 'João',
+              ligar: true),
+          'João já estava ligado.');
+      final ligou = textoLigouDesligou(const {
+        'ok': true,
+        'antes': false,
+        'depois': true,
+        'avisos': ['Ficou online, mas sem notificações ativas (nome_tecnico_da_funcao).'],
+      }, nome: 'João', ligar: true);
+      expect(ligou, startsWith('João está ligado'));
+      expect(ligou, endsWith('Ficou online, mas sem notificações ativas.'));
+    });
+
+    test('ligar só quando está desligado; desligar só quando está ligado', () {
+      const desligado = PresencaEstafeta(ligado: false, ligadoAgora: false);
+      const ligado = PresencaEstafeta(ligado: true, ligadoAgora: true, pedidosEmCurso: 1);
+      expect(podeLigarPorEle(desligado), isTrue);
+      expect(podeDesligarPorEle(desligado), isFalse);
+      expect(podeLigarPorEle(ligado), isFalse);
+      expect(podeDesligarPorEle(ligado), isTrue);
+      expect(podeLigarPorEle(null), isTrue, reason: 'sem dados, o servidor decide');
+      expect(podeDesligarPorEle(null), isTrue);
+      expect(avisoAntesDeDesligar(ligado), contains('1 pedido(s) em andamento'));
+      expect(avisoAntesDeDesligar(desligado), isNull);
+    });
+
+    test('o próximo passo: aceito → Recolhi; retirado → A caminho; o resto, nenhum', () {
+      expect(proximoPasso('driverAccepted'), ProximoPasso.recolhi);
+      expect(ProximoPasso.recolhi.status, 'pickedUp');
+      expect(proximoPasso('pickedUp'), ProximoPasso.aCaminho);
+      expect(ProximoPasso.aCaminho.status, 'onTheWay');
+      for (final s in [
+        'created',
+        'preparing',
+        'callingDriver',
+        'onTheWay',
+        'delivered',
+        'cancelled',
+      ]) {
+        expect(proximoPasso(s), isNull, reason: s);
+      }
+      expect(
+        textoAvancou(const {'ok': true, 'status': 'pickedUp', 'de': 'driverAccepted'},
+            codigo: 'CCCCCC', passo: ProximoPasso.recolhi),
+        'Pedido CCCCCC marcado como "Retirado na loja (está com ele)".',
+      );
+      expect(
+        textoAvancou(const {'ok': true, 'status': 'onTheWay', 'idempotent': true},
+            codigo: 'CCCCCC', passo: ProximoPasso.aCaminho),
+        'O pedido CCCCCC já estava em "A caminho do cliente": nada mudou.',
+      );
+    });
+  });
+
+  group('fatura do mês', () {
+    test('este mês e mês passado pelo calendário de Lisboa', () {
+      // 31/03 23:30 UTC já é 1 de abril em Lisboa (horário de verão desde 29/03).
+      final virada = DateTime.utc(2026, 3, 31, 23, 30);
+      expect(mesParaServidor(primeiroDiaDoMes(MesFatura.esteMes, virada)), '2026-04-01');
+      expect(mesParaServidor(primeiroDiaDoMes(MesFatura.mesPassado, virada)), '2026-03-01');
+      // Em janeiro, o mês passado é dezembro do ano anterior.
+      expect(
+          mesParaServidor(
+              primeiroDiaDoMes(MesFatura.mesPassado, DateTime.utc(2026, 1, 10, 12))),
+          '2025-12-01');
+      expect(
+          mesParaServidor(
+              primeiroDiaDoMes(MesFatura.esteMes, DateTime.utc(2026, 11, 30, 23, 30))),
+          '2026-11-01',
+          reason: 'no inverno Lisboa = UTC: ainda é dia 30');
+    });
+
+    test('lê a resposta: euros viram cêntimos; sem entregas não há recibo', () {
+      final f = FaturaDoMes.fromJson(_faturaJson());
+      expect(f.temEntregas, isTrue);
+      expect(f.totalCents, 2490);
+      expect(f.entregas, 5);
+      expect(f.mesTexto, 'novembro de 2026');
+      expect(f.paraQuem, 'Bora Teste Lda (NIF 500000000)');
+      expect(f.nif, '123456789');
+      expect(f.notas, hasLength(3));
+      expect(textoReciboPassado(f), 'Ainda não');
+
+      final emitido = FaturaDoMes.fromJson(_faturaJson(extra: const {
+        'recibo_passado': true,
+        'recibo_numero': 7,
+        'recibo_data': '2026-12-05',
+        'marcado_em': '2026-12-05T10:00:00+00:00',
+      }));
+      expect(textoReciboPassado(emitido),
+          'Sim, n.º 7, de 05/12/2026 (marcado em 05/12 10:00)');
+
+      final vazia = FaturaDoMes.fromJson(_faturaJson(comEntregas: false));
+      expect(vazia.temEntregas, isFalse);
+      expect(vazia.totalCents, isNull);
+      expect(vazia.mesTexto, 'outubro de 2026');
+      expect(vazia.paraQuem, 'Bora Teste Lda (NIF 500000000)',
+          reason: 'sem linha dele, a quem emitir vem do adquirente');
+      expect(() => FaturaDoMes.fromJson('lixo'), throwsA(isA<AreaEstafetaErro>()));
+    });
   });
 
   group('ecrã', () {
@@ -719,19 +1035,270 @@ void main() {
     testWidgets('o que ainda não existe no servidor fica desligado e diz porquê',
         (t) async {
       await _abrir(t);
-      expect(find.text(kFrasePrecisaFuncaoNova), findsNWidgets(4),
-          reason: 'Agora, o pedido dele, Ganhos e Conta');
+      expect(find.text(kFrasePrecisaFuncaoNova), findsOneWidget,
+          reason: 'só falta "Enviar documento por ele" (Conta e documentos)');
+      expect(find.byKey(const Key('area_enviar_documento')), findsOneWidget);
+      expect(_botao(t, 'area_enviar_documento').onPressed, isNull);
+      // As três que já têm função no servidor (15/11 15:06) estão ligadas.
       for (final chave in [
-        'area_ligar_por_ele',
         'area_desligar_por_ele',
-        'area_recolhi_$_idDele',
         'area_a_caminho_$_idDele',
         'area_fatura_mes',
-        'area_enviar_documento',
       ]) {
         expect(find.byKey(Key(chave)), findsOneWidget, reason: chave);
-        expect(_botao(t, chave).onPressed, isNull, reason: chave);
+        expect(_botao(t, chave).onPressed, isNotNull, reason: chave);
       }
+      expect(_botao(t, 'area_ligar_por_ele').onPressed, isNull,
+          reason: 'ele já está ligado: só dá para desligar');
+      expect(find.byKey(const Key('area_recolhi_$_idDele')), findsNothing,
+          reason: 'já recolheu: o passo seguinte é "A caminho"');
+    });
+
+    testWidgets('"Desligar por ele": pede motivo, avisa dos pedidos e manda o drivers.id',
+        (t) async {
+      final falso = await _abrir(t);
+      await _tocar(t, find.byKey(const Key('area_desligar_por_ele')));
+      expect(find.text('Desligar João Teste agora?'), findsOneWidget);
+      expect(find.textContaining('1 pedido(s) em andamento'), findsOneWidget);
+      expect(_botao(t, 'area_motivo_confirmar').onPressed, isNull,
+          reason: 'sem motivo não confirma');
+
+      await t.enterText(find.byKey(const Key('area_motivo')), 'Esqueceu o app ligado');
+      await t.pump();
+      await t.tap(find.byKey(const Key('area_motivo_confirmar')));
+      await t.pumpAndSettle();
+
+      expect(falso.chamadas, contains('online:$_driverId:false:Esqueceu o app ligado'));
+      expect(find.textContaining('João Teste foi desligado'), findsOneWidget);
+      expect(falso.chamadas.where((c) => c.startsWith('auditoria:')), isEmpty,
+          reason: 'o servidor já grava no log com o motivo');
+    });
+
+    testWidgets('"Ligar por ele": a recusa do servidor aparece em palavras simples',
+        (t) async {
+      final falso = await _abrir(t,
+          falso: _Falso(
+            ligado: false,
+            respostaLigar: const {
+              'ok': false,
+              'error': 'SEM_SINAL',
+              'ultimo_sinal': '2026-11-14T13:58:00+00:00',
+              'mensagem': 'O celular dele não deu sinal nos últimos 2 minutos.',
+            },
+          ));
+      expect(find.text('Desligado'), findsOneWidget);
+      expect(_botao(t, 'area_ligar_por_ele').onPressed, isNotNull);
+      expect(_botao(t, 'area_desligar_por_ele').onPressed, isNull,
+          reason: 'já está desligado');
+
+      await _tocar(t, find.byKey(const Key('area_ligar_por_ele')));
+      expect(find.text('Ligar João Teste agora?'), findsOneWidget);
+      await t.enterText(find.byKey(const Key('area_motivo')), 'ab');
+      await t.pump();
+      expect(_botao(t, 'area_motivo_confirmar').onPressed, isNull,
+          reason: 'menos de 3 letras não chega');
+
+      await t.enterText(find.byKey(const Key('area_motivo')), 'Pediu por telefone');
+      await t.pump();
+      await t.tap(find.byKey(const Key('area_motivo_confirmar')));
+      await t.pumpAndSettle();
+
+      expect(falso.chamadas, contains('online:$_driverId:true:Pediu por telefone'));
+      expect(
+          find.textContaining(
+              'O celular dele não está mandando sinal agora: peça para ele abrir o app.'),
+          findsOneWidget);
+      expect(find.textContaining('Último sinal: 14/11 13:58'), findsOneWidget);
+    });
+
+    testWidgets('"Recolhi" e "A caminho": só o passo certo de cada pedido', (t) async {
+      await _abrir(t,
+          falso: _Falso(pedidos: const [
+            PedidoAberto(id: _idAceito, status: 'driverAccepted', entregadorId: _userId),
+            PedidoAberto(id: _idDele, status: 'pickedUp', entregadorId: _driverId),
+            PedidoAberto(id: _idACaminho, status: 'onTheWay', entregadorId: _userId),
+          ]));
+      expect(_botao(t, 'area_recolhi_$_idAceito').onPressed, isNotNull);
+      expect(find.byKey(const Key('area_a_caminho_$_idAceito')), findsNothing);
+      expect(_botao(t, 'area_a_caminho_$_idDele').onPressed, isNotNull);
+      expect(find.byKey(const Key('area_recolhi_$_idDele')), findsNothing);
+      expect(find.byKey(const Key('area_recolhi_$_idACaminho')), findsNothing);
+      expect(find.byKey(const Key('area_a_caminho_$_idACaminho')), findsNothing,
+          reason: 'já está a caminho: falta só entregar');
+    });
+
+    testWidgets('"Recolhi": avisa do dinheiro na loja, pede motivo e chama o servidor',
+        (t) async {
+      final falso = await _abrir(t,
+          falso: _Falso(pedidos: const [
+            PedidoAberto(
+              id: _idAceito,
+              status: 'driverAccepted',
+              loja: 'Mercado do Bairro',
+              entregadorId: _userId,
+            ),
+          ]));
+      await _tocar(t, find.byKey(const Key('area_recolhi_$_idAceito')));
+      expect(find.text('Marcar "Recolhi" no pedido CCCCCC?'), findsOneWidget);
+      expect(
+          t.widget<Text>(find.byKey(const Key('area_motivo_aviso'))).data,
+          'Em pedido a dinheiro com pagamento na loja, marcar Recolhi registra a '
+          'compra como paga.');
+      expect(_botao(t, 'area_motivo_confirmar').onPressed, isNull,
+          reason: 'sem motivo não confirma');
+
+      await t.enterText(find.byKey(const Key('area_motivo')), 'Loja confirmou a recolha');
+      await t.pump();
+      await t.tap(find.byKey(const Key('area_motivo_confirmar')));
+      await t.pumpAndSettle();
+
+      expect(falso.chamadas, contains('avancar:$_idAceito:pickedUp:Loja confirmou a recolha'));
+      expect(find.text('Pedido CCCCCC marcado como "Retirado na loja (está com ele)".'),
+          findsOneWidget);
+      expect(falso.chamadas.where((c) => c.startsWith('auditoria:')), isEmpty,
+          reason: 'o servidor já grava no log com o motivo');
+    });
+
+    testWidgets('"A caminho" recusado: diz porquê, sem nomes técnicos', (t) async {
+      final falso = await _abrir(t,
+          falso: _Falso(respostaAvancar: const {
+            'ok': false,
+            'error': 'invalid_status',
+            'status': 'cancelled',
+            'mensagem': 'O pedido está em "cancelled"; para ir para "onTheWay" tem que '
+                'estar em "pickedUp".',
+          }));
+      await _tocar(t, find.byKey(const Key('area_a_caminho_$_idDele')));
+      expect(find.text('Marcar "A caminho" no pedido AAAAAA?'), findsOneWidget);
+      expect(find.byKey(const Key('area_motivo_aviso')), findsNothing,
+          reason: 'o aviso do dinheiro é só do "Recolhi"');
+
+      await t.enterText(find.byKey(const Key('area_motivo')), 'Saiu da loja');
+      await t.pump();
+      await t.tap(find.byKey(const Key('area_motivo_confirmar')));
+      await t.pumpAndSettle();
+
+      expect(falso.chamadas, contains('avancar:$_idDele:onTheWay:Saiu da loja'));
+      expect(find.textContaining('O pedido agora está em "Cancelado"'), findsOneWidget);
+      expect(find.textContaining('onTheWay'), findsNothing);
+    });
+
+    testWidgets('"Fatura do mês" (Conta e documentos): este mês e mês passado, só leitura',
+        (t) async {
+      final falso = await _abrir(t);
+      await _tocar(t, find.byKey(const Key('area_fatura_mes')));
+      final agora = DateTime.now();
+      final esteMes = mesParaServidor(primeiroDiaDoMes(MesFatura.esteMes, agora));
+      final mesPassado = mesParaServidor(primeiroDiaDoMes(MesFatura.mesPassado, agora));
+
+      expect(falso.chamadas, contains('fatura:$_userId:$esteMes'));
+      expect(t.widget<Text>(find.byKey(const Key('area_fatura_total'))).data, '24,90 €');
+      expect(find.text('5 entrega(s) no mês'), findsOneWidget);
+      expect(find.textContaining('Bora Teste Lda (NIF 500000000)'), findsOneWidget);
+      expect(find.textContaining('Mês ainda em andamento'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
+        ),
+        findsOneWidget,
+        reason: 'só leitura: o único botão é "Fechar"',
+      );
+
+      await _tocar(t, find.byKey(const Key('area_fatura_mesPassado')));
+      expect(falso.chamadas, contains('fatura:$_userId:$mesPassado'));
+      expect(find.byKey(const Key('area_fatura_vazia')), findsOneWidget);
+      expect(find.byKey(const Key('area_fatura_total')), findsNothing);
+
+      await _tocar(t, find.byKey(const Key('area_fatura_fechar')));
+      expect(find.byType(AlertDialog), findsNothing);
+    });
+  });
+
+  group('as funções novas (SDK verdadeiro, servidor de mentira)', () {
+    test('ligar/desligar, "Recolhi" e fatura: nome da função e parâmetros', () async {
+      final pedidos = <http.Request>[];
+      final s = AdminAreaEstafetaSupabase(
+        client: _servidorDeMentira(pedidos, (r) {
+          if (r.url.path.endsWith('/rpc/admin_fatura_mes_estafeta')) return _faturaJson();
+          if (r.url.path.endsWith('/rpc/admin_set_driver_online')) {
+            return const {'ok': false, 'error': 'SEM_SINAL', 'ultimo_sinal': null};
+          }
+          return const {'ok': true, 'status': 'pickedUp', 'de': 'driverAccepted'};
+        }),
+      );
+
+      final ligar =
+          await s.ligarDesligar(driverId: _driverId, ligar: true, motivo: 'Pediu por telefone');
+      expect(pedidos.last.url.path, endsWith('/rpc/admin_set_driver_online'));
+      expect(jsonDecode(pedidos.last.body),
+          {'p_driver': _driverId, 'p_online': true, 'p_motivo': 'Pediu por telefone'},
+          reason: 'o drivers.id (a função aceita também o id de login)');
+      expect(mensagemDaRecusa(ligar), startsWith('O celular dele não está mandando sinal'));
+
+      await s.ligarDesligar(driverId: _driverId, ligar: false, motivo: 'Fim do turno');
+      expect(jsonDecode(pedidos.last.body),
+          {'p_driver': _driverId, 'p_online': false, 'p_motivo': 'Fim do turno'});
+
+      final avancou =
+          await s.avancarPedido(orderId: _idAceito, status: 'pickedUp', motivo: 'Loja confirmou');
+      expect(pedidos.last.url.path, endsWith('/rpc/admin_estafeta_avancar'));
+      expect(jsonDecode(pedidos.last.body),
+          {'p_order_id': _idAceito, 'p_status': 'pickedUp', 'p_motivo': 'Loja confirmou'});
+      expect(avancou['ok'], isTrue);
+
+      final fatura = await s.faturaDoMes(userId: _userId, mes: DateTime.utc(2026, 10, 1));
+      expect(pedidos.last.url.path, endsWith('/rpc/admin_fatura_mes_estafeta'));
+      expect(jsonDecode(pedidos.last.body), {'p_user_id': _userId, 'p_mes': '2026-10-01'},
+          reason: 'o id de login (uuid) e o 1.º dia do mês');
+      expect(fatura.totalCents, 2490);
+
+      expect(pedidos.where((p) => p.url.path.contains('admin_audit_log')), isEmpty,
+          reason: 'nenhuma auditoria do lado da app: o servidor já grava');
+    });
+
+    test('o histórico lê "Recolhi"/"A caminho" pelo id de login gravado nos detalhes',
+        () async {
+      final pedidos = <http.Request>[];
+      final s = AdminAreaEstafetaSupabase(
+        client: _servidorDeMentira(pedidos, (r) {
+          if (r.url.path.endsWith('/admin_audit_log') &&
+              r.url.queryParameters['action'] == 'eq.order_estafeta_avancar') {
+            return [
+              {
+                'created_at': '2026-11-15T14:05:00+00:00',
+                'action': 'order_estafeta_avancar',
+                'admin_email': 'admin@bora.pt',
+                'entity_type': 'order',
+                'entity_id_text': _idAceito,
+                'details': {
+                  'de': 'driverAccepted',
+                  'para': 'pickedUp',
+                  'motivo': 'Loja confirmou',
+                  'estafeta_user_id': _userId,
+                },
+              },
+            ];
+          }
+          return const <Object?>[];
+        }),
+      );
+
+      final lista = await s.historico(userId: _userId, driverId: _driverId);
+      final leitura = pedidos.singleWhere(
+          (p) => p.url.queryParameters['action'] == 'eq.order_estafeta_avancar');
+      expect(leitura.method, 'GET');
+      expect(leitura.url.queryParameters['details->>estafeta_user_id'], 'eq.$_userId');
+      expect(lista, hasLength(1));
+      expect(
+        linhaDoHistorico(lista.single, idsDele: const {_userId, _driverId}),
+        allOf(
+          contains('Pedido marcado "Recolhi" (painel)'),
+          contains('pedido CCCCCC'),
+          contains('por admin@bora.pt'),
+          contains('motivo: Loja confirmou'),
+        ),
+      );
     });
   });
 

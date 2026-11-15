@@ -22,8 +22,20 @@
 //   • modo de trabalho ..... admin_set_driver_work_mode(p_driver_id uuid, p_mode)
 //   • histórico ............ admin_audit_log (só leitura) + admin_driver_assignment_history
 //
-// Auditoria: dar, passar, devolver, avisos e lembrete gravam no
-// admin_audit_log dentro do servidor. Duas ações gravam também aqui, do lado
+// As três que a Claude.ai aplicou a 15/11 às 15:06 (lidas com
+// pg_get_functiondef; só para `authenticated`, com is_admin() lá dentro):
+//   • ligar / desligar ..... admin_set_driver_online(p_driver text, p_online boolean,
+//                            p_motivo text) — aceita drivers.id ou o id de login;
+//                            ligar é recusado sem sinal do celular há 2 min
+//   • Recolhi / A caminho .. admin_estafeta_avancar(p_order_id text, p_status text,
+//                            p_motivo text) — só 'pickedUp' e 'onTheWay'
+//   • fatura do mês ........ admin_fatura_mes_estafeta(p_user_id uuid, p_mes date) — só leitura
+// As duas que mudam alguma coisa respondem {ok, error, mensagem, ...} e pedem
+// motivo com 3 letras ou mais.
+//
+// Auditoria: dar, passar, devolver, avisos, lembrete, ligar/desligar e
+// "Recolhi"/"A caminho" gravam no admin_audit_log dentro do servidor (com o
+// motivo). Duas ações gravam também aqui, do lado
 // da app (AdminAuditService, ação `area_estafeta_<acao>`, entidade = o
 // entregador): o modo de trabalho (o servidor grava sem o motivo) e o
 // "entregue sem código" (o servidor grava só pelo pedido, sem o entregador).
@@ -197,6 +209,79 @@ String mensagemDoServidor(Map<String, dynamic> r) {
   return motivo ?? erro ?? 'o servidor não confirmou.';
 }
 
+/// Nome técnico entre parênteses, "(nome_de_funcao)": sai dos textos do
+/// servidor antes de aparecerem no painel.
+final RegExp _nomeTecnico = RegExp(r'\s*\((?:[a-z0-9]+_)+[a-z0-9]+\)');
+
+String _semNomesTecnicos(String s) => s.replaceAll(_nomeTecnico, '').trim();
+
+/// Primeira letra maiúscula (as frases de [mensagemDoServidor] começam em minúscula).
+String _frase(String s) =>
+    s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
+/// O pormenor que o gatilho do servidor juntou a "O servidor recusou: …".
+String _detalheDaRecusa(Map<String, dynamic> r) {
+  const prefixo = 'O servidor recusou:';
+  final m = _texto(r['mensagem']);
+  if (!m.startsWith(prefixo)) return '';
+  return m.substring(prefixo.length).trim().replaceAll(RegExp(r'[.\s]+$'), '');
+}
+
+/// A recusa de admin_set_driver_online ou de admin_estafeta_avancar
+/// (`{ok:false, error, mensagem, ...}`) numa frase para o admin. Os códigos que
+/// vêm com nomes técnicos ou escritos para o entregador têm frase própria; os
+/// outros usam a `mensagem` do servidor (já em português), sem nomes técnicos.
+String mensagemDaRecusa(Map<String, dynamic> r) {
+  switch (_textoOuNull(r['error'])) {
+    case 'SEM_SINAL':
+      final ultimo = _data(r['ultimo_sinal']);
+      final quando = ultimo == null
+          ? 'Ele nunca mandou sinal.'
+          : 'Último sinal: ${dataHoraLisboaDe(ultimo)} (hora de Lisboa).';
+      return 'O celular dele não está mandando sinal agora: peça para ele abrir '
+          'o app. $quando';
+    case 'CONTA_APAGADA':
+      return 'A conta dele foi apagada: reative a conta primeiro.';
+    case 'CONTA_BLOQUEADA':
+      return 'A conta dele está suspensa ou banida: reative a conta primeiro.';
+    case 'CONTA_RECUSADA':
+      return 'O cadastro dele foi recusado.';
+    case 'CONTA_NAO_APROVADA':
+      final faltas = r['faltas'];
+      final lista = faltas is List
+          ? faltas.map(_texto).where((s) => s.isNotEmpty).join(', ')
+          : '';
+      return lista.isEmpty
+          ? 'O cadastro dele ainda não foi aprovado.'
+          : 'O cadastro dele ainda não foi aprovado. Falta: $lista.';
+    case 'DOCUMENTO_EXPIRADO':
+      final documento = _detalheDaRecusa(r);
+      return 'Ele tem um documento vencido'
+          '${documento.isEmpty ? '' : ' ($documento)'}: ele precisa atualizar '
+          'a validade no app antes de ficar ligado.';
+    case 'TVDE_BLOQUEADO':
+      final porque = _detalheDaRecusa(r);
+      return 'As corridas TVDE dele estão bloqueadas'
+          '${porque.isEmpty ? '' : ' ($porque)'}: faltam documentos na área '
+          'Conformidade.';
+    case 'LIMITE_HORAS':
+      return 'Ele chegou ao limite legal de horas de serviço das últimas 24 horas.';
+    case 'sem_estafeta':
+      return 'Este pedido não tem entregador.';
+    case 'target_not_allowed':
+      return 'Só dá para marcar "Recolhi" ou "A caminho".';
+    case 'invalid_status':
+      final agora = _textoOuNull(r['status']);
+      return agora == null
+          ? 'O pedido mudou de estado. Atualize a lista e veja de novo.'
+          : 'O pedido agora está em "${estadoPedidoPtBr(agora)}". Atualize a '
+              'lista e veja de novo.';
+  }
+  final mensagem = _textoOuNull(r['mensagem']);
+  if (mensagem != null) return _semNomesTecnicos(mensagem);
+  return _frase(mensagemDoServidor(r));
+}
+
 /// Link do Google Maps para uma posição.
 Uri linkGoogleMaps(double lat, double lng) =>
     Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
@@ -292,6 +377,49 @@ String textoUltimoSinal(DateTime? sinal, DateTime agora) {
   if (sinal == null) return 'nunca';
   final s = agora.toUtc().difference(sinal.toUtc()).inSeconds;
   return '${dataHoraLisboaDe(sinal)} (${gpsIdadeTexto(s)})';
+}
+
+/// "Ligar por ele" serve quando o botão dele está desligado (sem dados, o
+/// servidor decide).
+bool podeLigarPorEle(PresencaEstafeta? p) => p == null || !p.ligado;
+
+/// "Desligar por ele" serve quando o botão dele está ligado (sem dados, o
+/// servidor decide).
+bool podeDesligarPorEle(PresencaEstafeta? p) => p == null || p.ligado;
+
+/// O aviso da janela "Desligar por ele" (null quando não há pedidos com ele).
+String? avisoAntesDeDesligar(PresencaEstafeta? p) {
+  final n = p?.pedidosEmCurso ?? 0;
+  if (n <= 0) return null;
+  return 'Ele tem $n pedido(s) em andamento: continuam com ele. Para tirar um '
+      'pedido dele, use "Passar para outro entregador" em "Pedidos dele agora".';
+}
+
+/// A resposta de admin_set_driver_online que deu certo, numa frase. Ao ligar,
+/// junta os avisos do servidor (sem notificações, app sem bater), sem nomes
+/// técnicos; ao desligar, diz se ficaram pedidos com ele.
+String textoLigouDesligou(
+  Map<String, dynamic> r, {
+  required String nome,
+  required bool ligar,
+}) {
+  if (!ligar) {
+    final emCurso = _inteiro(r['pedidos_em_curso']) ?? 0;
+    return [
+      r['antes'] == false
+          ? '$nome já estava desligado.'
+          : '$nome foi desligado: não recebe pedidos novos.',
+      if (emCurso > 0) 'Ele tem $emCurso pedido(s) em andamento: continuam com ele.',
+    ].join(' ');
+  }
+  if (r['nada_mudou'] == true) return '$nome já estava ligado.';
+  final avisos = r['avisos'];
+  return [
+    '$nome está ligado: os pedidos em espera são oferecidos a ele em até 15 segundos.',
+    if (avisos is List)
+      for (final a in avisos)
+        if (_textoOuNull(a) != null) _semNomesTecnicos(_texto(a)),
+  ].join(' ');
 }
 
 /// A última posição conhecida (só aparece com GPS nos últimos 5 min).
@@ -454,6 +582,42 @@ String? avisoAntesDeDar(
   return partes.isEmpty ? null : partes.join('\n');
 }
 
+/// Os dois passos que admin_estafeta_avancar aceita, com o nome do botão do app.
+enum ProximoPasso {
+  recolhi('pickedUp', 'Recolhi'),
+  aCaminho('onTheWay', 'A caminho');
+
+  const ProximoPasso(this.status, this.rotulo);
+
+  /// O `p_status` que vai ao servidor.
+  final String status;
+  final String rotulo;
+}
+
+/// O único passo válido a partir do status do pedido (o mesmo do app dele):
+/// aceito → "Recolhi"; retirado → "A caminho". Nos outros estados, nenhum.
+ProximoPasso? proximoPasso(String status) => switch (status) {
+      'driverAccepted' => ProximoPasso.recolhi,
+      'pickedUp' => ProximoPasso.aCaminho,
+      _ => null,
+    };
+
+/// O aviso da janela de "Recolhi" (texto pedido a 15/11 para esta janela).
+const String kAvisoRecolhiDinheiro = 'Em pedido a dinheiro com pagamento na '
+    'loja, marcar Recolhi registra a compra como paga.';
+
+/// A resposta de admin_estafeta_avancar que deu certo, numa frase.
+String textoAvancou(
+  Map<String, dynamic> r, {
+  required String codigo,
+  required ProximoPasso passo,
+}) {
+  final estado = estadoPedidoPtBr(_textoOuNull(r['status']) ?? passo.status);
+  return r['idempotent'] == true
+      ? 'O pedido $codigo já estava em "$estado": nada mudou.'
+      : 'Pedido $codigo marcado como "$estado".';
+}
+
 // ── Ganhos ───────────────────────────────────────────────────────────────────
 
 /// Um trabalho do extrato (`extrato_prestador.trabalhos[]`).
@@ -596,6 +760,147 @@ class ModoTrabalho {
   bool get fazCorridasDePassageiros => eVeiculoDePassageiros(veiculo);
 }
 
+// ── Fatura do mês ────────────────────────────────────────────────────────────
+
+/// Os dois meses que "Fatura do mês" deixa escolher.
+enum MesFatura {
+  esteMes('Este mês'),
+  mesPassado('Mês passado');
+
+  const MesFatura(this.rotulo);
+  final String rotulo;
+}
+
+/// O 1.º dia do mês escolhido, pelo calendário de Lisboa (data UTC à
+/// meia-noite; em janeiro, o mês passado é dezembro do ano anterior).
+DateTime primeiroDiaDoMes(MesFatura qual, DateTime agora) {
+  final hoje = diaLisboa(agora);
+  final recuo = qual == MesFatura.mesPassado ? 1 : 0;
+  return DateTime.utc(hoje.year, hoje.month - recuo, 1);
+}
+
+/// "2026-11-01": o `p_mes` (date) de admin_fatura_mes_estafeta.
+String mesParaServidor(DateTime primeiroDia) {
+  String dois(int n) => n.toString().padLeft(2, '0');
+  return '${primeiroDia.year.toString().padLeft(4, '0')}-${dois(primeiroDia.month)}-01';
+}
+
+/// admin_fatura_mes_estafeta: o recibo verde dele num mês, só leitura (a mesma
+/// conta que ele vê no app, a linha dele em driver_monthly_invoice_summary).
+/// O servidor manda euros; aqui guarda-se em cêntimos.
+class FaturaDoMes {
+  const FaturaDoMes({
+    required this.ano,
+    required this.mes,
+    this.nomeMes = '',
+    this.temEntregas = false,
+    this.entregas = 0,
+    this.totalCents,
+    this.nif,
+    this.atividadeAberta = false,
+    this.cliente,
+    this.clienteNif,
+    this.textoRecibo,
+    this.notas = const <String>[],
+    this.reciboPassado = false,
+    this.reciboNumero,
+    this.reciboData,
+    this.marcadoEm,
+  });
+
+  factory FaturaDoMes.fromJson(Object? res) {
+    if (res is! Map) {
+      throw const AreaEstafetaErro('O servidor não devolveu a fatura do mês.');
+    }
+    final m = Map<String, dynamic>.from(res);
+    final e = _mapaDe(m['estafeta']);
+    final adquirente = _mapaDe(m['adquirente']);
+    final total = _decimal(e['total_a_faturar']);
+    return FaturaDoMes(
+      ano: _inteiro(m['ano']) ?? 0,
+      mes: _inteiro(m['mes']) ?? 0,
+      nomeMes: _texto(m['nome_mes']),
+      temEntregas: m['tem_entregas'] == true && e.isNotEmpty,
+      entregas: _inteiro(e['entregas']) ?? 0,
+      totalCents: total == null ? null : (total * 100).round(),
+      nif: _textoOuNull(e['nif']),
+      atividadeAberta: e['atividade_aberta'] == true,
+      cliente: _textoOuNull(e['cliente']) ?? _textoOuNull(adquirente['nome']),
+      clienteNif: _textoOuNull(e['cliente_nif']) ?? _textoOuNull(adquirente['nif']),
+      textoRecibo: _textoOuNull(e['texto_recibo']),
+      notas: [
+        for (final chave in const ['iva', 'retencao', 'prazo'])
+          if (_textoOuNull(e[chave]) != null) _texto(e[chave]),
+      ],
+      reciboPassado: e['recibo_passado'] == true,
+      reciboNumero: _textoOuNull(e['recibo_numero']),
+      reciboData: _data(e['recibo_data']),
+      marcadoEm: _data(e['marcado_em']),
+    );
+  }
+
+  final int ano;
+  final int mes;
+
+  /// "novembro" (vem do servidor).
+  final String nomeMes;
+
+  /// Teve entregas no mês: só então há recibo.
+  final bool temEntregas;
+  final int entregas;
+
+  /// O total do recibo = o que ele ganhou nas entregas do mês (null = sem valor).
+  final int? totalCents;
+
+  /// O NIF dele e se tem atividade aberta nas Finanças.
+  final String? nif;
+  final bool atividadeAberta;
+
+  /// A quem ele passa o recibo (a Bora) e o NIF.
+  final String? cliente;
+  final String? clienteNif;
+  final String? textoRecibo;
+
+  /// IVA, retenção e prazo, como o servidor os escreve.
+  final List<String> notas;
+
+  /// Ele já marcou no app que passou o recibo.
+  final bool reciboPassado;
+  final String? reciboNumero;
+
+  /// Data do recibo (dia, sem hora).
+  final DateTime? reciboData;
+  final DateTime? marcadoEm;
+
+  /// "novembro de 2026".
+  String get mesTexto => nomeMes.isEmpty
+      ? '${mes.toString().padLeft(2, '0')}/$ano'
+      : '$nomeMes de $ano';
+
+  /// "Bora … Lda (NIF 500000000)".
+  String get paraQuem {
+    final nifCliente = clienteNif;
+    final nome = cliente ?? '—';
+    return nifCliente == null ? nome : '$nome (NIF $nifCliente)';
+  }
+}
+
+/// "Sim, n.º 7, de 05/12/2026 (marcado em 05/12 10:00)" ou "Ainda não".
+String textoReciboPassado(FaturaDoMes f) {
+  if (!f.reciboPassado) return 'Ainda não';
+  String dois(int n) => n.toString().padLeft(2, '0');
+  final dia = f.reciboData;
+  final partes = <String>[
+    'Sim',
+    if (f.reciboNumero != null) 'n.º ${f.reciboNumero}',
+    if (dia != null) 'de ${dois(dia.day)}/${dois(dia.month)}/${dia.year}',
+  ];
+  final marcado = f.marcadoEm;
+  return marcado == null
+      ? partes.join(', ')
+      : '${partes.join(', ')} (marcado em ${dataHoraLisboaDe(marcado)})';
+}
+
 // ── O que o admin já fez por ele ─────────────────────────────────────────────
 
 /// Um registro do log de auditoria (ou do histórico de atribuições).
@@ -709,6 +1014,13 @@ String rotuloRegistoAdmin(RegistoAdmin r, {required Set<String> idsDele}) {
           '${rotuloModoTrabalho(r.detalhes['depois'])}';
     case 'area_estafeta_entregue_sem_codigo':
       return 'Área do estafeta: pedido marcado entregue sem código';
+    case 'driver_set_online':
+      return r.detalhes['depois'] == true ? 'Ligado pelo painel' : 'Desligado pelo painel';
+    case 'order_estafeta_avancar':
+      // Aqui 'de' e 'para' são estados do pedido, não entregadores.
+      return r.detalhes['para'] == ProximoPasso.aCaminho.status
+          ? 'Pedido marcado "A caminho" (painel)'
+          : 'Pedido marcado "Recolhi" (painel)';
     case 'driver_force_approve':
     case 'driver_approved':
     case 'driver_approve':
@@ -786,11 +1098,31 @@ abstract class AdminAreaEstafetaService {
   /// admin_marcar_entregue_sem_codigo (o mesmo caminho do botão do painel).
   Future<Map<String, dynamic>> marcarEntregueSemCodigo(String orderId, String motivo);
 
+  /// admin_estafeta_avancar: "Recolhi" ('pickedUp') ou "A caminho"
+  /// ('onTheWay') por ele. O servidor grava no log com o motivo.
+  Future<Map<String, dynamic>> avancarPedido({
+    required String orderId,
+    required String status,
+    required String motivo,
+  });
+
   /// admin_driver_avisar_gps: push "Sem sinal de GPS".
   Future<Map<String, dynamic>> avisarGps(String driverId);
 
   /// admin_driver_avisar_sem_sinal: push "estás ligado, mas sem sinal".
   Future<Map<String, dynamic>> avisarSemSinal(String userId);
+
+  /// admin_set_driver_online: liga ou desliga por ele (aceita drivers.id ou o
+  /// id de login). O servidor grava no log com o motivo.
+  Future<Map<String, dynamic>> ligarDesligar({
+    required String driverId,
+    required bool ligar,
+    required String motivo,
+  });
+
+  /// admin_fatura_mes_estafeta (só leitura): o recibo verde do mês que começa
+  /// em [mes] (ver [primeiroDiaDoMes]).
+  Future<FaturaDoMes> faturaDoMes({required String userId, required DateTime mes});
 
   /// extrato_prestador das últimas [kSemanasExtrato] semanas.
   Future<ExtratoGanhos> ganhos(String userId);
@@ -905,12 +1237,41 @@ class AdminAreaEstafetaSupabase extends AdminAreaEstafetaService {
       AdminEntregueSemCodigoButton.marcarNoServidor(orderId, motivo);
 
   @override
+  Future<Map<String, dynamic>> avancarPedido({
+    required String orderId,
+    required String status,
+    required String motivo,
+  }) async =>
+      _resposta(await _c.rpc('admin_estafeta_avancar', params: {
+        'p_order_id': orderId,
+        'p_status': status,
+        'p_motivo': motivo,
+      }));
+
+  @override
   Future<Map<String, dynamic>> avisarGps(String driverId) async =>
       _resposta(await _c.rpc('admin_driver_avisar_gps', params: {'p_driver': driverId}));
 
   @override
   Future<Map<String, dynamic>> avisarSemSinal(String userId) async => _resposta(
       await _c.rpc('admin_driver_avisar_sem_sinal', params: {'p_user_id': userId}));
+
+  @override
+  Future<Map<String, dynamic>> ligarDesligar({
+    required String driverId,
+    required bool ligar,
+    required String motivo,
+  }) async =>
+      _resposta(await _c.rpc('admin_set_driver_online', params: {
+        'p_driver': driverId,
+        'p_online': ligar,
+        'p_motivo': motivo,
+      }));
+
+  @override
+  Future<FaturaDoMes> faturaDoMes({required String userId, required DateTime mes}) async =>
+      FaturaDoMes.fromJson(await _c.rpc('admin_fatura_mes_estafeta',
+          params: {'p_user_id': userId, 'p_mes': mesParaServidor(mes)}));
 
   @override
   Future<ExtratoGanhos> ganhos(String userId) async => ExtratoGanhos.fromJson(
@@ -1007,7 +1368,28 @@ class AdminAreaEstafetaSupabase extends AdminAreaEstafetaService {
       erro ??= e;
       debugPrint('[AreaEstafeta] admin_driver_assignment_history: $e');
     }
-    if (doRegisto.isEmpty && doHistorico.isEmpty && erro != null) throw erro;
-    return juntarHistorico(doRegisto, doHistorico);
+    // "Recolhi" / "A caminho" ficam gravados pelo pedido, com o id de login
+    // dele nos detalhes (`estafeta_user_id`): lê-se à parte e, se falhar, o
+    // resto do histórico aparece na mesma.
+    var dosPedidos = <RegistoAdmin>[];
+    final uid = userId.trim().toLowerCase();
+    if (_eUuid(uid)) {
+      try {
+        final res = await _c
+            .from('admin_audit_log')
+            .select('created_at, action, admin_email, entity_type, entity_id_text, details')
+            .eq('action', 'order_estafeta_avancar')
+            .eq('details->>estafeta_user_id', uid)
+            .order('created_at', ascending: false)
+            .limit(kLimiteHistorico);
+        dosPedidos = _linhas(res).map(RegistoAdmin.doRegisto).toList();
+      } catch (e) {
+        debugPrint('[AreaEstafeta] admin_audit_log (Recolhi/A caminho): $e');
+      }
+    }
+    if (doRegisto.isEmpty && doHistorico.isEmpty && dosPedidos.isEmpty && erro != null) {
+      throw erro;
+    }
+    return juntarHistorico([...doRegisto, ...dosPedidos], doHistorico);
   }
 }

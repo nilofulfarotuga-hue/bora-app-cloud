@@ -5,17 +5,18 @@
 //
 // Um ecrã só, de cima para baixo, uma secção por cartão:
 //   1. Agora ............ presença ("Ligado, GPS há 12 s"), posição no Google
-//                         Maps, avisos para o celular (GPS / sem sinal)
-//   2. Pedidos dele ..... passar para outro, devolver à fila, entregue sem código
+//                         Maps, avisos para o celular (GPS / sem sinal),
+//                         ligar / desligar por ele
+//   2. Pedidos dele ..... "Recolhi" / "A caminho" (só o passo certo), passar
+//                         para outro, devolver à fila, entregue sem código
 //   3. Dar um pedido .... pedidos esperando entregador → "Dar este pedido a ele"
 //   4. Ganhos ........... Hoje / Esta semana / Semana passada / Este mês
 //   5. Conta e documentos semáforo da conta, robô dos documentos, lembrete,
-//                         modo de trabalho
+//                         fatura do mês (só leitura), modo de trabalho
 //   6. O que o admin já fez por ele (log de auditoria + histórico de atribuições)
 //
-// Ainda sem função no servidor (botões desligados, com a frase
-// [kFrasePrecisaFuncaoNova]): ligar/desligar por ele, "Recolhi"/"A caminho",
-// fatura do mês, enviar documento por ele.
+// Ainda sem função no servidor (botão desligado, com a frase
+// [kFrasePrecisaFuncaoNova]): enviar documento por ele.
 //
 // Todas as chamadas ao servidor estão em AdminAreaEstafetaService. Textos em
 // PT-BR (painel). Dinheiro com eurCents; horas de Lisboa.
@@ -40,6 +41,10 @@ import '_admin_rpc_errors.dart';
 
 const TextStyle _estiloPequeno =
     TextStyle(fontSize: 12, color: AppColors.textSecondary);
+
+/// Um erro de leitura ou de ação em palavras simples.
+String _erroEmPalavras(Object e) =>
+    e is AreaEstafetaErro ? e.mensagem : humanizeAdminRpcError(e);
 
 class AdminAreaEstafetaScreen extends StatefulWidget {
   const AdminAreaEstafetaScreen({
@@ -205,15 +210,19 @@ class _AdminAreaEstafetaScreenState extends State<AdminAreaEstafetaScreen> {
 
   // ── Ajudas das ações ───────────────────────────────────────────────────────
 
-  String _erroLegivel(Object e) =>
-      e is AreaEstafetaErro ? e.mensagem : humanizeAdminRpcError(e);
+  String _erroLegivel(Object e) => _erroEmPalavras(e);
 
-  void _avisar(String texto, {bool erro = false}) {
+  /// [longo] = texto com mais de uma frase (recusas do servidor): fica mais
+  /// tempo. O aviso novo tira o anterior, para não ficar na fila.
+  void _avisar(String texto, {bool erro = false, bool longo = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(texto),
-      backgroundColor: erro ? AppColors.error : null,
-    ));
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(texto),
+        backgroundColor: erro ? AppColors.error : null,
+        duration: Duration(seconds: longo ? 10 : 4),
+      ));
   }
 
   /// Corre uma ação com os botões desligados; erro vira aviso em palavras.
@@ -328,6 +337,42 @@ class _AdminAreaEstafetaScreenState extends State<AdminAreaEstafetaScreen> {
         _recarregarHistorico();
       } else {
         _avisar('Não foi possível: ${mensagemDoServidor(r)}', erro: true);
+      }
+    });
+  }
+
+  /// admin_set_driver_online pelo drivers.id. O servidor grava no log com o
+  /// motivo (aqui não se grava outra vez) e recusa ligar sem sinal do celular.
+  Future<void> _ligarDesligar({required bool ligar, PresencaEstafeta? presenca}) async {
+    if (!_livre) return;
+    final motivo = await _pedirMotivo(
+      titulo: ligar ? 'Ligar $_nome agora?' : 'Desligar $_nome agora?',
+      explicacao: ligar
+          ? 'É o mesmo que ele tocar em "Online" no app: ele volta a receber '
+              'pedidos. Só dá certo com o app aberto no celular dele (sinal nos '
+              'últimos 2 minutos). Fica registrado com o seu nome e o motivo.'
+          : 'É o mesmo que ele tocar em "Offline" no app: ele para de receber '
+              'pedidos novos. Fica registrado com o seu nome e o motivo.',
+      botao: ligar ? 'Ligar' : 'Desligar',
+      aviso: ligar ? null : avisoAntesDeDesligar(presenca),
+    );
+    if (motivo == null || !mounted) return;
+    await _executar(ligar ? 'ligar' : 'desligar', () async {
+      final r = await _servico.ligarDesligar(
+        driverId: widget.driverId,
+        ligar: ligar,
+        motivo: motivo,
+      );
+      if (r['ok'] == true) {
+        _avisar(textoLigouDesligou(r, nome: _nome, ligar: ligar), longo: true);
+        _recarregarAgora();
+        _recarregarHistorico();
+      } else {
+        _avisar(
+          'Não deu para ${ligar ? 'ligar' : 'desligar'} $_nome. ${mensagemDaRecusa(r)}',
+          erro: true,
+          longo: true,
+        );
       }
     });
   }
@@ -450,6 +495,39 @@ class _AdminAreaEstafetaScreenState extends State<AdminAreaEstafetaScreen> {
     });
   }
 
+  /// "Recolhi" / "A caminho" por ele (admin_estafeta_avancar). O servidor grava
+  /// no log com o motivo (aqui não se grava outra vez).
+  Future<void> _avancar(PedidoAberto p, ProximoPasso passo) async {
+    if (!_livre) return;
+    final motivo = await _pedirMotivo(
+      titulo: 'Marcar "${passo.rotulo}" no pedido ${p.codigo}?',
+      explicacao: 'É o mesmo que ele tocar em "${passo.rotulo}" no app: o pedido '
+          'passa para "${estadoPedidoPtBr(passo.status)}". Fica registrado com o '
+          'seu nome e o motivo.',
+      botao: 'Marcar ${passo.rotulo}',
+      aviso: passo == ProximoPasso.recolhi ? kAvisoRecolhiDinheiro : null,
+    );
+    if (motivo == null || !mounted) return;
+    await _executar('avancar:${p.id}', () async {
+      final r = await _servico.avancarPedido(
+        orderId: p.id,
+        status: passo.status,
+        motivo: motivo,
+      );
+      if (r['ok'] == true) {
+        _avisar(textoAvancou(r, codigo: p.codigo, passo: passo));
+        _recarregarDepoisDeAcao();
+      } else {
+        _avisar(
+          'Não deu para marcar "${passo.rotulo}" no pedido ${p.codigo}. '
+          '${mensagemDaRecusa(r)}',
+          erro: true,
+          longo: true,
+        );
+      }
+    });
+  }
+
   /// O botão "Marcar entregue sem código" (que já existe) chama isto: o
   /// servidor grava pelo pedido; aqui grava-se também ligado a ele.
   Future<Map<String, dynamic>> _marcarSemCodigo(String orderId, String motivo) async {
@@ -508,6 +586,16 @@ class _AdminAreaEstafetaScreenState extends State<AdminAreaEstafetaScreen> {
       }
     });
   }
+
+  /// "Fatura do mês": só leitura, numa janela própria.
+  Future<void> _abrirFatura() => showDialog<void>(
+        context: context,
+        builder: (_) => _FaturaDialog(
+          servico: _servico,
+          userId: widget.userId,
+          nome: _nome,
+        ),
+      );
 
   Future<void> _mudarModo(ModoTrabalho atual, String novo) async {
     if (!_livre) return;
@@ -626,7 +714,7 @@ class _AdminAreaEstafetaScreenState extends State<AdminAreaEstafetaScreen> {
     return _Secao(
       titulo: 'Agora',
       paraQue: 'Mostra se ele está ligado e com sinal neste momento, e deixa '
-          'você mandar avisos para o celular dele.',
+          'você mandar avisos para o celular dele ou ligar e desligar por ele.',
       aoAtualizar: _recarregarAgora,
       child: FutureBuilder<_DadosAgora>(
         future: _fAgora,
@@ -736,10 +824,36 @@ class _AdminAreaEstafetaScreenState extends State<AdminAreaEstafetaScreen> {
           ],
         ),
         const SizedBox(height: Spacing.md),
-        const _PendentesDoServidor(botoes: [
-          _BotaoPendente('area_ligar_por_ele', Icons.power_settings_new, 'Ligar por ele'),
-          _BotaoPendente('area_desligar_por_ele', Icons.power_off, 'Desligar por ele'),
-        ]),
+        Wrap(
+          spacing: Spacing.sm,
+          runSpacing: Spacing.sm,
+          children: [
+            OutlinedButton.icon(
+              key: const Key('area_ligar_por_ele'),
+              onPressed: _livre && podeLigarPorEle(p)
+                  ? () => _ligarDesligar(ligar: true, presenca: p)
+                  : null,
+              icon: const Icon(Icons.power_settings_new, size: 18),
+              label: const Text('Ligar por ele'),
+            ),
+            OutlinedButton.icon(
+              key: const Key('area_desligar_por_ele'),
+              onPressed: _livre && podeDesligarPorEle(p)
+                  ? () => _ligarDesligar(ligar: false, presenca: p)
+                  : null,
+              icon: const Icon(Icons.power_off, size: 18),
+              label: const Text('Desligar por ele'),
+            ),
+          ],
+        ),
+        const Padding(
+          padding: EdgeInsets.only(top: Spacing.xs),
+          child: Text(
+            'Ligar por ele só dá certo com o app aberto no celular dele (sinal '
+            'nos últimos 2 minutos).',
+            style: _estiloPequeno,
+          ),
+        ),
       ],
     );
   }
@@ -748,8 +862,9 @@ class _AdminAreaEstafetaScreenState extends State<AdminAreaEstafetaScreen> {
   Widget _secaoPedidosDele() {
     return _Secao(
       titulo: 'Pedidos dele agora',
-      paraQue: 'Os pedidos que estão com ele neste momento: você pode passar '
-          'para outro, devolver à fila ou fechar a entrega por ele.',
+      paraQue: 'Os pedidos que estão com ele neste momento: você pode marcar '
+          '"Recolhi" ou "A caminho" por ele, passar para outro, devolver à fila '
+          'ou fechar a entrega por ele.',
       aoAtualizar: _recarregarPedidos,
       child: FutureBuilder<List<PedidoAberto>>(
         future: _fPedidos,
@@ -777,6 +892,8 @@ class _AdminAreaEstafetaScreenState extends State<AdminAreaEstafetaScreen> {
 
   Widget _cartaoPedidoDele(PedidoAberto p) {
     final semDevolver = motivoSemDevolverAFila(p);
+    // Só o passo seguinte do app dele: aceito → "Recolhi"; retirado → "A caminho".
+    final passo = proximoPasso(p.status);
     return _CaixaPedido(
       pedido: p,
       children: [
@@ -784,6 +901,17 @@ class _AdminAreaEstafetaScreenState extends State<AdminAreaEstafetaScreen> {
           spacing: Spacing.sm,
           runSpacing: Spacing.sm,
           children: [
+            if (passo != null)
+              OutlinedButton.icon(
+                key: Key(passo == ProximoPasso.recolhi
+                    ? 'area_recolhi_${p.id}'
+                    : 'area_a_caminho_${p.id}'),
+                onPressed: _livre ? () => _avancar(p, passo) : null,
+                icon: Icon(passo == ProximoPasso.recolhi
+                    ? Icons.inventory_2_outlined
+                    : Icons.directions_bike),
+                label: Text(passo.rotulo),
+              ),
             OutlinedButton.icon(
               key: Key('area_passar_${p.id}'),
               onPressed: _livre ? () => _passar(p) : null,
@@ -812,11 +940,6 @@ class _AdminAreaEstafetaScreenState extends State<AdminAreaEstafetaScreen> {
             marcar: _marcarSemCodigo,
           ),
         ),
-        const SizedBox(height: Spacing.md),
-        _PendentesDoServidor(botoes: [
-          _BotaoPendente('area_recolhi_${p.id}', Icons.inventory_2_outlined, 'Recolhi'),
-          _BotaoPendente('area_a_caminho_${p.id}', Icons.directions_bike, 'A caminho'),
-        ]),
       ],
     );
   }
@@ -943,10 +1066,6 @@ class _AdminAreaEstafetaScreenState extends State<AdminAreaEstafetaScreen> {
                   'Mostrando os $kMaxTrabalhosVisiveis mais recentes.',
                   style: _estiloPequeno,
                 ),
-              const SizedBox(height: Spacing.md),
-              const _PendentesDoServidor(botoes: [
-                _BotaoPendente('area_fatura_mes', Icons.receipt_long, 'Fatura do mês'),
-              ]),
             ],
           );
         },
@@ -958,7 +1077,8 @@ class _AdminAreaEstafetaScreenState extends State<AdminAreaEstafetaScreen> {
   Widget _secaoConta() {
     return _Secao(
       titulo: 'Conta e documentos',
-      paraQue: 'O que falta na conta dele, os documentos e o modo de trabalho.',
+      paraQue: 'O que falta na conta dele, os documentos, a fatura do mês e o '
+          'modo de trabalho.',
       aoAtualizar: _recarregarConta,
       child: FutureBuilder<_DadosConta>(
         future: _fConta,
@@ -1014,6 +1134,21 @@ class _AdminAreaEstafetaScreenState extends State<AdminAreaEstafetaScreen> {
               const _PendentesDoServidor(botoes: [
                 _BotaoPendente('area_enviar_documento', Icons.upload_file, 'Enviar documento por ele'),
               ]),
+              const SizedBox(height: Spacing.md),
+              OutlinedButton.icon(
+                key: const Key('area_fatura_mes'),
+                onPressed: _abrirFatura,
+                icon: const Icon(Icons.receipt_long),
+                label: const Text('Fatura do mês'),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(top: Spacing.xs),
+                child: Text(
+                  'O recibo verde que ele emite para a Bora, deste mês ou do '
+                  'passado: só para ver.',
+                  style: _estiloPequeno,
+                ),
+              ),
               const SizedBox(height: Spacing.md),
               const Divider(height: 1),
               const SizedBox(height: Spacing.md),
@@ -1640,6 +1775,178 @@ class _EscolherOutroDialogState extends State<_EscolherOutroDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Voltar'),
         ),
+      ],
+    );
+  }
+}
+
+/// "Fatura do mês" (só leitura): o recibo verde dele deste mês ou do mês
+/// passado (meses de Lisboa), a mesma conta que ele vê no app.
+class _FaturaDialog extends StatefulWidget {
+  const _FaturaDialog({required this.servico, required this.userId, required this.nome});
+
+  final AdminAreaEstafetaService servico;
+  final String userId;
+  final String nome;
+
+  @override
+  State<_FaturaDialog> createState() => _FaturaDialogState();
+}
+
+class _FaturaDialogState extends State<_FaturaDialog> {
+  MesFatura _qual = MesFatura.esteMes;
+  late Future<FaturaDoMes> _fatura;
+
+  @override
+  void initState() {
+    super.initState();
+    _fatura = _ler();
+  }
+
+  // `ignore()`: o erro fica para o FutureBuilder mostrar, nunca "solto".
+  Future<FaturaDoMes> _ler() => widget.servico.faturaDoMes(
+        userId: widget.userId,
+        mes: primeiroDiaDoMes(_qual, DateTime.now()),
+      )..ignore();
+
+  void _escolher(MesFatura qual) {
+    if (qual == _qual) return;
+    setState(() {
+      _qual = qual;
+      _fatura = _ler();
+    });
+  }
+
+  void _tentarDeNovo() {
+    setState(() {
+      _fatura = _ler();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Fatura do mês de ${widget.nome}'),
+      content: SizedBox(
+        width: 480,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: Spacing.sm,
+                runSpacing: Spacing.sm,
+                children: [
+                  for (final q in MesFatura.values)
+                    ChoiceChip(
+                      key: Key('area_fatura_${q.name}'),
+                      label: Text(q.rotulo),
+                      selected: q == _qual,
+                      onSelected: (_) => _escolher(q),
+                    ),
+                ],
+              ),
+              const SizedBox(height: Spacing.md),
+              FutureBuilder<FaturaDoMes>(
+                future: _fatura,
+                builder: (context, snap) {
+                  if (snap.connectionState != ConnectionState.done) {
+                    return const _Carregando();
+                  }
+                  final f = snap.data;
+                  if (snap.hasError || f == null) {
+                    return _ErroSecao(
+                      texto: _erroEmPalavras(snap.error ?? 'sem resposta'),
+                      aoTentar: _tentarDeNovo,
+                    );
+                  }
+                  return _ResumoFatura(
+                    fatura: f,
+                    mesCorrente: _qual == MesFatura.esteMes,
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          key: const Key('area_fatura_fechar'),
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Fechar'),
+        ),
+      ],
+    );
+  }
+}
+
+/// O resumo da fatura: o total em número grande (o ganho dele), as entregas,
+/// a quem ele emite o recibo e se já o emitiu. Nada aqui muda dados.
+class _ResumoFatura extends StatelessWidget {
+  const _ResumoFatura({required this.fatura, required this.mesCorrente});
+
+  final FaturaDoMes fatura;
+  final bool mesCorrente;
+
+  @override
+  Widget build(BuildContext context) {
+    final f = fatura;
+    final total = f.totalCents;
+    final texto = f.textoRecibo;
+    final nif = f.nif;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Recibo verde de ${f.mesTexto}',
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        if (mesCorrente)
+          const Text(
+            'Mês ainda em andamento: o total muda até o último dia.',
+            style: _estiloPequeno,
+          ),
+        const SizedBox(height: Spacing.sm),
+        if (!f.temEntregas)
+          Text(
+            'Nenhuma entrega feita em ${f.mesTexto}: não há recibo a emitir.',
+            key: const Key('area_fatura_vazia'),
+          )
+        else ...[
+          Text(
+            total == null ? '—' : eurCents(total),
+            key: const Key('area_fatura_total'),
+            style: const TextStyle(
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+            ),
+          ),
+          Text('${f.entregas} entrega(s) no mês', style: _estiloPequeno),
+          const SizedBox(height: Spacing.sm),
+          _LinhaInfo(icone: Icons.business, rotulo: 'Recibo para', valor: f.paraQuem),
+          _LinhaInfo(icone: Icons.badge, rotulo: 'NIF dele', valor: nif ?? 'não preenchido'),
+          _LinhaInfo(
+            icone: Icons.storefront,
+            rotulo: 'Atividade aberta nas Finanças',
+            valor: f.atividadeAberta ? 'sim' : 'não',
+          ),
+          _LinhaInfo(
+            icone: Icons.task_alt,
+            rotulo: 'Recibo emitido por ele',
+            valor: textoReciboPassado(f),
+          ),
+          if (texto != null)
+            _LinhaInfo(icone: Icons.description, rotulo: 'Texto do recibo', valor: texto),
+          const SizedBox(height: Spacing.xs),
+          for (final nota in f.notas)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(nota, style: _estiloPequeno),
+            ),
+        ],
       ],
     );
   }

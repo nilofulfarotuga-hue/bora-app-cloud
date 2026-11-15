@@ -1,28 +1,33 @@
-// supabase/functions/create-mbway-reservation-payment-intent/index.ts — v6
+// supabase/functions/create-mbway-reservation-payment-intent/index.ts — v7
 //
 // MBWay payment intent para PRÉ-PAGAMENTO de RESERVA (€3 default).
 // Server-confirm com billing_details.phone (mesmo padrão que orders v21).
+//
+// v7 (2026-11-15, conserto P0 do Juiz da Claude.ai, "Autorizo tudo" do Danilo 15:15): as
+// escritas passam a ir por um cliente com a chave do servidor SEM o Authorization do cliente
+// (o gatilho trg_00_reservas_campos_protegidos recusava gravar o prepayment_pi como
+// `authenticated` e a v6 respondia ok:true na mesma); quem chama é identificado por
+// admin.auth.getUser(token); se gravar o prepayment_pi falhar, o PaymentIntent é cancelado e a
+// resposta é erro. Lógica em logica.ts. Nenhum valor cobrado foi alterado.
 //
 // v6 (2026-07-31): guarda "Em breve" (STORE_COMING_SOON) antes do Stripe e
 // antes de inserir a reserva. Nenhum valor cobrado foi alterado.
 //
 // verify_jwt = true — mantém paridade com create-reservation-payment-intent.
 
-import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import {
-  COMING_SOON_RESERVATION_MSG,
-  comingSoonResponseBody,
-  isRestaurantComingSoon,
-} from '../_shared/coming_soon.ts';
+import { isRestaurantComingSoon } from '../_shared/coming_soon.ts';
 import { secretKey } from '../_shared/keys.ts';
 import { STRIPE_MODE, stripeParaNovoPagamento } from '../_shared/stripe_contas.ts';
+import { type CorpoReservaMbway, type Dependencias, tratar } from './logica.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+
+const ORIGEM = 'create-mbway-reservation-payment-intent';
 
 // Duas contas Stripe (missão stripe-empresa-2026-11-01): a conta decide-se por pagamento em
 // _shared/stripe_contas.ts (STRIPE_MODE vem de lá; TVDE nunca passa aqui).
@@ -37,134 +42,71 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const auth = req.headers.get('Authorization') ?? '';
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      secretKey() ?? '',
-      { global: { headers: { Authorization: auth } } },
-    );
+    // Chave do servidor, SEM o Authorization do cliente: escreve como service_role.
+    const admin = createClient(Deno.env.get('SUPABASE_URL') ?? '', secretKey() ?? '');
 
-    const { data: { user }, error: userErr } = await supabase.auth.getUser();
-    if (userErr || !user) {
-      return json({ error: 'auth required' }, 401);
-    }
+    const body = await req.json() as CorpoReservaMbway;
 
-    const body = await req.json() as {
-      restaurant_id?: string;
-      people?: number;
-      reserved_for?: string;
-      client_name?: string;
-      client_phone?: string;
-      notes?: string;
-      phone?: string;
-      idempotency_key?: string;
+    const deps: Dependencias = {
+      async utilizadorDoToken(token) {
+        const { data, error } = await admin.auth.getUser(token);
+        return error || !data?.user ? null : { id: data.user.id };
+      },
+      restauranteEmBreve: (id) => isRestaurantComingSoon(admin, id),
+      async lerValorPrepagamento() {
+        const { data } = await admin
+          .from('platform_settings').select('value')
+          .eq('key', 'reservation_prepayment_cents').maybeSingle();
+        return data?.value ?? null;
+      },
+      async prepararStripe(b) {
+        // Duas contas: a conta deste pré-pagamento (reserva de mesa = NÃO TVDE).
+        const { stripe, conta } = await stripeParaNovoPagamento(admin, { body: b, origem: ORIGEM });
+        return {
+          conta,
+          modo: STRIPE_MODE,
+          // deno-lint-ignore no-explicit-any
+          criarIntent: (params, chave) => stripe.paymentIntents.create(params as any, { idempotencyKey: chave }),
+          cancelarIntent: async (id) => {
+            await stripe.paymentIntents.cancel(id);
+          },
+        };
+      },
+      async inserirReserva(linha) {
+        const { data, error } = await admin.from('reservations').insert(linha).select('id').single();
+        if (error || !data) return { erro: error?.message ?? 'sem linha' };
+        return { id: data.id as string };
+      },
+      async gravarPi(reservaId, piId) {
+        const { data, error } = await admin
+          .from('reservations').update({ prepayment_pi: piId }).eq('id', reservaId).select('id');
+        if (error) return error.message;
+        return (data ?? []).length === 1 ? null : `linhas gravadas: ${(data ?? []).length}`;
+      },
+      async apagarReserva(reservaId) {
+        // Só a reserva que este pedido criou e que ficou sem pagamento.
+        const { error } = await admin.from('reservations').delete()
+          .eq('id', reservaId).eq('status', 'pending_payment').is('prepayment_pi', null);
+        if (error) throw new Error(error.message);
+      },
+      async avisarEquipa(resumo, detalhes) {
+        const { error } = await admin.rpc('notify_admin_urgent_push', {
+          p_event_type: 'reservation_payment_not_saved',
+          p_summary: resumo.slice(0, 300),
+          p_entity_type: 'reservation',
+          p_entity_id: detalhes.reservation_id ?? null,
+          p_payload: detalhes,
+          p_deep_link: '/admin/reservations',
+        });
+        if (error) throw new Error(error.message);
+      },
     };
 
-    if (!body.restaurant_id || !body.people || !body.reserved_for || !body.phone) {
-      return json({ error: 'missing fields (restaurant_id, people, reserved_for, phone)' }, 400);
-    }
-
-    // Normaliza phone PT → E.164 (+351XXXXXXXXX).
-    const e164 = body.phone.startsWith('+')
-      ? body.phone
-      : `+351${body.phone.replace(/^0/, '')}`;
-
-    // 2026-07-31 — "Em breve": nunca criar PaymentIntent (nem push MBWay) para
-    // uma loja que ainda não aceita reservas. Corre ANTES do Stripe.
-    if (await isRestaurantComingSoon(supabase, body.restaurant_id)) {
-      return json(comingSoonResponseBody(COMING_SOON_RESERVATION_MSG), 409);
-    }
-
-    // Lê preço do prepagamento da plataforma (default 300 cents).
-    const { data: settingsRow } = await supabase
-      .from('platform_settings')
-      .select('value')
-      .eq('key', 'reservation_prepayment_cents')
-      .maybeSingle();
-    const cents = parseInt(String((settingsRow?.value ?? 300)), 10);
-
-    if (cents < 50) {
-      return json({ error: 'prepayment too small (Stripe min 0.50 EUR)' }, 400);
-    }
-
-    // Duas contas: a conta deste pré-pagamento (reserva de mesa = NÃO TVDE).
-    const { stripe, conta } = await stripeParaNovoPagamento(supabase, { body, origem: 'create-mbway-reservation-payment-intent' });
-
-    // INSERT reserva pending_payment.
-    const { data: rsv, error: rsvErr } = await supabase
-      .from('reservations')
-      .insert({
-        stripe_account: conta,
-        client_user_id: user.id,
-        restaurant_id: body.restaurant_id,
-        people: body.people,
-        reserved_for: body.reserved_for,
-        client_name: body.client_name,
-        client_phone: body.client_phone,
-        notes: body.notes,
-        status: 'pending_payment',
-        prepayment_cents: cents,
-      })
-      .select('id')
-      .single();
-
-    if (rsvErr || !rsv) {
-      return json({ error: 'failed to create reservation: ' + rsvErr?.message }, 500);
-    }
-
-    const idempotencyKey = body.idempotency_key ?? `mbway_rsv_${rsv.id}`;
-
-    let intent: Stripe.PaymentIntent;
-    try {
-      intent = await stripe.paymentIntents.create({
-        amount: cents,
-        currency: 'eur',
-        payment_method_types: ['mb_way'],
-        payment_method_data: {
-          type: 'mb_way',
-          billing_details: { phone: e164 },
-        },
-        confirm: true,
-        metadata: {
-          reservation_id: rsv.id,
-          restaurant_id: body.restaurant_id,
-          purpose: 'reservation_prepayment',
-          bora_conta: conta,
-        },
-      }, { idempotencyKey });
-    } catch (stripeErr) {
-      await supabase.from('reservations').delete().eq('id', rsv.id);
-      const msg = stripeErr instanceof Error ? stripeErr.message : String(stripeErr);
-      console.error('[create-mbway-reservation-payment-intent] stripe failed:', msg);
-      return json({ error: 'stripe_error: ' + msg }, 500);
-    }
-
-    console.log('[create-mbway-reservation-payment-intent] intent confirmed:',
-      intent.id, `reservation=${rsv.id}`, `phone=${e164}`,
-      `status=${intent.status}`, `mode=${STRIPE_MODE}`);
-
-    const { error: piUpdateErr } = await supabase
-      .from('reservations')
-      .update({ prepayment_pi: intent.id })
-      .eq('id', rsv.id);
-
-    if (piUpdateErr) {
-      console.error('[create-mbway-reservation-payment-intent] save prepayment_pi failed:',
-        piUpdateErr.message, intent.id);
-    }
-
-    return json({
-      ok: true,
-      reservation_id: rsv.id,
-      paymentIntentId: intent.id,
-      status: intent.status,
-      amount_cents: cents,
-      mode: STRIPE_MODE,
-      stripe_account: conta, // duas contas
-    });
+    const r = await tratar(req.headers.get('Authorization'), body, deps);
+    return json(r.corpo, r.status);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error('[create-mbway-reservation-payment-intent] error:', message);
+    console.error(`[${ORIGEM}] error:`, message);
     return json({ error: message }, 500);
   }
 });

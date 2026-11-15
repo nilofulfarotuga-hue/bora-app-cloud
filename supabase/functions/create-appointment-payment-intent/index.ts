@@ -1,5 +1,10 @@
-// supabase/functions/create-appointment-payment-intent/index.ts — v4
+// supabase/functions/create-appointment-payment-intent/index.ts — v5
 //
+// v5 (2026-11-15, conserto P0 do Juiz da Claude.ai, "Autorizo tudo" do Danilo 15:15): a escrita
+// do deposit_pi passa a ir por um cliente com a chave do servidor SEM o Authorization do
+// cliente; quem chama é identificado por admin.auth.getUser(token); se gravar falhar, o
+// PaymentIntent é cancelado e a resposta é erro; nova tentativa depois de um PI cancelado já não
+// recebe o PI cancelado da Stripe. Lógica em logica.ts. Nenhum valor cobrado foi alterado.
 // v4 (2026-08-16): F3a MISSAO TOTAL — metadata ganha `kind: 'appointment'`
 // (padronizacao do router por kind no stripe-webhook, que passa a ser a
 // GARANTIA do pagamento; o poll do cliente fica como acelerador). Nenhum
@@ -23,21 +28,19 @@
 // A confirmação client-side é feita por `client_confirm_appointment_payment` (RPC).
 // verify_jwt = true.
 
-import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import {
-  COMING_SOON_BOOKING_MSG,
-  comingSoonResponseBody,
-  isProviderComingSoon,
-} from '../_shared/coming_soon.ts';
+import { isProviderComingSoon } from '../_shared/coming_soon.ts';
 import { secretKey } from '../_shared/keys.ts';
 import { respostaConta, stripeParaNovoPagamento } from '../_shared/stripe_contas.ts';
+import { type CorpoMarcacao, type Dependencias, tratar } from './logica.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+
+const ORIGEM = 'create-appointment-payment-intent';
 
 // Duas contas Stripe (missão stripe-empresa-2026-11-01): a conta decide-se por pagamento em
 // _shared/stripe_contas.ts (marcações = NÃO TVDE; app antiga → pessoal; interruptor → empresa).
@@ -46,95 +49,77 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
+    const url = Deno.env.get('SUPABASE_URL') ?? '';
     const auth = req.headers.get('Authorization') ?? '';
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      secretKey() ?? '',
-      { global: { headers: { Authorization: auth } } },
-    );
+    // Leitura em nome do cliente (RLS ap_select), como na v4.
+    const leitura = createClient(url, secretKey() ?? '', { global: { headers: { Authorization: auth } } });
+    // Chave do servidor, SEM o Authorization do cliente: escreve como service_role.
+    const admin = createClient(url, secretKey() ?? '');
 
-    const { data: { user }, error: userErr } = await supabase.auth.getUser();
-    if (userErr || !user) {
-      return new Response(JSON.stringify({ error: 'auth required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
+    const body = await req.json() as CorpoMarcacao;
 
-    const body = await req.json() as { appointment_id?: string; idempotency_key?: string; stripe_contas_v2?: boolean | string };
-    if (!body.appointment_id) {
-      return new Response(JSON.stringify({ error: 'missing appointment_id' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    const { data: appt, error: apptErr } = await supabase
-      .from('appointments')
-      .select('id, client_user_id, provider_id, deposit_cents, status, deposit_pi')
-      .eq('id', body.appointment_id)
-      .single();
-
-    if (apptErr || !appt) {
-      return new Response(JSON.stringify({ error: 'appointment not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-    if (appt.client_user_id !== user.id) {
-      return new Response(JSON.stringify({ error: 'not your appointment' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-    if (appt.status !== 'pending_payment') {
-      return new Response(JSON.stringify({ error: 'invalid status: ' + appt.status }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    // 2026-07-31 — "Em breve": nunca criar PaymentIntent para um parceiro que
-    // ainda não aceita marcações. Corre ANTES de tocar no Stripe.
-    if (await isProviderComingSoon(supabase, appt.provider_id)) {
-      return new Response(
-        JSON.stringify(comingSoonResponseBody(COMING_SOON_BOOKING_MSG)),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    // v3 (2026-08-03) — NUNCA cobrar um valor por omissão. Até aqui havia um
-    // `?? 300`: com `deposit_cents` a null, o cliente era cobrado €3 em silêncio
-    // em vez do valor total do serviço, e a diferença nunca aparecia no acerto.
-    // Agora null/undefined/não-inteiro/<50 (mínimo Stripe) => 400, sem Stripe.
-    const rawCents = appt.deposit_cents;
-    const cents = typeof rawCents === 'number'
-      ? rawCents
-      : Number.parseInt(String(rawCents ?? ''), 10);
-    if (!Number.isInteger(cents) || cents < 50) {
-      console.error('[create-appointment-payment-intent] invalid_charge_amount:',
-        `appointment=${appt.id}`, `deposit_cents=${JSON.stringify(rawCents)}`);
-      return new Response(JSON.stringify({
-        error: 'invalid_charge_amount',
-        message: 'A marcação não tem um valor válido para cobrar.',
-        appointment_id: appt.id,
-      }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    const idempotencyKey = body.idempotency_key ?? `appt_${appt.id}`;
-    // Duas contas: a conta deste sinal.
-    const { stripe, conta } = await stripeParaNovoPagamento(supabase, { body, origem: 'create-appointment-payment-intent' });
-    const intent = await stripe.paymentIntents.create({
-      amount: cents,
-      currency: 'eur',
-      payment_method_types: ['card'],
-      metadata: {
-        kind: 'appointment',
-        appointment_id: appt.id,
-        provider_id: appt.provider_id,
-        purpose: 'appointment_deposit',
-        bora_conta: conta,
+    const deps: Dependencias = {
+      async utilizadorDoToken(token) {
+        const { data, error } = await admin.auth.getUser(token);
+        return error || !data?.user ? null : { id: data.user.id };
       },
-    }, { idempotencyKey });
+      async lerMarcacao(id) {
+        const { data, error } = await leitura
+          .from('appointments')
+          .select('id, client_user_id, provider_id, deposit_cents, status, deposit_pi')
+          .eq('id', id)
+          .single();
+        return error || !data ? null : data;
+      },
+      parceiroEmBreve: (providerId) => isProviderComingSoon(admin, providerId),
+      async prepararStripe(b) {
+        // Duas contas: a conta deste sinal.
+        const { stripe, conta } = await stripeParaNovoPagamento(admin, { body: b, origem: ORIGEM });
+        return {
+          conta,
+          async criarIntent(params, chave) {
+            // deno-lint-ignore no-explicit-any
+            const pi = await stripe.paymentIntents.create(params as any, { idempotencyKey: chave });
+            // deno-lint-ignore no-explicit-any
+            const cab = (pi as any).lastResponse?.headers ?? {};
+            const repetido = String(cab['idempotent-replayed'] ?? cab['Idempotent-Replayed'] ?? '') === 'true';
+            return { id: pi.id, client_secret: pi.client_secret, status: pi.status, repetido };
+          },
+          estadoIntent: async (id) => (await stripe.paymentIntents.retrieve(id)).status,
+          cancelarIntent: async (id) => {
+            await stripe.paymentIntents.cancel(id);
+          },
+        };
+      },
+      async gravarPi(marcacaoId, clienteId, piId, conta) {
+        const { data, error } = await admin
+          .from('appointments')
+          .update({ deposit_pi: piId, stripe_account: conta })
+          .eq('id', marcacaoId)
+          .eq('client_user_id', clienteId)
+          .eq('status', 'pending_payment')
+          .select('id');
+        if (error) return error.message;
+        return (data ?? []).length === 1 ? null : `linhas gravadas: ${(data ?? []).length}`;
+      },
+      respostaConta: (conta) => respostaConta(conta as 'pessoal' | 'empresa'),
+      async avisarEquipa(resumo, detalhes) {
+        const { error } = await admin.rpc('notify_admin_urgent_push', {
+          p_event_type: 'appointment_payment_not_saved',
+          p_summary: resumo.slice(0, 300),
+          p_entity_type: 'appointment',
+          p_entity_id: detalhes.appointment_id ?? null,
+          p_payload: detalhes,
+          p_deep_link: '/admin/appointments',
+        });
+        if (error) throw new Error(error.message);
+      },
+      agora: () => Date.now(),
+    };
 
-    await supabase.from('appointments').update({ deposit_pi: intent.id, stripe_account: conta }).eq('id', appt.id);
-
-    return new Response(JSON.stringify({
-      appointment_id: appt.id,
-      paymentIntentId: intent.id,
-      clientSecret: intent.client_secret,
-      amount_cents: cents,
-      ...respostaConta(conta), // duas contas: stripe_account + publishable_key
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const r = await tratar(auth, body, deps);
+    return new Response(JSON.stringify(r.corpo),
+      { status: r.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return new Response(JSON.stringify({ error: msg }),

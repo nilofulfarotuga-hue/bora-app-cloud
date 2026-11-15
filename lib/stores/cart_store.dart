@@ -1881,9 +1881,11 @@ class CartStore extends ChangeNotifier {
       debugPrint('CartStore.verificarMbwayPendente: $e');
       return PedidoMbwayAnterior.semResposta;
     }
-    // Entretanto o carrinho pode ter sido limpo ou ter outro pedido à espera.
-    if (_mbwayPendenteId != id) return PedidoMbwayAnterior.nenhum;
     final estado = estadoDoPedidoMbway(linha);
+    // Entretanto o carrinho pode ter sido limpo (outra leitura igual a correr
+    // ao mesmo tempo): diz-se o estado na mesma, para quem chamou não criar
+    // outro pedido, mas não se limpa outra vez.
+    if (_mbwayPendenteId != id) return estado;
     if (estado == PedidoMbwayAnterior.pago ||
         estado == PedidoMbwayAnterior.ativo) {
       limparDepoisDoPedido();

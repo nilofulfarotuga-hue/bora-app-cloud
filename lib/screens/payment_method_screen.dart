@@ -1385,9 +1385,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
         ],
       ),
     );
-    if (repetir == true && mounted) {
-      unawaited(_confirmPayment(context, amount, tokensUsed: tokensUsed));
-    }
+    if (repetir != true || !mounted) return;
+    unawaited(_confirmPayment(context, amount, tokensUsed: tokensUsed));
   }
 
   /// Parte 3 (rodada 2) — grava a paragem em casa do favor (morada + coords +

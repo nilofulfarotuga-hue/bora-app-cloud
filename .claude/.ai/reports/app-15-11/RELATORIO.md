@@ -70,8 +70,42 @@ Correção minha: escrevi no registo que nenhum teste corria nos pedidos de revi
 montagem do iPhone (corrigido em 9142). E o alerta do repositório público era decisão conhecida
 (fica público para o CI ser grátis).
 
+## Depois das 11:55 (bloco da Claude.ai, letras A a F, e o inventário)
+
+A. Os testes do pedido #19. As três falhas eram minhas ou da manhã: um teste da farmácia, uma frase
+sem inglês, um teste do histórico do estafeta que ficou sem espaço no ecrã de teste, e uma nota no
+código com uma palavra que o meu próprio teste proíbe. As duas últimas foram achadas pelo Juiz.
+Está tudo corrigido; a montagem do iPhone com tudo dentro está a correr.
+
+B. Os erros de código da varredura da manhã: o estafeta novo já não fica preso em "candidatura
+enviada", a palavra-passe fraca explica-se em português, o "Partilhar" do iPhone já não fecha a
+app, os textos do Brasil saíram, o painel web já não rebenta sem Firebase, o visitante deixou de
+fazer cerca de 440 pedidos por dia que o servidor recusava, o diálogo do código de entrega já não
+rebenta e o botão Cancelar só aparece quando o servidor deixa cancelar.
+
+C. Servidor, só propostas, cada uma na caixa com o link fixo: as 7 migrações do fechar-app pela
+ordem (caixas 39 a 45), o pg_cron em lotes (46 e 47; a parte de despacho e dinheiro só com ordem),
+os achados repetidos do vigia de pagamentos e o seu alarme falso (48 e 49), o "Aprovar N" das
+sugestões com a guarda certa (50), a página pública de apagar conta e o erro das limpezas na
+função de apagar conta (51).
+
+D. Dinheiro: só relatório, sem mexer (29 cancelamentos a dinheiro em "pendente", 5 achados
+críticos antigos, 8 pagamentos a prestadores parados, 142,96 €, e 2 limpezas a dinheiro presas).
+
+E. Inventário das duas semanas na caixa 38 (15 no ar, 10 por publicar, 29 por fazer).
+
+F. O robô do talão já estava corrigido no código; falta só publicar a função (caixa 52). A
+pesquisa dentro das lojas já tinha sido feita e provada a 09/11.
+
+Juntei também o trabalho dos robôs que a sessão da manhã fez ao mesmo tempo, para os dois pedidos
+de revisão não chocarem: basta juntar o #19. O Juiz aprovou com consertos, que estão feitos, e
+confirmou que nenhuma zona protegida foi tocada.
+
+Do inventário, comecei as "Conversas ao vivo" dos robôs (pedido do Danilo de 12/11): a proposta de
+servidor está na caixa 55, o Amigo Bora já se cala quando a equipa assume, e os ecrãs do painel e
+do cliente estão a ser feitos.
+
 ## Próximo passo
 
-A Claude.ai aplica, pela ordem das caixas 25 a 33, as migrações e as funções; depois junta o #19. A
-seguir nesta sessão: o resto da varredura, o inventário das duas semanas (caixa 24) e o Juiz no
-trabalho todo.
+A Claude.ai aplica as caixas por ordem (39 a 55) e junta o #19 quando a montagem do iPhone ficar
+verde. A seguir nesta sessão: acabar e rever os ecrãs das conversas ao vivo e o resto do inventário.

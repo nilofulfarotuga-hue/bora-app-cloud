@@ -108,23 +108,43 @@ void main() {
     expect(pendente.limpeza || pendente.lavagem || pendente.casa, isFalse);
   });
 
-  test('com sessão: os dois pedidos saem e a resposta lê-se', () async {
+  // A guarda não pode calar quem tem sessão: com sessão, os dois pedidos têm
+  // de chegar ao servidor.
+  //
+  // [15/11/2026, CI 43652375486] A leitura da resposta deixou de se provar por
+  // aqui: com este servidor falso o cliente do Supabase rebenta por dentro
+  // depois de receber a resposta ("Null check operator used on a null value"),
+  // o serviço apanha o erro e devolve "nada". Isso é do andaime do teste, não
+  // da app. O que a guarda mudou é o pedido SAIR ou NÃO sair, e isso prova-se
+  // pelos pedidos que o servidor falso recebeu; a leitura prova-se no teste a
+  // seguir, sem rede.
+  test('com sessão: os dois pedidos saem', () async {
     await Supabase.instance.client.auth
         .signInWithPassword(email: _email, password: 'teste');
     expect(Supabase.instance.client.auth.currentSession, isNotNull);
     _pedidos.clear();
 
-    final resumo = await RolesService.mySummary();
-    final pendente = await RolesService.myTrabalhoPendente();
+    await RolesService.mySummary();
+    await RolesService.myTrabalhoPendente();
 
     expect(
         _perguntasDePapeis().toList(),
         containsAll(<Matcher>[
           endsWith('/rpc/my_roles_summary'),
           endsWith('/rpc/my_trabalho_pendente'),
-        ]));
-    expect(resumo.driverApproved, isTrue,
+        ]),
         reason: 'a guarda não pode calar quem tem sessão');
+  });
+
+  test('a resposta do servidor lê-se (as mesmas respostas do servidor falso)',
+      () {
+    final resumo = RolesSummary.fromJson(
+        <String, dynamic>{'has_driver': true, 'driver_status': 'approved'});
+    final pendente =
+        TrabalhoPendente.fromJson(<String, dynamic>{'estafeta': true});
+
+    expect(resumo.driverApproved, isTrue);
     expect(pendente.estafeta, isTrue);
+    expect(pendente.limpeza || pendente.lavagem || pendente.casa, isFalse);
   });
 }

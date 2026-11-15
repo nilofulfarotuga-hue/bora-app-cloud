@@ -630,3 +630,7 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   (6) O ajudante das artes das farmácias (12:15–12:55) não conseguiu apagar a pasta temporária
   `Desktop/Bora/farmacias-artes/_montar/_tmp` (54 MB de PDF que se refazem com o script); não contornou, a pasta fica e
   pode apagar-se à mão (e2e_log, fluxo `farmacias-artes-15-11`, passo `bloco-terminado`).
+  (7) 13:2x: a trava do modo automático recusou um comando que, junto com a criação dos ZIP das farmácias, listava os
+  nomes das variáveis de ambiente (eu procurava uma chave para carregar os ZIP inteiros de 15 MB). Não contornei:
+  repeti só a parte dos ZIP e carreguei pelo painel do Supabase, que aceita até 10 MB por ficheiro, por isso cada
+  farmácia ficou em 2 ZIP (e2e_log 9235).

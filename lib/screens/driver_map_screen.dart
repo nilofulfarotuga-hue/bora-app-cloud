@@ -1245,7 +1245,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
             right: 16,
             top: MediaQuery.of(context).size.height * 0.62,
             child: Semantics(
-              label: 'Centralizar mapa',
+              label: 'Centrar o mapa',
               button: true,
               child: FloatingActionButton.small(
                 heroTag: 'map_recenter_btn_driver',

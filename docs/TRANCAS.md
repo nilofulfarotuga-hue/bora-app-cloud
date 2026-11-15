@@ -644,3 +644,9 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   Correu os comandos um a um e enviou só com `git push origin ai/2026-11-15-produtos-celeste-tonico`, que passou
   (ramo ai/, só imagens e textos para a Claude.ai ver). Fica para a Claude.ai dizer se isto conta como contornar
   (e2e_log 9431 e a linha deste registo).
+  (10) ~18:3x: o ajudante dos perfis do YouTube recebeu, a meio, o trabalho seguinte (links do devocional da Lúcia no
+  TikTok, Facebook e Instagram, ordem do Danilo 18:19 passada pela Claude.ai 18:20). Ao carregar em "Publicar" no
+  comentário TT-C1 do vídeo 7708192264413138198 do TikTok (@palavradodia.lucia), o classificador do modo automático
+  recusou: "[Unsanctioned Communication]". Nada saiu (caixa limpa, 0 comentários lidos de volta). Não tentei por outro
+  lado nem nas outras redes, que são o mesmo tipo de ação. Fica para publicar quem tiver a ordem do Danilo na
+  própria conversa (e2e_log, passos links-devocional-publicados-*).

@@ -311,7 +311,11 @@ Deno.serve(async (req) => {
       .select('id, created_at, payment_method, status')
       .eq('payment_status', 'unpaid').neq('payment_method', 'cash')
       .lte('created_at', hourAgo)
-      .not('status', 'in', '(cancelled_client,cancelled_cleaner,expired)')
+      // app-15-11 (varredura 9166, n.º 6): os estados reais são cancelled_client,
+      // cancelled_no_cleaner e completed — "expired" e "cancelled_cleaner" não
+      // existem, e a limpeza cancelada por falta de profissional dava alarme
+      // falso todos os dias. Os nomes antigos ficam (não fazem mal).
+      .not('status', 'in', '(cancelled_client,cancelled_no_cleaner,cancelled_cleaner,expired)')
       .limit(50);
     if (error) errors.push(`sweep_stuck_cleaning_q: ${error.message}`);
     for (const c of cln ?? []) {

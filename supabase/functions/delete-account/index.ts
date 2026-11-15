@@ -28,7 +28,10 @@ const FINAIS = {
   reservations: ['cancelled', 'completed', 'no_show', 'cancelled_client', 'cancelled_partner'],
   tvde_rides: ['finalizada', 'cancelada_cliente', 'cancelada_motorista', 'cancelada'],
   appointments: ['cancelled', 'completed', 'no_show', 'blocked'],
-  cleaning_bookings: ['cancelled_client', 'cancelled_cleaner', 'completed', 'done'],
+  // app-15-11: o estado real de "cancelada por falta de profissional" é
+  // cancelled_no_cleaner (lido na base a 15/11); sem ele, quem tinha uma
+  // limpeza assim ficava impedido de apagar a conta ("em curso").
+  cleaning_bookings: ['cancelled_client', 'cancelled_no_cleaner', 'cancelled_cleaner', 'completed', 'done'],
 };
 
 // deno-lint-ignore no-explicit-any

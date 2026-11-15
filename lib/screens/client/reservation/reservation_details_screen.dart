@@ -6,6 +6,7 @@ import '../../../config/app_colors.dart';
 import '../../../models/falha_de_acao.dart';
 import '../../../models/reservation_model.dart';
 import '../../../stores/reservation_store.dart';
+import '../../../utils/hora_lisboa.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 import 'reservation_checkout_screen.dart' show kOccasionOptions;
 
@@ -308,7 +309,8 @@ class _ReservationDetailsScreenState extends State<ReservationDetailsScreen> {
             _SectionTitle(icon: Icons.event, text: 'Quando'.tr),
             const SizedBox(height: 8),
             Text(
-              _formatDateTimePt(_r.reservedFor.toLocal()),
+              // app-15-11: hora de Lisboa, não a do aparelho.
+              _formatDateTimePt(horaLisboa(_r.reservedFor)),
               style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,

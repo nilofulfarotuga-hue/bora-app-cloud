@@ -45,7 +45,33 @@ A skill parceiro-servicos diz que a reserva reparte 0,50 e 2,50 euros; o livro e
 1 e 2 (9120). O cartão de oferta do estafeta mostra o ganho três vezes e a janela "Novo pedido"
 repete a oferta por cima do cartão; não mexi porque é o fluxo do toque (9115).
 
+## Depois das 10:48 (ordens da Claude.ai)
+
+O ramo foi para o GitHub: a tranca deixa enviar sozinha para ramos de ensaio, desde que o comando
+vá limpo (o meu primeiro envio levava um corte da saída e foi recusado; erro meu, já conhecido).
+O pedido de revisão é o #19. Os textos que a Claude.ai pediu para aplicar estão nas caixas 25 a 33,
+cada uma com o link fixo do ficheiro no GitHub e a impressão digital, porque a tranca não deixa pôr
+texto de migração dentro da caixa. O ganho da oferta do estafeta passou a aparecer uma vez só, em
+número grande (aprovado). As farmácias têm a proposta de servidor pronta e, no app, o botão
+"Marcar como levantado" nos pedidos de demonstração e o "Pedir outra vez" do lembrete mensal.
+
+A montagem do iPhone que falhou três vezes a 14/11 caiu sempre num só teste, que o próprio ramo do
+fechar-app consertou a seguir; as corridas seguintes passaram. No meu ramo, a corrida #278 deu 3
+testes falhados: achei e corrigi dois (um teste da farmácia que acompanha a regra nova e uma frase
+da manhã sem inglês); o terceiro não o encontrei por leitura e a corrida seguinte dirá.
+
+A varredura do cliente e do parceiro achou 24 defeitos. Já corrigidos os piores: o parceiro que
+ficava preso no ecrã de entrada, o erro de rede que mandava um parceiro aprovado criar outra loja,
+os erros técnicos mostrados ao parceiro, o "CARD/MBWAY/CASH" e o saldo da carteira em formato
+inglês. Os restantes (dinheiro com ponto, datas no fuso do telemóvel, frases do Brasil) estão a ser
+feitos por um ajudante e passam pela minha revisão antes de gravar.
+
+Correção minha: escrevi no registo que nenhum teste corria nos pedidos de revisão; corre, na
+montagem do iPhone (corrigido em 9142). E o alerta do repositório público era decisão conhecida
+(fica público para o CI ser grátis).
+
 ## Próximo passo
 
-A Claude.ai envia o ramo ai/2026-11-15-app e abre o pedido de revisão para o CI correr; aplica a
-migração 20261115104000, a ajuda e a 8e; publica o support-chatbot; corre a prova A6.
+A Claude.ai aplica, pela ordem das caixas 25 a 33, as migrações e as funções; depois junta o #19. A
+seguir nesta sessão: o resto da varredura, o inventário das duas semanas (caixa 24) e o Juiz no
+trabalho todo.

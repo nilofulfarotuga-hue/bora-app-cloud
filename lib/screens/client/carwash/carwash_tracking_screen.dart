@@ -8,6 +8,7 @@ import '../../../config/app_spacing.dart';
 import '../../../models/carwash_models.dart';
 import '../../../services/carwash_upload_service.dart';
 import '../../../stores/carwash_store.dart';
+import '../../../utils/euros.dart';
 import '../../../widgets/bora/bora_bottom_action_bar.dart';
 import '../../../widgets/bora_foto_ecra_inteiro.dart';
 import '../../shared/carwash_chat_screen.dart';
@@ -478,7 +479,7 @@ class _CartaoDados extends StatelessWidget {
                 child: Text('Total'.tr,
                     style: const TextStyle(fontWeight: FontWeight.w800)),
               ),
-              Text('${b.totalEur.toStringAsFixed(2)} €',
+              Text(eur(b.totalEur), // app-15-11: "12,50 €"
                   style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,

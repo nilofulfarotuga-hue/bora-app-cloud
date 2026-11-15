@@ -464,9 +464,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
       // Log full error for debugging (StorageException has statusCode field).
       debugPrint('[profile_screen] avatar upload error: $e · userId=$userId');
+      // app-15-11: o erro técnico fica no registo; no ecrã, frase simples.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erro ao enviar foto: {0}'.trArgs([e])),
+          content: Text('Não foi possível enviar a foto. Tente outra vez.'.tr),
           duration: const Duration(seconds: 6),
         ),
       );

@@ -14,6 +14,7 @@ import '../../../services/carwash_upload_service.dart';
 import '../../../services/location_service.dart';
 import '../../../stores/carwash_store.dart';
 import '../../../stores/session_store.dart';
+import '../../../utils/euros.dart';
 import '../../../utils/safe_image_picker.dart';
 import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/checkout_legal_notice.dart';
@@ -371,7 +372,7 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
             children: [
               if (q != null) ...[
                 Text(
-                  'Total: {0}'.trArgs(['${q.totalEur.toStringAsFixed(2)} €']),
+                  'Total: {0}'.trArgs([eur(q.totalEur)]), // app-15-11: "12,50 €"
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 15,
@@ -629,7 +630,7 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
                       child: Text('Total a pagar'.tr,
                           style: const TextStyle(fontWeight: FontWeight.w700)),
                     ),
-                    Text('${q.totalEur.toStringAsFixed(2)} €',
+                    Text(eur(q.totalEur),
                         style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,

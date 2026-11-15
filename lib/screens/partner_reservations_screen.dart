@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../models/reservation_model.dart';
+import '../utils/hora_lisboa.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 
@@ -110,7 +111,23 @@ class _PartnerReservationsScreenState
             return const Center(child: CircularProgressIndicator());
           }
           if (snap.hasError) {
-            return Center(child: Text('Erro: ${snap.error}'));
+            // app-15-11: frase simples no ecrã; o erro técnico fica no registo.
+            debugPrint('[partner_reservations] falha a carregar: ${snap.error}');
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Não foi possível carregar as reservas.'),
+                  TextButton(
+                    // corpo em bloco: o setState não pode devolver o Future.
+                    onPressed: () => setState(() {
+                      _future = _load();
+                    }),
+                    child: const Text('Tentar de novo'),
+                  ),
+                ],
+              ),
+            );
           }
           final list = snap.data ?? const <ReservationModel>[];
           if (list.isEmpty) {
@@ -202,7 +219,7 @@ class _ReservationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final d = reservation.reservedFor.toLocal();
+    final d = horaLisboa(reservation.reservedFor); // app-15-11: hora de Lisboa
     final dateStr =
         '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year} '
         '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';

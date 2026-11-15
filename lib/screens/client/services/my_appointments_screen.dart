@@ -10,6 +10,7 @@ import 'booking_flow_screen.dart';
 
 import '../../../l10n/tr.dart';
 import '../../../utils/euros.dart';
+import '../../../utils/hora_lisboa.dart';
 
 /// Vertical Serviços — "As Minhas Marcações".
 /// 3 tabs: Próximas / Passadas / Canceladas. Cancelar com aviso se <24h.
@@ -433,7 +434,8 @@ class _AppointmentCard extends StatelessWidget {
                     ],
                     const SizedBox(height: Spacing.xxs),
                     Text(
-                      _formatDateTimePt(a.scheduledAt.toLocal()),
+                      // app-15-11: hora de Lisboa, não a do aparelho.
+                      _formatDateTimePt(horaLisboa(a.scheduledAt)),
                       style: const TextStyle(
                         fontSize: 13,
                         color: AppColors.textSecondary,
@@ -463,7 +465,7 @@ class _AppointmentCard extends StatelessWidget {
                     if (a.wasRescheduled && a.originalScheduledAt != null) ...[
                       const SizedBox(height: Spacing.xxs),
                       Text(
-                        'Reagendada · era {0}'.trArgs([_formatDateTimePt(a.originalScheduledAt!.toLocal())]),
+                        'Reagendada · era {0}'.trArgs([_formatDateTimePt(horaLisboa(a.originalScheduledAt!))]),
                         style: const TextStyle(
                           fontSize: 11.5,
                           color: AppColors.textSubtle,
@@ -726,8 +728,8 @@ class _AppointmentDetailSheet extends StatelessWidget {
           _DetailRow(
             icon: Icons.schedule,
             label: 'Data e hora'.tr,
-            value:
-                _AppointmentCard._formatDateTimePt(a.scheduledAt.toLocal()),
+            value: _AppointmentCard._formatDateTimePt(
+                horaLisboa(a.scheduledAt)), // app-15-11: hora de Lisboa
           ),
           _DetailRow(
             icon: Icons.timer_outlined,
@@ -749,7 +751,7 @@ class _AppointmentDetailSheet extends StatelessWidget {
               icon: Icons.event_repeat,
               label: 'Reagendada'.tr,
               value: 'Horário original: '
-                  '${_AppointmentCard._formatDateTimePt(a.originalScheduledAt!.toLocal())}',
+                  '${_AppointmentCard._formatDateTimePt(horaLisboa(a.originalScheduledAt!))}',
             ),
           if (a.clientNotes != null && a.clientNotes!.isNotEmpty)
             _DetailRow(

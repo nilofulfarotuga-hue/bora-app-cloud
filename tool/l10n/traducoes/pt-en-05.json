@@ -60,7 +60,7 @@
   "Reagendar marcação": "Reschedule",
   "Receba uma notificação e confirme no MBWay.": "You get a notification and confirm in MBWay.",
   "Recebe um pedido na app MB WAY": "You get a request in the MB WAY app",
-  "Recebemos. Resposta em até {0}h.": "We got it. Reply within {0}h.",
+  "Recebemos. Resposta até {0} h.": "We got it. Reply within {0}h.",
   "Receber pagamentos": "Receive payments",
   "Recebes €{0} desta corrida. A volta já está paga — não cobres nada ao cliente.": "You get €{0} from this ride. The return trip is already paid — do not charge the customer anything.",
   "Recebes €{0} desta corrida. O cliente já pagou os €{1} online — não cobres nada ao cliente.": "You get €{0} from this ride. The customer already paid €{1} online — do not charge the customer anything.",
@@ -100,7 +100,7 @@
   "Resgatar": "Redeem",
   "Resgatar código": "Redeem code",
   "Resposta do parceiro:": "Partner's reply:",
-  "Resposta em até {0}h em {1}": "Reply within {0}h on {1}",
+  "Resposta até {0} h em {1}": "Reply within {0}h on {1}",
   "Resposta em até {0}h · {1}": "Reply within {0}h · {1}",
   "Resposta imediata · 24/7": "Instant reply · 24/7",
   "Restam {0} hoje · {1} nesta sessão": "{0} left today · {1} in this session",
@@ -182,6 +182,6 @@
   "Sou Parceiro": "I am a Partner",
   "Standard": "Standard",
   "Substituir produto?": "Replace product?",
-  "Substituído{0} · €{1}": "Replaced{0} · €{1}",
+  "Substituído{0} · {1}": "Replaced{0} · {1}",
   "Subtotal": "Subtotal"
 }

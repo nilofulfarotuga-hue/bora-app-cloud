@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
+import '../utils/euros.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 
@@ -66,8 +67,9 @@ class _ClientPromoCodeScreenState extends State<ClientPromoCodeScreen> {
       final tokensGranted = (m['tokens_granted'] as num?)?.toInt() ?? 0;
       final euroValue = (m['euro_value'] as num?)?.toDouble() ??
           (tokensGranted * 0.005);
+      // app-15-11: formato de Portugal ("≈1,50 €")
       final msg =
-          'Ganhaste {0} Bora Tokens (≈€{1})! Já estão na tua conta.'.trArgs([tokensGranted, euroValue.toStringAsFixed(2)]);
+          'Ganhaste {0} Bora Tokens (≈{1})! Já estão na tua conta.'.trArgs([tokensGranted, eur(euroValue)]);
       if (mounted) {
         setState(() {
           _successMessage = msg;

@@ -11,6 +11,7 @@ import '../widgets/bora/bora_screen_app_bar.dart';
 
 import '../l10n/tr.dart';
 import '../utils/euros.dart';
+import '../utils/hora_lisboa.dart';
 
 /// Referral / Convite — Feature 10.
 /// Mostra código único do utilizador + botão Share + estatísticas.
@@ -54,7 +55,12 @@ class _ReferralScreenState extends State<ReferralScreen> {
         _invites = (invites as List).map((e) => (e as Map).cast<String, dynamic>()).toList();
       });
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      // app-15-11: o erro técnico vai para o registo, nunca para o ecrã.
+      debugPrint('[referral] falha a carregar: $e');
+      if (mounted) {
+        setState(() =>
+            _error = 'Não foi possível carregar. Tente outra vez.'.tr);
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -276,7 +282,8 @@ class _ReferralScreenState extends State<ReferralScreen> {
 
   Widget _inviteTile(Map<String, dynamic> inv) {
     final status = inv['status'] as String? ?? 'pending';
-    final created = DateTime.parse(inv['created_at'] as String).toLocal();
+    // app-15-11: dia de Lisboa, mostrado como "15/11/2026".
+    final created = horaLisboa(DateTime.parse(inv['created_at'] as String));
     final color = status == 'first_order_done'
         ? AppColors.success
         : status == 'signed_up'
@@ -298,7 +305,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
       child: ListTile(
         leading: CircleAvatar(backgroundColor: color, child: const Icon(Icons.person, color: Colors.white)),
         title: Text(inv['invited_email'] as String? ?? 'Amigo'),
-        subtitle: Text('$label · ${created.year}-${created.month.toString().padLeft(2, '0')}-${created.day.toString().padLeft(2, '0')}'),
+        subtitle: Text('$label · ${created.day.toString().padLeft(2, '0')}/${created.month.toString().padLeft(2, '0')}/${created.year}'),
         trailing: status == 'first_order_done'
             ? const Icon(Icons.check_circle, color: AppColors.success)
             : null,

@@ -843,7 +843,8 @@ class _BottomCardState extends State<_BottomCard> {
                       border: Border.all(color: const Color(0xFFFBCFE8)),
                     ),
                     child: Text(
-                      '📅 Encomenda para {0}/{1} às {2}:{3}{4}'.trArgs([order.scheduledFor!.day.toString().padLeft(2, '0'), order.scheduledFor!.month.toString().padLeft(2, '0'), order.scheduledFor!.hour.toString().padLeft(2, '0'), order.scheduledFor!.minute.toString().padLeft(2, '0'), order.status == OrderStatus.preparing && order.prepTimeMinutes != null ? ' · fica pronta em ${order.prepTimeMinutes} min' : '']),
+                      // app-15-11: dia e hora de Lisboa, não os do aparelho.
+                      '📅 Encomenda para {0}/{1} às {2}:{3}{4}'.trArgs([order.scheduledFor!.toLisboa().day.toString().padLeft(2, '0'), order.scheduledFor!.toLisboa().month.toString().padLeft(2, '0'), order.scheduledFor!.toLisboa().hour.toString().padLeft(2, '0'), order.scheduledFor!.toLisboa().minute.toString().padLeft(2, '0'), order.status == OrderStatus.preparing && order.prepTimeMinutes != null ? ' · fica pronta em ${order.prepTimeMinutes} min' : '']),
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 13.5,
@@ -884,9 +885,10 @@ class _BottomCardState extends State<_BottomCard> {
                   Text(
                     'A loja está a preparar o teu pedido — pronto por volta das {0}.'.trArgs([
                       () {
+                        // app-15-11: hora de Lisboa (o createdAt vem em UTC).
                         final t = order.createdAt
-                            .toLocal()
-                            .add(Duration(minutes: order.prepTimeMinutes!));
+                            .add(Duration(minutes: order.prepTimeMinutes!))
+                            .toLisboa();
                         return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
                       }()
                     ]),

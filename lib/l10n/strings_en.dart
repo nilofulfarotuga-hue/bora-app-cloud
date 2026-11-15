@@ -2136,8 +2136,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Awaiting payment',
   'Aguardando o estafeta concluir a compra na loja…':
       'Waiting for the courier to finish the purchase at the store…',
-  'Aguardando resposta do cliente...':
-      'Waiting for the customer\'s reply...',
+  'À espera da resposta do cliente…':
+      'Waiting for the customer\'s reply…',
   'Ainda estamos a confirmar o pagamento. Vê o estado no ecrã da corrida — se o MB Way passou, ela segue sozinha.':
       'We are still confirming the payment. Check the status on the ride screen — if MB Way went through, it continues on its own.',
   'Ainda estás a tempo — o cancelamento é grátis.':
@@ -2822,8 +2822,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Error cancelling: {0}',
   'Erro ao criar o pedido. Verifica a ligação e tenta de novo.':
       'Error creating the order. Check your connection and try again.',
-  'Erro ao enviar foto: {0}':
-      'Error uploading photo: {0}',
+  'Não foi possível enviar a foto. Tente outra vez.':
+      'Could not send the photo. Try again.',
   'Erro ao iniciar pagamento. Verifica a ligação e tenta de novo.\n({0})':
       'Error starting payment. Check your connection and try again.\n({0})',
   'Erro ao remover foto: {0}':
@@ -3105,8 +3105,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Freshness guaranteed',
   'Galeria':
       'Gallery',
-  'Ganhaste {0} Bora Tokens (≈€{1})! Já estão na tua conta.':
-      'You earned {0} Bora Tokens (≈€{1})! They are already in your account.',
+  'Ganhaste {0} Bora Tokens (≈{1})! Já estão na tua conta.':
+      'You earned {0} Bora Tokens (≈{1})! They are already in your account.',
   'Garantir a volta':
       'Secure the return trip',
   'Garantir ida e volta · €{0}':
@@ -4078,7 +4078,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'You get a notification and confirm in MBWay.',
   'Recebe um pedido na app MB WAY':
       'You get a request in the MB WAY app',
-  'Recebemos. Resposta em até {0}h.':
+  'Recebemos. Resposta até {0} h.':
       'We got it. Reply within {0}h.',
   'Receber pagamentos':
       'Receive payments',
@@ -4162,7 +4162,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'Redeem code',
   'Resposta do parceiro:':
       'Partner\'s reply:',
-  'Resposta em até {0}h em {1}':
+  'Resposta até {0} h em {1}':
       'Reply within {0}h on {1}',
   'Resposta em até {0}h · {1}':
       'Reply within {0}h · {1}',
@@ -5499,4 +5499,7 @@ const Map<String, String> kStringsEn = <String, String>{
       '{0} — the pro only brings the tools',
   'Material do cliente — levas só as ferramentas':
       "Client's materials — bring only your tools",
+  // 15/11/2026 (app-15-11): convites sem o erro técnico no ecrã.
+  'Não foi possível carregar. Tente outra vez.':
+      'Could not load. Try again.',
 };

@@ -306,7 +306,7 @@ void main() {
       expect(corrida('cancelada_cliente', taxa: 700).cancelFeeCents, 700);
       expect(valorNoHistorico(corrida('cancelada_cliente', taxa: 700),
               packageCents: 800),
-          '€7.00');
+          '7,00 €');
       expect(
           valorNoHistorico(corrida('cancelada_cliente', taxa: 0),
               packageCents: 800),
@@ -316,7 +316,7 @@ void main() {
           'Sem custo',
           reason: 'sem o campo no mapa a taxa é 0, não a tarifa');
       expect(valorNoHistorico(corrida('finalizada'), packageCents: 800),
-          '€7.00',
+          '7,00 €',
           reason: 'as não-canceladas continuam a mostrar a tarifa');
     });
   });

@@ -56,9 +56,10 @@ class _SupportEmailFormScreenState extends State<SupportEmailFormScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
+            // app-15-11: PT-PT ("Resposta até 24 h"), não "em até".
             ticketId == null
-                ? 'Recebemos. Resposta em até {0}h.'.trArgs([sla])
-                : 'Recebemos #${ticketId.substring(0, 8)}. Resposta em até ${sla}h.',
+                ? 'Recebemos. Resposta até {0} h.'.trArgs([sla])
+                : 'Recebemos #${ticketId.substring(0, 8)}. Resposta até $sla h.',
           ),
         ),
       );
@@ -133,7 +134,7 @@ class _SupportEmailFormScreenState extends State<SupportEmailFormScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Resposta em até {0}h em {1}'.trArgs([provider.slaHours, provider.supportEmail]),
+                'Resposta até {0} h em {1}'.trArgs([provider.slaHours, provider.supportEmail]),
                 style: const TextStyle(
                     fontSize: 12, color: AppColors.textSecondary),
               ),

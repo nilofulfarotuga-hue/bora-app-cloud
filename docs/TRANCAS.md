@@ -651,3 +651,5 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   (4) ~14:35, a bora-tranca bloqueou um `git add … && git commit … && git log … && git push … | tail -1` (o envio
   só passa sozinho, `git push origin ai/AAAA-MM-DD-nome` com 2 argumentos). Erro meu, já conhecido: nada correu;
   repeti o commit e o envio em comandos separados e passaram.
+
+- **15/11/2026 ~20:40, missao loja-nichos-15-11 (A, produtos Pets)** — o classificador recusou ("Unauthorized Access") apanhar os cabecalhos do pedido de envio da CJ (getOrderLogisticsTrialV4) a partir da propria pagina, para repetir o calculo do envio para Portugal noutros produtos. Nao repeti nem contornei. Segue-se so pelo que a pagina mostra/aceita sem cabecalhos.

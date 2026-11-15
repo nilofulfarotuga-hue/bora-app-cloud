@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../widgets/admin/admin_para_que_serve.dart';
 import 'admin_menu_registry.dart';
 
 /// Menu do painel admin (PT-BR): busca no topo, favoritos fixos, secções
@@ -59,8 +60,9 @@ class _AdminMenuAccordionState extends State<AdminMenuAccordion> {
       widget.onOpen!(context, item);
       return;
     }
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => item.builder()));
+    Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => AdminTelaComProposito(
+            proposito: item.subtitle, child: item.builder())));
   }
 
   @override

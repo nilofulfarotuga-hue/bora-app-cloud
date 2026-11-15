@@ -15,6 +15,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../utils/hora_lisboa_ext.dart';
+import '../../services/admin_nome_sync.dart';
 
 class AdminPendingActionsScreen extends StatefulWidget {
   const AdminPendingActionsScreen({super.key});
@@ -169,6 +170,12 @@ class _AdminPendingActionsScreenState
       final r = result as Map?;
       final hasError = r != null && r['error'] != null;
       final isDispatch = r != null && r['action'] == 'EXTERNAL_DISPATCH_REQUIRED';
+      // manha-15-11 B1: o RPC só muda public.users; o nome que a app mostra
+      // é o do login (bora_name), que se copia aqui.
+      if (!hasError && action['action_type'] == 'ACCOUNT_UPDATE') {
+        await sincronizarNomeNoLogin(actionId: action['id']?.toString());
+        if (!mounted) return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: hasError

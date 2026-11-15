@@ -157,6 +157,24 @@ class AuthStore extends ChangeNotifier {
       'Este email já tem uma conta. Entra com a palavra-passe ou usa '
       '"Esqueci a palavra-passe" — não cries outra conta.';
 
+  /// app-15-11 (varredura 9166, n.º 3): o 422 `weak_password` chegava em
+  /// inglês ("Password should be at least…"); 5 vezes em 24 h. Diz-se em
+  /// PT-PT o que falta, pelo texto que o servidor manda.
+  static String mensagemPalavraPasseFraca(String? doServidor) {
+    final m = (doServidor ?? '').toLowerCase();
+    final minimo = RegExp(r'at least (\d+) characters').firstMatch(m);
+    if (minimo != null) {
+      return 'A palavra-passe tem de ter pelo menos ${minimo.group(1)} caracteres.';
+    }
+    if (m.contains('one character of each')) {
+      return 'A palavra-passe tem de misturar letras minúsculas, maiúsculas e números.';
+    }
+    if (m.contains('known') || m.contains('pwned') || m.contains('easy to guess')) {
+      return 'Essa palavra-passe é conhecida e fácil de adivinhar. Escolhe outra.';
+    }
+    return 'A palavra-passe é fraca. Escolhe outra mais forte.';
+  }
+
   /// FONTE DE VERDADE DO PAPEL, e é só esta.
   ///
   /// O papel do utilizador autenticado lê-se do `user_metadata` do token, por
@@ -1019,6 +1037,7 @@ class AuthStore extends ChangeNotifier {
       if (e.code == 'user_already_exists') {
         return duplicatePartnerEmailMessage;
       }
+      if (e.code == 'weak_password') return mensagemPalavraPasseFraca(e.message);
       return e.message;
     } catch (e) {
       return 'Erro ao criar conta. Tente novamente.';
@@ -1292,6 +1311,7 @@ class AuthStore extends ChangeNotifier {
       if (e.code == 'user_already_exists') {
         return duplicatePartnerEmailMessage;
       }
+      if (e.code == 'weak_password') return mensagemPalavraPasseFraca(e.message);
       return e.message;
     } catch (e) {
       return 'Erro ao criar conta. Tente novamente.';
@@ -1632,7 +1652,8 @@ class AuthStore extends ChangeNotifier {
       if (e.code == 'user_already_exists') {
         return duplicatePartnerEmailMessage;
       }
-      // Restantes erros do Supabase (ex.: password fraca) — mostra tal qual.
+      if (e.code == 'weak_password') return mensagemPalavraPasseFraca(e.message);
+      // Restantes erros do Supabase — mostra tal qual.
       return e.message;
     } catch (e) {
       return 'Erro ao criar conta. Tente novamente.';

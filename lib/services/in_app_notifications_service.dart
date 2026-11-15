@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'tvde_visibilidade.dart';
+import '../utils/sessao.dart';
 
 /// Avisos do Bora Motorista (TVDE de passageiros) no sininho: `tvde_*`
 /// (ex.: `tvde_cancel_comp`, `tvde_goodwill_credit`) e `ride_*`
@@ -33,6 +34,8 @@ class InAppNotificationsService {
   final _supa = Supabase.instance.client;
 
   Future<int> unreadCount() async {
+    // app-15-11 (varredura 9166, n.º 17): visitante sem sessão não chama (o servidor recusava ~400×/dia).
+    if (!temSessao()) return 0;
     try {
       // 04/11/2026: com o Bora Motorista fechado o número do sininho conta
       // só o que a lista mostra (sem os avisos de corridas).
@@ -51,6 +54,8 @@ class InAppNotificationsService {
   /// Igual a [list] mas deixa passar o erro — para o ecrã mostrar
   /// "Não foi possível carregar" em vez de "Sem notificações" (04/10).
   Future<List<Map<String, dynamic>>> listOrThrow({int limit = 50}) async {
+    // app-15-11 (varredura 9166, n.º 17): visitante sem sessão não chama (o servidor recusava ~400×/dia).
+    if (!temSessao()) return const [];
     final res = await _supa
         .rpc('client_list_notifications', params: {'p_limit': limit});
     return _semBoraMotoristaSeFechado(

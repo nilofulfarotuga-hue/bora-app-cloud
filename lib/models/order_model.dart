@@ -926,11 +926,11 @@ extension OrderStatusLabel on OrderStatus {
       case OrderStatus.created:
         return 'Pedido criado';
       case OrderStatus.preparing:
-        return 'Restaurante preparando';
+        return 'A preparar o pedido'; // app-15-11: PT-PT (era "preparando")
       case OrderStatus.readyForPickup:
         return 'Pronto para levantar';
       case OrderStatus.callingDriver:
-        return 'Aguardando estafeta';
+        return 'À procura de estafeta'; // app-15-11: PT-PT (era "Aguardando")
       case OrderStatus.driverAccepted:
         return 'Estafeta a caminho';
       case OrderStatus.pickedUp:

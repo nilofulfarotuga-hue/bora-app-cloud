@@ -554,10 +554,14 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
       context.read<AuthStore>().logout(wipeBiometrics: false);
       _clearDraft();
 
+      // app-15-11 (varredura 9166, n.º 2): fica a raiz (_RootNavigator) por
+      // baixo. Antes tiravam-se todas as rotas, a raiz saía da árvore e "Sair"
+      // e "Usar a app como cliente" mudavam o estado sem ninguém o mostrar: o
+      // estafeta novo ficava preso neste ecrã.
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const DriverPendingScreen()),
-        (route) => false,
+        (route) => route.isFirst,
       );
     } catch (e) {
       if (!mounted) return;

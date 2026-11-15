@@ -81,9 +81,23 @@ class DriverPendingScreen extends StatelessWidget {
                       style: FilledButton.styleFrom(
                           backgroundColor: AppColors.primary),
                       onPressed: () async {
+                        // app-15-11 (varredura 9166, n.º 2): logo a seguir à
+                        // candidatura já não há sessão (o registo termina-a);
+                        // aí escolhe-se o papel de cliente e a raiz mostra a
+                        // entrada de cliente. Com sessão, troca por dentro.
+                        if (context.read<AuthStore>().userId == null) {
+                          await context.read<SessionStore>().setRole(UserRole.client);
+                          if (context.mounted) {
+                            Navigator.of(context).popUntil((route) => route.isFirst);
+                          }
+                          return;
+                        }
                         // Sem palavra-passe outra vez: a sessao ja e a mesma para
                         // todos os perfis.
                         final ok = await activateRole(context, UserRole.client);
+                        if (ok && context.mounted) {
+                          Navigator.of(context).popUntil((route) => route.isFirst);
+                        }
                         if (!ok && context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -101,9 +115,14 @@ class DriverPendingScreen extends StatelessWidget {
                     width: double.infinity,
                     height: 52,
                     child: OutlinedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         context.read<AuthStore>().logout();
-                        context.read<SessionStore>().clearRole();
+                        await context.read<SessionStore>().clearRole();
+                        // app-15-11: volta à raiz (se este ecrã veio por cima
+                        // do registo, sem isto ninguém mostrava a saída).
+                        if (context.mounted) {
+                          Navigator.of(context).popUntil((route) => route.isFirst);
+                        }
                       },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.warning,

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../utils/origem_partilha.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../widgets/bora_support_fab.dart';
@@ -75,7 +76,10 @@ class _ReferralScreenState extends State<ReferralScreen> {
     final message =
         'Junta-te ao Bora App e ganhamos os dois €5!\n\nUsa o meu código: {0}\n\nFaz o teu primeiro pedido na app Bora — entrega em Guarda.'.trArgs([code]);
     try {
-      await Share.share(message, subject: 'Convite Bora App'.tr);
+      // app-15-11: com origem, para o iPad/iOS 26 não fecharem a app.
+      await Share.share(message,
+          subject: 'Convite Bora App'.tr,
+          sharePositionOrigin: origemDaPartilha(context));
     } catch (_) {
       // Fallback: copiar para clipboard se o share sheet falhar.
       await Clipboard.setData(ClipboardData(text: message));

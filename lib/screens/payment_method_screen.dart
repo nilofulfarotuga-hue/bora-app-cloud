@@ -1456,7 +1456,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-              'Endereço de entrega não definido. Volte e selecione um endereço.'.tr),
+              'Falta a morada de entrega. Volta atrás e escolhe uma morada.'.tr),
           backgroundColor: Colors.red,
         ),
       );

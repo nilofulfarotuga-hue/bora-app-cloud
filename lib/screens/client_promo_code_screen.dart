@@ -7,6 +7,7 @@ import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 
 import '../l10n/tr.dart';
+import '../utils/sessao.dart';
 
 /// Ecrã para o cliente resgatar um código promocional → ganha tokens.
 /// Chama RPC `client_redeem_promo_tokens(p_code text)`.
@@ -107,6 +108,7 @@ class _ClientPromoCodeScreenState extends State<ClientPromoCodeScreen> {
   /// Best-effort: força refresh do saldo de tokens em outros ecrãs.
   /// Usa wallet_get_balance que devolve tokens_balance actualizado.
   Future<void> _refreshTokenBalance() async {
+    if (!temSessao()) return; // app-15-11
     try {
       await Supabase.instance.client.rpc('wallet_get_balance');
     } catch (_) {/* silencioso */}

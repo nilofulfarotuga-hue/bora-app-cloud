@@ -1,3 +1,4 @@
+import '../utils/origem_partilha.dart';
 import '../utils/io_compat.dart';
 
 import 'dart:convert';
@@ -68,6 +69,7 @@ class AdminExportService {
     await Share.shareXFiles(
       [XFile(file.path, mimeType: 'text/csv')],
       subject: subject ?? filename,
+      sharePositionOrigin: origemDaPartilha(), // app-15-11: iPad/iOS 26
     );
   }
 
@@ -98,6 +100,7 @@ class AdminExportService {
     await Share.shareXFiles(
       [XFile(file.path, mimeType: 'text/csv')],
       subject: subject ?? filename,
+      sharePositionOrigin: origemDaPartilha(), // app-15-11: iPad/iOS 26
     );
   }
 
@@ -167,6 +170,7 @@ class AdminExportService {
     await Share.shareXFiles(
       [XFile(file.path, mimeType: 'application/pdf')],
       subject: title,
+      sharePositionOrigin: origemDaPartilha(), // app-15-11: iPad/iOS 26
     );
   }
 

@@ -650,7 +650,7 @@ Future<void> main() async {
         padding: const EdgeInsets.all(16),
         child: const Center(
           child: Text(
-            'Ocorreu um erro nesta tela',
+            'Ocorreu um erro neste ecrã', // app-15-11: PT-PT (era "tela")
             style: TextStyle(color: Colors.red, fontSize: 16),
             textAlign: TextAlign.center,
           ),

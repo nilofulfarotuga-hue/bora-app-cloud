@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../utils/origem_partilha.dart';
 import '../l10n/tr.dart';
 
 /// Partilhar a viagem TVDE em tempo real (como a Uber/Bolt): o cliente cria um
@@ -29,8 +30,11 @@ class TvdePartilhaService {
     final messenger = ScaffoldMessenger.maybeOf(context);
     try {
       final url = await criarLink(rideId, origem: origem);
+      if (!context.mounted) return;
       await Share.share(
-          'Segue a minha viagem Bora em tempo real: {0}'.trArgs([url]));
+          'Segue a minha viagem Bora em tempo real: {0}'.trArgs([url]),
+          // app-15-11: com origem, para o iPad/iOS 26 não fecharem a app.
+          sharePositionOrigin: origemDaPartilha(context));
     } catch (e) {
       debugPrint('[TvdePartilha] falhou: $e');
       messenger?.showSnackBar(SnackBar(

@@ -2735,7 +2735,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'Address',
   'Endereço de entrega':
       'Delivery address',
-  'Endereço de entrega não definido. Volte e selecione um endereço.':
+  'Falta a morada de entrega. Volta atrás e escolhe uma morada.':
       'Delivery address not set. Go back and select an address.',
   'Endereço de recolha':
       'Pickup address',

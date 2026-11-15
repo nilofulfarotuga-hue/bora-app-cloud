@@ -1684,8 +1684,21 @@ class _BottomPanelState extends State<_BottomPanel> {
                     }
                     // P6 (2026-08-17) — o SERVIDOR valida o PIN e fecha a
                     // entrega. A app envia; nunca decide localmente.
-                    final r =
-                        await orderStore.finishOrderWithPin(order, entered);
+                    // app-15-11 (varredura 9166, n.º 19): o diálogo pode fechar
+                    // enquanto o servidor responde (o pedido muda por tempo
+                    // real); escrever nele depois disso deitava a app abaixo.
+                    final DeliveryPinResult r;
+                    try {
+                      r = await orderStore.finishOrderWithPin(order, entered);
+                    } catch (e) {
+                      debugPrint('[codigo_entrega] falhou: $e');
+                      if (ctx.mounted) {
+                        setDialogState(() => errorText =
+                            'Não foi possível concluir. Tenta de novo.');
+                      }
+                      return;
+                    }
+                    if (!ctx.mounted) return;
                     if (r.ok) {
                       if (dialogContext.mounted) {
                         Navigator.of(dialogContext).pop(true);

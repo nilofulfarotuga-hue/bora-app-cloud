@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:share_plus/share_plus.dart';
 
+import '../utils/origem_partilha.dart';
 import '../config/app_colors.dart';
 import '../l10n/tr.dart';
 import '../models/order_model.dart';
@@ -45,7 +46,7 @@ class BotaoPartilharSeguimento extends StatelessWidget {
     return IconButton(
       tooltip: 'Partilhar o seguimento'.tr,
       icon: const Icon(Icons.ios_share, color: AppColors.textSecondary),
-      onPressed: () {
+      onPressed: () async {
         final texto = textoPartilhaSeguimento(
           order,
           minutos: order.scheduledFor == null
@@ -53,7 +54,14 @@ class BotaoPartilharSeguimento extends StatelessWidget {
               : null,
           agora: DateTime.now(),
         );
-        Share.share(texto);
+        // app-15-11 (varredura 9166, n.º 4): com origem e sem rebentar se a
+        // folha de partilha falhar (iPad/iOS 26 fechavam a app).
+        try {
+          await Share.share(texto,
+              sharePositionOrigin: origemDaPartilha(context));
+        } catch (e) {
+          debugPrint('[partilhar_seguimento] falhou: $e');
+        }
       },
     );
   }

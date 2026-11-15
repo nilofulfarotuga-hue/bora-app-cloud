@@ -360,13 +360,13 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
       }
       if (_passwordController.text.length < 6) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Senha mínima de 6 caracteres')),
+          const SnackBar(content: Text('A palavra-passe tem de ter pelo menos 6 caracteres')),
         );
         return false;
       }
       if (_confirmPasswordController.text != _passwordController.text) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('As senhas não coincidem')),
+          const SnackBar(content: Text('As palavras-passe não coincidem')),
         );
         return false;
       }
@@ -929,7 +929,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                             Expanded(
                               child: Text(
                                 'Sessão iniciada como ${_emailController.text}. '
-                                'Não precisas de repetir email/senha — só falta '
+                                'Não precisas de repetir email/palavra-passe — só falta '
                                 'concluir o registo do estabelecimento.',
                               ),
                             ),
@@ -958,7 +958,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                       controller: _passwordController,
                       obscureText: _obscurePassword,
                       decoration: InputDecoration(
-                        labelText: 'Senha',
+                        labelText: 'Palavra-passe',
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
                           icon: Icon(
@@ -979,7 +979,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                       controller: _confirmPasswordController,
                       obscureText: _obscureConfirmPassword,
                       decoration: InputDecoration(
-                        labelText: 'Confirmar senha',
+                        labelText: 'Confirmar palavra-passe',
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
                           icon: Icon(

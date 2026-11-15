@@ -173,6 +173,16 @@ class ParceiroPrescricoesScreen extends StatelessWidget {
       body: StreamBuilder<List<PedidoPrescricao>>(
         stream: PrescricaoService().daLoja(restaurantId),
         builder: (context, s) {
+          // app-15-11: com erro mostra-o (antes ficava a roda para sempre).
+          if (s.hasError && !s.hasData) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('Não foi possível carregar os pedidos. Verifique a internet e abra outra vez.',
+                    textAlign: TextAlign.center),
+              ),
+            );
+          }
           if (!s.hasData) return const Center(child: CircularProgressIndicator());
           return ParceiroPrescricoesLista(pedidos: s.data!);
         },
@@ -330,6 +340,11 @@ class _ParceiroPrescricaoCorpoState extends State<ParceiroPrescricaoCorpo> {
       future: _svc.urlAssinado(caminho, segundos: 600),
       builder: (context, s) {
         final url = s.data;
+        // app-15-11: pedido acabado sem link (falhou ou os dados já foram
+        // apagados) = aviso, não roda para sempre.
+        if (url == null && s.connectionState == ConnectionState.done) {
+          return SizedBox(height: altura, child: const Center(child: Text('Não foi possível abrir a imagem.')));
+        }
         if (url == null) {
           return SizedBox(height: altura, child: const Center(child: CircularProgressIndicator()));
         }
@@ -417,7 +432,11 @@ class _ParceiroPrescricaoCorpoState extends State<ParceiroPrescricaoCorpo> {
               _cartao(Column(children: [
                 const Text('O cliente confirmou', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
                 const SizedBox(height: 8),
-                const Text('Código de levantamento (o estafeta mostra-o ao chegar)', textAlign: TextAlign.center),
+                Text(
+                    p.isDemo
+                        ? 'Código de levantamento (demonstração: não vem estafeta)'
+                        : 'Código de levantamento (o estafeta mostra-o ao chegar)',
+                    textAlign: TextAlign.center),
                 const SizedBox(height: 6),
                 FittedBox(
                   child: Text(p.codigoLevantamento ?? '—',

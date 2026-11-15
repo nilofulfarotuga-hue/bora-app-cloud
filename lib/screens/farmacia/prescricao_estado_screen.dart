@@ -136,6 +136,13 @@ class PrescricaoEstadoCorpo extends StatefulWidget {
 class _PrescricaoEstadoCorpoState extends State<PrescricaoEstadoCorpo> {
   String _metodo = 'card';
   bool _aConfirmar = false;
+
+  /// app-15-11: o servidor recusou confirmar (ex.: a entrega de receitas ainda
+  /// não está ligada nesta farmácia). Fica à vista em vez de sumir num aviso.
+  String? _recusaConfirmar;
+
+  String? _fotoCaminho;
+  Future<String?>? _fotoUrl;
   bool _aCancelar = false;
   Timer? _relogio;
 
@@ -161,9 +168,15 @@ class _PrescricaoEstadoCorpoState extends State<PrescricaoEstadoCorpo> {
     setState(() => _aConfirmar = true);
     try {
       await _svc.confirmar(p.id, metodo: _metodo, soDisponiveis: soDisponiveis);
+      if (mounted) setState(() => _recusaConfirmar = null);
     } catch (e) {
+      final msg = PrescricaoService.mensagemDe(e);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(PrescricaoService.mensagemDe(e))));
+        if (e.toString().contains('RECEITA_REAL_POR_LIGAR')) {
+          setState(() => _recusaConfirmar = msg);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        }
       }
     } finally {
       if (mounted) setState(() => _aConfirmar = false);
@@ -316,8 +329,13 @@ class _PrescricaoEstadoCorpoState extends State<PrescricaoEstadoCorpo> {
   Widget? _fotoPequena() {
     final caminho = p.receitaFotoPath ?? p.pedidoFotoPath;
     if (caminho == null) return null;
+    // app-15-11: o ecrã redesenha-se de 20 em 20 s; pede-se o link uma vez só.
+    if (_fotoCaminho != caminho) {
+      _fotoCaminho = caminho;
+      _fotoUrl = _svc.urlAssinado(caminho);
+    }
     return FutureBuilder<String?>(
-      future: _svc.urlAssinado(caminho),
+      future: _fotoUrl,
       builder: (context, s) {
         final url = s.data;
         if (url == null) return const SizedBox.shrink();
@@ -378,6 +396,22 @@ class _PrescricaoEstadoCorpoState extends State<PrescricaoEstadoCorpo> {
           extra.isEmpty ? null : extra,
         ));
         filhos.add(_valores());
+        if (_recusaConfirmar != null) {
+          filhos.add(_cartao(
+            child: Row(children: [
+              const Icon(Icons.storefront, color: AppColors.primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '$_recusaConfirmar\nA farmácia já tem a sua resposta pronta: pode ir lá levantar.',
+                  key: const Key('prescricao_recusa_confirmar'),
+                ),
+              ),
+            ]),
+          ));
+          botoes.add(TextButton(onPressed: _aCancelar ? null : _cancelar, child: const Text('Cancelar pedido')));
+          break;
+        }
         filhos.add(_pagamento());
         botoes.add(BoraPrimaryButton(
           label: parcial ? 'Quero só o que há' : 'Confirmar e pagar',
@@ -407,9 +441,15 @@ class _PrescricaoEstadoCorpoState extends State<PrescricaoEstadoCorpo> {
       case PrescricaoEstado.confirmado:
       case PrescricaoEstado.entregue:
         final entregue = p.estado == PrescricaoEstado.entregue;
+        // app-15-11: em demonstração não há estafeta nem cobrança — nada de
+        // "pagamento" nem de código "para dar ao estafeta".
         filhos.add(_cabecalho(Icons.verified, AppColors.success, entregue ? 'Entregue' : 'Pedido confirmado',
-            entregue ? null : 'A farmácia já está a preparar. Pagamento: ${_rotuloMetodo(p.metodoPagamento)}.'));
-        if (!entregue && (p.codigoEntrega ?? '').isNotEmpty) {
+            entregue
+                ? null
+                : p.isDemo
+                    ? 'A farmácia vê o pedido como teste.'
+                    : 'A farmácia já está a preparar. Pagamento: ${_rotuloMetodo(p.metodoPagamento)}.'));
+        if (!entregue && !p.isDemo && (p.codigoEntrega ?? '').isNotEmpty) {
           filhos.add(_codigoGrande('Código de entrega', p.codigoEntrega!, 'Diga este código ao estafeta quando ele chegar.'));
         }
         if ((p.codigoLevantamento ?? '').isNotEmpty) {

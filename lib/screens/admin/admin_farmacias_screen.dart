@@ -419,8 +419,9 @@ class _AbaFarmaciasState extends State<_AbaFarmacias> {
             titulo: 'Ligar os pedidos reais de receita?',
             pontos: const [
               'Vale para TODAS as farmácias abertas ao público.',
-              'Quando o cliente confirma uma receita, cria-se um pedido de verdade: chama um entregador '
-                  'e cobra o cliente (cartão, MB Way ou dinheiro).',
+              'ATENÇÃO (15/11): o servidor ainda NÃO lê este interruptor. Ligado ou desligado, a receita '
+                  'confirmada numa farmácia aberta não cria pedido nem cobrança: o cliente é mandado levantar '
+                  'na farmácia. Ligar hoje só fica registado.',
               'Só ligue depois de testado de ponta a ponta e com o "vai" do Danilo.',
             ],
             palavra: 'LIGAR',
@@ -557,11 +558,11 @@ class AdminReceitasReaisCartao extends StatelessWidget {
               ? 'Não consegui ler o estado. Puxe para baixo para tentar de novo.'
               : l == null
                   ? 'A ler o estado…'
-                  : l
-                      ? 'LIGADO: ao confirmar uma receita numa farmácia aberta ao público cria-se um pedido com '
-                          'entregador e cobrança.'
-                      : 'DESLIGADO (fase de testes): o cliente confirma a receita, mas não se cria pedido com '
-                          'entregador nem cobrança. Mudar pede confirmação.',
+                  // app-15-11: o servidor (prescricao_confirmar) ainda não lê
+                  // esta definição — o texto diz a verdade em vez de prometer.
+                  : '${l ? 'LIGADO' : 'DESLIGADO'} — ainda sem efeito: a entrega de receitas não está ligada '
+                      'no servidor. Em farmácia aberta ao público o cliente é mandado levantar na farmácia; '
+                      'em farmácia escondida é só demonstração.',
         ),
       ),
     );
@@ -782,10 +783,8 @@ class _AdminPedidosReceitaAbaState extends State<AdminPedidosReceitaAba> {
   void _recarregar() => setState(() => _f = _svc.adminListar(estado: _estado));
 
   String _dt(dynamic v) {
-    final d = v == null ? null : DateTime.tryParse(v.toString())?.toLocal();
-    if (d == null) return '—';
-    return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')} '
-        '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    // app-15-11: hora de Lisboa, nunca o fuso do navegador (regra do painel).
+    return dataHoraLisboa(v);
   }
 
   Future<void> _forcar(Map<String, dynamic> r, {bool cancelar = false}) async {

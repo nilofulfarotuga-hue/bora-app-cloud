@@ -13,6 +13,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../services/amigo_voz.dart';
 import '../../widgets/amigo/amigo_rosto.dart';
+import '_admin_rpc_errors.dart';
 
 typedef AdminAmigoCarregar = Future<Map<String, dynamic>?> Function(int dias);
 typedef AdminAmigoGravar = Future<void> Function(String chave, Object valor);
@@ -109,7 +110,7 @@ class _AdminAmigoRostoSecaoState extends State<AdminAmigoRostoSecao> {
       _aviso('Salvo: $chave (fica na auditoria)');
       await _load();
     } catch (e) {
-      _aviso('Não salvei $chave: $e');
+      _aviso('Não salvei $chave: ${humanizeAdminRpcError(e)}');
     }
   }
 

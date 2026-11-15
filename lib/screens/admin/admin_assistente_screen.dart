@@ -15,6 +15,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '_admin_rpc_errors.dart';
 import 'admin_assistente_amigo.dart';
 import 'admin_assistente_aprendidas.dart';
 
@@ -145,7 +146,7 @@ class _VisaoGeralTabState extends State<_VisaoGeralTab>
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _erro = 'Não deu para carregar: $e';
+        _erro = 'Não deu para carregar: ${humanizeAdminRpcError(e)}';
         _carregando = false;
       });
     }
@@ -160,7 +161,7 @@ class _VisaoGeralTabState extends State<_VisaoGeralTab>
       _snack(context, v ? 'Assistente ligado' : 'Assistente desligado');
       await _carregar();
     } catch (e) {
-      if (mounted) _snack(context, 'Não deu para gravar: $e');
+      if (mounted) _snack(context, 'Não deu para gravar: ${humanizeAdminRpcError(e)}');
     } finally {
       if (mounted) setState(() => _gravando = false);
     }
@@ -330,7 +331,7 @@ class _ListaTabState extends State<_ListaTab> with AutomaticKeepAliveClientMixin
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _erro = 'Não deu para carregar: $e';
+        _erro = 'Não deu para carregar: ${humanizeAdminRpcError(e)}';
         _carregando = false;
       });
     }
@@ -644,7 +645,7 @@ class _ConhecimentoTab extends StatelessWidget {
       if (context.mounted) _snack(context, 'Salvo');
       recarregar();
     } catch (e) {
-      if (context.mounted) _snack(context, 'Não deu para salvar: $e');
+      if (context.mounted) _snack(context, 'Não deu para salvar: ${humanizeAdminRpcError(e)}');
     }
   }
 
@@ -675,7 +676,7 @@ class _ConhecimentoTab extends StatelessWidget {
                 await _c.from('assistant_knowledge').update({'active': v}).eq('id', k['id']);
                 recarregar();
               } catch (e) {
-                if (context.mounted) _snack(context, 'Não deu para gravar: $e');
+                if (context.mounted) _snack(context, 'Não deu para gravar: ${humanizeAdminRpcError(e)}');
               }
             },
           ),
@@ -727,7 +728,7 @@ class _LacunasTab extends StatelessWidget {
                         await _c.from('assistant_gaps').update({'resolved': true}).eq('id', g['id']);
                         recarregar();
                       } catch (e) {
-                        if (context.mounted) _snack(context, 'Não deu para gravar: $e');
+                        if (context.mounted) _snack(context, 'Não deu para gravar: ${humanizeAdminRpcError(e)}');
                       }
                     },
                     child: const Text('Resolver'),
@@ -777,7 +778,7 @@ class _CorrespondenciasTab extends StatelessWidget {
                             .update({'reviewed': true}).eq('product_id', m['product_id']);
                         recarregar();
                       } catch (e) {
-                        if (context.mounted) _snack(context, 'Não deu para gravar: $e');
+                        if (context.mounted) _snack(context, 'Não deu para gravar: ${humanizeAdminRpcError(e)}');
                       }
                     },
                     child: const Text('Marcar revista'),

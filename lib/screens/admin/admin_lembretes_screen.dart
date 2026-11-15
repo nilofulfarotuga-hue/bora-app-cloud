@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../utils/hora_lisboa.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '_admin_rpc_errors.dart';
 
 /// Um lembrete para o dono (linha da tabela `lembretes_danilo`).
 class LembreteDono {
@@ -73,6 +75,64 @@ class LembretesSupabase implements LembretesFonte {
   }
 }
 
+/// 15/11/2026 (auditoria S6): o estado do envio contado nos próprios lembretes, para o ecrã não
+/// prometer o que não está a acontecer. A rotina das 9h30 da VPS (ferramentas/vps/lembretes_danilo.py)
+/// manda os itens do dia e os dos 7 dias anteriores que ficaram por enviar; o que é mais antigo e
+/// nunca saiu já não sai sozinho. "Pendentes" = ainda não marcados como feitos (podem já ter saído).
+/// [parado] = há lembretes desta semana que já deviam ter saído e não saíram.
+({String texto, bool parado}) resumoEnvioLembretes(List<LembreteDono> itens, DateTime agora) {
+  String dd(int n) => n.toString().padLeft(2, '0');
+  DateTime? ultimo;
+  for (final l in itens) {
+    final e = l.enviadoEm;
+    if (e != null && (ultimo == null || e.isAfter(ultimo))) ultimo = e;
+  }
+  // Contas no relógio de Lisboa (o da rotina), nunca no fuso do aparelho.
+  final hoje = paredeLisboa(agora);
+  final inicioJanela = DateTime.utc(hoje.year, hoje.month, hoje.day).subtract(const Duration(days: 7));
+  bool naJanela(LembreteDono l) {
+    final q = paredeLisboa(l.quando);
+    return !DateTime.utc(q.year, q.month, q.day).isBefore(inicioJanela);
+  }
+
+  bool jaDeviaTerSaido(LembreteDono l) {
+    // Os urgentes saem de 10 em 10 minutos.
+    if (l.urgente) return l.quando.isBefore(agora.subtract(const Duration(minutes: 30)));
+    // O diário das 9h30 apanha-o no próprio dia ou, se foi criado depois disso, no dia seguinte.
+    final q = paredeLisboa(l.quando);
+    return hoje.isAfter(DateTime.utc(q.year, q.month, q.day + 1, 10));
+  }
+
+  final porEnviar = itens.where((l) => l.enviadoEm == null && l.feitoEm == null).toList();
+  final atrasados = porEnviar.where((l) => naJanela(l) && jaDeviaTerSaido(l)).length;
+  final antigos = porEnviar.where((l) => !naJanela(l)).length;
+  final enviadosPorFazer = itens.where((l) => l.enviadoEm != null && l.feitoEm == null).length;
+
+  final String ultimoTxt;
+  if (ultimo == null) {
+    ultimoTxt = 'Ainda nenhum lembrete foi enviado.';
+  } else {
+    final u = horaLisboa(ultimo);
+    ultimoTxt = 'Último envio: ${dd(u.day)}/${dd(u.month)}.';
+  }
+  final partes = <String>[
+    if (atrasados > 0)
+      atrasados == 1
+          ? 'Envio parado: 1 lembrete desta semana já devia ter saído pelo WhatsApp da Bora e não saiu.'
+          : 'Envio parado: $atrasados lembretes desta semana já deviam ter saído pelo WhatsApp da Bora e não saíram.',
+    ultimoTxt,
+    if (antigos > 0)
+      antigos == 1
+          ? '1 lembrete com mais de 7 dias nunca saiu e já não sai sozinho: marque como feito ou crie de novo.'
+          : '$antigos lembretes com mais de 7 dias nunca saíram e já não saem sozinhos: marque como feitos ou crie de novo.',
+    if (enviadosPorFazer > 0)
+      enviadosPorFazer == 1
+          ? '1 já foi enviado e continua em Pendentes até ser marcado como feito.'
+          : '$enviadosPorFazer já foram enviados e continuam em Pendentes até serem marcados como feitos.',
+  ];
+  return (texto: partes.join(' '), parado: atrasados > 0);
+}
+
 enum _Filtro { pendentes, feitos, enviados, todos }
 
 /// Lembretes do dono: o que o robô manda pelo WhatsApp da Bora todos os dias às
@@ -141,7 +201,8 @@ class _AdminLembretesScreenState extends State<AdminLembretesScreen> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok)));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Não deu para salvar: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Não deu para salvar: ${humanizeAdminRpcError(e)}')));
       }
     }
   }
@@ -318,6 +379,22 @@ class _AdminLembretesScreenState extends State<AdminLembretesScreen> {
     );
   }
 
+  /// Último envio e se o envio parou, contados nos lembretes carregados ([resumoEnvioLembretes]).
+  Widget _estadoEnvio() {
+    final r = resumoEnvioLembretes(_itens, DateTime.now());
+    return Padding(
+      key: const Key('lembretes_estado_envio'),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Text(
+        r.texto,
+        style: TextStyle(
+          color: r.parado ? AppColors.error : AppColors.textSecondary,
+          fontWeight: r.parado ? FontWeight.w600 : FontWeight.normal,
+        ),
+      ),
+    );
+  }
+
   Widget _filtros() {
     const rotulos = {
       _Filtro.pendentes: 'Pendentes',
@@ -414,6 +491,7 @@ class _AdminLembretesScreenState extends State<AdminLembretesScreen> {
                           style: TextStyle(color: AppColors.textSecondary),
                         ),
                       ),
+                      _estadoEnvio(),
                       _filtros(),
                       ..._lista(),
                     ],

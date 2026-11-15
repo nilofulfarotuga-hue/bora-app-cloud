@@ -19,6 +19,7 @@ import '../../services/admin_export_service.dart';
 import '../../stores/credito_claude_store.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../utils/hora_lisboa.dart';
+import '_admin_rpc_errors.dart';
 
 class AdminMotoresScreen extends StatefulWidget {
   const AdminMotoresScreen({super.key});
@@ -81,7 +82,7 @@ class _AdminMotoresScreenState extends State<AdminMotoresScreen> {
       });
     } catch (e) {
       setState(() {
-        _erro = e.toString();
+        _erro = humanizeAdminRpcError(e);
         _loading = false;
       });
     }
@@ -102,7 +103,7 @@ class _AdminMotoresScreenState extends State<AdminMotoresScreen> {
       ));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(humanizeAdminRpcError(e))));
     }
   }
 
@@ -121,7 +122,9 @@ class _AdminMotoresScreenState extends State<AdminMotoresScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _erro != null
-              ? Center(child: Text('Erro: $_erro', style: const TextStyle(color: AppColors.error)))
+              ? Center(
+                  child: Text('Não foi possível carregar os motores. ${_erro!}',
+                      style: const TextStyle(color: AppColors.error)))
               : ListView(
                   padding: const EdgeInsets.all(12),
                   children: [
@@ -342,7 +345,7 @@ class _SeccaoClaude extends StatelessWidget {
       await acao();
       messenger.showSnackBar(SnackBar(content: Text(ok)));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Não foi possível salvar: $e')));
+      messenger.showSnackBar(SnackBar(content: Text('Não foi possível salvar: ${humanizeAdminRpcError(e)}')));
     }
   }
 
@@ -541,7 +544,7 @@ class _SeccaoClaude extends StatelessWidget {
       );
       messenger.showSnackBar(SnackBar(content: Text('CSV com ${linhas.length} chamadas baixado.')));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Não consegui exportar: $e')));
+      messenger.showSnackBar(SnackBar(content: Text('Não consegui exportar: ${humanizeAdminRpcError(e)}')));
     }
   }
 

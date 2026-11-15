@@ -6,12 +6,20 @@
 // daqui fica de reserva. No Robot B dá para escolher claude-haiku-5-5 / claude-sonnet-5-5
 // (fixa esse modelo Claude; Opus nunca). O campo do suporte só aceita Gemini, porque também
 // é lido por outras funções que só falam Gemini (análise de conversas, chat humano).
+// 15/11/2026 (auditoria S6): o campo do suporte (support_settings.gemini_model) é o mesmo que a
+// "Central do robô do suporte" mostra em Ajustes — os dois ecrãs chamam-lhe agora "robô do suporte".
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '_admin_rpc_errors.dart';
+
+/// Rótulo e nota do campo do suporte: o mesmo nome que a Central usa ("robô do suporte"),
+/// para o mesmo campo não ter dois nomes no painel.
+const String kRotuloModeloSuporte = 'Robô do suporte (chat de ajuda da app) — reserva Gemini';
+const String kNotaModeloSuporte = 'Este é o modelo do robô do suporte — o mesmo da Central.';
 
 class AdminAiModelsScreen extends StatefulWidget {
   const AdminAiModelsScreen({super.key});
@@ -81,7 +89,7 @@ class _AdminAiModelsScreenState extends State<AdminAiModelsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'Erro ao carregar: $e';
+        _error = 'Não foi possível carregar os modelos. ${humanizeAdminRpcError(e)}';
         _loading = false;
       });
     }
@@ -129,7 +137,7 @@ class _AdminAiModelsScreenState extends State<AdminAiModelsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'Erro ao salvar: $e';
+        _error = 'Não foi possível salvar. ${humanizeAdminRpcError(e)}';
         _saving = false;
       });
     }
@@ -178,7 +186,8 @@ class _AdminAiModelsScreenState extends State<AdminAiModelsScreen> {
                 ),
                 const SizedBox(height: 20),
                 _campo(
-                  rotulo: 'Suporte / chatbot (volume) — reserva Gemini',
+                  rotulo: kRotuloModeloSuporte,
+                  nota: kNotaModeloSuporte,
                   ctrl: _suporteCtrl,
                   dica: 'Ex.: gemini-3.5-flash-lite',
                   sugestoes: _sugestoes,
@@ -232,6 +241,7 @@ class _AdminAiModelsScreenState extends State<AdminAiModelsScreen> {
     required TextEditingController ctrl,
     required String dica,
     required List<String> sugestoes,
+    String? nota,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -239,6 +249,11 @@ class _AdminAiModelsScreenState extends State<AdminAiModelsScreen> {
         Text(rotulo,
             style: const TextStyle(
                 fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+        if (nota != null) ...[
+          const SizedBox(height: 4),
+          Text(nota,
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+        ],
         const SizedBox(height: 8),
         TextField(
           controller: ctrl,

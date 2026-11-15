@@ -23,6 +23,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '_admin_rpc_errors.dart';
 import 'admin_amigo_pesquisa_secao.dart';
 import 'admin_amigo_rosto_secao.dart';
 import 'admin_amigo_voz_secao.dart';
@@ -79,7 +80,7 @@ class _AdminAssistenteAmigoTabState extends State<AdminAssistenteAmigoTab>
       _aviso('Salvo: $chave');
       await _load();
     } catch (e) {
-      _aviso('Não salvei $chave: $e');
+      _aviso('Não salvei $chave: ${humanizeAdminRpcError(e)}');
     }
   }
 
@@ -170,7 +171,7 @@ class _AdminAssistenteAmigoTabState extends State<AdminAssistenteAmigoTab>
     } catch (e) {
       _aviso(e.toString().contains('motivo_obrigatorio')
           ? 'Escreva o motivo (mínimo 10 letras).'
-          : 'Erro: $e');
+          : humanizeAdminRpcError(e));
     }
   }
 

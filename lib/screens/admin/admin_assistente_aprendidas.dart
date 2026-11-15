@@ -15,6 +15,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../utils/hora_lisboa.dart';
+import '_admin_rpc_errors.dart';
 
 /// Uma linha de `assistant_learned`.
 class AssistenteAprendida {
@@ -166,7 +167,7 @@ class _AdminAssistenteAprendidasTabState
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _erro = 'Não deu para carregar: $e';
+        _erro = 'Não deu para carregar: ${humanizeAdminRpcError(e)}';
         _carregando = false;
       });
     }
@@ -194,7 +195,7 @@ class _AdminAssistenteAprendidasTabState
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(
-            content: Text('Não deu para gravar: $e'),
+            content: Text('Não deu para gravar: ${humanizeAdminRpcError(e)}'),
             backgroundColor: AppColors.error));
     } finally {
       if (mounted) setState(() => _aGravar.remove(a.id));

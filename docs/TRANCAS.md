@@ -602,3 +602,12 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   `docs/propostas/fechar-app-15-11/8e_robos_sem_notas_internas.PROPOSTA.sql`, provado no PGlite com pgvector
   (`supabase/tests/fechar_app_8e_prova.mjs`: 26 certos, 2 sabotagens apanhadas). Destrava: a Claude.ai aplica-o com o nome
   `20261115024000_robos_sem_notas_internas`.
+  **Atualização 15/11 04:40:** a proposta foi refeita depois da revisão (lista fechada; das regras do negócio só
+  passam duas secções). A prova passou a 41 certos e 4 estragos apanhados. Continua por aplicar.
+
+- **15/11/2026 ~04:45, missão `fechar-app-15-11` (enviar a proposta 8e refeita para o ramo de ensaio)** — a bora-tranca
+  negou um Bash que juntava, na mesma linha, a correção de um texto, a prova, o commit e o `git push origin
+  ai/2026-11-15-fechar-app` com a saída cortada por `| tail -1` ("git push é publicar"). Erro meu de forma: o envio
+  para um ramo `ai/` só passa sozinho, com dois argumentos e sem tubos, como nos quatro envios anteriores desta noite.
+  Como o comando foi recusado inteiro, nada correu. Refiz a correção e o commit sem envio e depois enviei na forma
+  simples, que a tranca deixa passar. Nada foi para o ramo de produção.

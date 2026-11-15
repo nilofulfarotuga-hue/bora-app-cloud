@@ -233,8 +233,8 @@ void main() {
       logica = _ler('supabase/functions/partner-reject-reservation/logica.ts');
     });
 
-    test('chave de idempotência reserva-recusa-<id>', () {
-      expect(logica, contains(r'`reserva-recusa-${reservaId}`'));
+    test('chave de idempotência reserva-recusa-<id>-<n> (uma por tentativa)', () {
+      expect(logica, contains(r'`reserva-recusa-${reservaId}-${'));
       expect(edge, contains('idempotencyKey: chave'));
     });
 
@@ -258,7 +258,7 @@ void main() {
 
     test('regista como o admin e avisa a equipa se a devolução falhar', () {
       expect(edge, contains("from('admin_audit_log').insert("));
-      expect(edge, contains("rpc('notify_admin_event'"));
+      expect(edge, contains("rpc('notify_admin_urgent_push'"));
     });
 
     test('segredos só por Deno.env, nunca no código', () {

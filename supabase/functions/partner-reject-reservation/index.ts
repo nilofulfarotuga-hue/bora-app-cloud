@@ -9,9 +9,12 @@
 //     verificado aqui, nunca pela palavra da app.
 //  3. Reserva 'pending' → RPC partner_decide_reservation(p_accept=false) com o token do parceiro
 //     (muda o estado e avisa o cliente). Já 'rejected_refunded' → nova tentativa, sem repetir a RPC.
-//  4. Pagamento conferido na Stripe (metadata da reserva) → stripe.refunds.create com
-//     idempotencyKey reserva-recusa-<id>, na conta onde entrou (reservations.stripe_account).
-//  5. admin_audit_log; se a devolução não saiu, aviso no painel (notify_admin_event).
+//  4. Pagamento conferido na Stripe (metadata da reserva) → stripe.refunds.create do que falta, com
+//     idempotencyKey reserva-recusa-<id>-<n> (n = devoluções que a Stripe já lista para o
+//     pagamento: uma chave por tentativa, ver logica.ts), na conta onde entrou
+//     (reservations.stripe_account, _shared/stripe_contas.ts).
+//  5. admin_audit_log; se a devolução não saiu, aviso urgente à equipa
+//     (notify_admin_urgent_push 'reservation_refund_failed': linha no painel + push).
 //  6. Resposta { success, idempotent, reservation_id, new_status, refund: { result, amount_cents, amount } }.
 //
 // Segredos, só por Deno.env: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SECRET_KEYS ou
@@ -119,9 +122,11 @@ Deno.serve(async (req) => {
       if (error) throw new Error(error.message);
     },
     async avisarEquipa(aviso) {
-      const { error } = await admin.rpc('notify_admin_event', {
+      // notify_admin_urgent_push(p_event_type, p_summary, p_entity_type, p_entity_id, p_payload,
+      // p_deep_link) — como no admin-cancel-reservation: grava a linha pelo notify_admin_event
+      // (sempre 'high') e manda o push urgente (notify-admin-urgent, agrupado por payload.push_ref).
+      const { error } = await admin.rpc('notify_admin_urgent_push', {
         p_event_type: TIPO_AVISO,
-        p_severity: 'high',
         p_summary: aviso.resumo,
         p_entity_type: 'reservation',
         p_entity_id: aviso.reservaId,

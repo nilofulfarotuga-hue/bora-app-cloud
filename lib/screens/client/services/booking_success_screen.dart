@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
+import '../../../utils/hora_lisboa.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 import '../../../widgets/ver_nas_minhas_reservas.dart';
 
@@ -100,7 +101,7 @@ class BookingSuccessScreen extends StatelessWidget {
       'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
       'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
     ];
-    final d = dt.toLocal();
+    final d = horaLisboa(dt); // app-15-11: hora de Lisboa, não a do aparelho
     final wd = weekdays[(d.weekday - 1).clamp(0, 6)];
     final mo = months[(d.month - 1).clamp(0, 11)];
     final hh = d.hour.toString().padLeft(2, '0');

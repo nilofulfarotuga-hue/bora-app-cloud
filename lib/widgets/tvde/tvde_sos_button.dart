@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../utils/origem_partilha.dart';
 import '../../services/tvde_conformidade_service.dart';
 import '../../services/tvde_partilha_service.dart';
 
@@ -113,8 +114,15 @@ Future<void> abrirFolhaSos(BuildContext context, String rideId,
                 final link = pos == null
                     ? ''
                     : ' https://maps.google.com/?q=${pos.latitude},${pos.longitude}';
-                await Share.share(
-                    'Preciso de ajuda. Estou numa viagem Bora (código $codigo).$link');
+                // app-15-11 (varredura 9166, n.º 4): a folha do SOS já fechou,
+                // por isso a origem é o centro do ecrã; e sem rebentar.
+                try {
+                  await Share.share(
+                      'Preciso de ajuda. Estou numa viagem Bora (código $codigo).$link',
+                      sharePositionOrigin: origemDaPartilha());
+                } catch (e) {
+                  debugPrint('[tvde_sos] partilha falhou: $e');
+                }
                 unawaited(_registar(rideId,
                     partilhou: true, lat: pos?.latitude, lng: pos?.longitude));
               },

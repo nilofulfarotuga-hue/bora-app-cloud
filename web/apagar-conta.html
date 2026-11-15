@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bora · Apagar a tua conta</title>
+<!--
+  Página pública de apagar conta (exigência da Google Play e da App Store).
+  app-15-11 (varredura 9166, n.º 7): a Google Play recebia 401 porque o endereço
+  registado era o da função do servidor (que pede sessão). Este é o endereço para
+  pôr na Play Console: https://app.boraguarda.com/apagar-conta.html
+  Texto alinhado com a função delete-account (anonimiza a conta no lugar) e com
+  os avisos do app (acerto semanal por fechar).
+-->
+<style>
+  :root { --verde:#16A34A; --texto:#111827; --cinza:#4B5563; --borda:#E5E7EB; --fundo:#F9FAFB; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         color:var(--texto); background:var(--fundo); line-height:1.55; }
+  header { background:var(--verde); color:#fff; padding:20px 16px; }
+  header h1 { margin:0; font-size:22px; }
+  header p { margin:6px 0 0; opacity:.95; }
+  main { max-width:760px; margin:0 auto; padding:16px; }
+  section { background:#fff; border:1px solid var(--borda); border-radius:12px; padding:16px 18px; margin:16px 0; }
+  h2 { font-size:18px; margin:0 0 8px; }
+  ol, ul { padding-left:22px; margin:8px 0; }
+  li { margin:4px 0; }
+  .nota { color:var(--cinza); font-size:14px; }
+  a { color:var(--verde); }
+  footer { text-align:center; color:var(--cinza); font-size:13px; padding:24px 16px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Apagar a tua conta Bora</h1>
+  <p>App Bora (entregas e serviços na Guarda, Portugal)</p>
+</header>
+<main>
+  <section>
+    <h2>Pela app (mais rápido)</h2>
+    <ol>
+      <li>Abre a app Bora e entra na tua conta.</li>
+      <li>Vai a <strong>Perfil</strong>.</li>
+      <li>No fim da página, toca em <strong>Apagar conta</strong> e confirma.</li>
+    </ol>
+    <p class="nota">Se tiveres um pedido a decorrer, ou (estafetas e parceiros) um acerto semanal por
+      fechar, a app diz-te o que falta. Assim que estiver tratado, podes apagar a conta.</p>
+  </section>
+
+  <section>
+    <h2>Sem acesso à app</h2>
+    <p>Envia um email para <a href="mailto:boraappbora@gmail.com?subject=Apagar%20conta">boraappbora@gmail.com</a>
+      com o assunto <strong>Apagar conta</strong>, a partir do email da tua conta (ou indica o telemóvel
+      com que te registaste). Confirmamos o pedido e tratamos dele no prazo máximo de 30 dias.</p>
+  </section>
+
+  <section>
+    <h2>O que acontece aos teus dados</h2>
+    <ul>
+      <li>O teu nome, email, telemóvel, moradas e fotos deixam de estar ligados a ti: a conta é
+        anonimizada e deixas de conseguir entrar.</li>
+      <li>Os pedidos antigos e os movimentos da carteira ficam guardados <strong>sem</strong> o teu nome,
+        só para as contas da empresa baterem certo.</li>
+      <li>As faturas e documentos fiscais que a lei portuguesa obriga a guardar ficam guardados pelo
+        prazo legal e não são usados para mais nada.</li>
+      <li>Se tiveres saldo na carteira ou tokens por usar, a app mostra-te quanto é antes de apagar:
+        ao confirmares, esse saldo e esses tokens perdem-se.</li>
+    </ul>
+  </section>
+
+  <section lang="en">
+    <h2>In English</h2>
+    <p>To delete your Bora account: open the Bora app, go to <strong>Profile</strong> and tap
+      <strong>Delete account</strong> at the bottom. Without access to the app, email
+      <a href="mailto:boraappbora@gmail.com?subject=Delete%20account">boraappbora@gmail.com</a> from your account's
+      email address with the subject "Delete account"; we handle it within 30 days. Your account is
+      anonymised (name, email, phone, addresses and photos are removed); invoices required by
+      Portuguese law are kept for the legal period only.</p>
+  </section>
+</main>
+<footer>Bora App · Guarda, Portugal</footer>
+</body>
+</html>

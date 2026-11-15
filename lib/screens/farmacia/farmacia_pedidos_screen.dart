@@ -53,6 +53,16 @@ class _FarmaciaPedidosScreenState extends State<FarmaciaPedidosScreen> {
           future: _f,
           builder: (context, s) {
             if (s.connectionState != ConnectionState.done) return const Center(child: CircularProgressIndicator());
+            // app-15-11: um erro já não se disfarça de "ainda não fez pedidos".
+            if (s.hasError) {
+              return ListView(children: const [
+                Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Text('Não foi possível carregar os seus pedidos. Puxe para baixo para tentar outra vez.',
+                      textAlign: TextAlign.center),
+                ),
+              ]);
+            }
             final l = s.data ?? const [];
             if (l.isEmpty) {
               return ListView(children: const [

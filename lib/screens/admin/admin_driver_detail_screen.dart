@@ -16,10 +16,13 @@ import '../../services/robo_documentos_service.dart';
 import '../../widgets/admin_robo_documentos.dart';
 import '../../widgets/private_bucket_image.dart';
 import '_admin_password_reset_dialog.dart';
+import '_admin_rpc_errors.dart';
 import 'admin_papeis_screen.dart';
+import 'admin_area_estafeta_screen.dart';
 import 'admin_suspensao_comum.dart';
 import '../../utils/hora_lisboa_ext.dart';
 import '../../utils/hora_lisboa.dart';
+import '../../utils/periodo_entregas.dart';
 
 /// Full-screen admin detail for an approved driver. Pushed from
 /// `admin_drivers_screen` and from the "Aprovados" tab of
@@ -28,15 +31,19 @@ import '../../utils/hora_lisboa.dart';
 /// Tabs:
 ///   1. Visão geral — info, badges, action buttons (5)
 ///   2. Pedidos    — orders history (read-only)
-///   3. Transacções — driver_balances + driver_transactions (read-only)
-///   4. Audit      — admin_audit_log filtered for this driver
+///   3. Transações — driver_balances + driver_transactions (read-only)
+///   4. Histórico  — admin_audit_log rows for this driver
+///
+/// [15/11/2026] Pedidos, Transações, saldo e Histórico procuram pelos DOIS
+/// ids do entregador (user_id e drivers.id) — ver
+/// [AdminDriverService.idsDoEntregador].
 ///
 /// Action buttons (tab 1):
 ///   • Editar              — bottom sheet with whitelisted form (IBAN/NIF flagged)
 ///   • Banir               — modal: reason_code dropdown + reason + optional date picker
-///   • Reactivar           — visible only if banned/suspended/deleted
+///   • Reativar            — visible only if banned/suspended/deleted
 ///   • Forçar logout       — single confirmation
-///   • Remover             — type driver name to confirm
+///   • Remover             — checks orders in progress, then type driver name to confirm
 class AdminDriverDetailScreen extends StatefulWidget {
   const AdminDriverDetailScreen({super.key, required this.driverId});
 
@@ -80,10 +87,13 @@ class _AdminDriverDetailScreenState extends State<AdminDriverDetailScreen>
       'ban_reason, ban_reason_code, deleted_at, deleted_by, deletion_reason, '
       'last_forced_logout_at, last_forced_logout_by, approval_status, created_at';
 
+  // [15/11/2026] vehicle_color e vehicle_make_model: o "Editar dados" abre
+  // com a cor e a marca/modelo (TVDE) preenchidas.
   static const _extendedDriverCols = '$_baseDriverCols, '
       'document_type, document_number, document_photo_url, vehicle_photo_url, '
       'vehicle_doc_url, registration_selfie_url, address, submitted_at, reviewed_at, '
-      'mbway_phone, rejection_reason, last_heartbeat_at, rating, total_deliveries';
+      'mbway_phone, rejection_reason, last_heartbeat_at, rating, total_deliveries, '
+      'vehicle_color, vehicle_make_model';
 
   Future<void> _refresh() async {
     setState(() {
@@ -125,17 +135,22 @@ class _AdminDriverDetailScreenState extends State<AdminDriverDetailScreen>
       final status = await client
           .rpc('driver_effective_status', params: {'p_driver_id': widget.driverId});
 
-      final balance = await client
+      // [15/11/2026] O saldo está no user_id (conta de login); a ficha antiga
+      // pode tê-lo no drivers.id. Procura pelos dois e mostra o do user_id.
+      final ids = AdminDriverService.idsDoEntregador(driver);
+      final saldos = await client
           .from('driver_balances')
-          .select('balance, updated_at')
-          .eq('driver_id', widget.driverId)
-          .maybeSingle();
+          .select('driver_id, balance, updated_at')
+          .inFilter('driver_id', ids);
+      final balance = AdminDriverService.saldoDoEntregador(
+          List<Map<String, dynamic>>.from(saldos),
+          AdminDriverService.authIdDoEntregador(driver));
 
+      // A mesma procura do separador Histórico (os dois ids).
       final lastAction = await client
           .from('admin_audit_log')
           .select('action, admin_email, created_at, details')
-          .eq('entity_type', 'driver')
-          .eq('entity_id', widget.driverId)
+          .or(AdminDriverService.filtroHistoricoDoEntregador(ids))
           .order('created_at', ascending: false)
           .limit(1)
           .maybeSingle();
@@ -152,7 +167,7 @@ class _AdminDriverDetailScreenState extends State<AdminDriverDetailScreen>
       if (mounted) {
         setState(() {
           _loading = false;
-          _error = 'Erro a carregar: $e';
+          _error = 'Erro ao carregar: ${humanizeAdminRpcError(e)}';
         });
       }
     }
@@ -163,7 +178,9 @@ class _AdminDriverDetailScreenState extends State<AdminDriverDetailScreen>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
       backgroundColor: isError ? AppColors.error : null,
-      duration: const Duration(seconds: 4),
+      // Mensagem comprida (ex.: o que o "Forçar logout" faz hoje) fica mais
+      // tempo, para dar para ler.
+      duration: Duration(seconds: msg.length > 90 ? 8 : 4),
     ));
   }
 
@@ -171,6 +188,10 @@ class _AdminDriverDetailScreenState extends State<AdminDriverDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    // [15/11/2026] user_id e drivers.id: os separadores procuram pelos dois.
+    final ids = _driver == null
+        ? <String>[widget.driverId]
+        : AdminDriverService.idsDoEntregador(_driver!);
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -212,8 +233,8 @@ class _AdminDriverDetailScreenState extends State<AdminDriverDetailScreen>
           tabs: const [
             Tab(text: 'Visão geral'),
             Tab(text: 'Pedidos'),
-            Tab(text: 'Transacções'),
-            Tab(text: 'Audit'),
+            Tab(text: 'Transações'),
+            Tab(text: 'Histórico'),
           ],
         ),
       ),
@@ -234,9 +255,9 @@ class _AdminDriverDetailScreenState extends State<AdminDriverDetailScreen>
                         if (mounted) _refresh();
                       },
                     ),
-                    _OrdersTab(driverId: widget.driverId),
-                    _TransactionsTab(driverId: widget.driverId, balance: _balance),
-                    _AuditTab(driverId: widget.driverId),
+                    _OrdersTab(driverIds: ids),
+                    _TransactionsTab(driverIds: ids, balance: _balance),
+                    _AuditTab(driverIds: ids),
                   ],
                 ),
     );
@@ -296,8 +317,34 @@ class _OverviewTab extends StatelessWidget {
           const SizedBox(height: 16),
           _StatusDetailsCard(driver: driver, effectiveStatus: effectiveStatus),
           const SizedBox(height: 24),
-          Text('Acções', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
+          Text('Ações', style: Theme.of(context).textTheme.titleMedium),
+          const _ParaQueServe(
+              'O que a equipe pode fazer com esta conta. Tudo fica registrado '
+              'no Histórico.'),
+          const SizedBox(height: 4),
+          // [15/11/2026 painel] Área do estafeta: o admin faz por ele o que ele
+          // faz na app (pedidos, ganhos, conta, documentos), tudo auditado.
+          _ActionButton(
+            icon: Icons.badge_outlined,
+            label: 'Área do entregador (agir por ele)',
+            // Sem conta de login ligada (user_id vazio) os ganhos, a conta e os
+            // documentos não têm de onde vir: o botão fica desligado e diz porquê.
+            subtitle: driver['user_id'] == null
+                ? 'Este entregador não tem conta de login ligada: a área dele '
+                    'não tem dados para mostrar.'
+                : 'Ver o que ele vê agora e fazer por ele: pedidos, ganhos, '
+                    'conta e documentos. Tudo fica registrado.',
+            enabled: driver['user_id'] != null,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => AdminAreaEstafetaScreen(
+                  driverId: driver['id'].toString(),
+                  userId: (driver['user_id'] ?? driver['id']).toString(),
+                  nome: driver['name']?.toString(),
+                ),
+              ),
+            ),
+          ),
           _ActionButton(
             icon: Icons.edit,
             label: 'Editar dados',
@@ -306,6 +353,8 @@ class _OverviewTab extends StatelessWidget {
           _ActionButton(
             icon: Icons.block,
             label: 'Banir / suspender',
+            subtitle: "Prefira 'Suspender com motivo': ele guarda o registro "
+                'legal e avisa se o entregador tem pedido em andamento.',
             color: AppColors.error,
             enabled: !isDeleted && !isBanned,
             onTap: () => onAction(_runBan),
@@ -322,7 +371,7 @@ class _OverviewTab extends StatelessWidget {
           if (showReactivate)
             _ActionButton(
               icon: Icons.refresh,
-              label: 'Reactivar',
+              label: 'Reativar',
               color: AppColors.success,
               onTap: () => onAction(_runReactivate),
             ),
@@ -332,22 +381,24 @@ class _OverviewTab extends StatelessWidget {
             color: AppColors.warning,
             onTap: () => onAction(_runForceLogout),
           ),
-          // drivers.id É o auth.users.id (confirmado em prod) — dá para pedir
-          // o reset direto, sem lookup extra.
+          // O link vai para a conta de login (auth.users.id), que é o
+          // drivers.user_id. drivers.id NÃO é o auth.users.id: em 17 de 22
+          // entregadores é outro número (15/11/2026). Só a ficha antiga sem
+          // user_id usa drivers.id.
           if ((driver['email'] as String?)?.isNotEmpty ?? false)
             _ActionButton(
               icon: Icons.lock_reset,
               label: 'Enviar link de redefinição de senha',
               onTap: () => showAdminPasswordResetDialog(
                 context,
-                userId: driver['id'].toString(),
+                userId: AdminDriverService.authIdDoEntregador(driver),
                 email: driver['email'].toString(),
                 displayName: (driver['name'] ?? '').toString(),
               ),
             ),
           _ActionButton(
             icon: Icons.delete_forever,
-            label: 'Remover (soft delete)',
+            label: 'Remover (fica arquivado)',
             color: AppColors.error,
             enabled: !isDeleted,
             onTap: () => onAction(_runSoftDelete),
@@ -386,9 +437,9 @@ class _OverviewTab extends StatelessWidget {
         vehicleMakeModel: result.vehicleMakeModel,
       );
       final changed = (r['fields_changed'] as List?)?.join(', ') ?? '';
-      toast('Actualizado: $changed');
-    } on AdminDriverException catch (e) {
-      toast(e.message, isError: true);
+      toast('Atualizado: $changed');
+    } catch (e) {
+      toast(_erroParaAdmin(e), isError: true);
     }
   }
 
@@ -414,8 +465,8 @@ class _OverviewTab extends StatelessWidget {
       toast(result.bannedUntil == null
           ? 'Entregador banido permanentemente.'
           : 'Entregador suspenso até ${_fmtDate(result.bannedUntil!)}.');
-    } on AdminDriverException catch (e) {
-      toast(e.message, isError: true);
+    } catch (e) {
+      toast(_erroParaAdmin(e), isError: true);
     }
   }
 
@@ -447,12 +498,12 @@ class _OverviewTab extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: ctx,
       builder: (_) => AlertDialog(
-        title: const Text('Reactivar entregador?'),
-        content: Text(
-            'Vai limpar ban, suspensão e/ou soft-delete de "${driver['name']}".'),
+        title: const Text('Reativar entregador?'),
+        content: Text('Isso desfaz o banimento, a suspensão e/ou a remoção de '
+            '"${driver['name']}".'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Reactivar')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Reativar')),
         ],
       ),
     );
@@ -460,16 +511,16 @@ class _OverviewTab extends StatelessWidget {
     try {
       final r = await svc.reactivateDriver(
         driverId: driver['id'] as String,
-        note: 'Reactivado via AdminDriverDetailScreen',
+        note: 'Reativado pela ficha do entregador no painel',
       );
       // [01/11/2026 · B8] Fecha também o registo legal da suspensão (senão
       // fica "ativa" no histórico e na fila de revisões).
       await PrestadorSuspensaoService.fecharRegistoAberto('drivers',
           driver['id'].toString(), 'Reativado no painel (ficha do entregador)');
       final cleared = (r['cleared_states'] as List?)?.join(', ') ?? '';
-      toast('Reactivado (limpo: $cleared).');
-    } on AdminDriverException catch (e) {
-      toast(e.message, isError: true);
+      toast('Reativado (desfeito: $cleared).');
+    } catch (e) {
+      toast(_erroParaAdmin(e), isError: true);
     }
   }
 
@@ -480,12 +531,15 @@ class _OverviewTab extends StatelessWidget {
   ) async {
     final ctx = _AdminDriverDetailScreenContext.of();
     if (ctx == null) return;
+    // [15/11/2026] Dizer o que acontece HOJE: o servidor ainda não consegue
+    // encerrar a sessão no celular (correção no servidor proposta).
     final reason = await showDialog<String>(
       context: ctx,
       builder: (_) => const _ReasonDialog(
         title: 'Forçar logout?',
-        body: 'Vai revogar TODAS as sessões activas deste entregador. '
-            'O driver perderá a app no próximo refresh.',
+        body: 'Ele fica offline e o aparelho principal deixa de receber avisos '
+            'de pedidos. Hoje a sessão no celular dele pode continuar aberta '
+            'até ele sair do app.',
         confirmLabel: 'Forçar logout',
       ),
     );
@@ -497,10 +551,13 @@ class _OverviewTab extends StatelessWidget {
       );
       final revoked = r['sessions_revoked'] == true;
       toast(revoked
-          ? 'Sessões revogadas. FCM token limpo.'
-          : 'FCM limpo. Falha a revogar sessão (consulta logs).');
-    } on AdminDriverException catch (e) {
-      toast(e.message, isError: true);
+          ? 'Feito: sessões encerradas, avisos do aparelho principal '
+              'desligados e entregador offline.'
+          : 'Feito: avisos do aparelho principal desligados e entregador '
+              'offline. A sessão no celular dele pode continuar aberta até ele '
+              'sair do app (correção no servidor proposta).');
+    } catch (e) {
+      toast(_erroParaAdmin(e), isError: true);
     }
   }
 
@@ -511,21 +568,63 @@ class _OverviewTab extends StatelessWidget {
   ) async {
     final ctx = _AdminDriverDetailScreenContext.of();
     if (ctx == null) return;
+    // [15/11/2026] O servidor, ao remover, só procura pedidos pelo drivers.id,
+    // e os pedidos do app estão no user_id. O painel confere antes de abrir a
+    // confirmação e de novo logo antes de chamar o servidor.
+    if (await _temPedidoEmAndamento(svc, driver, toast)) return;
+    if (!ctx.mounted) return;
     final result = await showDialog<String>(
       context: ctx,
       builder: (_) => _SoftDeleteDialog(expectedName: driver['name'] as String? ?? ''),
     );
     if (result == null) return;
+    if (await _temPedidoEmAndamento(svc, driver, toast)) return;
     try {
       await svc.softDeleteDriver(
         driverId: driver['id'] as String,
         reason: result,
       );
-      toast('Entregador removido (soft delete).');
-    } on AdminDriverException catch (e) {
-      toast(e.message, isError: true);
+      toast('Entregador removido (fica arquivado).');
+    } catch (e) {
+      toast(_erroParaAdmin(e), isError: true);
     }
   }
+
+  /// `true` = travar o "Remover" (o admin já foi avisado): há pedido em
+  /// andamento, ou não deu para conferir.
+  Future<bool> _temPedidoEmAndamento(
+    AdminDriverService svc,
+    Map<String, dynamic> driver,
+    void Function(String, {bool isError}) toast,
+  ) async {
+    try {
+      final n = await svc.pedidosEmCurso(
+          driverAuthId: AdminDriverService.authIdDoEntregador(driver));
+      final bloqueio = AdminDriverService.bloqueioParaRemover(n);
+      if (bloqueio == null) return false;
+      toast(bloqueio, isError: true);
+    } on AdminDriverException catch (e) {
+      toast('${e.message} Nada foi removido.', isError: true);
+    } catch (e) {
+      toast(
+          'Não foi possível conferir os pedidos em andamento '
+          '(${humanizeAdminRpcError(e)}). Nada foi removido.',
+          isError: true);
+    }
+    return true;
+  }
+}
+
+/// Erro para mostrar ao admin. O que o serviço já traduziu vai como está; o
+/// resto (erro do servidor que o serviço não conhece, erro inesperado) passa
+/// pela tradução comum do painel, [humanizeAdminRpcError].
+String _erroParaAdmin(Object e) {
+  if (e is AdminDriverException) {
+    final semTraducao = e.code == 'server_error' || e.code == 'unexpected';
+    final causa = e.cause;
+    return semTraducao && causa != null ? humanizeAdminRpcError(causa) : e.message;
+  }
+  return humanizeAdminRpcError(e);
 }
 
 /// Tiny lookup helper so action handlers above can find the parent
@@ -611,7 +710,7 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (status) {
-      'active'    => ('Activo', AppColors.success),
+      'active'    => ('Ativo', AppColors.success),
       'suspended' => ('Suspenso', AppColors.warning),
       'banned'    => ('Banido', AppColors.error),
       'deleted'   => ('Removido', AppColors.textSecondary),
@@ -662,7 +761,7 @@ class _LastActionStrip extends StatelessWidget {
         const Icon(Icons.history, size: 16, color: AppColors.info),
         const SizedBox(width: 8),
         Expanded(
-          child: Text('Última acção: $action por $email há $ago',
+          child: Text('Última ação: $action por $email há $ago',
               style: const TextStyle(fontSize: 12, color: AppColors.info)),
         ),
       ]),
@@ -690,14 +789,14 @@ class _InfoCard extends StatelessWidget {
           _row(Icons.two_wheeler, 'Veículo',
               '${driver['vehicle_type'] ?? '—'}'
               '${driver['license_plate'] != null && (driver['license_plate'] as String).isNotEmpty ? " · ${driver['license_plate']}" : ""}'),
-          _row(Icons.location_on_outlined, 'Morada', driver['address'] ?? '—'),
+          _row(Icons.location_on_outlined, 'Endereço', driver['address'] ?? '—'),
           _row(Icons.account_balance, 'IBAN', driver['iban'] ?? '—'),
           _row(Icons.phone_android, 'MBWay', driver['mbway_phone'] ?? '—'),
           _row(Icons.badge_outlined, 'NIF', driver['nif'] ?? '—'),
           if (driver['submitted_at'] != null)
-            _row(Icons.send, 'Submetido', _formatTs(driver['submitted_at'])),
+            _row(Icons.send, 'Enviado', _formatTs(driver['submitted_at'])),
           if (driver['reviewed_at'] != null)
-            _row(Icons.check_circle_outline, 'Revisto', _formatTs(driver['reviewed_at'])),
+            _row(Icons.check_circle_outline, 'Revisado', _formatTs(driver['reviewed_at'])),
         ]),
       ),
     );
@@ -761,7 +860,9 @@ class _DocumentsCard extends StatelessWidget {
           children: [
             const Text('Documentos',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-            const SizedBox(height: 8),
+            const _ParaQueServe(
+                'Documentos e fotos enviados no cadastro, com a análise do robô '
+                'quando houver.'),
             if (docType != null && docType.isNotEmpty)
               _kv('Tipo', docType),
             if (docNumber != null && docNumber.isNotEmpty)
@@ -896,7 +997,8 @@ class _PerformanceCard extends StatelessWidget {
           children: [
             const Text('Desempenho',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-            const SizedBox(height: 8),
+            const _ParaQueServe(
+                'Avaliação, entregas feitas, saldo e último sinal do app dele.'),
             _row(
               Icons.star_outline,
               'Avaliação',
@@ -1018,7 +1120,7 @@ class _PresencaEHistoricoCardState extends State<_PresencaEHistoricoCard> {
       case 'order_driver_released_by_agent':
         return 'Pedido devolvido a todos (agente)';
       case 'preassign_released':
-        return 'Reserva libertada pelo sistema';
+        return 'Reserva liberada pelo sistema';
       default:
         return a;
     }
@@ -1059,6 +1161,9 @@ class _PresencaEHistoricoCardState extends State<_PresencaEHistoricoCard> {
                 ),
               ],
             ),
+            const _ParaQueServe(
+                'Se ele pode receber pedidos agora e quem já passou pedidos '
+                'para ele.'),
             if (_loading)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
@@ -1104,10 +1209,10 @@ class _PresencaEHistoricoCardState extends State<_PresencaEHistoricoCard> {
                     : 'NÃO — não vai receber pedidos',
               ),
               _row(Icons.devices, 'Como usa a Bora', plataformaLabel(p['last_platform']?.toString())),
-              _row(Icons.delivery_dining, 'Pedidos em curso', '${p['pedidos_em_curso'] ?? 0}'),
+              _row(Icons.delivery_dining, 'Pedidos em andamento', '${p['pedidos_em_curso'] ?? 0}'),
             ],
             const SizedBox(height: 10),
-            const Text('Quem lhe passou pedidos',
+            const Text('Quem passou pedidos para ele',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
             const SizedBox(height: 6),
             if (!_loading && _hist.isEmpty)
@@ -1206,7 +1311,7 @@ class _StatusDetailsCard extends StatelessWidget {
           children: [
             const Text('Estado',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-            const SizedBox(height: 8),
+            const _ParaQueServe('Por que ele foi recusado ou bloqueado.'),
             if (isRejected && rejectionReason != null && rejectionReason.isNotEmpty)
               _block(
                 icon: Icons.cancel_outlined,
@@ -1262,11 +1367,27 @@ class _StatusDetailsCard extends StatelessWidget {
   }
 }
 
+/// Uma frase curta a dizer para que serve a aba ou o bloco (painel em PT-BR).
+class _ParaQueServe extends StatelessWidget {
+  const _ParaQueServe(this.texto);
+  final String texto;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 2, bottom: 6),
+      child: Text(texto,
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+    );
+  }
+}
+
 class _ActionButton extends StatelessWidget {
   const _ActionButton({
     required this.icon,
     required this.label,
     required this.onTap,
+    this.subtitle,
     this.color,
     this.enabled = true,
   });
@@ -1274,11 +1395,13 @@ class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final String? subtitle;
   final Color? color;
   final bool enabled;
 
   @override
   Widget build(BuildContext context) {
+    final sub = subtitle;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
@@ -1287,6 +1410,11 @@ class _ActionButton extends StatelessWidget {
             style: TextStyle(
                 color: enabled ? AppColors.textPrimary : AppColors.textSubtle,
                 fontWeight: FontWeight.w600)),
+        subtitle: sub == null
+            ? null
+            : Text(sub,
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.textSecondary)),
         onTap: enabled ? onTap : null,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
@@ -1407,19 +1535,24 @@ class _EditDriverSheetState extends State<_EditDriverSheet> {
             DropdownButtonFormField<String>(
               value: _vt,
               decoration: const InputDecoration(labelText: 'Veículo'),
+              // [15/11/2026] 'carro_passageiros' (TVDE, 5 motoristas): sem
+              // ele o formulário destes motoristas abria com o veículo vazio.
               items: const [
-                DropdownMenuItem(value: 'motorcycle', child: Text('Motociclo')),
+                DropdownMenuItem(value: 'motorcycle', child: Text('Moto')),
                 DropdownMenuItem(value: 'car',        child: Text('Carro')),
                 DropdownMenuItem(value: 'bicycle',    child: Text('Bicicleta')),
+                DropdownMenuItem(
+                    value: 'carro_passageiros',
+                    child: Text('Carro de passageiros (TVDE)')),
               ],
               onChanged: (v) => setState(() => _vt = v ?? 'motorcycle'),
             ),
-            TextField(controller: _plate, decoration: const InputDecoration(labelText: 'Matrícula')),
+            TextField(controller: _plate, decoration: const InputDecoration(labelText: 'Placa')),
             // TVDE — carro visível ao passageiro no cartão.
             TextField(controller: _makeModel, decoration: const InputDecoration(labelText: 'Marca e modelo (TVDE)')),
             TextField(controller: _color, decoration: const InputDecoration(labelText: 'Cor do carro (TVDE)')),
             const SizedBox(height: 12),
-            const Text('Dados sensíveis (audit redact)', style: TextStyle(color: AppColors.warning, fontSize: 12)),
+            const Text('Dados sensíveis (o valor fica oculto no histórico)', style: TextStyle(color: AppColors.warning, fontSize: 12)),
             // BUG 1 fix: onChanged trigger setState para que sensitiveChanged
             // se actualize dinamicamente quando admin tipa nestes campos.
             // Sem isto o build só re-corre quando _reason muda, deixando o
@@ -1437,7 +1570,7 @@ class _EditDriverSheetState extends State<_EditDriverSheet> {
             const SizedBox(height: 12),
             TextField(
               controller: _reason,
-              decoration: const InputDecoration(labelText: 'Motivo (obrigatório, ≥3 chars)'),
+              decoration: const InputDecoration(labelText: 'Motivo (obrigatório, mínimo 3 letras)'),
               minLines: 1, maxLines: 3,
               onChanged: (_) => setState(() {}),
             ),
@@ -1454,8 +1587,8 @@ class _EditDriverSheetState extends State<_EditDriverSheet> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Vais alterar ${ibanChanged && nifChanged ? "IBAN e NIF" : ibanChanged ? "IBAN" : "NIF"} '
-                      '— dados financeiros/fiscais.',
+                      'Você vai alterar ${ibanChanged && nifChanged ? "IBAN e NIF" : ibanChanged ? "IBAN" : "NIF"} '
+                      '(dados financeiros/fiscais).',
                       style: const TextStyle(fontSize: 12),
                     ),
                   ),
@@ -1529,7 +1662,7 @@ class _BanDialogState extends State<_BanDialog> {
     ('fraud',             'Fraude'),
     ('misconduct',        'Conduta imprópria'),
     ('documents_invalid', 'Documentos inválidos'),
-    ('inactivity',        'Inactividade'),
+    ('inactivity',        'Inatividade'),
     ('safety',            'Segurança'),
     ('other',             'Outro'),
   ];
@@ -1649,7 +1782,7 @@ class _ReasonDialogState extends State<_ReasonDialog> {
         const SizedBox(height: 12),
         TextField(
           controller: _c,
-          decoration: const InputDecoration(labelText: 'Motivo (≥3 chars)'),
+          decoration: const InputDecoration(labelText: 'Motivo (mínimo 3 letras)'),
           minLines: 1, maxLines: 3,
           onChanged: (_) => setState(() {}),
         ),
@@ -1687,15 +1820,26 @@ class _SoftDeleteDialogState extends State<_SoftDeleteDialog> {
     // [01/11/2026 · B8] Remover = encerrar a conta: 10 letras (servidor).
     final reasonOk = _reason.text.trim().length >= kMinLetrasMotivoSuspensao;
     return AlertDialog(
+      // Texto mais comprido (aviso do dinheiro): rola em tela pequena.
+      scrollable: true,
       title: const Text('Remover entregador'),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
         const Text(
-          'Soft delete: o registo é preservado para integridade de pedidos/transacções/audit, '
-          'mas o entregador deixa de operar.',
+          'A conta fica arquivada: o registro é guardado para não perder '
+          'pedidos, transações e histórico, mas o entregador deixa de trabalhar.',
           style: TextStyle(fontSize: 13),
         ),
+        const SizedBox(height: 8),
+        // [15/11/2026] O servidor confere o saldo e os acertos pelo
+        // drivers.id, mas o dinheiro está no user_id (correção proposta).
+        const Text(
+          'Atenção: o painel ainda não consegue conferir se há dinheiro '
+          'pendente com este entregador (saldo ou acertos); a correção no '
+          'servidor está proposta. Confira antes de remover.',
+          style: TextStyle(fontSize: 12, color: AppColors.warning),
+        ),
         const SizedBox(height: 12),
-        Text('Para confirmar, escreve o nome exacto: "${widget.expectedName}"',
+        Text('Para confirmar, digite o nome exato: "${widget.expectedName}"',
             style: const TextStyle(fontSize: 12, color: AppColors.error)),
         TextField(
           controller: _name,
@@ -1726,61 +1870,173 @@ class _SoftDeleteDialogState extends State<_SoftDeleteDialog> {
 // ── TAB 2 — Orders ──────────────────────────────────────────────────────────
 
 class _OrdersTab extends StatefulWidget {
-  const _OrdersTab({required this.driverId});
-  final String driverId;
+  const _OrdersTab({required this.driverIds});
+
+  /// user_id e drivers.id: o pedido guarda o entregador pelo user_id (os
+  /// antigos, às vezes, pelo drivers.id).
+  final List<String> driverIds;
   @override State<_OrdersTab> createState() => _OrdersTabState();
 }
 
+/// app-15-11 (paridade admin do separador Pedidos do estafeta): o mesmo
+/// seletor de período (hoje, esta semana, semana passada, este mês), com o
+/// total que o entregador ganhou e o número de entregas feitas no período.
+/// A conta do período é a mesma função do app ([entregaNoPeriodo]).
 class _OrdersTabState extends State<_OrdersTab> {
+  /// `null` = "Últimos 50", de qualquer data (o que o separador já mostrava).
+  PeriodoEntregas? _periodo = PeriodoEntregas.estaSemana;
+
+  /// O servidor devolveu o máximo (500): pode haver mais no período.
+  bool _chegouAoLimite = false;
   late Future<List<Map<String, dynamic>>> _f;
   @override void initState() { super.initState(); _f = _load(); }
+
   Future<List<Map<String, dynamic>>> _load() async {
-    final res = await Supabase.instance.client
+    final periodo = _periodo;
+    final client = Supabase.instance.client;
+    const colunas = 'id, status, payment_method, final_total, driver_earnings, '
+        'created_at, delivered_at, restaurant_id, restaurants(id, name)';
+    if (periodo == null) {
+      _chegouAoLimite = false;
+      final res = await client
+          .from('orders')
+          .select(colunas)
+          .inFilter('assigned_driver_id', widget.driverIds)
+          .order('created_at', ascending: false)
+          .limit(50);
+      return List<Map<String, dynamic>>.from(res);
+    }
+    final agora = DateTime.now();
+    // instanteDeLisboa só lê ano/mês/dia do dia (data UTC): o fuso do
+    // navegador não entra na conta.
+    final de = instanteDeLisboa(inicioDoPeriodo(periodo, agora));
+    final ate = instanteDeLisboa(periodo == PeriodoEntregas.semanaPassada
+        ? inicioDoPeriodo(PeriodoEntregas.estaSemana, agora)
+        : diaLisboa(agora).add(const Duration(days: 1)));
+    // app-15-11 (Juiz): entregue no período (pela hora da entrega) OU, sem
+    // entrega, feito no período — apanha também o pedido marcado feito dias
+    // antes e entregue agora. O filtro fino (dias de Lisboa) é o de baixo.
+    final deIso = de.toIso8601String();
+    final ateIso = ate.toIso8601String();
+    final res = await client
         .from('orders')
-        .select('id, status, payment_method, final_total, created_at, '
-            'restaurant_id, restaurants(id, name)')
-        .eq('assigned_driver_id', widget.driverId)
+        .select(colunas)
+        .inFilter('assigned_driver_id', widget.driverIds)
+        .or('and(delivered_at.gte.$deIso,delivered_at.lt.$ateIso),'
+            'and(delivered_at.is.null,created_at.gte.$deIso,created_at.lt.$ateIso)')
         .order('created_at', ascending: false)
-        .limit(50);
-    return List<Map<String, dynamic>>.from(res);
+        .limit(500);
+    _chegouAoLimite = (res as List).length >= 500;
+    return List<Map<String, dynamic>>.from(res)
+        .where((o) {
+          // Como no app: conta a hora da entrega; sem ela, a do pedido.
+          final at = DateTime.tryParse(
+              (o['delivered_at'] ?? o['created_at'])?.toString() ?? '');
+          return at != null && entregaNoPeriodo(at, periodo, agora);
+        })
+        .toList();
   }
+
+  void _escolher(PeriodoEntregas? p) {
+    if (p == _periodo) return;
+    setState(() {
+      _periodo = p;
+      _f = _load();
+    });
+  }
+
+  Widget _seletor() => SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+        child: Row(children: [
+          for (final p in PeriodoEntregas.values) ...[
+            ChoiceChip(
+              key: ValueKey('admin_estafeta_periodo_${p.name}'),
+              label: Text(p.rotulo),
+              selected: p == _periodo,
+              onSelected: (_) => _escolher(p),
+            ),
+            const SizedBox(width: 8),
+          ],
+          ChoiceChip(
+            key: const ValueKey('admin_estafeta_periodo_todos'),
+            label: const Text('Últimos 50'),
+            selected: _periodo == null,
+            onSelected: (_) => _escolher(null),
+          ),
+        ]),
+      );
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _f,
-      builder: (ctx, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snap.hasError) return Center(child: Text('Erro: ${snap.error}'));
-        final orders = snap.data ?? const [];
-        if (orders.isEmpty) {
-          return const Center(child: Text('Sem pedidos atribuídos.'));
-        }
-        return RefreshIndicator(
-          onRefresh: () async => setState(() => _f = _load()),
-          child: ListView.separated(
-            padding: const EdgeInsets.all(12),
-            itemCount: orders.length,
-            separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.divider),
-            itemBuilder: (_, i) {
-              final o = orders[i];
-              final at = DateTime.tryParse((o['created_at'] as String?) ?? '');
-              final restaurantName =
-                  (o['restaurants'] as Map?)?['name'] as String?;
-              return ListTile(
-                title: Text(restaurantName ?? 'Sem origem'),
-                subtitle: Text('${o['status']} · ${o['payment_method'] ?? '—'} · '
-                    '€${((o['final_total'] as num?) ?? 0).toStringAsFixed(2)}'),
-                trailing: Text(at == null ? '—' : _fmtDate(at),
-                    style: const TextStyle(fontSize: 11)),
-                dense: true,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(12, 10, 12, 0),
+          child: _ParaQueServe('Pedidos atribuídos a este entregador e quanto '
+              'ele ganhou no período escolhido.'),
+        ),
+        _seletor(),
+        Expanded(
+          child: FutureBuilder<List<Map<String, dynamic>>>(
+            future: _f,
+            builder: (ctx, snap) {
+              if (snap.connectionState != ConnectionState.done) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snap.hasError) {
+                return Center(
+                    child: Text('Erro: ${humanizeAdminRpcError(snap.error!)}'));
+              }
+              final orders = snap.data ?? const [];
+              final entregues =
+                  orders.where((o) => o['status'] == 'delivered').toList();
+              final ganho = entregues.fold<double>(
+                  0, (s, o) => s + ((o['driver_earnings'] as num?) ?? 0));
+              final n = entregues.length;
+              return RefreshIndicator(
+                onRefresh: () async => setState(() => _f = _load()),
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: orders.length + 1,
+                  separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.divider),
+                  itemBuilder: (_, i) {
+                    if (i == 0) {
+                      return ListTile(
+                        key: const Key('admin_estafeta_total_periodo'),
+                        title: Text(
+                          'Ganhou €${ganho.toStringAsFixed(2)} — ${_periodo?.rotulo.toLowerCase() ?? 'últimos 50 pedidos'}',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: Text(
+                          '$n ${n == 1 ? 'entrega feita' : 'entregas feitas'}'
+                          ' · ${orders.length} pedidos atribuídos no período'
+                          '${_chegouAoLimite ? ' (mostrando os 500 mais recentes)' : ''}',
+                        ),
+                      );
+                    }
+                    final o = orders[i - 1];
+                    final at = DateTime.tryParse((o['created_at'] as String?) ?? '');
+                    final restaurantName =
+                        (o['restaurants'] as Map?)?['name'] as String?;
+                    final ganhoPedido = (o['driver_earnings'] as num?) ?? 0;
+                    return ListTile(
+                      title: Text(restaurantName ?? 'Sem origem'),
+                      subtitle: Text('${o['status']} · ${o['payment_method'] ?? '—'} · '
+                          '€${((o['final_total'] as num?) ?? 0).toStringAsFixed(2)}'
+                          ' · ganho €${ganhoPedido.toStringAsFixed(2)}'),
+                      trailing: Text(at == null ? '—' : _fmtDate(at),
+                          style: const TextStyle(fontSize: 11)),
+                      dense: true,
+                    );
+                  },
+                ),
               );
             },
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 }
@@ -1788,8 +2044,10 @@ class _OrdersTabState extends State<_OrdersTab> {
 // ── TAB 3 — Transactions ───────────────────────────────────────────────────
 
 class _TransactionsTab extends StatefulWidget {
-  const _TransactionsTab({required this.driverId, required this.balance});
-  final String driverId;
+  const _TransactionsTab({required this.driverIds, required this.balance});
+
+  /// user_id e drivers.id: as transações usam driver_id = user_id.
+  final List<String> driverIds;
   final Map<String, dynamic>? balance;
   @override State<_TransactionsTab> createState() => _TransactionsTabState();
 }
@@ -1801,7 +2059,7 @@ class _TransactionsTabState extends State<_TransactionsTab> {
     final res = await Supabase.instance.client
         .from('driver_transactions')
         .select('id, amount, type, status, created_at, notes, order_id')
-        .eq('driver_id', widget.driverId)
+        .inFilter('driver_id', widget.driverIds)
         .order('created_at', ascending: false)
         .limit(50);
     return List<Map<String, dynamic>>.from(res);
@@ -1816,13 +2074,18 @@ class _TransactionsTabState extends State<_TransactionsTab> {
         if (snap.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (snap.hasError) return Center(child: Text('Erro: ${snap.error}'));
+        if (snap.hasError) {
+          return Center(
+              child: Text('Erro: ${humanizeAdminRpcError(snap.error!)}'));
+        }
         final txs = snap.data ?? const [];
         return RefreshIndicator(
           onRefresh: () async => setState(() => _f = _load()),
           child: ListView(
             padding: const EdgeInsets.all(12),
             children: [
+              const _ParaQueServe(
+                  'Movimentos de saldo do entregador: ganhos, acertos e ajustes.'),
               Container(
                 decoration: BoxDecoration(
                   color: AppColors.info.withValues(alpha: 0.05),
@@ -1834,7 +2097,7 @@ class _TransactionsTabState extends State<_TransactionsTab> {
                   child: Row(children: [
                     const Icon(Icons.account_balance_wallet, color: AppColors.info),
                     const SizedBox(width: 12),
-                    Text('Saldo cash actual: €${balance.toStringAsFixed(2)}',
+                    Text('Saldo atual em dinheiro: €${balance.toStringAsFixed(2)}',
                         style: const TextStyle(fontWeight: FontWeight.w700)),
                   ]),
                 ),
@@ -1843,7 +2106,7 @@ class _TransactionsTabState extends State<_TransactionsTab> {
               if (txs.isEmpty)
                 const Padding(
                   padding: EdgeInsets.all(20),
-                  child: Center(child: Text('Sem transacções.')),
+                  child: Center(child: Text('Sem transações.')),
                 )
               else
                 ...txs.map((t) {
@@ -1874,11 +2137,14 @@ class _TransactionsTabState extends State<_TransactionsTab> {
   }
 }
 
-// ── TAB 4 — Audit ──────────────────────────────────────────────────────────
+// ── TAB 4 — Histórico (admin_audit_log) ────────────────────────────────────
 
 class _AuditTab extends StatefulWidget {
-  const _AuditTab({required this.driverId});
-  final String driverId;
+  const _AuditTab({required this.driverIds});
+
+  /// user_id e drivers.id: as entradas do histórico usam um ou outro, na
+  /// coluna uuid (entity_id) ou na de texto (entity_id_text).
+  final List<String> driverIds;
   @override State<_AuditTab> createState() => _AuditTabState();
 }
 
@@ -1886,15 +2152,21 @@ class _AuditTabState extends State<_AuditTab> {
   late Future<List<Map<String, dynamic>>> _f;
   @override void initState() { super.initState(); _f = _load(); }
   Future<List<Map<String, dynamic>>> _load() async {
+    // [15/11/2026] Tudo o que a equipe registrou sobre esta pessoa, pelos
+    // dois ids (aprovações, acertos, papéis, acesso TVDE…), não só as
+    // entradas do tipo 'driver' gravadas com o drivers.id.
     final res = await Supabase.instance.client
         .from('admin_audit_log')
         .select('id, action, admin_email, details, created_at')
-        .eq('entity_type', 'driver')
-        .eq('entity_id', widget.driverId)
+        .or(AdminDriverService.filtroHistoricoDoEntregador(widget.driverIds))
         .order('created_at', ascending: false)
         .limit(100);
     return List<Map<String, dynamic>>.from(res);
   }
+
+  static const _explicacao = _ParaQueServe(
+      'Tudo o que a equipe registrou sobre esta conta, do mais recente para o '
+      'mais antigo.');
 
   @override
   Widget build(BuildContext context) {
@@ -1904,21 +2176,40 @@ class _AuditTabState extends State<_AuditTab> {
         if (snap.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (snap.hasError) return Center(child: Text('Erro: ${snap.error}'));
+        if (snap.hasError) {
+          return Center(
+              child: Text('Erro: ${humanizeAdminRpcError(snap.error!)}'));
+        }
         final entries = snap.data ?? const [];
         if (entries.isEmpty) {
-          return const Center(child: Text('Sem entradas de audit.'));
+          return const Padding(
+            padding: EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _explicacao,
+                Expanded(
+                    child: Center(child: Text('Nenhum registro no histórico.'))),
+              ],
+            ),
+          );
         }
         return RefreshIndicator(
           onRefresh: () async => setState(() => _f = _load()),
           child: ListView.separated(
             padding: const EdgeInsets.all(12),
-            itemCount: entries.length,
-            separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.divider),
+            itemCount: entries.length + 1,
+            separatorBuilder: (_, i) => i == 0
+                ? const SizedBox.shrink()
+                : const Divider(height: 1, color: AppColors.divider),
             itemBuilder: (_, i) {
-              final e = entries[i];
+              if (i == 0) return _explicacao;
+              final e = entries[i - 1];
               final at = DateTime.tryParse((e['created_at'] as String?) ?? '');
-              final details = e['details'] as Map<String, dynamic>?;
+              // Entradas de outros tipos podem trazer details que não é mapa.
+              final raw = e['details'];
+              final details =
+                  raw is Map ? Map<String, dynamic>.from(raw) : null;
               final summary = details == null ? '' : _summariseDetails(details);
               return ListTile(
                 leading: Icon(_iconFor(e['action'] as String?), color: AppColors.primary, size: 20),

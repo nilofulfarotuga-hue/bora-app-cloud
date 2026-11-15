@@ -3,6 +3,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '_admin_rpc_errors.dart';
+
+/// [15/11/2026] Aviso fixo no topo: a lista PVPR é de junho/2026 e já foi
+/// aplicada; aplicar de novo poria preços velhos nos produtos.
+const String kContinentePvprAviso =
+    'Ferramenta de junho/2026, já aplicada. Não use para atualizar os preços '
+    'de hoje.';
 
 /// Painel admin — revisão dos preços PVPR do Continente (staging).
 /// Idioma PT-BR (decisão Danilo). Lê/escreve via RPCs admin_continente_*.
@@ -66,7 +73,7 @@ class _AdminContinentePricesScreenState
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = e.toString();
+        _error = humanizeAdminRpcError(e);
       });
     }
   }
@@ -82,7 +89,7 @@ class _AdminContinentePricesScreenState
           ? '${ids.length} aprovado(s).'
           : '${ids.length} rejeitado(s).');
     } catch (e) {
-      _snack('Erro: $e', error: true);
+      _snack(humanizeAdminRpcError(e), error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -120,7 +127,7 @@ class _AdminContinentePricesScreenState
       await _load();
       _snack('Aplicados ${r['applied']} preço(s) aos produtos.');
     } catch (e) {
-      _snack('Erro ao aplicar: $e', error: true);
+      _snack('Não consegui aplicar. ${humanizeAdminRpcError(e)}', error: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -139,23 +146,47 @@ class _AdminContinentePricesScreenState
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const BoraScreenAppBar(title: 'Preços Continente (PVPR)'),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text('Erro: $_error',
-                      style: const TextStyle(color: AppColors.error)),
-                ))
-              : Column(
-                  children: [
-                    _summaryPanel(),
-                    _filterBar(),
-                    const Divider(height: 1),
-                    Expanded(child: _list()),
-                  ],
+      body: Column(
+        children: [
+          // 15/11/2026: aviso sempre visível, antes de qualquer botão.
+          Container(
+            key: const ValueKey('continente_pvpr_aviso'),
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            color: AppColors.warning.withValues(alpha: 0.15),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.warning_amber_rounded, color: AppColors.warning),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(kContinentePvprAviso,
+                      style: TextStyle(fontWeight: FontWeight.w700)),
                 ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                    ? Center(
+                        child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(_error!,
+                            style: const TextStyle(color: AppColors.error)),
+                      ))
+                    : Column(
+                        children: [
+                          _summaryPanel(),
+                          _filterBar(),
+                          const Divider(height: 1),
+                          Expanded(child: _list()),
+                        ],
+                      ),
+          ),
+        ],
+      ),
     );
   }
 

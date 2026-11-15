@@ -27,6 +27,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../l10n/tr.dart';
+import '../utils/sessao.dart';
 
 /// Prefixo dos artigos-prémio no catálogo (preço 0, escondidos do menu).
 const String kPrefixoArtigoPremio = 'premio-checkin-';
@@ -701,6 +702,8 @@ class CheckinPremiosService {
   /// Estado dos marcos e vales, ou `null` (servidor sem a função, sem rede,
   /// sem sessão). Nunca rebenta: quem chama esconde a parte dos marcos.
   Future<CheckinPremiosEstado?> estado() async {
+    // app-15-11 (varredura 9166, n.º 17): visitante sem sessão não chama (o servidor recusava ~400×/dia).
+    if (!temSessao()) return null;
     try {
       final res = await _db.rpc('client_checkin_premios').timeout(_limite);
       if (res is! Map || res['ok'] != true) return null;

@@ -260,6 +260,15 @@ class OrderModel {
   final int? errandPasso;
   /// 'normal' | 'express'
   final String? errandSpeed;
+
+  /// Hora em que o estafeta aceitou (orders.driver_assigned_at). Ordena a
+  /// fila do estafeta (lib/services/fila_estafeta.dart, 14/11/2026).
+  final DateTime? driverAssignedAt;
+
+  /// Hora da entrega (orders.delivered_at). Conta o período das entregas do
+  /// estafeta (app-15-11): uma entrega pedida domingo às 23:50 e entregue
+  /// segunda às 00:20 é da semana nova, como na Uber e na Glovo.
+  final DateTime? deliveredAt;
   final bool errandHasPurchase;
   /// Estimativa do cliente em cents. 0 quando errandHasPurchase=false.
   final int errandEstimatedPurchaseCents;
@@ -436,6 +445,8 @@ class OrderModel {
     this.errandLeg = 0,
     this.errandPasso,
     this.errandSpeed,
+    this.driverAssignedAt,
+    this.deliveredAt,
     this.errandHasPurchase = false,
     this.errandEstimatedPurchaseCents = 0,
     this.errandRequestPhotoUrl,
@@ -724,6 +735,12 @@ class OrderModel {
       errandLeg: (data['errand_leg'] as num?)?.toInt() ?? 0,
       errandPasso: (data['errand_passo'] as num?)?.toInt(),
       errandSpeed: data['errand_speed'] as String?,
+      driverAssignedAt: data['driver_assigned_at'] != null
+          ? DateTime.tryParse(data['driver_assigned_at'].toString())
+          : null,
+      deliveredAt: data['delivered_at'] != null
+          ? DateTime.tryParse(data['delivered_at'].toString())
+          : null,
       errandHasPurchase: data['errand_has_purchase'] as bool? ?? false,
       errandEstimatedPurchaseCents:
           (data['errand_estimated_purchase_cents'] as num?)?.toInt() ?? 0,
@@ -909,11 +926,11 @@ extension OrderStatusLabel on OrderStatus {
       case OrderStatus.created:
         return 'Pedido criado';
       case OrderStatus.preparing:
-        return 'Restaurante preparando';
+        return 'A preparar o pedido'; // app-15-11: PT-PT (era "preparando")
       case OrderStatus.readyForPickup:
         return 'Pronto para levantar';
       case OrderStatus.callingDriver:
-        return 'Aguardando estafeta';
+        return 'À procura de estafeta'; // app-15-11: PT-PT (era "Aguardando")
       case OrderStatus.driverAccepted:
         return 'Estafeta a caminho';
       case OrderStatus.pickedUp:

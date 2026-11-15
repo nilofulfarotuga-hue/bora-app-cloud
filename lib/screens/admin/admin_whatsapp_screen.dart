@@ -3,6 +3,8 @@
 // abrir conversa, Pausar/Retomar, Assumir/Liberar, leads, lista de espera de estafetas, log de
 // ferramentas chamadas, exportar CSV (copia para a área de transferência). O interruptor global
 // "Envio ligado" escreve em whatsapp_settings.envio_ligado — o cérebro lê a cada pedido.
+// 15/11/2026 (auditoria S6): desligado, a barra diz desde quando e porquê
+// (whatsapp_settings.envio_desligado_em / envio_desligado_motivo); desligar no painel pede o motivo.
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -11,6 +13,31 @@ import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../utils/hora_lisboa.dart';
 import '../../services/admin_export_service.dart';
+import '_admin_rpc_errors.dart';
+
+/// "13/09" (dia de Lisboa) de um instante; null sem data.
+String? diaMesLisboa(Object? iso) {
+  final d = DateTime.tryParse('${iso ?? ''}');
+  if (d == null) return null;
+  final l = horaLisboa(d);
+  String dd(int n) => n.toString().padLeft(2, '0');
+  return '${dd(l.day)}/${dd(l.month)}';
+}
+
+/// Texto da barra do envio do bot. Desligado com data ou motivo guardados:
+/// "Desligado de propósito desde 13/09. Motivo: …". Sem nada guardado fica o texto antigo.
+String textoBarraEnvioWhatsapp({required bool ligado, Object? desligadoEm, Object? motivo}) {
+  if (ligado) return 'Bot LIGADO — responde sozinho a mensagens novas';
+  final desde = diaMesLisboa(desligadoEm);
+  final m = '${motivo ?? ''}'.trim();
+  if (desde == null && m.isEmpty) return 'Bot DESLIGADO — só lê e registra';
+  final partes = <String>[
+    desde == null ? 'Desligado de propósito' : 'Desligado de propósito desde $desde',
+    if (m.isNotEmpty) 'Motivo: ${m.endsWith('.') ? m.substring(0, m.length - 1) : m}',
+    'O bot só lê e registra',
+  ];
+  return '${partes.join('. ')}.';
+}
 
 class AdminWhatsappScreen extends StatefulWidget {
   const AdminWhatsappScreen({super.key});
@@ -24,6 +51,8 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
   final _supabase = Supabase.instance.client;
   late final TabController _tabs = TabController(length: 4, vsync: this);
   bool? _envioLigado;
+  Object? _desligadoEm;
+  Object? _motivoDesligado;
   List<Map<String, dynamic>> _contatos = [];
   List<Map<String, dynamic>> _leads = [];
   List<Map<String, dynamic>> _ferramentas = [];
@@ -51,8 +80,8 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
       final s = await _supabase
           .from('whatsapp_settings')
           .select('key, value')
-          .eq('key', 'envio_ligado')
-          .maybeSingle();
+          .inFilter('key', const ['envio_ligado', 'envio_desligado_em', 'envio_desligado_motivo']);
+      final defs = {for (final r in s) '${r['key']}': r['value']};
       final c = await _supabase
           .from('whatsapp_contacts')
           .select('numero, nome, papel, tratamento, lingua, bot_pausado, bot_pausado_ate, '
@@ -71,7 +100,9 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
           .order('created_at', ascending: false)
           .limit(150);
       setState(() {
-        _envioLigado = s == null ? null : (s['value'] == true);
+        _envioLigado = defs.containsKey('envio_ligado') ? defs['envio_ligado'] == true : null;
+        _desligadoEm = defs['envio_desligado_em'];
+        _motivoDesligado = defs['envio_desligado_motivo'];
         _contatos = List<Map<String, dynamic>>.from(c);
         _leads = List<Map<String, dynamic>>.from(l);
         _ferramentas = List<Map<String, dynamic>>.from(f);
@@ -79,20 +110,33 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
       });
     } catch (e) {
       setState(() {
-        _erro = e.toString();
+        _erro = humanizeAdminRpcError(e);
         _loading = false;
       });
     }
   }
 
   Future<void> _mudarEnvio(bool ligar) async {
+    // Só ao desligar: o motivo fica em envio_desligado_motivo e aparece na barra.
+    final motivo = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(ligar ? 'Ligar o envio do bot?' : 'Desligar o envio do bot?'),
-        content: Text(ligar
-            ? 'O bot passa a responder sozinho a mensagens NOVAS no WhatsApp da loja.'
-            : 'O bot continua a ler e a registrar, mas não envia nada a ninguém.'),
+        content: ligar
+            ? const Text('O bot passa a responder sozinho a mensagens NOVAS no WhatsApp da loja.')
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('O bot continua a ler e a registrar, mas não envia nada a ninguém.'),
+                  TextField(
+                    key: const Key('whatsapp_motivo_desligar'),
+                    controller: motivo,
+                    maxLines: 2,
+                    decoration: const InputDecoration(labelText: 'Motivo (aparece na barra)'),
+                  ),
+                ],
+              ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
           FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(ligar ? 'Ligar' : 'Desligar')),
@@ -106,9 +150,16 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
         'key': ligar ? 'envio_ligado_em' : 'envio_desligado_em',
         'value': DateTime.now().toUtc().toIso8601String(),
       });
+      if (!ligar) {
+        final m = motivo.text.trim();
+        await _supabase.from('whatsapp_settings').upsert({
+          'key': 'envio_desligado_motivo',
+          'value': m.isEmpty ? 'desligado no painel, sem motivo escrito' : m,
+        });
+      }
       await _carregar();
     } catch (e) {
-      _aviso('Erro: $e');
+      _aviso(humanizeAdminRpcError(e));
     }
   }
 
@@ -124,7 +175,7 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
       }).eq('numero', c['numero']);
       await _carregar();
     } catch (e) {
-      _aviso('Erro: $e');
+      _aviso(humanizeAdminRpcError(e));
     }
   }
 
@@ -138,7 +189,7 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
       }).eq('numero', c['numero']);
       await _carregar();
     } catch (e) {
-      _aviso('Erro: $e');
+      _aviso(humanizeAdminRpcError(e));
     }
   }
 
@@ -155,7 +206,7 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
       await _supabase.from('whatsapp_contacts').update({'tipo_conversa': tipo}).eq('numero', c['numero']);
       await _carregar();
     } catch (e) {
-      _aviso('Erro: $e');
+      _aviso(humanizeAdminRpcError(e));
     }
   }
 
@@ -164,7 +215,7 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
       await _supabase.from('whatsapp_leads').update({'estado': estado}).eq('id', l['id']);
       await _carregar();
     } catch (e) {
-      _aviso('Erro: $e');
+      _aviso(humanizeAdminRpcError(e));
     }
   }
 
@@ -231,7 +282,7 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
           if (_erro != null)
             Padding(
               padding: const EdgeInsets.all(12),
-              child: Text('Erro: $_erro', style: const TextStyle(color: AppColors.error)),
+              child: Text('Não foi possível carregar. ${_erro!}', style: const TextStyle(color: AppColors.error)),
             ),
           Expanded(
             child: _loading
@@ -258,7 +309,7 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              ligado ? 'Bot LIGADO — responde sozinho a mensagens novas' : 'Bot DESLIGADO — só lê e registra',
+              textoBarraEnvioWhatsapp(ligado: ligado, desligadoEm: _desligadoEm, motivo: _motivoDesligado),
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
@@ -398,7 +449,7 @@ class _AdminWhatsappScreenState extends State<AdminWhatsappScreen>
       });
       _aviso('Vaga aberta: o bot começa a avisar a lista no próximo ciclo.');
     } catch (e) {
-      _aviso('Erro: $e');
+      _aviso(humanizeAdminRpcError(e));
     }
   }
 
@@ -501,7 +552,8 @@ class _ConversaScreenState extends State<_ConversaScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snap.hasError) {
-            return Center(child: Text('Erro: ${snap.error}', style: const TextStyle(color: AppColors.error)));
+            return Center(
+                child: Text(humanizeAdminRpcError(snap.error!), style: const TextStyle(color: AppColors.error)));
           }
           final rows = snap.data ?? [];
           if (rows.isEmpty) return const Center(child: Text('Sem mensagens registradas.'));

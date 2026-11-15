@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../widgets/admin/admin_para_que_serve.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import 'admin_menu_registry.dart';
 
@@ -29,8 +30,9 @@ class AdminMenuSubScreen extends StatelessWidget {
             title: Text(it.title),
             subtitle: Text(it.subtitle),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => it.builder())),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => AdminTelaComProposito(
+                    proposito: it.subtitle, child: it.builder()))),
           );
         },
       ),

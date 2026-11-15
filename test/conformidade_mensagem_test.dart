@@ -130,7 +130,7 @@ void main() {
       expect(m('menor_de_idade'), contains('18 anos'));
       expect(m('autocertificacao_no_futuro'), contains('futuro'));
       expect(m('loja_nao_encontrada'), contains('Loja não encontrada'));
-      expect(m('outra coisa'), 'Não foi possível salvar os dados fiscais: outra coisa');
+      expect(m('outra coisa'), 'Não foi possível guardar os dados fiscais: outra coisa');
     });
   });
 

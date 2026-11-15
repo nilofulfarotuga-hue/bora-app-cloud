@@ -30,6 +30,7 @@ import '../../../services/tvde_partilha_service.dart';
 import '../../../services/tvde_posicao_ao_vivo.dart';
 import '../../../stores/tvde_chat_store.dart';
 import '../../../stores/tvde_store.dart';
+import '../../../utils/euros.dart';
 import '../../../utils/map_utils.dart';
 import '../../../utils/marcador_animado.dart';
 import '../../../utils/rastreio_interpolacao.dart' show AmostraPosicao;
@@ -2773,7 +2774,7 @@ class _StatusPanel extends StatelessWidget {
                     style: const TextStyle(
                         color: AppColors.textSecondary, fontSize: 13)),
               ),
-              Text('+€${(ride.destChangeFeeCents / 100).toStringAsFixed(2)}',
+              Text('+${eurCents(ride.destChangeFeeCents)}', // app-15-11
                   key: const Key('tvde_dest_change_total'),
                   style: const TextStyle(
                       fontWeight: FontWeight.w700,
@@ -2882,7 +2883,7 @@ class _StatusPanel extends StatelessWidget {
                     style: const TextStyle(
                         color: AppColors.textSecondary, fontSize: 13)),
               ),
-              Text('€${(ride.extraStopsFeeCents / 100).toStringAsFixed(2)}',
+              Text(eurCents(ride.extraStopsFeeCents), // app-15-11
                   style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary,
@@ -3081,7 +3082,7 @@ class _StopPayConfirmSheetState extends State<_StopPayConfirmSheet> {
     final media = MediaQuery.of(context);
     final inset = media.viewInsets.bottom; // teclado
     final safeBottom = media.padding.bottom; // barra de navegação do sistema
-    final eur = '€${(widget.feeCents / 100).toStringAsFixed(2)}';
+    final eur = eurCents(widget.feeCents); // app-15-11: "2,50 €"
     final isMbway = widget.method == 'mbway';
     // [Ronda 2] Mesmo defeito da folha do pedido: `useSafeArea` só protege o
     // topo (aplica `SafeArea(bottom: false)`) e `viewInsets` só conta o teclado

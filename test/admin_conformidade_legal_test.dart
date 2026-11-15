@@ -54,11 +54,11 @@ void main() {
       );
     });
 
-    test('os casos antigos continuam iguais', () {
+    test('os casos antigos continuam (em PT-BR desde 15/11/2026)', () {
       expect(
         humanizeAdminRpcError(
             const PostgrestException(message: 'admin_required')),
-        'Sem permissões de admin para esta acção.',
+        'Sem permissão de admin para esta ação.',
       );
       expect(
           humanizeAdminRpcError(Exception('x')), startsWith('Erro inesperado'));

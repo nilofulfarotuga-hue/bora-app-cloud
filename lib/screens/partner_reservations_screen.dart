@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../models/reservation_model.dart';
+import '../stores/partner_reservas_store.dart';
+import '../utils/hora_lisboa.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 
@@ -53,22 +55,30 @@ class _PartnerReservationsScreenState
     final client = Supabase.instance.client;
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await client.rpc('partner_decide_reservation', params: {
-        'p_reservation_id': r.id,
-        'p_accept': accept,
-        'p_reason': reason,
-      }).timeout(const Duration(seconds: 20));
-      messenger.showSnackBar(SnackBar(
-        content: Text(accept
-            ? 'Reserva aprovada.'
-            : 'Reserva rejeitada — reembolso automático.'),
-      ));
+      if (accept) {
+        await client.rpc('partner_decide_reservation', params: {
+          'p_reservation_id': r.id,
+          'p_accept': accept,
+          'p_reason': reason,
+        }).timeout(const Duration(seconds: 20));
+        messenger.showSnackBar(
+            const SnackBar(content: Text('Reserva aprovada.')));
+      } else {
+        // fechar-tudo-15-11: rejeitar vai pela mesma porta do ecrã novo, que
+        // devolve o pré-pagamento (a RPC sozinha não devolvia nada, apesar
+        // de este ecrã prometer a devolução ao parceiro).
+        final recusa = await PartnerReservasStore(supabase: client)
+            .rejectReservation(reservation: r, reason: reason)
+            .timeout(const Duration(seconds: 30));
+        messenger.showSnackBar(SnackBar(content: Text(recusa.texto)));
+      }
       if (mounted) setState(() => _future = _load());
     } catch (e) {
       debugPrint('[PartnerReservations] decide: $e');
-      messenger.showSnackBar(const SnackBar(
-          content: Text(
-              'Não foi possível concluir. Atualiza a lista e tenta de novo.')));
+      messenger.showSnackBar(SnackBar(
+          content: Text(e is RecusaReservaFalhou
+              ? e.texto
+              : 'Não foi possível concluir. Atualiza a lista e tenta de novo.')));
       if (mounted) setState(() => _future = _load());
     } finally {
       _aDecorrer.remove(r.id);
@@ -110,7 +120,23 @@ class _PartnerReservationsScreenState
             return const Center(child: CircularProgressIndicator());
           }
           if (snap.hasError) {
-            return Center(child: Text('Erro: ${snap.error}'));
+            // app-15-11: frase simples no ecrã; o erro técnico fica no registo.
+            debugPrint('[partner_reservations] falha a carregar: ${snap.error}');
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Não foi possível carregar as reservas.'),
+                  TextButton(
+                    // corpo em bloco: o setState não pode devolver o Future.
+                    onPressed: () => setState(() {
+                      _future = _load();
+                    }),
+                    child: const Text('Tentar de novo'),
+                  ),
+                ],
+              ),
+            );
           }
           final list = snap.data ?? const <ReservationModel>[];
           if (list.isEmpty) {
@@ -202,7 +228,7 @@ class _ReservationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final d = reservation.reservedFor.toLocal();
+    final d = horaLisboa(reservation.reservedFor); // app-15-11: hora de Lisboa
     final dateStr =
         '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year} '
         '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';

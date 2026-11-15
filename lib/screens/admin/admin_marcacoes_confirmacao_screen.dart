@@ -22,6 +22,20 @@ class AdminMarcacoesConfirmacaoScreen extends StatefulWidget {
   /// 0 = por confirmar · 1 = dinheiro retido por falta.
   final int abaInicial;
 
+  /// Estado do pagamento (`appointments.deposit_status`) em português.
+  /// app-15-11 (auditoria S5): a ficha dizia "pagamento: paid / pending /
+  /// waived / kept_test", em inglês.
+  static String pagamentoPtBr(Object? estado) => switch (estado?.toString()) {
+        'paid' => 'pago',
+        'pending' => 'por pagar',
+        'waived' => 'dispensado',
+        'kept_test' => 'teste',
+        'retained' => 'retido',
+        'refunded' => 'devolvido',
+        null || '' => '—',
+        final String outro => outro,
+      };
+
   @override
   State<AdminMarcacoesConfirmacaoScreen> createState() =>
       _AdminMarcacoesConfirmacaoScreenState();
@@ -342,7 +356,8 @@ class _AdminMarcacoesConfirmacaoScreenState
               'cancelled' => 'cancelada',
               _ => status,
             }),
-            _chip('pagamento: ${r['deposit_status'] ?? '—'}'),
+            _chip('pagamento: '
+                '${AdminMarcacoesConfirmacaoScreen.pagamentoPtBr(r['deposit_status'])}'),
             if (asked > 0) _chip('perguntado ${asked}x ao parceiro'),
             if (decidedBy != null)
               _chip(decidedBy == 'partner' ? 'falta marcada pelo parceiro' : 'falta decidida por você'),

@@ -6,6 +6,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '_admin_rpc_errors.dart';
+
+/// [15/11/2026] A tabela `bora_tokens` só deixa cada pessoa ler os seus
+/// tokens (política `tokens_select_own`): a lista geral do painel sai curta
+/// ou vazia até existir a leitura de admin no servidor.
+const String kTokensListaLimitada =
+    'A lista mostra só os tokens que o servidor deixa o painel ler; '
+    'a leitura completa de admin está em proposta.';
 
 class AdminTokensScreen extends StatefulWidget {
   const AdminTokensScreen({super.key});
@@ -25,6 +33,10 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
   List<Map<String, dynamic>> _searchResults = [];
   List<Map<String, dynamic>> _allGrants = [];
   bool _allGrantsLoading = false;
+  String? _allGrantsErro;
+
+  /// Quantas linhas a lista geral pede ao servidor.
+  static const int _kLimiteLista = 50;
 
   @override
   void initState() {
@@ -34,23 +46,52 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
   }
 
   Future<void> _loadAllGrants(String role) async {
-    setState(() => _allGrantsLoading = true);
+    setState(() {
+      _allGrantsLoading = true;
+      _allGrantsErro = null;
+    });
     try {
+      // Só colunas que existem em bora_tokens (is_used/used_at; não há
+      // is_active nem reason). Antes a leitura falhava e a lista ficava vazia.
       final data = await Supabase.instance.client
           .from('bora_tokens')
-          .select('id, user_id, role, amount, is_active, created_at, expires_at, source_order_id, reason')
+          .select('id, user_id, role, amount, created_at, expires_at, source_order_id, is_used, used_at')
           .eq('role', role)
           .order('created_at', ascending: false)
-          .limit(50);
+          .limit(_kLimiteLista);
       if (mounted) {
         setState(() {
           _allGrants = List<Map<String, dynamic>>.from(data);
           _allGrantsLoading = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _allGrantsLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _allGrants = [];
+          _allGrantsErro = humanizeAdminRpcError(e);
+          _allGrantsLoading = false;
+        });
+      }
     }
+  }
+
+  /// "dd/mm/aaaa" a partir do texto do servidor; '?' se não houver data.
+  static String _dia(dynamic iso) {
+    final s = iso?.toString() ?? '';
+    if (s.length < 10) return '?';
+    return '${s.substring(8, 10)}/${s.substring(5, 7)}/${s.substring(0, 4)}';
+  }
+
+  /// Estado de um token lido da tabela (só para mostrar; o saldo é do
+  /// servidor): usado (com a data), expirado ou por usar.
+  static String _estadoToken(Map<String, dynamic> g) {
+    if (g['is_used'] == true) {
+      return g['used_at'] == null ? 'usado' : 'usado em ${_dia(g['used_at'])}';
+    }
+    final expira = DateTime.tryParse(g['expires_at']?.toString() ?? '');
+    if (expira != null && expira.isBefore(DateTime.now())) return 'expirado';
+    return 'por usar';
   }
 
   @override
@@ -80,7 +121,7 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
         setState(() => _searchResults = List<Map<String, dynamic>>.from(res as List));
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(humanizeAdminRpcError(e))));
     }
   }
 
@@ -104,7 +145,7 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
     } catch (e) {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(humanizeAdminRpcError(e))));
     }
   }
 
@@ -180,7 +221,7 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
         _selectUser(_selectedUserId!, _selectedUserLabel!);
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(humanizeAdminRpcError(e))));
     }
   }
 
@@ -222,7 +263,7 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
         _selectUser(_selectedUserId!, _selectedUserLabel!);
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(humanizeAdminRpcError(e))));
     }
   }
 
@@ -300,47 +341,66 @@ class _AdminTokensScreenState extends State<AdminTokensScreen>
 
   Widget _buildAllGrantsList() {
     if (_allGrantsLoading) return const Center(child: CircularProgressIndicator());
-    if (_allGrants.isEmpty) {
-      return Center(
-        child: Text('Sem tokens neste filtro.',
-            style: TextStyle(color: AppColors.textSecondary)),
-      );
-    }
+    // A lista sai curta (menos do que o pedido) ou vazia quando o servidor só
+    // deixa ler parte dos tokens: diz-se, em vez de parecer que não há nada.
+    final listaCurta = _allGrantsErro != null || _allGrants.length < _kLimiteLista;
     return RefreshIndicator(
       onRefresh: () => _loadAllGrants(_tab.index == 0 ? 'client' : 'driver'),
-      child: ListView.builder(
+      child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        itemCount: _allGrants.length,
-        itemBuilder: (ctx, i) {
-          final g = _allGrants[i];
-          final active = g['is_active'] == true;
-          final userId = (g['user_id'] as String?) ?? '—';
-          final shortId = userId.length > 8 ? userId.substring(0, 8) : userId;
-          final amount = g['amount'] ?? 0;
-          final createdAt = (g['created_at'] as String?)?.substring(0, 10) ?? '?';
-          final expiresAt = (g['expires_at'] as String?)?.substring(0, 10) ?? '?';
-          final isManual = g['source_order_id'] == null;
-          return Card(
-            margin: const EdgeInsets.symmetric(vertical: 3),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(Radii.lg),
+        children: [
+          if (_allGrantsErro != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(_allGrantsErro!,
+                  style: const TextStyle(color: AppColors.error)),
             ),
-            child: ListTile(
-              dense: true,
-              leading: Icon(
-                active ? Icons.check_circle : Icons.cancel,
-                color: active ? AppColors.success : AppColors.textSubtle,
-                size: 22,
+          if (listaCurta)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text(kTokensListaLimitada,
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+            ),
+          if (_allGrants.isEmpty && _allGrantsErro == null)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text('Sem tokens neste filtro.',
+                    style: TextStyle(color: AppColors.textSecondary)),
               ),
-              title: Text('$amount tokens${isManual ? " · MANUAL" : ""}'),
-              subtitle: Text('$shortId… · criado $createdAt · expira $expiresAt'),
-              trailing: active
-                  ? const Icon(Icons.circle, size: 8, color: AppColors.success)
-                  : null,
             ),
-          );
-        },
+          for (final g in _allGrants) _tokenCard(g),
+        ],
+      ),
+    );
+  }
+
+  Widget _tokenCard(Map<String, dynamic> g) {
+    final estado = _estadoToken(g);
+    final porUsar = estado == 'por usar';
+    final userId = (g['user_id'] as String?) ?? '—';
+    final shortId = userId.length > 8 ? userId.substring(0, 8) : userId;
+    final amount = g['amount'] ?? 0;
+    final isManual = g['source_order_id'] == null;
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 3),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Radii.lg),
+      ),
+      child: ListTile(
+        dense: true,
+        leading: Icon(
+          porUsar ? Icons.check_circle : Icons.cancel,
+          color: porUsar ? AppColors.success : AppColors.textSubtle,
+          size: 22,
+        ),
+        title: Text('$amount tokens${isManual ? " · MANUAL" : ""}'),
+        subtitle: Text('$shortId… · criado ${_dia(g['created_at'])} · '
+            'expira ${_dia(g['expires_at'])} · $estado'),
+        trailing: porUsar
+            ? const Icon(Icons.circle, size: 8, color: AppColors.success)
+            : null,
       ),
     );
   }

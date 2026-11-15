@@ -35,11 +35,26 @@
 // davam nif_em_falta). (2) o modelo devolve as linhas a 0,00 dos menus e as linhas de deposito e
 // de saco como linhas proprias — o robo do catalogo soma os menus e as caixas e o servidor trata o
 // deposito Volta (gatilho trg_talao_deposito_volta).
+//
+// v15 (missao fechar-app-15-11, 14/11/2026 — pedido 7a3468d5): (1) o texto enviado ao modelo
+// deixou de citar lojas como exemplo (lia "KFC" num talao do McDonald's) e manda copiar a loja
+// do cabecalho; (2) a loja lida compara-se com a loja do pedido (store_check em receipt_parsed
+// e na resposta; so vai a revisao quando e OUTRA loja conhecida); (3) uma linha repetida que
+// faz a soma passar o total impresso conta uma vez (lines_check). Regras em talao_regras.ts.
+// Nao muda o total do talao nem nenhum valor cobrado ou pago; nao precisa de migracao.
+//
+// v16 (missao fechar-tudo-15-11, 15/11/2026): (1) o texto ao modelo ja nao manda a soma das linhas
+// dar o total_cents: manda copiar cada preco tal como esta impresso, mesmo sem a soma bater (os
+// precos unitarios alimentam catalog_price_update_from_receipt; um acerto inventado estragava o
+// catalogo). Nenhum codigo daqui mexe num preco para a soma bater: tirarLinhasRepetidas so tira uma
+// linha repetida inteira ou deixa o aviso. (2) as linhas de deposito reconhecem-se com a mesma
+// regra do servidor (eDeposito = public._talao_e_deposito), para nunca sair uma como "repetida".
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { exigirCallerOk, secretKey } from '../_shared/keys.ts'
 import { respostaAoPing } from '../_shared/chaves.ts'
 import { avisarNifDoTalao, escolherNifCliente, limparNif, verificarNifDoTalao } from './nif_talao.ts'
+import { conferirLoja, tirarLinhasRepetidas, type ConferenciaLoja } from './talao_regras.ts'
 import { httpDasTentativas, pedirIa } from '../_shared/ia_visao.ts'
 import { detetarMime } from '../_shared/documentos_robo.ts'
 
@@ -148,6 +163,32 @@ Deno.serve(async (req) => {
   // v11: nada extraido = provavelmente NAO e um talao (caso real: foto do saco).
   const looksLikeReceipt = !isEmptyParse(parsed)
 
+  // v15 (fechar-app-15-11, bloco 4 — pedido 7a3468d5, McDonald's lido como "KFC" e o saco em duas
+  // linhas: soma 25,40 com total impresso 25,10). (1) Uma linha repetida que faz a soma passar o
+  // total impresso exatamente pelo seu valor conta uma vez; sem total impresso não se tira nada e
+  // as linhas de depósito nunca se tiram. (2) A loja lida compara-se com a loja do pedido: não
+  // bater nunca falha a leitura, fica o aviso para o painel; só vai a revisão (ocr_flagged) quando
+  // a loja lida é OUTRA loja que a Bora conhece. O total do talão (total_cents) não muda.
+  let linhasCheck: Record<string, unknown> | null = null
+  if (parsed) {
+    const c = tirarLinhasRepetidas(parsed.lines ?? [], parsed.total_cents)
+    if (c.aviso) {
+      linhasCheck = {
+        aviso: c.aviso,
+        removidas: c.removidas,
+        soma_antes_cents: c.soma_antes_cents,
+        soma_depois_cents: c.soma_depois_cents,
+      }
+      console.log('[ocr-receipt] linhas:', JSON.stringify(linhasCheck))
+    }
+    parsed.lines = c.linhas
+  }
+  const lojaCheck = looksLikeReceipt
+    ? await conferirLojaDoPedido(supabase, orderId, parsed?.store ?? null)
+    : null
+  const lojaFlagged = lojaCheck?.ok === false && !!lojaCheck.outra_loja_conhecida
+  if (lojaCheck?.ok === false) console.log('[ocr-receipt] loja nao bate:', JSON.stringify(lojaCheck))
+
   // Divergencia (Fase 6): |digitado - parsed| > receipt_divergence_alert_cents → match=false
   const parsedTotal = parsed?.total_cents ?? null
   const typedTotal = receipt.driver_typed_total_cents
@@ -168,13 +209,15 @@ Deno.serve(async (req) => {
   // servidor pelo gatilho trg_talao_deposito_volta quando receipt_parsed muda (PARTE 2 da missão
   // volta-deposito-kfc-2026-11-09); aqui só se lê e grava.
   await supabase.from('order_receipts_v2').update({
-    receipt_parsed: parsed ? { ...parsed, buyer_nif: buyerNifFinal, nif_check: nifCheck } : parsed,
+    receipt_parsed: parsed
+      ? { ...parsed, buyer_nif: buyerNifFinal, nif_check: nifCheck, store_check: lojaCheck, lines_check: linhasCheck }
+      : parsed,
     receipt_parsed_total_cents: parsedTotal,
     receipt_parsed_store: parsed?.store ?? null,
     receipt_match: match,
     ocr_extracted_total_cents: parsedTotal,
     ocr_diff_cents: diffCents,
-    ocr_flagged: legacyFlagged || !looksLikeReceipt || nifFlagged,
+    ocr_flagged: legacyFlagged || !looksLikeReceipt || nifFlagged || lojaFlagged,
     ocr_raw_response: rawResponse,
     ocr_ran_at: new Date().toISOString(),
   }).eq('id', receipt.id)
@@ -207,8 +250,33 @@ Deno.serve(async (req) => {
     divergence_limit: divergenceLimit,
     price_live: priceLive,
     nif: { ...nifCheck, avisado: nifAvisado },
+    store_check: lojaCheck,
+    lines_check: linhasCheck,
   })
 })
+
+/**
+ * v15: a loja lida no talão contra a loja do pedido. Nunca lança (um erro aqui não pode
+ * estragar a leitura). Favor com compra não tem loja certa no pedido: não se compara.
+ */
+async function conferirLojaDoPedido(supabase: any, orderId: string, lida: string | null):
+  Promise<ConferenciaLoja | null> {
+  if (!lida) return null
+  try {
+    const { data: pedido } = await supabase
+      .from('orders').select('vendor_name, service_type').eq('id', orderId).maybeSingle()
+    const doPedido = typeof pedido?.vendor_name === 'string' ? pedido.vendor_name.trim() : ''
+    if (!doPedido || pedido?.service_type === 'errand') return null
+    const { data: lojas } = await supabase.from('restaurants').select('name').limit(500)
+    const nomes: string[] = Array.isArray(lojas)
+      ? lojas.map((l: any) => String(l?.name ?? '').trim()).filter((n: string) => n.length > 0)
+      : []
+    return conferirLoja(lida, doPedido, nomes)
+  } catch (e) {
+    console.error('[ocr-receipt] conferir loja:', e)
+    return null
+  }
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -242,16 +310,21 @@ async function lerTalao(b64: string, mime: string, modeloClaude: 'claude-haiku-5
     'Regras: total_cents é o total final em cêntimos de euro (€12.34 → 1234). ' +
     'lines são TODAS as linhas de artigos pela ordem impressa, uma por linha do talão: qty é a quantidade ' +
     'e unit_price_cents o preço de UMA unidade (se só houver o total da linha, divide pela quantidade). ' +
-    'Inclui as linhas a 0,00 (ex.: "MENU KENTUCKY BBQ 0,00" seguido das sublinhas do menu), as linhas ' +
+    'Inclui as linhas a 0,00 (a linha de um menu a 0,00 seguida das sublinhas desse menu), as linhas ' +
     'de depósito de embalagens (DEPOSITO, VALOR DE DEPOSITO, VASILHAME, SDR, VOLTA) e de sacos, cada ' +
     'uma como linha própria; ignora linhas de traços. lines pode ser [] se não conseguires distinguir produtos. ' +
-    'store é o nome da loja/farmácia/supermercado (sem morada). ' +
+    'Cada linha impressa entra UMA só vez: não repitas a mesma linha, e uma linha que só explica outra ' +
+    '(a taxa de um saco que já está contado na linha do saco) não é um artigo. ' +
+    'Copia cada preço exatamente como está impresso no talão, mesmo que a soma de qty × unit_price_cents ' +
+    'das lines não dê o total_cents: nunca alteres nem inventes um preço para a soma bater. ' +
+    'store é o nome da loja/farmácia/supermercado (sem morada), copiado tal como está impresso no ' +
+    'cabeçalho do talão; nunca o adivinhes pelos artigos nem por este texto; se não se lê, null. ' +
     'datetime usa hora local do talão se visível. ' +
     'seller_nif é o NIF/NIPC da LOJA (no cabeçalho, junto ao nome/morada, muitas vezes "N. Contrib.", ' +
     '"Contribuinte", "NIPC"). nifs são TODOS os números de 9 dígitos impressos junto a "NIF", "Contrib", ' +
     '"Contribuinte" ou "NIPC", em qualquer parte do talão. ' +
     'buyer_nif é o NIF do CLIENTE/adquirente (linhas como "NIF:", "NIF Cliente", "NIF Adquirente", ' +
-    '"Contribuinte:"), só os 9 dígitos; NUNCA o NIF/NIPC da loja. Atenção: há talões (ex.: KFC) com os dados da ' +
+    '"Contribuinte:"), só os 9 dígitos; NUNCA o NIF/NIPC da loja. Atenção: há talões com os dados da ' +
     'empresa e "N. Contrib." da loja e, logo a seguir, uma linha "NIF:" com OUTRO número — esse é o do ' +
     'cliente. Se diz "Consumidor final" ou não há NIF do cliente, null. ' +
     'Se não conseguires ler o talão, devolve {"store":null,"total_cents":null,"lines":[],"datetime":null,' +

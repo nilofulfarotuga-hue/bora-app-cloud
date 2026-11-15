@@ -1,0 +1,229 @@
+// ocr-receipt · regras do talão (missão fechar-app-15-11, bloco 4, 14/11/2026)
+//
+// Caso real (pedido 7a3468d5, McDonald's): o robô leu "KFC" como loja e devolveu o saco em
+// duas linhas ("Taxa Saco" 0,30 + "Saco de Tran" 0,30): a soma das linhas dava 25,40 € com o
+// total impresso a 25,10 €.
+//
+// Funções puras (sem rede, sem banco) para se provarem sozinhas:
+//   - conferirLoja: a loja LIDA no talão é a loja DO PEDIDO? Nunca falha a leitura; só avisa.
+//   - tirarLinhasRepetidas: quando a soma das linhas passa o total impresso exatamente pelo
+//     valor de uma linha repetida, essa linha conta uma vez. O total impresso é o árbitro:
+//     sem total impresso não se tira nada.
+//
+// NÃO mexem em dinheiro: o valor do talão é o total impresso (não muda) e as linhas de
+// depósito de embalagens nunca são tiradas aqui (essas alimentam o depósito Volta no servidor).
+//
+// 15/11/2026 (missão fechar-tudo-15-11): eDeposito passou a ser uma cópia fiel de
+// public._talao_e_deposito (e normTalao de public._talao_norm). Antes "DEP EMB", "DEP. EMB.",
+// "DEPOSITOS" e "VASILHAMES" não contavam como depósito aqui mas contavam no servidor: uma dessas
+// linhas podia sair como "repetida" e mudar o depósito Volta do pedido (e o cash_total_due).
+
+export type LinhaTalao = { name: string; qty: number; unit_price_cents: number }
+
+export type ConferenciaLoja = {
+  /** true = bate; false = não bate; null = falta uma das duas, não se sabe. */
+  ok: boolean | null
+  lida: string | null
+  pedido: string | null
+  /** Quando a loja lida é OUTRA loja que a Bora conhece (ex.: leu KFC num pedido do McDonald's). */
+  outra_loja_conhecida: string | null
+}
+
+export type ConferenciaLinhas = {
+  linhas: LinhaTalao[]
+  removidas: LinhaTalao[]
+  soma_antes_cents: number
+  soma_depois_cents: number
+  /** null = nada a dizer; senão o que se passou, para o painel. */
+  aviso: 'linha_repetida_tirada' | 'soma_das_linhas_acima_do_total' | null
+}
+
+// Palavras que aparecem em muitos nomes e não distinguem loja nenhuma.
+const PALAVRAS_GENERICAS = new Set([
+  'restaurante', 'restaurantes', 'cafe', 'cafetaria', 'pastelaria', 'padaria', 'pizzaria', 'hamburgueria',
+  'snack', 'bar', 'loja', 'lojas', 'supermercado', 'supermercados', 'hipermercado', 'mercado', 'farmacia',
+  'guarda', 'portugal', 'lda', 'limitada', 'unipessoal', 'sociedade', 'sistemas', 'comercio', 'distribuicao',
+  'the', 'and', 'dos', 'das', 'del',
+  // 15/11/2026 (revisão): palavras que dizem o TIPO de comida ou de casa, não a marca. Medido em
+  // produção: pizza e sushi estão no nome de 3 lojas cada; açaí, burger, house, kebab e sabores
+  // em 2. Com uma delas a contar como "palavra forte", o talão de uma casa de hambúrgueres
+  // batia com o pedido de outra. Só entram essas sete e as suas formas de plural ou de escrita.
+  'pizza', 'pizzas', 'sushi', 'acai', 'burger', 'burgers', 'burguer', 'burguers', 'house', 'kebab', 'kebabs',
+  'sabores', 'sabor',
+])
+
+/** Minúsculas, sem acentos, só letras e números separados por um espaço. */
+export function normalizarNome(s: string | null | undefined): string {
+  return String(s ?? '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/['’`´]/g, '') // McDonald's -> mcdonalds
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function compacto(s: string): string {
+  return s.replace(/ /g, '')
+}
+
+function palavrasFortes(norm: string): string[] {
+  return norm.split(' ').filter((p) => p.length >= 4 && !PALAVRAS_GENERICAS.has(p))
+}
+
+/**
+ * Dois nomes são a mesma loja? Tolerante a maiúsculas, acentos, apóstrofos, espaços e ao nome
+ * vir com a terra ou a empresa à volta ("McDonald's" = "MC DONALDS GUARDA" = "Sistemas
+ * McDonald's Portugal"). null quando falta um dos nomes.
+ */
+export function lojasBatem(a: string | null | undefined, b: string | null | undefined): boolean | null {
+  const na = normalizarNome(a)
+  const nb = normalizarNome(b)
+  if (!na || !nb) return null
+  if (na === nb) return true
+  const ca = compacto(na)
+  const cb = compacto(nb)
+  // Um nome dentro do outro (com 3 letras ou mais, para "bk" não bater com tudo).
+  if (ca.length >= 3 && cb.length >= 3 && (ca.includes(cb) || cb.includes(ca))) return true
+  // Uma palavra forte em comum ("continente" em "Continente Modelo Guarda").
+  const fa = palavrasFortes(na)
+  const fb = new Set(palavrasFortes(nb))
+  if (fa.some((p) => fb.has(p))) return true
+  // A palavra forte de um lado colada no outro ("mc donalds" -> "mcdonalds").
+  if (palavrasFortes(nb).some((p) => ca.includes(p)) || fa.some((p) => cb.includes(p))) return true
+  return false
+}
+
+/**
+ * Compara a loja lida com a loja do pedido. Se não baterem, procura a loja lida entre as
+ * lojas que a Bora conhece: ler OUTRA loja conhecida é sinal forte de talão trocado (ou de
+ * leitura errada); um nome que não é de loja nenhuma costuma ser o nome da empresa dona da
+ * loja, e fica só como nota.
+ */
+export function conferirLoja(
+  lida: string | null | undefined,
+  doPedido: string | null | undefined,
+  lojasConhecidas: readonly string[] = [],
+): ConferenciaLoja {
+  const l = lida && String(lida).trim() ? String(lida).trim() : null
+  const p = doPedido && String(doPedido).trim() ? String(doPedido).trim() : null
+  const ok = lojasBatem(l, p)
+  let outra: string | null = null
+  if (ok === false) {
+    for (const nome of lojasConhecidas) {
+      if (lojasBatem(nome, p) === true) continue // é a própria loja do pedido com outro nome
+      if (lojasBatem(l, nome) === true) { outra = nome; break }
+    }
+  }
+  return { ok, lida: l, pedido: p, outra_loja_conhecida: outra }
+}
+
+function valorDaLinha(l: LinhaTalao): number {
+  return Math.round((Number(l.qty) || 0) * (Number(l.unit_price_cents) || 0))
+}
+
+export function somaDasLinhas(linhas: readonly LinhaTalao[]): number {
+  return linhas.reduce((s, l) => s + valorDaLinha(l), 0)
+}
+
+function eSaco(nome: string): boolean {
+  return /\b(saco|sacos|sac|saca|bag)\b/.test(nome)
+}
+
+// ── Depósito de embalagens: a MESMA regra do servidor ──────────────────────────────────────────
+// O servidor soma o depósito Volta do talão com public._talao_e_deposito
+// (talao_aplicar_deposito_volta -> orders.deposit_* / cash_total_due / carteira). Cópia do SQL
+// (migrações 20261108234633 e 20261110173749, iguais ao que corre em produção a 15/11/2026):
+//   _talao_norm(p) = btrim(regexp_replace(lower(unaccent(coalesce(p, ''))), '[^a-z0-9 ]+', ' ', 'g'))
+//   depósito       = norm ~ '(^| )(deposito|depositos|vasilhame|vasilhames)( |$)'
+//                 OR norm ~ '^(sdr|volta|dep|dep emb)( |$)'
+// Mudar a lista é mudar os dois lados ao mesmo tempo: talao_deposito_test.ts compara esta cópia
+// com a última migração que define a função.
+
+/**
+ * Letras que o unaccent do servidor troca e a decomposição NFD não separa, em todo o Latin-1 e
+ * Latin Extended-A (U+00A0–U+017F). Lidas de extensions.unaccent em produção (15/11/2026).
+ */
+const UNACCENT_FORA_DO_NFD: ReadonlyArray<readonly [number, string]> = [
+  [0xA9, '(C)'], [0xAE, '(R)'], [0xBC, ' 1/4'], [0xBD, ' 1/2'], [0xBE, ' 3/4'],
+  [0xC6, 'AE'], [0xD0, 'D'], [0xD8, 'O'], [0xDE, 'TH'], [0xDF, 'ss'],
+  [0xE6, 'ae'], [0xF0, 'd'], [0xF8, 'o'], [0xFE, 'th'],
+  [0x110, 'D'], [0x111, 'd'], [0x126, 'H'], [0x127, 'h'], [0x131, 'i'], [0x132, 'IJ'], [0x133, 'ij'],
+  [0x138, 'q'], [0x13F, 'L'], [0x140, 'l'], [0x141, 'L'], [0x142, 'l'], [0x149, "'n"], [0x14A, 'N'],
+  [0x14B, 'n'], [0x152, 'OE'], [0x153, 'oe'], [0x166, 'T'], [0x167, 't'], [0x17F, 's'],
+]
+const TROCAS_UNACCENT = new Map(UNACCENT_FORA_DO_NFD.map(([cp, s]) => [String.fromCharCode(cp), s]))
+const RE_TROCAS_UNACCENT = new RegExp(`[${[...TROCAS_UNACCENT.keys()].join('')}]`, 'g')
+
+/**
+ * Cópia de public._talao_norm: tira os acentos como o unaccent (marcas U+0300–U+0362; as
+ * U+0363–U+036F o unaccent deixa ficar e viram espaço), passa a minúsculas, cada bloco do que não
+ * é a-z, 0-9 ou espaço vira UM espaço (os espaços que já lá estão ficam) e corta as pontas.
+ * Diferente de normalizarNome (lojas), que cola os apóstrofos e junta os espaços.
+ */
+export function normTalao(s: string | null | undefined): string {
+  return String(s ?? '')
+    .normalize('NFD')
+    .replace(/[\u{300}-\u{362}]/gu, '')
+    .replace(RE_TROCAS_UNACCENT, (c) => TROCAS_UNACCENT.get(c) ?? c)
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, ' ')
+    .trim()
+}
+
+/** Depósito em qualquer sítio do nome, como palavra inteira. */
+export const DEPOSITO_EM_QUALQUER_SITIO = /(^| )(deposito|depositos|vasilhame|vasilhames)( |$)/
+/** Depósito só no início do nome: "Taxa SDR" e "Bilhete Ida e Volta" NÃO são, como no servidor. */
+export const DEPOSITO_NO_INICIO = /^(sdr|volta|dep|dep emb)( |$)/
+
+/** Cópia de public._talao_e_deposito. Recebe o nome tal como vem do talão (sem normalizar). */
+export function eDeposito(nome: string | null | undefined): boolean {
+  const n = normTalao(nome)
+  return DEPOSITO_EM_QUALQUER_SITIO.test(n) || DEPOSITO_NO_INICIO.test(n)
+}
+
+/**
+ * Tira UMA linha repetida quando (e só quando) a soma das linhas passa o total impresso
+ * exatamente pelo valor dessa linha. Conta como repetida:
+ *   - a mesma linha lida duas vezes (mesmo nome, mesma quantidade, mesmo preço);
+ *   - o saco em duas linhas do mesmo valor ("Taxa Saco" + "Saco de Transporte").
+ * Tira-se a de baixo. Dois artigos iguais comprados a sério NÃO se tiram: aí a soma bate com
+ * o total. Linhas de depósito de embalagens nunca se tiram aqui (eDeposito = a regra do servidor).
+ */
+export function tirarLinhasRepetidas(
+  linhas: readonly LinhaTalao[],
+  totalCents: number | null | undefined,
+): ConferenciaLinhas {
+  const copia = linhas.map((l) => ({ ...l }))
+  const soma = somaDasLinhas(copia)
+  const base: ConferenciaLinhas = {
+    linhas: copia, removidas: [], soma_antes_cents: soma, soma_depois_cents: soma, aviso: null,
+  }
+  if (typeof totalCents !== 'number' || !(totalCents > 0) || copia.length === 0) return base
+  const excesso = soma - Math.round(totalCents)
+  if (excesso <= 0) return base
+
+  const nomes = copia.map((l) => normalizarNome(l.name))
+  for (let i = copia.length - 1; i >= 1; i--) {
+    if (valorDaLinha(copia[i]) !== excesso) continue
+    if (eDeposito(copia[i].name)) continue // o nome cru, como o servidor o lê
+    let repetida = false
+    for (let j = 0; j < copia.length && !repetida; j++) {
+      if (j === i) continue
+      const mesma = j < i && nomes[j] === nomes[i]
+        && copia[j].qty === copia[i].qty && copia[j].unit_price_cents === copia[i].unit_price_cents
+      const sacoDuasVezes = eSaco(nomes[i]) && eSaco(nomes[j])
+        && valorDaLinha(copia[j]) === valorDaLinha(copia[i])
+      repetida = mesma || sacoDuasVezes
+    }
+    if (!repetida) continue
+    const [fora] = copia.splice(i, 1)
+    return {
+      linhas: copia,
+      removidas: [fora],
+      soma_antes_cents: soma,
+      soma_depois_cents: somaDasLinhas(copia),
+      aviso: 'linha_repetida_tirada',
+    }
+  }
+  return { ...base, aviso: 'soma_das_linhas_acima_do_total' }
+}

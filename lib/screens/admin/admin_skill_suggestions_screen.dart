@@ -13,6 +13,18 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../utils/hora_lisboa_ext.dart';
+import '_admin_rpc_errors.dart';
+
+/// 15/11/2026 (auditoria S6): `admin_bulk_approve_skill_suggestions` ainda não existe no servidor
+/// (está em proposta). Em vez do erro técnico, diz isso e lembra que aprovar uma a uma funciona.
+String mensagemAprovarEmLote(Object erro) {
+  final t = erro.toString();
+  if (t.contains('PGRST202') || t.contains('Could not find the function')) {
+    return 'Aprovar em lote ainda não foi instalado no servidor. '
+        'Aprove uma de cada vez, no botão de cada proposta.';
+  }
+  return humanizeAdminRpcError(erro);
+}
 
 class AdminSkillSuggestionsScreen extends StatefulWidget {
   const AdminSkillSuggestionsScreen({super.key});
@@ -133,7 +145,7 @@ class _AdminSkillSuggestionsScreenState
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = humanizeAdminRpcError(e);
         _loading = false;
       });
     }
@@ -255,7 +267,7 @@ class _AdminSkillSuggestionsScreenState
       await _load();
       await _refreshBadge();
     } catch (e) {
-      _toast('Erro: $e', AppColors.error);
+      _toast(mensagemAprovarEmLote(e), AppColors.error);
     }
   }
 
@@ -322,7 +334,7 @@ class _AdminSkillSuggestionsScreenState
       await _load();
       await _refreshBadge();
     } catch (e) {
-      _toast('Erro: $e', AppColors.error);
+      _toast(humanizeAdminRpcError(e), AppColors.error);
     }
   }
 
@@ -414,7 +426,7 @@ class _AdminSkillSuggestionsScreenState
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: AppColors.error,
-        content: Text('Erro: $e'),
+        content: Text(humanizeAdminRpcError(e)),
       ));
     } finally {
       if (mounted) setState(() => _analyzing = false);
@@ -551,7 +563,7 @@ class _AdminSkillSuggestionsScreenState
       await _load();
       await _refreshBadge();
     } catch (e) {
-      _toast('Erro: $e', AppColors.error);
+      _toast(humanizeAdminRpcError(e), AppColors.error);
     }
   }
 
@@ -639,7 +651,7 @@ class _AdminSkillSuggestionsScreenState
       await _load();
       await _refreshBadge();
     } catch (e) {
-      _toast('Erro: $e', AppColors.error);
+      _toast(humanizeAdminRpcError(e), AppColors.error);
     }
   }
 
@@ -719,7 +731,7 @@ class _AdminSkillSuggestionsScreenState
       await _load();
       await _refreshBadge();
     } catch (e) {
-      _toast('Erro: $e', AppColors.error);
+      _toast(humanizeAdminRpcError(e), AppColors.error);
     }
   }
 
@@ -763,7 +775,7 @@ class _AdminSkillSuggestionsScreenState
       await _load();
       await _refreshBadge();
     } catch (e) {
-      _toast('Erro: $e', AppColors.error);
+      _toast(humanizeAdminRpcError(e), AppColors.error);
     }
   }
 
@@ -817,7 +829,7 @@ class _AdminSkillSuggestionsScreenState
       await _load();
       await _refreshBadge();
     } catch (e) {
-      _toast('Erro: $e', AppColors.error);
+      _toast(humanizeAdminRpcError(e), AppColors.error);
     }
   }
 

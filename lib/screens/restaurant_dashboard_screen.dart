@@ -394,7 +394,7 @@ class _OrderTileState extends State<_OrderTile> {
             const _OrderStatusNote(
               icon: Icons.timer,
               message:
-                  'Preparação em andamento. Um estafeta será chamado automaticamente em até 5 minutos.',
+                  'A preparar. Um estafeta é chamado sozinho dentro de 5 minutos.',
               color: Colors.orange,
             ),
           ],

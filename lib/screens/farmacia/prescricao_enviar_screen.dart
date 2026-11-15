@@ -94,9 +94,19 @@ class _PrescricaoEnviarScreenState extends State<PrescricaoEnviarScreen> {
       _moradaTocada = _morada.text.isNotEmpty;
     }
     _carregarMorada();
-    _svc.consentimento(widget.restaurantId).then((c) {
+    _carregarConsentimento();
+  }
+
+  /// app-15-11: se falhar, volta a tentar quando a pessoa carrega em Enviar
+  /// (antes ficava "a carregar" para sempre e nunca dava para enviar).
+  Future<String?> _carregarConsentimento() async {
+    try {
+      final c = await _svc.consentimento(widget.restaurantId);
       if (mounted) setState(() => _cons = c);
-    }).catchError((_) {});
+      return null;
+    } catch (e) {
+      return PrescricaoService.mensagemDe(e);
+    }
   }
 
   Future<void> _carregarMorada() async {
@@ -178,7 +188,10 @@ class _PrescricaoEnviarScreenState extends State<PrescricaoEnviarScreen> {
     }
     if (_eReceita) {
       if (_cons == null) {
-        return _mostrarErro('A carregar a autorização. Tente outra vez daqui a nada.', _kAutorizacao);
+        final erro = await _carregarConsentimento();
+        if (_cons == null) {
+          return _mostrarErro(erro ?? 'A carregar a autorização. Tente outra vez daqui a nada.', _kAutorizacao);
+        }
       }
       if (!_autorizo) {
         return _mostrarErro('Falta marcar "Li e autorizo".', _kAutorizacao);

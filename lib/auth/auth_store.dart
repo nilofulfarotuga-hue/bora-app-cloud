@@ -157,6 +157,24 @@ class AuthStore extends ChangeNotifier {
       'Este email já tem uma conta. Entra com a palavra-passe ou usa '
       '"Esqueci a palavra-passe" — não cries outra conta.';
 
+  /// app-15-11 (varredura 9166, n.º 3): o 422 `weak_password` chegava em
+  /// inglês ("Password should be at least…"); 5 vezes em 24 h. Diz-se em
+  /// PT-PT o que falta, pelo texto que o servidor manda.
+  static String mensagemPalavraPasseFraca(String? doServidor) {
+    final m = (doServidor ?? '').toLowerCase();
+    final minimo = RegExp(r'at least (\d+) characters').firstMatch(m);
+    if (minimo != null) {
+      return 'A palavra-passe tem de ter pelo menos ${minimo.group(1)} caracteres.';
+    }
+    if (m.contains('one character of each')) {
+      return 'A palavra-passe tem de misturar letras minúsculas, maiúsculas e números.';
+    }
+    if (m.contains('known') || m.contains('pwned') || m.contains('easy to guess')) {
+      return 'Essa palavra-passe é conhecida e fácil de adivinhar. Escolhe outra.';
+    }
+    return 'A palavra-passe é fraca. Escolhe outra mais forte.';
+  }
+
   /// FONTE DE VERDADE DO PAPEL, e é só esta.
   ///
   /// O papel do utilizador autenticado lê-se do `user_metadata` do token, por
@@ -343,6 +361,113 @@ class AuthStore extends ChangeNotifier {
     return null;
   }
 
+  /// "Editar perfil" do cliente (missão editar-perfil-2026-11-11).
+  ///
+  /// Grava pela RPC `client_update_my_profile`: o servidor valida (nome 2–60,
+  /// telemóvel PT de 9 dígitos), só deixa mudar a PRÓPRIA conta (o id vem do
+  /// token), grava em `public.users` e no metadata do login, e guarda o
+  /// antes/depois em `user_profile_changes`. O estado local só muda depois de
+  /// o servidor confirmar — com a rede em baixo nada se perde nem se finge.
+  ///
+  /// [phone] vazio = não mexe no telemóvel. Devolve `null` quando correu bem,
+  /// ou a mensagem de erro em PT-PT.
+  Future<String?> editClientProfile({
+    required String name,
+    String? phone,
+  }) async {
+    final client = _currentClient;
+    if (client == null) {
+      return 'A tua sessão terminou. Entra outra vez na tua conta.';
+    }
+    final tel = (phone ?? '').trim();
+
+    final Object? res;
+    try {
+      res = await _supabase.rpc('client_update_my_profile', params: {
+        'p_name': name.trim(),
+        'p_phone': tel.isEmpty ? null : tel,
+      }).timeout(const Duration(seconds: 20));
+    } on TimeoutException {
+      return 'A ligação está lenta. Verifica a internet e tenta de novo.';
+    } catch (e) {
+      debugPrint('editClientProfile falhou => $e');
+      return 'Não foi possível guardar. Verifica a ligação e tenta de novo.';
+    }
+
+    if (res is! Map) {
+      return 'Não foi possível guardar. Tenta de novo.';
+    }
+    if (res['ok'] != true) {
+      final erro = res['erro'];
+      return erro is String && erro.isNotEmpty
+          ? erro
+          : 'Não foi possível guardar. Tenta de novo.';
+    }
+
+    final nome = (res['name'] as String?)?.trim();
+    final telGravado = (res['phone'] as String?)?.trim();
+    _applyClientContact(
+      (nome == null || nome.isEmpty) ? client.name : nome,
+      (telGravado == null || telGravado.isEmpty) ? client.phone : telGravado,
+    );
+    // O servidor já mudou o metadata; isto põe a sessão guardada neste
+    // telemóvel em dia, para o nome não voltar ao antigo ao reabrir a app.
+    unawaited(_syncSessionContactMetadata());
+    return null;
+  }
+
+  /// Traz nome/telemóvel de `public.users` para a app. Uma mudança feita no
+  /// painel admin ou aprovada no Suporte passa a aparecer no Perfil e no
+  /// "Olá, X!" sem o cliente ter de sair e voltar a entrar. Silencioso: sem
+  /// rede, sem sessão ou sem linha, fica tudo como está.
+  Future<void> syncClientContactFromServer() async {
+    try {
+      final client = _currentClient;
+      final uid = _supabase.auth.currentUser?.id;
+      if (client == null || uid == null) return;
+      final row = await _supabase
+          .from('users')
+          .select('name, phone')
+          .eq('id', uid)
+          .maybeSingle()
+          .timeout(const Duration(seconds: 10));
+      if (row == null || !identical(client, _currentClient)) return;
+      final n = (row['name'] as String?)?.trim() ?? '';
+      final p = (row['phone'] as String?)?.trim() ?? '';
+      final nome = n.isNotEmpty ? n : client.name;
+      final tel = p.isNotEmpty ? p : client.phone;
+      if (nome == client.name && tel == client.phone) return;
+      _applyClientContact(nome, tel);
+      await _syncSessionContactMetadata();
+    } catch (e) {
+      debugPrint('syncClientContactFromServer => $e');
+    }
+  }
+
+  void _applyClientContact(String name, String phone) {
+    final client = _currentClient;
+    if (client == null) return;
+    if (client.name == name && client.phone == phone) return;
+    final updated = client.copyWith(name: name, phone: phone);
+    _currentClient = updated;
+    if (updated.email.isNotEmpty) _clientsByEmail[updated.email] = updated;
+    _persistClient(updated);
+    notifyListeners();
+  }
+
+  /// Best-effort: o metadata do login é de onde a app relê o nome ao abrir.
+  Future<void> _syncSessionContactMetadata() async {
+    final client = _currentClient;
+    if (client == null || _supabase.auth.currentUser == null) return;
+    try {
+      await _supabase.auth.updateUser(
+        UserAttributes(data: {_kName: client.name, _kPhone: client.phone}),
+      );
+    } catch (e) {
+      debugPrint('AuthStore: metadata do contacto não atualizado => $e');
+    }
+  }
+
   /// [url] may be empty to clear the photo.
   Future<void> updateCurrentUserPhoto(String url) async {
     if (_currentClient != null) {
@@ -495,6 +620,9 @@ class AuthStore extends ChangeNotifier {
         _clientsByEmail[email] = account;
         _currentClient = account;
         notifyListeners();
+        // Editar perfil (11/11/2026): o metadata pode estar atrás de
+        // public.users (mudança feita no painel ou aprovada no Suporte).
+        unawaited(syncClientContactFromServer());
         break;
 
       case 'driver':
@@ -909,6 +1037,7 @@ class AuthStore extends ChangeNotifier {
       if (e.code == 'user_already_exists') {
         return duplicatePartnerEmailMessage;
       }
+      if (e.code == 'weak_password') return mensagemPalavraPasseFraca(e.message);
       return e.message;
     } catch (e) {
       return 'Erro ao criar conta. Tente novamente.';
@@ -1182,6 +1311,7 @@ class AuthStore extends ChangeNotifier {
       if (e.code == 'user_already_exists') {
         return duplicatePartnerEmailMessage;
       }
+      if (e.code == 'weak_password') return mensagemPalavraPasseFraca(e.message);
       return e.message;
     } catch (e) {
       return 'Erro ao criar conta. Tente novamente.';
@@ -1522,7 +1652,8 @@ class AuthStore extends ChangeNotifier {
       if (e.code == 'user_already_exists') {
         return duplicatePartnerEmailMessage;
       }
-      // Restantes erros do Supabase (ex.: password fraca) — mostra tal qual.
+      if (e.code == 'weak_password') return mensagemPalavraPasseFraca(e.message);
+      // Restantes erros do Supabase — mostra tal qual.
       return e.message;
     } catch (e) {
       return 'Erro ao criar conta. Tente novamente.';
@@ -1704,7 +1835,7 @@ class AuthStore extends ChangeNotifier {
         return {
           'error': (backendError != null && backendError.trim().isNotEmpty)
               ? backendError
-              : 'A tua conta de acesso foi criada, mas houve um erro ao registar o estabelecimento. Contacta o suporte — não precisas de repetir o email/senha.',
+              : 'A tua conta de acesso foi criada, mas houve um erro ao registar o estabelecimento. Contacta o suporte — não precisas de repetir o email e a palavra-passe.',
           'isDuplicateEmail': false,
         };
       }
@@ -1720,7 +1851,7 @@ class AuthStore extends ChangeNotifier {
       debugPrint('[AuthStore] _submitRestaurantEdgeFunction failed => $e');
       return {
         'error':
-            'A tua conta de acesso foi criada, mas houve um erro de ligação ao registar o estabelecimento. Contacta o suporte — não precisas de repetir o email/senha.',
+            'A tua conta de acesso foi criada, mas houve um erro de ligação ao registar o estabelecimento. Contacta o suporte — não precisas de repetir o email e a palavra-passe.',
         'isDuplicateEmail': false,
       };
     }

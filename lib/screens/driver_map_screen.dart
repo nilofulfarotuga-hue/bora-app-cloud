@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert' show jsonEncode;
 import '../utils/io_compat.dart' show File, boraLocalImage;
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -9,12 +10,16 @@ import '../utils/safe_image_picker.dart';
 import '../utils/euros.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../services/preco_balcao.dart';
 import '../services/talao_pendente_service.dart';
+import '../services/compra_rascunho_service.dart';
+import '../services/fila_estafeta.dart';
 import '../services/weight_portions.dart';
 
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform, visibleForTesting;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback, SystemSound, SystemSoundType;
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' hide LatLng;
 import 'package:latlong2/latlong.dart' as ll;
@@ -53,6 +58,8 @@ import '../widgets/driver_chat_fab.dart';
 import '../widgets/payments/loja_pagamento.dart';
 import '../widgets/driver_invoice_nif_card.dart';
 import '../widgets/driver_item_options.dart';
+import '../widgets/estado_gravacao_compra.dart';
+import '../widgets/fila_estafeta_widgets.dart';
 import '../widgets/entrega_marcada_estafeta.dart';
 import 'driver_order_action_helper.dart';
 import '../widgets/bora/maior_18.dart';
@@ -199,6 +206,60 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     } catch (_) {/* fica o 12 */}
   }
 
+  /// Compra guardada (14/11/2026): pedido que o estafeta escolheu à mão (ou
+  /// abriu do aviso "Próximo pedido"). Ganha a qualquer cálculo automático.
+  String? _pedidoEscolhidoId;
+
+  /// Adenda 1 (14/11/2026): o que estava em espera no último desenho, para
+  /// saber quando o seguinte abre (depois de entregar o atual).
+  Set<String> _idsEmEspera = <String>{};
+  Set<String> _idsAtivosAntes = <String>{};
+  bool _avisoProximoAberto = false;
+
+  /// Só avisa quando um pedido ativo SAIU (entregue/cancelado) e um da fila
+  /// abriu — não quando o servidor só corrige qual é o em curso.
+  void _verSeAbriuOProximo(FilaEstafeta fila, List<OrderModel> meusTodos) {
+    final idsMeus = meusTodos.map((o) => o.id).toSet();
+    final saiuUm = _idsAtivosAntes.any((id) => !idsMeus.contains(id));
+    final abriram = fila.ativos
+        .where((o) => _idsEmEspera.contains(o.id))
+        .toList(growable: false);
+    _idsEmEspera = fila.emEspera.map((o) => o.id).toSet();
+    _idsAtivosAntes = fila.ativos.map((o) => o.id).toSet();
+    if (abriram.isEmpty || !saiuUm) return;
+    final proximo = abriram.first;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_avisarProximo(proximo));
+    });
+  }
+
+  /// "Próximo pedido" — com som e vibração, um toque para abrir.
+  Future<void> _avisarProximo(OrderModel o) async {
+    if (_avisoProximoAberto) return;
+    _avisoProximoAberto = true;
+    unawaited(HapticFeedback.heavyImpact());
+    unawaited(SystemSound.play(SystemSoundType.alert));
+    final abrir = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        key: const Key('aviso_proximo_pedido'),
+        icon: Icon(Icons.notifications_active,
+            color: Colors.green.shade700, size: 40),
+        title: const Text('Próximo pedido'),
+        content: Text(descreverPedidoFila(o)),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Abrir pedido'),
+          ),
+        ],
+      ),
+    );
+    _avisoProximoAberto = false;
+    if (!mounted) return;
+    if (abrir ?? true) setState(() => _pedidoEscolhidoId = o.id);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -206,6 +267,12 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     // safely without async context issues.
     _driverStore = context.read<DriverStore>();
     unawaited(_lerLarguraRota());
+    // Compra guardada (14/11/2026): o que ficou só no telemóvel sobe agora, e
+    // a fila lembra-se do pedido em curso mesmo depois de a app reiniciar.
+    unawaited(CompraRascunhoService.reenviarPendentes().then((_) async {
+      await FilaEstafeta.carregarMemoria();
+      if (mounted) setState(() {});
+    }));
 
     // Freeze the initial camera target for the lifetime of this State.
     // Priority: current driver location → fallback padrão.
@@ -828,8 +895,20 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
       _mapReady = true;
     }
 
-    final myOrders =
+    // Adenda 1 (14/11/2026): fila do estafeta. O que ele aceitou por cima do
+    // pedido em curso fica EM ESPERA — não aparece nem troca o pedido; abre
+    // quando ele entregar o atual (lib/services/fila_estafeta.dart).
+    final meusTodos =
         driver != null ? orderStore.myOrders : const <OrderModel>[];
+    final fila = FilaEstafeta.doEstafeta(meusTodos);
+    final myOrders = fila.ativos;
+    _verSeAbriuOProximo(fila, meusTodos);
+    // O em curso guardado no servidor (uma pergunta por mudança nos pedidos).
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (await FilaEstafeta.atualizarDoServidor(meusTodos) && mounted) {
+        setState(() {});
+      }
+    });
     // Raw GPS position — used for routes, RouteOptimizer, polylines.
     // Never jitters on every animation frame (drives expensive computations).
     final driverPosition = driver?.location ?? _stableInitialCenter;
@@ -851,14 +930,27 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     // ser uma entrega de pedido already-picked-up (mais próximo do estafeta),
     // deixando Chat / Notas / Apartment-banner a referenciar um pedido sem
     // acção activa. business_rules.md §6.6 + §7.x.
-    OrderModel? focusOrder;
-    for (final stop in optimizedRoute.stops) {
-      final candidates = myOrders.where((o) => o.id == stop.orderId);
-      if (candidates.isEmpty) continue;
-      final o = candidates.first;
-      if (resolveDriverOrderAction(orderStore, o) != null) {
-        focusOrder = o;
-        break;
+    // Compra guardada (14/11/2026): o pedido que o estafeta escolheu, ou o que
+    // tem uma compra a meio, nunca perde o foco sozinho.
+    final escolhido = _pedidoEscolhidoId;
+    OrderModel? focusOrder = escolhido == null
+        ? null
+        : myOrders.where((o) => o.id == escolhido).firstOrNull;
+    focusOrder ??= myOrders
+        .where((o) =>
+            !o.isPurchaseFinalized &&
+            o.status == OrderStatus.driverAccepted &&
+            CompraRascunhoService.temCompraEmCurso(o.id))
+        .firstOrNull;
+    if (focusOrder == null) {
+      for (final stop in optimizedRoute.stops) {
+        final candidates = myOrders.where((o) => o.id == stop.orderId);
+        if (candidates.isEmpty) continue;
+        final o = candidates.first;
+        if (resolveDriverOrderAction(orderStore, o) != null) {
+          focusOrder = o;
+          break;
+        }
       }
     }
     // Fallback: nenhum pedido com acção pendente → usar o pedido cuja paragem
@@ -1209,6 +1301,9 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
                     nextAction: nextAction,
                     pendingActions: pendingActions,
                     routeDurationMinutes: _routeDurationMinutes,
+                    emEspera: fila.emEspera,
+                    onEscolherPedido: (id) =>
+                        setState(() => _pedidoEscolhidoId = id),
                   ),
                 );
               },
@@ -1382,6 +1477,8 @@ class _BottomPanel extends StatefulWidget {
     required this.nextAction,
     required this.pendingActions,
     this.routeDurationMinutes,
+    this.emEspera = const [],
+    this.onEscolherPedido,
   });
 
   final OrderModel? focusOrder;
@@ -1392,6 +1489,12 @@ class _BottomPanel extends StatefulWidget {
   final DriverOrderAction? nextAction;
   final List<({OrderModel order, DriverOrderAction action})> pendingActions;
   final double? routeDurationMinutes;
+
+  /// Adenda 1 (14/11/2026): pedidos aceites que esperam pelo atual.
+  final List<OrderModel> emEspera;
+
+  /// Toque num pedido ativo (quando há mais de um da mesma volta).
+  final ValueChanged<String>? onEscolherPedido;
 
   @override
   State<_BottomPanel> createState() => _BottomPanelState();
@@ -1581,8 +1684,21 @@ class _BottomPanelState extends State<_BottomPanel> {
                     }
                     // P6 (2026-08-17) — o SERVIDOR valida o PIN e fecha a
                     // entrega. A app envia; nunca decide localmente.
-                    final r =
-                        await orderStore.finishOrderWithPin(order, entered);
+                    // app-15-11 (varredura 9166, n.º 19): o diálogo pode fechar
+                    // enquanto o servidor responde (o pedido muda por tempo
+                    // real); escrever nele depois disso deitava a app abaixo.
+                    final DeliveryPinResult r;
+                    try {
+                      r = await orderStore.finishOrderWithPin(order, entered);
+                    } catch (e) {
+                      debugPrint('[codigo_entrega] falhou: $e');
+                      if (ctx.mounted) {
+                        setDialogState(() => errorText =
+                            'Não foi possível concluir. Tenta de novo.');
+                      }
+                      return;
+                    }
+                    if (!ctx.mounted) return;
                     if (r.ok) {
                       if (dialogContext.mounted) {
                         Navigator.of(dialogContext).pop(true);
@@ -1725,7 +1841,12 @@ class _BottomPanelState extends State<_BottomPanel> {
                 // BUG 5 — pós Concluir entrega volta para home estafeta em vez
                 // de ficar na tela detail vazia. Só pop quando NÃO há mais
                 // pedidos activos; com stacking, ficar no mapa.
-                if (willFinish && mounted && widget.orders.length <= 1) {
+                // Adenda 1 (14/11/2026): com pedidos na fila fica no mapa — o
+                // seguinte abre aqui com o aviso "Próximo pedido".
+                if (willFinish &&
+                    mounted &&
+                    widget.orders.length <= 1 &&
+                    widget.emEspera.isEmpty) {
                   nav.popUntil((route) => route.isFirst);
                 }
               } else {
@@ -1804,6 +1925,22 @@ class _BottomPanelState extends State<_BottomPanel> {
                 ),
               ),
               const SizedBox(height: 16),
+
+              // Compra guardada (14/11/2026): mais de um pedido ativo (mesma
+              // loja) → o estafeta vê qual está aberto e troca com um toque.
+              if (focusOrder != null && widget.orders.length > 1) ...[
+                PedidosAtivosSeletor(
+                  pedidos: widget.orders,
+                  abertoId: focusOrder.id,
+                  onEscolher: widget.onEscolherPedido,
+                ),
+                const SizedBox(height: 12),
+              ],
+              // Adenda 1 (14/11/2026): os aceites por cima esperam aqui.
+              if (widget.emEspera.isNotEmpty) ...[
+                FilaEmEsperaContador(emEspera: widget.emEspera),
+                const SizedBox(height: 12),
+              ],
 
               // Show order details only if focusOrder is available
               if (focusOrder != null) ...[
@@ -3000,6 +3137,14 @@ class _ApartmentDeliveryBanner extends StatelessWidget {
   }
 }
 
+/// Compra guardada (14/11/2026): a folha da lista de compras, só para o teste
+/// de widget "marcar → fechar a app → reabrir → tudo igual".
+@visibleForTesting
+Widget listaDeComprasParaTeste(OrderModel order) => _ShoppingListSheetContent(
+      order: order,
+      initialItems: copyOrderItemsForDriverSheet(order.items),
+    );
+
 // ────────────────────────────────────────────────────────────────────────────
 // Shopping-list bottom-sheet — proper StatefulWidget so that state (bought /
 // unavailable marks, added products) survives across rebuilds triggered by
@@ -3064,6 +3209,17 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
   final Map<String, AjustePesoEstafeta> _ajustesPeso =
       <String, AjustePesoEstafeta>{};
 
+  /// Compra guardada (14/11/2026, pedido b2b746d7): o valor e a foto do talão
+  /// também entram no rascunho do servidor.
+  int? _totalTalaoCents;
+  String? _fotoTalaoPath;
+
+  /// Toques dados antes de o rascunho do servidor chegar: esse rascunho já não
+  /// pode passar por cima deles.
+  int _toquesDesdeQueAbriu = 0;
+
+  bool get _guardaProgresso => !_isPartnerStore;
+
   bool get _isRestaurant =>
       widget.order.serviceType == OrderServiceType.restaurant;
 
@@ -3085,8 +3241,104 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
     _bagCount = widget.order.bagCount > 0
         ? widget.order.bagCount
         : (_isRestaurant ? 1 : 1);
+    if (_guardaProgresso) {
+      CompraRascunhoService.marcarCompraAberta(widget.order.id);
+      // 1.º desenho já com o que está em memória; depois telemóvel/servidor.
+      final emMemoria = CompraRascunhoService.emMemoria(widget.order.id);
+      if (emMemoria != null) _reporRascunho(emMemoria);
+      unawaited(_carregarRascunho());
+    }
     _loadProductPhotos();
     if (!_isPartnerStore) _loadAjustesPeso();
+  }
+
+  /// Compra guardada (14/11/2026): repõe o que o estafeta já tinha marcado —
+  /// a app mudou de pedido, fechou, rebentou ou reiniciou a meio.
+  /// 1.º o telemóvel (instantâneo), depois o servidor (pode demorar): o do
+  /// servidor só entra nas linhas em que o estafeta não tocou entretanto.
+  Future<void> _carregarRascunho() async {
+    final local = await CompraRascunhoService.carregarLocal(widget.order.id);
+    if (!mounted) return;
+    if (local != null && _toquesDesdeQueAbriu == 0) {
+      setState(() => _reporRascunho(local));
+    }
+    final noEcra = _fotografia();
+    final toques = _toquesDesdeQueAbriu;
+    final servidor =
+        await CompraRascunhoService.carregarServidor(widget.order.id);
+    if (!mounted || servidor == null) return;
+    setState(() => _fundirDoServidor(servidor, noEcra));
+    // Houve toques entretanto: a mistura passa a ser a versão mais nova.
+    if (_toquesDesdeQueAbriu != toques) _guardarProgresso();
+  }
+
+  RascunhoCompra _fotografia() => rascunhoDoEcra(
+        orderId: widget.order.id,
+        itens: _items,
+        seq: 0,
+        sacos: _isRestaurant ? null : _bagCount,
+        totalTalaoCents: _totalTalaoCents,
+        fotoPath: _fotoTalaoPath,
+      );
+
+  /// Junta o rascunho do servidor sem desfazer o que o estafeta tocou desde
+  /// [antes] (o que estava no ecrã quando se foi perguntar ao servidor).
+  void _fundirDoServidor(RascunhoCompra s, RascunhoCompra antes) {
+    final agora = _fotografia();
+    final canonicos =
+        _items.where((i) => !ehExtraDoEstafeta(i)).toList(growable: false);
+    final chaves = chavesDosItens(canonicos);
+    for (var k = 0; k < canonicos.length; k++) {
+      final ch = chaves[k];
+      final tocou = antes.itens[ch]?.estado != agora.itens[ch]?.estado;
+      final doServidor = s.itens[ch];
+      if (!tocou && doServidor != null) {
+        canonicos[k].purchaseStatus = doServidor.estado;
+      }
+    }
+    final extrasTocados = jsonEncode(antes.extras.map((e) => e.toJson()).toList()) !=
+        jsonEncode(agora.extras.map((e) => e.toJson()).toList());
+    final meusExtras = _items.where(ehExtraDoEstafeta).toList();
+    final idsMeus = meusExtras.map((e) => e.productId).toSet();
+    final extrasServidor = aplicarRascunho(const [], s);
+    _items
+      ..clear()
+      ..addAll(canonicos)
+      ..addAll(extrasTocados ? meusExtras : const <CartItem>[])
+      ..addAll(extrasTocados
+          ? extrasServidor.where((e) => !idsMeus.contains(e.productId))
+          : extrasServidor);
+    if (antes.sacos == agora.sacos && s.sacos != null && !_isRestaurant) {
+      _bagCount = s.sacos!;
+    }
+    _totalTalaoCents ??= s.totalTalaoCents;
+    _fotoTalaoPath ??= s.fotoPath;
+  }
+
+  void _reporRascunho(RascunhoCompra r) {
+    final canonicos =
+        _items.where((i) => !ehExtraDoEstafeta(i)).toList(growable: false);
+    final repostos = aplicarRascunho(canonicos, r);
+    _items
+      ..clear()
+      ..addAll(repostos);
+    if (r.sacos != null && !_isRestaurant) _bagCount = r.sacos!;
+    _totalTalaoCents = r.totalTalaoCents ?? _totalTalaoCents;
+    _fotoTalaoPath = r.fotoPath ?? _fotoTalaoPath;
+  }
+
+  /// Cada toque grava: no telemóvel na hora e no servidor (com fila).
+  void _guardarProgresso() {
+    if (!_guardaProgresso) return;
+    _toquesDesdeQueAbriu++;
+    unawaited(CompraRascunhoService.guardar(rascunhoDoEcra(
+      orderId: widget.order.id,
+      itens: _items,
+      seq: CompraRascunhoService.proximoSeq(),
+      sacos: _isRestaurant ? null : _bagCount,
+      totalTalaoCents: _totalTalaoCents,
+      fotoPath: _fotoTalaoPath,
+    )));
   }
 
   Future<void> _loadAjustesPeso() async {
@@ -3122,6 +3374,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
       _ajustesPeso[item.productId] = ajuste;
       item.purchaseStatus = 'bought';
     });
+    _guardarProgresso();
   }
 
   Future<void> _loadProductPhotos() async {
@@ -3316,14 +3569,15 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
     // chegou — a caixa real do Auchan cobrou €6,06. Se a base não viajou,
     // REVERTE-SE o markup (round(price÷1,15) recupera a base exata) em vez de
     // mostrar o preço do cliente. Extras: prateleira → sem markup.
-    double baseOf(CartItem i) {
-      final b = i.basePrice;
-      if (b != null) return b;
-      if (_isPartnerStore) return i.price; // parceiro não tem markup
-      return ((i.price / (1 + BRBusiness.NON_PARTNER_MARKUP_RATIO)) * 100)
-              .roundToDouble() /
-          100;
-    }
+    // 14/11/2026 (B.6b): fonte única do preço de balcão (base + price_add das
+    // opções escolhidas), igual ao cartão laranja e ao talão.
+    double baseOf(CartItem i) =>
+        precoBalcaoUnidade(i, parceiro: _isPartnerStore);
+    // Total a pagar na caixa pela lista inteira — o mesmo do cartão laranja.
+    // Os artigos marcados "não há" não passam na caixa.
+    final totalNaCaixa = totalBalcao(
+        canonicalItems.where((i) => i.purchaseStatus != 'unavailable'),
+        parceiro: _isPartnerStore);
 
     // 31/10/2026 (peso variável): linha ajustada = o total da etiqueta.
     double caixaDaLinha(CartItem i) {
@@ -3412,6 +3666,21 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              // 14/11/2026 (B.6b): o total de balcão logo no topo, igual ao
+              // cartão laranja "TENS DE FAZER A COMPRA".
+              if (totalNaCaixa > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    'Total a pagar na caixa: {0}'.trArgs([eur(totalNaCaixa)]),
+                    key: const Key('total_a_pagar_na_caixa'),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.orange.shade900,
+                    ),
+                  ),
+                ),
               // 28/10/2026 (Bloco B): a morada da loja, como na Glovo/Uber
               // Eats (há várias lojas com o mesmo nome na mesma cidade).
               if ((order.pickupAddress ?? '').trim().isNotEmpty)
@@ -3458,12 +3727,20 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
               ],
               const SizedBox(height: 6),
               // ── Progress text ──
-              Text(
-                '$boughtCount de $totalCount comprados',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey.shade600,
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '$boughtCount de $totalCount comprados',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ),
+                  if (_guardaProgresso)
+                    EstadoGravacaoCompraTexto(orderId: order.id),
+                ],
               ),
               const SizedBox(height: 8),
               // ── Progress bar ──
@@ -3509,6 +3786,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                               setState(() {
                                 item.purchaseStatus = 'pending';
                               });
+                              _guardarProgresso();
                             }
                           : null,
                       child: Container(
@@ -3595,7 +3873,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                           padding:
                                               const EdgeInsets.only(top: 2),
                                           child: Text(
-                                            '${item.quantity} × ${eur(_isExtraItem(item) ? item.price : (item.basePrice ?? item.price))}',
+                                            '${item.quantity} × ${eur(_isExtraItem(item) ? item.price : precoBalcaoUnidade(item, parceiro: _isPartnerStore))}',
                                             style: TextStyle(
                                               fontSize: 12,
                                               color: Colors.grey.shade600,
@@ -3677,7 +3955,8 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                   // era base). Extras: preço digitado.
                                   final caixa = (_isExtraItem(item)
                                           ? item.price
-                                          : (item.basePrice ?? item.price)) *
+                                          : precoBalcaoUnidade(item,
+                                              parceiro: _isPartnerStore)) *
                                       item.quantity;
                                   final ajuste = _temPesoVariavel(item)
                                       ? _ajustesPeso[item.productId]
@@ -3755,6 +4034,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                           setState(() {
                                             item.purchaseStatus = 'bought';
                                           });
+                                          _guardarProgresso();
                                         },
                                         icon: const Icon(Icons.check, size: 16),
                                         label: const Text('Comprado',
@@ -3784,6 +4064,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                             item.purchaseStatus =
                                                 'unavailable';
                                           });
+                                          _guardarProgresso();
                                         },
                                         icon: const Icon(Icons.close,
                                             size: 16),
@@ -3826,6 +4107,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                         setState(() {
                           _items.add(newItem);
                         });
+                        _guardarProgresso();
                       }
                     },
                     icon: const Icon(Icons.add, size: 18),
@@ -3915,7 +4197,10 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                           ),
                           IconButton(
                             onPressed: _bagCount > 0
-                                ? () => setState(() => _bagCount--)
+                                ? () {
+                                    setState(() => _bagCount--);
+                                    _guardarProgresso();
+                                  }
                                 : null,
                             icon: const Icon(Icons.remove_circle_outline,
                                 size: 22),
@@ -3936,7 +4221,10 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                           IconButton(
                             // Cap 5 sacos × €0.10 = €0.50 max (Sessão 3 / 2026-05-04)
                             onPressed: _bagCount < 5
-                                ? () => setState(() => _bagCount++)
+                                ? () {
+                                    setState(() => _bagCount++);
+                                    _guardarProgresso();
+                                  }
                                 : null,
                             icon:
                                 const Icon(Icons.add_circle_outline, size: 22),
@@ -4282,6 +4570,12 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                             }
                             _talaoPendente = talao;
                             final totalCents = talao.totalCents;
+                            // Compra guardada (14/11): o valor escrito do talão
+                            // também fica no rascunho do servidor.
+                            if (_totalTalaoCents != totalCents) {
+                              _totalTalaoCents = totalCents;
+                              _guardarProgresso();
+                            }
 
                             // BUG #1 v2 (sessão exec 2026-05-12 pós-teste) —
                             // Upload via Edge Function `upload-receipt` em vez
@@ -4319,6 +4613,10 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                               storagePath = caminho;
                             }
                             setState(() => _talaoNoServidor = true);
+                            if (_fotoTalaoPath != storagePath) {
+                              _fotoTalaoPath = storagePath;
+                              _guardarProgresso();
+                            }
 
                             // 2026-09-13 — UMA SÓ função no servidor para TODO
                             // o não-parceiro (mercado, restaurante, loja,
@@ -4358,6 +4656,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                               return;
                             }
                             _talaoPendente = null;
+                            unawaited(CompraRascunhoService.concluir(order.id));
                             // Estado local imediato; o realtime confirma a seguir.
                             order.isPurchaseFinalized = true;
                             // 28/10/2026 (C3): o valor a cobrar é o que o
@@ -4499,7 +4798,16 @@ Future<(File, int)?> _captureReceiptForV2(
     backgroundColor: Colors.transparent,
     builder: (sheetCtx) {
       // Só chega aqui o não-parceiro (useV2): mostra o NIF da fatura.
-      return ReceiptCaptureSheet(isCash: isCash, orderId: order.id);
+      return ReceiptCaptureSheet(
+        isCash: isCash,
+        orderId: order.id,
+        // 14/11/2026 (B.6b): o mesmo número do cartão laranja e da lista.
+        valorEstimado: order.items.isEmpty
+            ? null
+            : totalBalcao(
+                order.items.where((i) => i.purchaseStatus != 'unavailable'),
+                parceiro: order.isPartnerStore),
+      );
     },
   );
 }
@@ -4513,8 +4821,13 @@ class ReceiptCaptureSheet extends StatefulWidget {
     required this.isCash,
     this.orderId,
     this.nifRpc,
+    this.valorEstimado,
   });
   final bool isCash;
+
+  /// 14/11/2026 (B.6b): valor de balcão estimado (base + opções), mostrado
+  /// como ajuda por baixo do campo — o estafeta escreve o que pagou de facto.
+  final double? valorEstimado;
 
   /// M1 08/11/2026: com o pedido, mostra o NIF da fatura (loja não-parceira).
   /// Sem ele (teste de widget) não chama o servidor.
@@ -4743,6 +5056,10 @@ class _ReceiptCaptureSheetState extends State<ReceiptCaptureSheet> {
               },
               decoration: InputDecoration(
                 labelText: 'Valor que pagaste de facto (€)',
+                helperText: widget.valorEstimado == null
+                    ? null
+                    : 'Valor estimado: {0}'
+                        .trArgs([eur(widget.valorEstimado!)]),
                 prefixIcon: const Icon(Icons.euro),
                 border: const OutlineInputBorder(),
                 errorText: _erroValor,

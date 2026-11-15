@@ -5,10 +5,14 @@ import 'package:latlong2/latlong.dart' as ll;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
-import '../../services/tvde_visibilidade.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/address_autocomplete_field.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import 'admin_bora_motorista_fechado_screen.dart'
+    show
+        AvisoBotaoBoraMotoristaFechado,
+        BotaoFlutuanteTravado,
+        lerBoraMotoristaAberto;
 
 /// Bora Motorista — Corridas de Balcão (missão `central-corridas-balcao-2026-09-18`).
 ///
@@ -36,6 +40,19 @@ class _AdminTvdeBalcaoScreenState extends State<AdminTvdeBalcaoScreen> {
   final _refreshKeyLive = GlobalKey<_RidesListState>();
   final _refreshKeyHistory = GlobalKey<_RidesListState>();
 
+  /// app-15-11 (auditoria S5): interruptor do Bora Motorista, lido como no
+  /// ecrã do interruptor (`null` = a ler). Antes usava o valor guardado na
+  /// app, que no painel podia nem ter sido lido.
+  bool? _aberto;
+
+  @override
+  void initState() {
+    super.initState();
+    lerBoraMotoristaAberto().then((v) {
+      if (mounted) setState(() => _aberto = v);
+    });
+  }
+
   Future<void> _novaCorrida() async {
     final created = await showDialog<bool>(
       context: context,
@@ -56,13 +73,18 @@ class _AdminTvdeBalcaoScreenState extends State<AdminTvdeBalcaoScreen> {
         // 04/11/2026 (fechar-bora-motorista): com o Bora Motorista fechado
         // (tvde_app_visivel=false) não se criam corridas de balcão; a lista
         // continua para consulta.
-        floatingActionButton: TvdeVisibilidade.aberto
-            ? FloatingActionButton.extended(
-                onPressed: _novaCorrida,
-                icon: const Icon(Icons.add),
-                label: const Text('Nova corrida'),
-              )
-            : null,
+        // app-15-11 (S5): o botão já não some sem explicação — fica travado
+        // com a frase por cima.
+        floatingActionButton: switch (_aberto) {
+          true => FloatingActionButton.extended(
+              onPressed: _novaCorrida,
+              icon: const Icon(Icons.add),
+              label: const Text('Nova corrida'),
+            ),
+          false => const BotaoFlutuanteTravado(
+              rotulo: 'Nova corrida', icone: Icons.add),
+          null => null,
+        },
         body: Column(
           children: [
             const Material(
@@ -80,8 +102,12 @@ class _AdminTvdeBalcaoScreenState extends State<AdminTvdeBalcaoScreen> {
             Expanded(
               child: TabBarView(
                 children: [
-                  _RidesList(key: _refreshKeyLive, scope: 'live'),
-                  _RidesList(key: _refreshKeyHistory, scope: 'history'),
+                  _RidesList(
+                      key: _refreshKeyLive, scope: 'live', bmAberto: _aberto),
+                  _RidesList(
+                      key: _refreshKeyHistory,
+                      scope: 'history',
+                      bmAberto: _aberto),
                 ],
               ),
             ),
@@ -93,8 +119,11 @@ class _AdminTvdeBalcaoScreenState extends State<AdminTvdeBalcaoScreen> {
 }
 
 class _RidesList extends StatefulWidget {
-  const _RidesList({super.key, required this.scope});
+  const _RidesList({super.key, required this.scope, this.bmAberto});
   final String scope; // live | history
+
+  /// app-15-11 (S5): interruptor do Bora Motorista (`null` = a ler).
+  final bool? bmAberto;
 
   @override
   State<_RidesList> createState() => _RidesListState();
@@ -342,6 +371,7 @@ class _RidesListState extends State<_RidesList>
                 onCancel: (_isLive && _cancelable.contains(status))
                     ? () => _cancel(r)
                     : null,
+                bmAberto: widget.bmAberto,
               );
             }),
         ],
@@ -356,12 +386,17 @@ class _BalcaoRideCard extends StatelessWidget {
     required this.live,
     this.onReassign,
     this.onCancel,
+    this.bmAberto,
   });
 
   final Map<String, dynamic> data;
   final bool live;
   final VoidCallback? onReassign;
   final VoidCallback? onCancel;
+
+  /// app-15-11 (S5): interruptor do Bora Motorista (`null` = a ler). Só com
+  /// `true` o Reatribuir funciona; Cancelar continua sempre.
+  final bool? bmAberto;
 
   @override
   Widget build(BuildContext context) {
@@ -449,7 +484,7 @@ class _BalcaoRideCard extends StatelessWidget {
                   children: [
                     if (onReassign != null)
                       OutlinedButton.icon(
-                        onPressed: onReassign,
+                        onPressed: bmAberto == true ? onReassign : null,
                         icon: const Icon(Icons.swap_horiz, size: 16),
                         label: const Text('Reatribuir'),
                         style: OutlinedButton.styleFrom(
@@ -464,6 +499,8 @@ class _BalcaoRideCard extends StatelessWidget {
                             visualDensity: VisualDensity.compact,
                             foregroundColor: AppColors.error),
                       ),
+                    if (onReassign != null && bmAberto == false)
+                      const AvisoBotaoBoraMotoristaFechado(),
                   ],
                 ),
               ),

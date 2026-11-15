@@ -13,8 +13,10 @@ import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 
 import '../auth/auth_store.dart';
 import '../config/app_colors.dart';
-import '../config/business_rules.dart' show BRBusiness;
 import '../widgets/order_edit/driver_order_edit_notice.dart';
+import '../services/compra_rascunho_service.dart';
+import '../services/fila_estafeta.dart';
+import '../widgets/fila_estafeta_widgets.dart';
 import '../widgets/background_location_disclosure.dart';
 import '../widgets/cliente_nome_destaque.dart';
 import '../widgets/bora_support_fab.dart';
@@ -36,6 +38,7 @@ import '../models/online_resultado.dart';
 import '../models/order_model.dart';
 import '../utils/mensagem_online_recusado.dart';
 import '../services/driver_location_ping_service.dart';
+import '../services/preco_balcao.dart';
 import '../services/navigation_service.dart';
 import '../services/heartbeat_service.dart';
 import '../services/bateria_por_marca.dart';
@@ -78,12 +81,20 @@ import '../utils/pedido_agendado.dart';
 import '../utils/euros.dart';
 
 class DriverHomeScreen extends StatefulWidget {
-  const DriverHomeScreen({super.key, this.dentroDaBarra = false});
+  const DriverHomeScreen({
+    super.key,
+    this.dentroDaBarra = false,
+    this.aoAbrirGanhos,
+  });
 
   /// Bloco F (10/11/2026): `true` quando é o separador "Início" do
   /// [DriverMainScreen]. A barra de baixo já sobe a altura da faixa do
   /// trabalho em curso, por isso o cartão do Online não a soma outra vez.
   final bool dentroDaBarra;
+
+  /// app-15-11: dentro da barra, o toque em "Ganhos de hoje" salta para o
+  /// separador Ganhos em vez de abrir outro ecrã de Ganhos por cima.
+  final VoidCallback? aoAbrirGanhos;
 
   @override
   State<DriverHomeScreen> createState() => _DriverHomeScreenState();
@@ -144,6 +155,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
   @override
   void initState() {
     super.initState();
+    // Adenda 1 (14/11/2026): a fila lembra-se do pedido em curso depois de a
+    // app reiniciar; as compras a meio (rascunho no telemóvel) contam.
+    unawaited(CompraRascunhoService.reenviarPendentes().then((_) async {
+      if (await FilaEstafeta.carregarMemoria() && mounted) setState(() {});
+    }));
     // Só o ecrã TVDE empurra este ecrã; na raiz (_RootNavigator) não há
     // nada por baixo para voltar.
     // E só conta se já estava online ao abrir (então o TVDE já tem o seu
@@ -961,7 +977,16 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       (s) => s.tokenBalance,
     );
     final availableOrders = orderStore.availableOrders;
-    final myOrders = orderStore.myOrders;
+    // Adenda 1 (14/11/2026): só o pedido em curso tem cartão; os aceites por
+    // cima esperam na fila e abrem quando ele entregar.
+    final fila = FilaEstafeta.doEstafeta(orderStore.myOrders);
+    final myOrders = fila.ativos;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (await FilaEstafeta.atualizarDoServidor(orderStore.myOrders) &&
+          mounted) {
+        setState(() {});
+      }
+    });
     final isAvailable = orderStore.isDriverAvailable;
     final highlightedOrder =
         _findOrderById(availableOrders, _highlightedOrderId);
@@ -1063,6 +1088,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
             // [10/10/2026] O que pode calar a oferta (volume do alarme, canal,
             // "Não incomodar"…) + "Corrigir". Nos DOIS desenhos (PADRAO 2.6).
             AvisoToqueBanner(ativo: isAvailable),
+            // app-15-11 (Danilo 15/11 10:14, "tira o que confunde"): com a
+            // barra de baixo o veículo vive no Perfil; aqui só ocupava lugar
+            // por cima da oferta e da entrega em curso.
+            if (!widget.dentroDaBarra)
             Card(
               margin: const EdgeInsets.only(bottom: 16),
               child: ListTile(
@@ -1080,6 +1109,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               ),
             ),
             if (myOrders.isNotEmpty) ...[
+              if (fila.emEspera.isNotEmpty) ...[
+                FilaEmEsperaContador(emEspera: fila.emEspera),
+                const SizedBox(height: 8),
+              ],
               Expanded(
                 child: ListView.builder(
                   // [08/10] Os botões do último cartão ("Tratar do favor",
@@ -1163,7 +1196,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                           onReject: () => _handleRejectOrder(order, orderStore),
                         ),
                       ),
-                    if (orderStore.completedOrders.isNotEmpty) ...[
+                    // app-15-11: com a barra de baixo as entregas feitas vivem
+                    // no separador Pedidos (com período e total) — aqui eram
+                    // a mesma lista repetida.
+                    if (!widget.dentroDaBarra &&
+                        orderStore.completedOrders.isNotEmpty) ...[
                       const SizedBox(height: 24),
                       const Text(
                         "Entregas concluídas",
@@ -1369,7 +1406,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
-                  // Status chip
+                  // Status chip — app-15-11: dentro da barra sai; o cartão de
+                  // baixo já diz "À espera de pedidos…"/"Estás offline" ao
+                  // lado do interruptor (como na Uber: o estado vive em baixo).
+                  if (!widget.dentroDaBarra)
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -1448,7 +1488,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      GanhoDeHojeCard(recarregarQuando: orderStore),
+                      GanhoDeHojeCard(
+                        recarregarQuando: orderStore,
+                        aoTocar: widget.aoAbrirGanhos,
+                      ),
                       // Mapa simples de procura (adendo 4 · item 10, 29/10/2026):
                       // só leitura; some com o interruptor desligado.
                       const BotaoMapaProcuraEstafeta(),
@@ -1842,7 +1885,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  "Entrega em andamento",
+                  "Entrega em curso",
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -1988,7 +2031,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   EntregaMarcadaEstafeta(order: order),
                 ],
                 const SizedBox(height: 16),
-                Text("Status atual: ${order.status.label}"),
+                Text("Estado: ${order.status.label}"),
                 if (order.isPurchaseFinalized) ...[
                   const SizedBox(height: 8),
                   Container(
@@ -2243,7 +2286,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(ok
-                              ? 'Pedido de ajuda enviado. Ajudante ganha €4. (BR §5.2)'
+                              ? 'Pedido de ajuda enviado. Quem vier ajudar ganha 4 €.'
                               : 'Não foi possível pedir ajuda.'),
                         ),
                       );
@@ -2264,7 +2307,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
             ),
             const SizedBox(height: 6),
             // 25/10/2026 (Danilo): nome do cliente em destaque.
-            ClienteNomeDestaque(nome: order.customerName, telefone: order.clientPhone, compacto: true),
+            // app-15-11: havia dois botões de ligar (o do nome e o "Ligar
+            // cliente" de baixo). Fica só o de baixo; os números continuam à
+            // vista para SMS/WhatsApp.
+            ClienteNomeDestaque(nome: order.customerName, compacto: true),
             const SizedBox(height: 4),
             Text(
               'Telefone do cliente: '
@@ -2874,10 +2920,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   ),
                 ),
                 const SizedBox(height: 8),
+                // app-15-11: o ganho já está na caixa laranja de cima.
                 OfertaResumoEstafeta(
                   order: order,
                   ganho: stackedEarnings,
                   driverLocation: driverLoc,
+                  mostrarGanho: false,
                 ),
                 if (order.scheduledFor != null) ...[
                   const SizedBox(height: 8),
@@ -2947,9 +2995,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 ),
                 onPressed: () =>
                     Navigator.of(dialogCtx, rootNavigator: true).pop('accept'),
-                child: Text(stackedEarnings != null
-                    ? 'Aceitar · +${_eurPt(stackedEarnings)}'
-                    : 'Aceitar'),
+                // app-15-11: o ganho já está em destaque por cima.
+                child: const Text('Aceitar'),
               ),
             ],
           ),
@@ -3074,7 +3121,8 @@ class _TokenChip extends StatelessWidget {
           const Icon(Icons.monetization_on, color: Colors.amber, size: 16),
           const SizedBox(width: 4),
           Text(
-            '$balance',
+            // app-15-11: só o número confundia — diz o que é.
+            '$balance tokens',
             style: const TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 13,
@@ -3409,17 +3457,7 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                         order.items.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       Text(
-                        'Pagar ao balcão: ${eur(order.items
-                              .fold<double>(
-                                  0,
-                                  (s, i) =>
-                                      s +
-                                      (i.basePrice ??
-                                              i.price /
-                                                  (1 +
-                                                      BRBusiness
-                                                          .NON_PARTNER_MARKUP_RATIO)) *
-                                          i.quantity))}',
+                        'Pagar ao balcão: ${eur(totalBalcao(order.items))}',
                         style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w800,
                             color: Colors.orange.shade900),
@@ -3477,10 +3515,12 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
           // Adendo 4 · item 3 (29/10/2026): o que ganha, quantos km e quantas
           // paragens, antes de aceitar. Interruptor feature_oferta_ganho_visivel.
           const SizedBox(height: 12),
+          // app-15-11: o ganho já está em número grande lá em cima.
           OfertaResumoEstafeta(
             order: order,
             ganho: order.driverEarnings,
             driverLocation: widget.driverLocation,
+            mostrarGanho: false,
           ),
           // Pedido agendado (30/10/2026): a hora marcada antes de aceitar.
           if (order.scheduledFor != null) ...[
@@ -3500,7 +3540,7 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                     foregroundColor: Colors.orange.shade900,
                     side: BorderSide(color: Colors.orange.shade900),
                   ),
-                  child: const Text("Rejeitar"),
+                  child: const Text("Recusar"),
                 ),
               ),
               const SizedBox(width: 12),
@@ -3526,8 +3566,8 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                             color: Colors.white,
                           ),
                         )
-                      : Text(
-                          'Aceitar · +${eur(order.driverEarnings)}'),
+                      // app-15-11: o ganho já está em número grande por cima.
+                      : const Text('Aceitar'),
                 ),
               ),
             ],
@@ -3573,12 +3613,34 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              order.serviceType.label,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+            // app-15-11 (Juiz): regra do ganho em número grande — o ganho vai
+            // aqui, grande, e sai do botão Aceitar e do rótulo pequeno.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Text(
+                    order.serviceType.label,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '+${eur(order.driverEarnings)}',
+                    key: const Key('oferta_lista_ganho'),
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange.shade900,
+                    ),
+                  ),
+                ),
+              ],
             ),
             if (order.hasAgeRestricted) ...[
               const SizedBox(height: 4),
@@ -3607,15 +3669,13 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
               spacing: 12,
               runSpacing: 8,
               children: [
+                // Regra do ganho grande: o valor do cliente só em
+                // pagamento a dinheiro (é o que o estafeta recebe à porta).
+                if (order.paymentMethod == PaymentMethod.cash)
                 _InfoChip(
                   icon: Icons.euro,
                   label: "Total",
                   value: eur(order.total),
-                ),
-                _InfoChip(
-                  icon: Icons.payments,
-                  label: "Ganhos",
-                  value: "+${eur(order.driverEarnings)}",
                 ),
                 _InfoChip(
                   icon: Icons.storefront,
@@ -3706,7 +3766,7 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: widget.onReject,
-                    child: const Text("Rejeitar"),
+                    child: const Text("Recusar"),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -3725,8 +3785,8 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
                             width: 16,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : Text(
-                            'Aceitar · +${eur(order.driverEarnings)}'),
+                        // app-15-11: o ganho já está em número grande no topo do cartão.
+                        : const Text('Aceitar'),
                   ),
                 ),
               ],

@@ -20,10 +20,61 @@ import '../services/small_order_fee.dart';
 import '../utils/hora_lisboa.dart';
 import 'order_store.dart';
 
+/// O que se sabe do último pedido MB WAY que deixou o carrinho à espera
+/// (revisão 15/11, achado 1). Ver [CartStore.verificarMbwayPendente].
+enum PedidoMbwayAnterior {
+  /// Não há pedido MB WAY à espera neste carrinho.
+  nenhum,
+
+  /// Não deu para ler o pedido no servidor (sem rede, sessão…).
+  semResposta,
+
+  /// Cancelado ou recusado e por pagar (ou já não existe): pode criar-se outro.
+  morto,
+
+  /// Ainda não está cancelado (à espera do pagamento ou reativado).
+  ativo,
+
+  /// O pagamento entrou.
+  pago,
+}
+
+/// Decide pelo `status` e `payment_status` lidos de `orders` (null = a linha
+/// não existe). Pago manda sempre: o webhook reativa um pedido cancelado se o
+/// dinheiro entrar depois.
+PedidoMbwayAnterior estadoDoPedidoMbway(Map<String, dynamic>? linha) {
+  if (linha == null) return PedidoMbwayAnterior.morto;
+  final pagamento = PaymentStatus.values.firstWhere(
+    (e) => e.name == linha['payment_status'],
+    orElse: () => PaymentStatus.pending,
+  );
+  if (pagamento == PaymentStatus.paid) return PedidoMbwayAnterior.pago;
+  final estado = OrderStatus.values.firstWhere(
+    (e) => e.name == linha['status'],
+    orElse: () => OrderStatus.created,
+  );
+  if (estado == OrderStatus.cancelled || estado == OrderStatus.rejected) {
+    return PedidoMbwayAnterior.morto;
+  }
+  return PedidoMbwayAnterior.ativo;
+}
+
 class CartStore extends ChangeNotifier {
   static const _kPrefsKey = 'bora_cart_v1';
 
   final List<CartItem> _items = [];
+
+  /// Revisão 15/11 (achados 1 e 2): o pedido MB WAY criado com
+  /// `manterCarrinho` cujo pagamento ainda não se viu confirmado. Guardado com
+  /// o carrinho: se a app morrer enquanto o cliente aprova no banco, ao voltar
+  /// lê-se o pedido e o carrinho limpa-se se o pagamento entrou. Some com o
+  /// carrinho ([clearCart]).
+  String? _mbwayPendenteId;
+  String? get mbwayPendenteId => _mbwayPendenteId;
+
+  /// Gancho de teste: devolve a linha `status, payment_status` do pedido.
+  @visibleForTesting
+  Future<Map<String, dynamic>?> Function(String orderId)? lerPedidoParaTeste;
 
   OrderServiceType _serviceType = OrderServiceType.restaurant;
   bool _isPartnerStore = true;
@@ -168,6 +219,7 @@ class CartStore extends ChangeNotifier {
         'deliveryLng': _deliveryLocation?.longitude,
         'distanceKm': _distanceKm,
         'apartmentDelivery': _apartmentDelivery,
+        'mbwayPendenteId': _mbwayPendenteId,
       });
       await prefs.setString(_kPrefsKey, data);
     } catch (e) {
@@ -222,7 +274,11 @@ class CartStore extends ChangeNotifier {
       _distanceKm = (map['distanceKm'] as num?)?.toDouble() ??
           PricingService.defaultDistanceKm;
       _apartmentDelivery = map['apartmentDelivery'] as bool? ?? false;
+      _mbwayPendenteId = map['mbwayPendenteId'] as String?;
       notifyListeners();
+      // Revisão 15/11 (achado 2): a app pode ter morrido enquanto o cliente
+      // aprovava o MB WAY no banco. Se o pagamento entrou, o carrinho limpa-se.
+      if (_mbwayPendenteId != null) unawaited(verificarMbwayPendente());
       if (_items.isNotEmpty) unawaited(confirmarParceiraDaLoja());
       // Carrinho reposto: a loja pode aceitar pedidos agendados.
       if (_items.isNotEmpty) _verificarAgendamento();
@@ -1437,6 +1493,8 @@ class CartStore extends ChangeNotifier {
     // _apartmentDelivery; tip/wallet/takeaway/photoUrls ficavam stale ao
     // trocar de loja e davam erro "não foi possível finalizar".
     _items.clear();
+    // Revisão 15/11: a marca do MB WAY à espera vive e morre com o carrinho.
+    _mbwayPendenteId = null;
     _notaCliente = '';
     _moradaAntesDaTroca = null;
     _apartmentDelivery = false;
@@ -1601,6 +1659,12 @@ class CartStore extends ChangeNotifier {
     // Tokens applied as a discount at checkout. Stored for future consumption
     // phase (FIFO) — not yet deducted from bora_tokens table.
     int tokensUsed = 0,
+    // fechar-app-15-11 (Bloco 5): no MB WAY o pedido nasce ANTES de o
+    // cliente confirmar o pagamento na app do banco. Com `true`, o carrinho
+    // fica como está até quem chamou dizer que o pagamento entrou
+    // ([limparDepoisDoPedido]); se o pagamento falhar, o cliente continua
+    // com o carrinho e escolhe outro meio. Por omissão nada muda.
+    bool manterCarrinho = false,
   }) async {
     _erroAgendamento = null;
     // Items are required for shopping-type orders; logistics orders (carry
@@ -1718,6 +1782,13 @@ class CartStore extends ChangeNotifier {
     // 8.1 — persistir a foto do favor SEM tocar create_order (RPC dedicada).
     final reqPhoto = _errandRequestPhotoUrl;
     final newOrderId = orderStore.lastCreatedOrderId;
+    // Revisão 15/11 (achados 1 e 2): o carrinho fica à espera do pagamento
+    // deste pedido. Grava-se já, antes de mais nada, para sobreviver a a app
+    // morrer enquanto o cliente aprova no banco.
+    if (manterCarrinho && newOrderId != null) {
+      _mbwayPendenteId = newOrderId;
+      await _saveCart();
+    }
     // Bora Assistente (07/10/2026): se este carrinho veio de uma proposta do
     // assistente, marca-a como encomendada. Fire-and-forget: nunca trava o
     // checkout nem lança.
@@ -1758,9 +1829,23 @@ class CartStore extends ChangeNotifier {
     // criado (RPC dedicada, sem tocar create_order). Atrás do interruptor,
     // não-fatal: se falhar, a hora segue na nota do pedido para o parceiro ver.
     if (newOrderId != null) {
-      await AgendarPedidoEstado.instance
-          .gravarEscolha(newOrderId, restaurantId: _vendorRestaurantId);
+      // Revisão 15/11 (achado 3): com o carrinho mantido (MB WAY à espera), a
+      // hora escolhida também fica — senão a 2.ª tentativa saía "para agora".
+      // Apaga-se em [limparDepoisDoPedido].
+      await AgendarPedidoEstado.instance.gravarEscolha(newOrderId,
+          restaurantId: _vendorRestaurantId, manterEscolha: manterCarrinho);
     }
+    if (!manterCarrinho) limparDepoisDoPedido();
+    return true;
+  }
+
+  /// Limpa tudo o que o pedido acabado de criar já levou (carrinho, favor,
+  /// fotos, gorjeta, saldo aplicado). O [finishOrder] chama-o sozinho, menos
+  /// quando lhe pedem `manterCarrinho` — aí chama-o quem pediu, DEPOIS de o
+  /// pagamento estar confirmado.
+  void limparDepoisDoPedido() {
+    // Revisão 15/11 (achado 3): a hora marcada já seguiu no pedido.
+    AgendarPedidoEstado.instance.limpar();
     _festasQuando = null;
     _packagePhotoUrl = null;
     _groceriesPhotoUrl = null;
@@ -1770,7 +1855,42 @@ class CartStore extends ChangeNotifier {
     _tipCents = 0;
     _walletAppliedCents = 0;
     clearCart();
-    return true;
+  }
+
+  /// Revisão 15/11 (achados 1 e 2): lê no servidor o pedido MB WAY que deixou
+  /// este carrinho à espera ([mbwayPendenteId]). Se o pagamento entrou, ou o
+  /// pedido já não está cancelado, o carrinho já virou pedido: limpa-se aqui
+  /// ([limparDepoisDoPedido]) e quem chamou abre os pedidos em vez de criar
+  /// outro. Cancelado e por pagar, ou sem resposta, não mexe em nada. Nunca
+  /// lança.
+  Future<PedidoMbwayAnterior> verificarMbwayPendente() async {
+    final id = _mbwayPendenteId;
+    if (id == null) return PedidoMbwayAnterior.nenhum;
+    final Map<String, dynamic>? linha;
+    try {
+      final teste = lerPedidoParaTeste;
+      linha = teste != null
+          ? await teste(id)
+          // A mesma leitura que o diálogo de espera do MB WAY já faz.
+          : await Supabase.instance.client
+              .from('orders')
+              .select('status, payment_status')
+              .eq('id', id)
+              .maybeSingle();
+    } catch (e) {
+      debugPrint('CartStore.verificarMbwayPendente: $e');
+      return PedidoMbwayAnterior.semResposta;
+    }
+    final estado = estadoDoPedidoMbway(linha);
+    // Entretanto o carrinho pode ter sido limpo (outra leitura igual a correr
+    // ao mesmo tempo): diz-se o estado na mesma, para quem chamou não criar
+    // outro pedido, mas não se limpa outra vez.
+    if (_mbwayPendenteId != id) return estado;
+    if (estado == PedidoMbwayAnterior.pago ||
+        estado == PedidoMbwayAnterior.ativo) {
+      limparDepoisDoPedido();
+    }
+    return estado;
   }
 
   // ── CARRINHO ABANDONADO (05/10/2026) ─────────────────────────────────────

@@ -110,5 +110,5 @@ String mensagemErroDadosFiscaisAdmin(Object erro) {
   if (texto.contains('loja_nao_encontrada')) {
     return 'Loja não encontrada. Atualize a ficha.';
   }
-  return 'Não foi possível salvar os dados fiscais: $texto';
+  return 'Não foi possível guardar os dados fiscais: $texto';
 }

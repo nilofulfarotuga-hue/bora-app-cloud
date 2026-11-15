@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../auth/auth_store.dart';
 import '../../config/app_colors.dart';
 import '../../main.dart' show routeObserver;
+import '../../stores/session_store.dart';
 import '../../services/admin_push_service.dart';
 import '../../services/auth_admin_service.dart';
 import '../../widgets/admin/alerta_livro_reclamacoes_card.dart';
@@ -113,18 +116,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     } catch (_) {/* silent */}
   }
 
+  /// app-15-11 (auditoria S5): o sininho baixava até 100 avisos por ler e
+  /// mostrava sempre "9+" ("100 não lidas") — eram 1789, 948 deles do robô
+  /// a dizer "(0 registos)" e 1462 com mais de 7 dias. Agora conta no
+  /// servidor, ao número exato, só o que pede ação (ver [AdminSino]). A caixa
+  /// de avisos continua a mostrar tudo.
   Future<void> _loadUnreadNotificationsCount() async {
     try {
-      final rows = await Supabase.instance.client
+      final desde = DateTime.now().toUtc().subtract(AdminSino.janela);
+      final n = await Supabase.instance.client
           .from('admin_notifications')
-          .select('id')
+          .count(CountOption.exact)
           .isFilter('read_at', null)
           .isFilter('archived_at', null)
-          .limit(100);
+          .inFilter('severity', AdminSino.severidades)
+          .gte('created_at', desde.toIso8601String());
       if (!mounted) return;
-      setState(() {
-        _unreadNotificationsCount = (rows as List).length;
-      });
+      setState(() => _unreadNotificationsCount = n);
     } catch (_) {/* silent */}
   }
 
@@ -191,7 +199,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   @override
   Widget build(BuildContext context) {
     if (!_isAuthorized) {
-      return const AdminAcessoNegado();
+      return AdminAcessoNegado(
+        emailAtual: Supabase.instance.client.auth.currentUser?.email,
+      );
     }
 
     return Scaffold(
@@ -206,13 +216,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           ),
           Badge(
             isLabelVisible: _unreadNotificationsCount > 0,
-            label: Text(_unreadNotificationsCount > 9
-                ? '9+'
-                : '$_unreadNotificationsCount'),
+            label: Text(AdminSino.rotulo(_unreadNotificationsCount)),
             backgroundColor: AppColors.error,
             child: IconButton(
               icon: const Icon(Icons.notifications_outlined),
-              tooltip: 'Notificações ($_unreadNotificationsCount não lidas)',
+              tooltip: AdminSino.dica(_unreadNotificationsCount),
               onPressed: () => _abrir(const AdminNotificationsInboxScreen()),
             ),
           ),
@@ -232,6 +240,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError) {
+              // app-15-11 (S5): sessão expirada (401 / "JWT expired") não é
+              // "erro ao carregar métricas" — diz o que fazer e dá o botão.
+              if (AdminSessaoExpirada.detectar(snapshot.error)) {
+                return const AdminSessaoExpirada();
+              }
               // Sem números não se fica sem menu: o painel continua a servir
               // para chegar a qualquer ecrã.
               return ListView(
@@ -296,23 +309,151 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
 /// O que vê quem abre o painel sem ser administrador. Em PT-BR (o painel é
 /// brasileiro). Fora do `build` do painel para se poder testar sem rede.
+///
+/// fechar-app-15-11 (Bloco 6): a mensagem antiga dizia "Seu e-mail não está na
+/// lista de administradores", mas a app não tem lista nenhuma de e-mails — o
+/// portão olha para o perfil de administrador da conta (`app_metadata.role`).
+/// Agora diz com que conta a pessoa entrou e o que tem de fazer. O e-mail da
+/// conta de administrador NÃO aparece aqui: este ecrã é visto por quem não é
+/// administrador.
 class AdminAcessoNegado extends StatelessWidget {
-  const AdminAcessoNegado({super.key});
+  const AdminAcessoNegado({super.key, this.emailAtual});
+
+  /// E-mail da conta com sessão aberta (null = ninguém entrou).
+  final String? emailAtual;
+
+  /// Sair da conta: o mesmo que "Terminar sessão" do Perfil, e volta ao
+  /// início, onde se entra com a conta de admin. Usado aqui e no aviso de
+  /// sessão expirada ([AdminSessaoExpirada]).
+  static Future<void> sair(BuildContext context) async {
+    context.read<AuthStore>().logout();
+    await context.read<SessionStore>().clearRole();
+    if (!context.mounted) return;
+    Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+  }
+
+  /// Texto mostrado, fora do `build` para o teste o ler tal e qual.
+  static String mensagem(String? emailAtual) {
+    final email = emailAtual?.trim() ?? '';
+    if (email.isEmpty) {
+      return 'Acesso negado.\n'
+          'Você ainda não entrou em nenhuma conta.\n'
+          'Entre com a conta de administrador do Bora para abrir o painel.';
+    }
+    return 'Acesso negado.\n'
+        'Você entrou com $email, e essa conta não tem perfil de administrador.\n'
+        'Saia dessa conta e entre com a conta de administrador do Bora.';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: BoraScreenAppBar(title: 'Painel Admin'),
+      appBar: const BoraScreenAppBar(title: 'Painel Admin'),
       body: Center(
         child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text(
-            'Acesso negado.\nSeu e-mail não está na lista de administradores.',
-            textAlign: TextAlign.center,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                mensagem(emailAtual),
+                key: const Key('admin_acesso_negado_texto'),
+                textAlign: TextAlign.center,
+              ),
+              // app-15-11 (caixa 18, ponto 5): a mensagem manda sair da conta,
+              // mas não havia botão. Faz o mesmo que "Terminar sessão" do
+              // Perfil e volta ao início, onde se entra com a conta de admin.
+              if ((emailAtual ?? '').trim().isNotEmpty) ...[
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  key: const Key('admin_acesso_negado_sair'),
+                  onPressed: () => sair(context),
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Sair dessa conta'),
+                ),
+              ],
+            ],
           ),
         ),
       ),
     );
   }
+}
+
+/// O que o painel mostra quando a sessão expirou (app-15-11, auditoria S5).
+/// O RPC dos números falhava com 401 / "JWT expired" e o painel dizia só
+/// "Erro ao carregar métricas" com o texto técnico, sem dizer o que fazer.
+/// Agora diz a frase e tem o botão "Sair" (o mesmo de [AdminAcessoNegado]).
+class AdminSessaoExpirada extends StatelessWidget {
+  const AdminSessaoExpirada({super.key});
+
+  static const String mensagem = 'Sua sessão expirou. Saia e entre de novo.';
+
+  /// A falha é de sessão vencida? 401 do PostgREST (PGRST301/PGRST303 =
+  /// token inválido ou vencido), 401 do login, ou o texto "JWT expired".
+  static bool detectar(Object? erro) {
+    if (erro == null) return false;
+    if (erro is PostgrestException) {
+      final c = (erro.code ?? '').toUpperCase();
+      if (c == '401' || c == 'PGRST301' || c == 'PGRST303') return true;
+    }
+    if (erro is AuthException && erro.statusCode == '401') return true;
+    final t = erro.toString().toLowerCase();
+    return t.contains('jwt expired') ||
+        t.contains('pgrst301') ||
+        t.contains('pgrst303');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // ListView para o "puxar para atualizar" do painel continuar a funcionar.
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        const SizedBox(height: 40),
+        const Icon(Icons.lock_clock_outlined,
+            size: 48, color: AppColors.warning),
+        const SizedBox(height: 12),
+        const Text(
+          mensagem,
+          key: Key('admin_sessao_expirada_texto'),
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 16),
+        Center(
+          child: FilledButton.icon(
+            key: const Key('admin_sessao_expirada_sair'),
+            onPressed: () => AdminAcessoNegado.sair(context),
+            icon: const Icon(Icons.logout),
+            label: const Text('Sair'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Sininho do painel (app-15-11, auditoria S5): conta só o que pede ação —
+/// por ler, não arquivado, nível alto ou crítico, criado nos últimos 7 dias.
+/// Puro (sem rede) para o teste ler o número e a frase tal e qual.
+class AdminSino {
+  AdminSino._();
+
+  /// Níveis que contam no sininho (`admin_notifications.severity`).
+  static const List<String> severidades = ['high', 'critical'];
+
+  /// Só os avisos desta janela contam.
+  static const Duration janela = Duration(days: 7);
+
+  /// O número no sininho: exato até 99, depois "99+".
+  static String rotulo(int n) => n > 99 ? '99+' : '$n';
+
+  /// A dica do sininho, com o número exato.
+  static String dica(int n) => switch (n) {
+        <= 0 => 'Nenhum aviso importante por ler (últimos 7 dias)',
+        1 => '1 aviso importante por ler (últimos 7 dias)',
+        _ => '$n avisos importantes por ler (últimos 7 dias)',
+      };
 }

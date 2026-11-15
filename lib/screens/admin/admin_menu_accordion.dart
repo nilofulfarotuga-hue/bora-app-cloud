@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../widgets/admin/admin_para_que_serve.dart';
 import 'admin_menu_registry.dart';
 
 /// Menu do painel admin (PT-BR): busca no topo, favoritos fixos, secções
@@ -27,6 +28,7 @@ class AdminMenuAccordion extends StatefulWidget {
   final void Function(String id) onToggleFavorito;
 
   /// Contadores dinâmicos por chave de badge ('acertos', 'skills', …).
+  /// O badge 'novo' não precisa de contador: desenha a etiqueta "novo".
   final Map<String, int> badges;
 
   /// Quem abre o ecrã. Nulo = `Navigator.push` normal.
@@ -58,8 +60,9 @@ class _AdminMenuAccordionState extends State<AdminMenuAccordion> {
       widget.onOpen!(context, item);
       return;
     }
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => item.builder()));
+    Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => AdminTelaComProposito(
+            proposito: item.subtitle, child: item.builder())));
   }
 
   @override
@@ -127,15 +130,19 @@ class _AdminMenuAccordionState extends State<AdminMenuAccordion> {
                 fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
       ]);
 
+  /// app-15-11 (auditoria S5): cada resultado diz a secção onde mora, e os
+  /// do "Arquivado" vêm depois dos outros (busca sem acentos: ver
+  /// `AdminMenuItem.matches`).
   Widget _resultadosBusca(BuildContext context) {
-    final hits = _todos.where((i) => i.matches(_q)).toList();
+    final hits = adminMenuBuscar(widget.sections, _q);
     if (hits.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
         child: Center(child: Text('Nenhum ecrã com esse nome.')),
       );
     }
-    return Column(children: hits.map((i) => _linha(i)).toList());
+    return Column(
+        children: hits.map((r) => _linha(r.item, onde: r.onde)).toList());
   }
 
   Widget _seccao(AdminMenuSection s) {
@@ -162,7 +169,9 @@ class _AdminMenuAccordionState extends State<AdminMenuAccordion> {
           ),
           if (badgeTotal > 0) _badge(badgeTotal),
           const SizedBox(width: 6),
-          Text('${s.items.length}',
+          // app-15-11 (S5): o número sozinho ("22") não dizia de quê.
+          Text(legendaTelas(s.telas),
+              key: ValueKey('telas_${s.id}'),
               style: const TextStyle(
                   fontSize: 12, color: AppColors.textSubtle)),
         ]),
@@ -194,9 +203,15 @@ class _AdminMenuAccordionState extends State<AdminMenuAccordion> {
     ]);
   }
 
-  Widget _linha(AdminMenuItem i) {
+  /// Uma linha do menu. [onde] = secção onde a tela mora (só nos resultados
+  /// da busca, para se saber onde a encontrar depois).
+  Widget _linha(AdminMenuItem i, {String? onde}) {
     final fav = widget.favoritos.contains(i.id);
     final n = i.badge == null ? 0 : (widget.badges[i.badge!] ?? 0);
+    final descricao = Text(
+      i.archivedReason != null ? '${i.subtitle} · ${i.archivedReason}' : i.subtitle,
+      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+    );
     return ListTile(
       key: ValueKey('item_${i.id}'),
       dense: true,
@@ -210,12 +225,25 @@ class _AdminMenuAccordionState extends State<AdminMenuAccordion> {
         Expanded(
             child: Text(i.title,
                 style: const TextStyle(fontWeight: FontWeight.w600))),
+        // app-15-11 (S5): o badge 'novo' ("Contas claras") nunca aparecia —
+        // só havia contadores para 'acertos' e 'skills'.
+        if (i.badge == 'novo') _etiquetaNovo(i.id),
         if (n > 0) _badge(n),
       ]),
-      subtitle: Text(
-        i.archivedReason != null ? '${i.subtitle} · ${i.archivedReason}' : i.subtitle,
-        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-      ),
+      subtitle: onde == null
+          ? descricao
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(onde,
+                    key: ValueKey('onde_${i.id}'),
+                    style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary)),
+                descricao,
+              ],
+            ),
       trailing: IconButton(
         tooltip: fav ? 'Tirar dos favoritos' : 'Fixar nos favoritos',
         icon: Icon(fav ? Icons.push_pin : Icons.push_pin_outlined,
@@ -225,6 +253,21 @@ class _AdminMenuAccordionState extends State<AdminMenuAccordion> {
       onTap: () => _abrir(context, i),
     );
   }
+
+  Widget _etiquetaNovo(String id) => Container(
+        key: ValueKey('novo_$id'),
+        margin: const EdgeInsets.only(left: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Text('novo',
+            style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 11,
+                fontWeight: FontWeight.w700)),
+      );
 
   Widget _badge(int n) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

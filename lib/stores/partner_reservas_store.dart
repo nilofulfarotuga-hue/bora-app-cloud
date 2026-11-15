@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../l10n/tr.dart';
 import '../models/client_restaurant_profile.dart';
 import '../models/floor_plan.dart';
 import '../models/reservation_model.dart';
 import '../models/restaurant_table.dart';
+import '../utils/euros.dart';
 import '../utils/hora_lisboa.dart';
 
 /// Reservas PRO F4 — store partner-side.
@@ -94,6 +96,60 @@ class PartnerReservasStore extends ChangeNotifier {
     } catch (e) {
       debugPrint('[PartnerReservasStore] decide: $e');
       throw Exception(_mapErrorPtPt(e.toString()));
+    }
+  }
+
+  // ───────────── REJEITAR COM DEVOLUÇÃO (fechar-tudo-15-11) ─────────────
+
+  /// Edge que rejeita a reserva E devolve o pré-pagamento na Stripe
+  /// (`supabase/functions/partner-reject-reservation`). A RPC sozinha só
+  /// mudava o estado e dizia ao cliente "Reembolso em curso" sem devolver
+  /// nada.
+  static const String edgeRejeitarComDevolucao = 'partner-reject-reservation';
+
+  /// Há dinheiro a devolver? Então a rejeição passa pela Edge. Sem
+  /// pré-pagamento, a RPC de sempre faz exatamente o mesmo.
+  static bool precisaDeDevolucao(ReservationModel r) =>
+      r.prepaymentCents > 0 || (r.prepaymentPi ?? '').trim().isNotEmpty;
+
+  /// Rejeita a reserva (o cliente é avisado pelo servidor).
+  ///
+  /// Com pré-pagamento vai pela Edge, que devolve o dinheiro. Se a Edge
+  /// falhar — também se ainda não estiver instalada — NÃO há volta pela RPC:
+  /// rejeitar sem devolver era precisamente o erro. Lança
+  /// [RecusaReservaFalhou] e a reserva fica como estava.
+  Future<RecusaReserva> rejectReservation({
+    required ReservationModel reservation,
+    String? reason,
+  }) async {
+    if (!precisaDeDevolucao(reservation)) {
+      await decideReservation(
+        reservationId: reservation.id,
+        accept: false,
+        reason: reason,
+      );
+      return const RecusaReserva(devolucao: DevolucaoDaReserva.semPrePagamento);
+    }
+    try {
+      final res = await _supabase.functions.invoke(
+        edgeRejeitarComDevolucao,
+        body: {
+          'reservation_id': reservation.id,
+          if (reason != null && reason.trim().isNotEmpty)
+            'reason': reason.trim(),
+        },
+      );
+      return RecusaReserva.daResposta(
+        res.data,
+        prePagamentoCents: reservation.prepaymentCents,
+      );
+    } on FunctionException catch (e) {
+      debugPrint('[PartnerReservasStore] rejeitar: $e');
+      throw RecusaReservaFalhou(
+          RecusaReservaFalhou.motivoDe(e.status, e.details));
+    } catch (e) {
+      debugPrint('[PartnerReservasStore] rejeitar: $e');
+      throw const RecusaReservaFalhou(MotivoFalhaRecusa.outro);
     }
   }
 
@@ -545,4 +601,127 @@ class PartnerReservasStore extends ChangeNotifier {
     if (e.contains('auth_required')) return 'Sessão expirada.';
     return 'Erro: ${error.replaceFirst('Exception: ', '')}';
   }
+}
+
+// ───────────── REJEITAR COM DEVOLUÇÃO: resultado e falhas ─────────────
+// fechar-tudo-15-11 (15/11/2026): o parceiro só lê o que é verdade sobre o
+// pré-pagamento do cliente.
+
+/// O que aconteceu ao pré-pagamento quando o parceiro rejeitou a reserva.
+enum DevolucaoDaReserva {
+  /// Não havia pré-pagamento, ou nunca chegou a ser cobrado.
+  semPrePagamento,
+
+  /// A devolução foi pedida agora à Stripe.
+  pedida,
+
+  /// Já tinha sido devolvido (nova tentativa).
+  jaFeita,
+
+  /// Não saiu sozinha: a equipa Bora foi avisada no painel e trata dela.
+  aCargoDaEquipa,
+}
+
+/// Reserva rejeitada (pela Edge ou, sem pré-pagamento, pela RPC).
+class RecusaReserva {
+  const RecusaReserva({required this.devolucao, this.valorCents = 0});
+
+  final DevolucaoDaReserva devolucao;
+  final int valorCents;
+
+  /// Lê a resposta da Edge `partner-reject-reservation`
+  /// (`refund.result`: succeeded · already_refunded · not_applicable ·
+  /// not_paid · failed). Resposta que não se reconhece → a equipa trata:
+  /// nunca se diz que o dinheiro foi devolvido sem a Edge o confirmar.
+  factory RecusaReserva.daResposta(Object? data, {int prePagamentoCents = 0}) {
+    final refund = data is Map ? data['refund'] : null;
+    final resultado = refund is Map ? refund['result']?.toString() : null;
+    final bruto = refund is Map ? refund['amount_cents'] : null;
+    final cents = bruto is num && bruto > 0 ? bruto.toInt() : prePagamentoCents;
+    switch (resultado) {
+      case 'succeeded':
+        return RecusaReserva(
+            devolucao: DevolucaoDaReserva.pedida, valorCents: cents);
+      case 'already_refunded':
+        return RecusaReserva(
+            devolucao: DevolucaoDaReserva.jaFeita, valorCents: cents);
+      case 'not_applicable':
+      case 'not_paid':
+        return const RecusaReserva(
+            devolucao: DevolucaoDaReserva.semPrePagamento);
+      default:
+        return RecusaReserva(
+            devolucao: DevolucaoDaReserva.aCargoDaEquipa, valorCents: cents);
+    }
+  }
+
+  /// A frase para o parceiro: só o que aconteceu de facto.
+  String get texto => switch (devolucao) {
+        DevolucaoDaReserva.pedida =>
+          'Reserva rejeitada. O cliente foi avisado e a devolução de {0} já foi pedida.'
+              .trArgs([eurCents(valorCents)]),
+        DevolucaoDaReserva.jaFeita =>
+          'Reserva rejeitada. A devolução de {0} ao cliente já tinha sido feita.'
+              .trArgs([eurCents(valorCents)]),
+        DevolucaoDaReserva.semPrePagamento =>
+          'Reserva rejeitada. O cliente foi avisado.'.tr,
+        DevolucaoDaReserva.aCargoDaEquipa =>
+          'Reserva rejeitada. O cliente foi avisado e a equipa Bora trata da devolução.'
+              .tr,
+      };
+}
+
+/// Porque é que a rejeição não aconteceu.
+enum MotivoFalhaRecusa {
+  /// A Edge ainda não foi publicada no servidor (404 da Supabase).
+  naoInstalada,
+  semRede,
+  sessao,
+  semAcesso,
+  naoEncontrada,
+  jaDecidida,
+  outro,
+}
+
+/// A rejeição falhou: a reserva continua como estava.
+class RecusaReservaFalhou implements Exception {
+  const RecusaReservaFalhou(this.motivo);
+
+  final MotivoFalhaRecusa motivo;
+
+  /// Código HTTP + corpo da resposta → motivo. A Supabase responde 404 sem o
+  /// nosso campo `error` quando a função não existe; o 404 da própria Edge
+  /// traz `error: reservation_not_found`. Código 0 = o pedido nem chegou
+  /// ao servidor.
+  static MotivoFalhaRecusa motivoDe(int status, Object? detalhes) {
+    final erro = detalhes is Map ? detalhes['error']?.toString() : null;
+    if (status == 0) return MotivoFalhaRecusa.semRede;
+    if (status == 401) return MotivoFalhaRecusa.sessao;
+    if (status == 403) return MotivoFalhaRecusa.semAcesso;
+    if (status == 404) {
+      return erro == 'reservation_not_found'
+          ? MotivoFalhaRecusa.naoEncontrada
+          : MotivoFalhaRecusa.naoInstalada;
+    }
+    if (status == 409) return MotivoFalhaRecusa.jaDecidida;
+    return MotivoFalhaRecusa.outro;
+  }
+
+  String get texto => switch (motivo) {
+        MotivoFalhaRecusa.naoInstalada =>
+          'Esta parte ainda não está instalada; tenta mais tarde ou fala com a equipa Bora.'
+              .tr,
+        MotivoFalhaRecusa.semRede =>
+          'Sem ligação. Verifica a internet e tenta outra vez.'.tr,
+        MotivoFalhaRecusa.sessao => 'A tua sessão terminou. Entra outra vez.'.tr,
+        MotivoFalhaRecusa.semAcesso => 'Não tens acesso a esta reserva.'.tr,
+        MotivoFalhaRecusa.naoEncontrada => 'Reserva não encontrada.'.tr,
+        MotivoFalhaRecusa.jaDecidida =>
+          'Esta reserva já foi decidida. Atualiza a lista.'.tr,
+        MotivoFalhaRecusa.outro =>
+          'Não foi possível concluir. Atualiza a lista e tenta de novo.'.tr,
+      };
+
+  @override
+  String toString() => texto;
 }

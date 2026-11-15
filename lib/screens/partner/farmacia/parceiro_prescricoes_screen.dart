@@ -173,6 +173,16 @@ class ParceiroPrescricoesScreen extends StatelessWidget {
       body: StreamBuilder<List<PedidoPrescricao>>(
         stream: PrescricaoService().daLoja(restaurantId),
         builder: (context, s) {
+          // app-15-11: com erro mostra-o (antes ficava a roda para sempre).
+          if (s.hasError && !s.hasData) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('Não foi possível carregar os pedidos. Verifique a internet e abra outra vez.',
+                    textAlign: TextAlign.center),
+              ),
+            );
+          }
           if (!s.hasData) return const Center(child: CircularProgressIndicator());
           return ParceiroPrescricoesLista(pedidos: s.data!);
         },
@@ -290,6 +300,22 @@ class ParceiroPrescricaoCorpo extends StatefulWidget {
 
 class _ParceiroPrescricaoCorpoState extends State<ParceiroPrescricaoCorpo> {
   bool _aResponder = false;
+  bool _aFechar = false;
+
+  /// app-15-11: a farmácia fecha um pedido de demonstração ("levantado").
+  Future<void> _fecharDemo() async {
+    if (_aFechar) return;
+    setState(() => _aFechar = true);
+    try {
+      await _svc.fecharDemo(p.id);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(PrescricaoService.mensagemDe(e))));
+      }
+    } finally {
+      if (mounted) setState(() => _aFechar = false);
+    }
+  }
   PrescricaoService get _svc => widget.service ?? PrescricaoService();
   PedidoPrescricao get p => widget.pedido;
 
@@ -330,6 +356,11 @@ class _ParceiroPrescricaoCorpoState extends State<ParceiroPrescricaoCorpo> {
       future: _svc.urlAssinado(caminho, segundos: 600),
       builder: (context, s) {
         final url = s.data;
+        // app-15-11: pedido acabado sem link (falhou ou os dados já foram
+        // apagados) = aviso, não roda para sempre.
+        if (url == null && s.connectionState == ConnectionState.done) {
+          return SizedBox(height: altura, child: const Center(child: Text('Não foi possível abrir a imagem.')));
+        }
         if (url == null) {
           return SizedBox(height: altura, child: const Center(child: CircularProgressIndicator()));
         }
@@ -417,14 +448,30 @@ class _ParceiroPrescricaoCorpoState extends State<ParceiroPrescricaoCorpo> {
               _cartao(Column(children: [
                 const Text('O cliente confirmou', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
                 const SizedBox(height: 8),
-                const Text('Código de levantamento (o estafeta mostra-o ao chegar)', textAlign: TextAlign.center),
+                Text(
+                    p.isDemo
+                        ? 'Código de levantamento (demonstração: não vem estafeta)'
+                        : 'Código de levantamento (o estafeta mostra-o ao chegar)',
+                    textAlign: TextAlign.center),
                 const SizedBox(height: 6),
                 FittedBox(
                   child: Text(p.codigoLevantamento ?? '—',
                       style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w900, letterSpacing: 6)),
                 ),
                 const SizedBox(height: 6),
-                Text('Total ${eurosDeCents(p.totalCents)} · ${p.metodoPagamento == 'cash' ? 'dinheiro' : p.metodoPagamento == 'mbway' ? 'MB Way' : 'cartão'}'),
+                // app-15-11: em demonstração nada foi cobrado; não se diz "cartão".
+                Text(p.isDemo
+                    ? 'Total ${eurosDeCents(p.totalCents)} · demonstração, nada cobrado'
+                    : 'Total ${eurosDeCents(p.totalCents)} · ${p.metodoPagamento == 'cash' ? 'dinheiro' : p.metodoPagamento == 'mbway' ? 'MB Way' : 'cartão'}'),
+                if (p.isDemo && p.estado == PrescricaoEstado.confirmado) ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    key: const Key('farmacia_fechar_demo'),
+                    onPressed: _aFechar ? null : _fecharDemo,
+                    icon: const Icon(Icons.check),
+                    label: Text(_aFechar ? 'A marcar…' : 'Marcar como levantado'),
+                  ),
+                ],
               ])),
             if (p.eReceita)
               _cartao(Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

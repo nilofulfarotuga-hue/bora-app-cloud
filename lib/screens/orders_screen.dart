@@ -495,7 +495,6 @@ void _showWalletAdjustModal(BuildContext context, List<WalletTx> txs) {
             ),
             const SizedBox(height: 12),
             ...txs.map((tx) {
-              final amount = (tx.amountCents.abs() / 100).toStringAsFixed(2);
               final sign = tx.isCredit ? '+' : '−';
               return ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -510,7 +509,8 @@ void _showWalletAdjustModal(BuildContext context, List<WalletTx> txs) {
                 title: Text(tx.kindLabel),
                 subtitle: Text(tx.reason),
                 trailing: Text(
-                  '$sign€$amount',
+                  // app-15-11: formato de Portugal ("−1,20 €")
+                  '$sign${eurCents(tx.amountCents.abs())}',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     color: tx.isCredit ? Colors.green : Colors.red,

@@ -14,6 +14,7 @@ import '../services/weight_portions.dart';
 import '../stores/driver_store.dart';
 import '../stores/order_store.dart';
 import '../widgets/ajustes_peso_pedido.dart';
+import '../widgets/aviso_estafeta_noutro_pedido.dart';
 import '../widgets/bora/bora_bottom_action_bar.dart';
 import '../widgets/reportar_problema_pedido.dart';
 import '../widgets/order_edit/client_order_edit_banner.dart';
@@ -66,6 +67,9 @@ class OrderDetailsScreen extends StatelessWidget {
           _StatusCard(order: liveOrder),
 
           const SizedBox(height: 16),
+
+          // ── Adenda 1 (14/11): o estafeta está a acabar outro pedido ──
+          AvisoEstafetaNoutroPedido(order: liveOrder),
 
           // ── 8.2 Banner de autorização de orçamento (errand pending) ───
           ErrandBudgetBanner(order: liveOrder),
@@ -848,7 +852,8 @@ class _OrderInfoCard extends StatelessWidget {
               value: eur(order.deliveryFee)),
           _Row(
               label: 'Pagamento'.tr,
-              value: order.paymentMethod.name.toUpperCase()),
+              // app-15-11: "Cartão", "MB Way", "Dinheiro" — não CARD/MBWAY/CASH.
+              value: order.paymentMethod.label),
           // Fatura com NIF (28/10/2026): só aparece se houver pedido de fatura.
           FaturaNifLinha(orderId: order.id),
           if (order.vendorName != null)
@@ -1600,7 +1605,6 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
     }
     final items = _items ?? const <Map<String, dynamic>>[];
     final creditCents = _unavailableCreditCents();
-    final creditEur = (creditCents / 100).toStringAsFixed(2);
 
     return Card(
       color: AppTheme.cardBg,
@@ -1666,7 +1670,8 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
                     ),
                   ),
                   Text(
-                    '+€$creditEur',
+                    // app-15-11: formato de Portugal ("+1,20 €")
+                    '+${eurCents(creditCents)}',
                     style: const TextStyle(
                       color: AppTheme.primary,
                       fontWeight: FontWeight.w700,
@@ -1716,10 +1721,10 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
     final actualPriceCents = it['actual_price_cents'] as int?;
     final originalPriceCents = (it['original_price_cents'] as int?) ?? 0;
     final qty = (it['original_qty'] as int?) ?? 1;
-    final priceEur = (originalPriceCents / 100).toStringAsFixed(2);
-    final actualEur = actualPriceCents != null
-        ? (actualPriceCents / 100).toStringAsFixed(2)
-        : null;
+    // app-15-11: já vem formatado como em Portugal ("2,35 €")
+    final priceEur = eurCents(originalPriceCents);
+    final actualEur =
+        actualPriceCents != null ? eurCents(actualPriceCents) : null;
 
     final (icon, color, label, subtitle) = _statusMeta(
       status: status,
@@ -1790,14 +1795,14 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
           Icons.check_circle,
           AppColors.primary,
           'COMPRADO',
-          '${qty}× · €$originalEur',
+          '${qty}× · $originalEur',
         );
       case 'unavailable':
         return (
           Icons.cancel,
           const Color(0xFFC62828),
           'INDISPONÍVEL'.tr,
-          'Não disponível — €{0} creditados ao saldo'.trArgs([originalEur]),
+          'Não disponível — {0} creditados ao saldo'.trArgs([originalEur]),
         );
       case 'replaced':
         final byPart = actualName != null ? ' por "$actualName"' : '';
@@ -1806,21 +1811,21 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
           Icons.swap_horiz,
           AppColors.info,
           'SUBSTITUÍDO'.tr,
-          'Substituído{0} · €{1}'.trArgs([byPart, priceEur]),
+          'Substituído{0} · {1}'.trArgs([byPart, priceEur]),
         );
       case 'added':
         return (
           Icons.add_circle,
           AppColors.accent,
           'ADICIONADO',
-          'Adicionado pelo estafeta · €{0}'.trArgs([actualEur ?? "?"]),
+          'Adicionado pelo estafeta · {0}'.trArgs([actualEur ?? "?"]),
         );
       default:
         return (
           Icons.radio_button_unchecked,
           Colors.grey.shade600,
           'PENDENTE',
-          '${qty}× · €$originalEur',
+          '${qty}× · $originalEur',
         );
     }
   }

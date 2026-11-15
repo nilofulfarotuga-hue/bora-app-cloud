@@ -20,6 +20,7 @@ import '../../../services/saved_card_checkout.dart';
 import '../../../services/tvde_conformidade_service.dart';
 import '../../../services/web_health_log.dart';
 import '../../../stores/tvde_store.dart';
+import '../../../utils/euros.dart';
 import '../../../utils/map_utils.dart';
 import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/atalhos_morada.dart';
@@ -2447,7 +2448,7 @@ class _EstimateCard extends StatelessWidget {
                   Text(
                     !hasKm
                         ? 'Escolhe o destino'.tr
-                        : '${isFree ? 'Grátis' : '€${(payableCents / 100).toStringAsFixed(2)}'}'
+                        : '${isFree ? 'Grátis' : eurCents(payableCents)}'
                             '  ·  ${km!.toStringAsFixed(1)} km'
                             '${etaMinutes != null ? '  ·  ~$etaMinutes min' : ''}',
                     style: const TextStyle(
@@ -2748,7 +2749,7 @@ class _TvdePaymentSheetState extends State<_TvdePaymentSheet> {
     final media = MediaQuery.of(context);
     final inset = media.viewInsets.bottom; // teclado
     final safeBottom = media.padding.bottom; // barra de navegação do sistema
-    final eur = '€${(widget.amountCents / 100).toStringAsFixed(2)}';
+    final eur = eurCents(widget.amountCents); // app-15-11: "7,50 €"
     // Rolável: com MB Way escolhido aparece o campo do número e o teclado, e
     // sem scroll o conteúdo estoura em ecrãs baixos (o botão fica inalcançável).
     //

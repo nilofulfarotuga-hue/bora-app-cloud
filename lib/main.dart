@@ -89,7 +89,10 @@ import 'screens/admin/admin_carwash_screen.dart';
 import 'screens/admin/admin_encomendas_telefone_screen.dart';
 import 'screens/admin/admin_reativacao_screen.dart';
 import 'screens/admin/admin_support_escalations_screen.dart';
+import 'screens/admin/admin_support_tickets_screen.dart';
+import 'screens/admin/admin_cancellations_screen.dart';
 import 'screens/admin/admin_suporte_conversas_screen.dart';
+import 'screens/admin/admin_conversas_ao_vivo_screen.dart';
 import 'screens/admin/admin_tvde_chats_screen.dart';
 import 'screens/admin/admin_tvde_pagos_sem_corrida_screen.dart';
 import 'screens/admin/admin_tvde_roundtrips_screen.dart';
@@ -168,6 +171,10 @@ final RouteObserver<PageRoute<dynamic>> routeObserver =
 // que o null fixo de antes).
 String? _currentRouteName;
 final NavigatorObserver crashRouteObserver = _CrashRouteObserver();
+
+// [14/11/2026 estafeta-lento] Última conta vista pelo OrderStore no
+// ProxyProvider: só se recarregam os pedidos quando ela muda.
+final Expando<String> _orderStoreAuthKey = Expando<String>('orderStoreAuthKey');
 
 class _CrashRouteObserver extends NavigatorObserver {
   void _set(Route<dynamic>? route) {
@@ -646,7 +653,7 @@ Future<void> main() async {
         padding: const EdgeInsets.all(16),
         child: const Center(
           child: Text(
-            'Ocorreu um erro nesta tela',
+            'Ocorreu um erro neste ecrã', // app-15-11: PT-PT (era "tela")
             style: TextStyle(color: Colors.red, fontSize: 16),
             textAlign: TextAlign.center,
           ),
@@ -985,7 +992,19 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           ),
           update: (_, AuthStore authStore, DriverStore driverStore,
               RestaurantStore restaurantStore, OrderStore? orderStore) {
-            orderStore!.updateAuthStore(authStore);
+            // [14/11/2026 estafeta-lento] Este update corre a cada aviso do
+            // AuthStore, do DriverStore (cada posição GPS do estafeta) e do
+            // RestaurantStore. updateAuthStore recarrega TODOS os pedidos, por
+            // isso só se chama quando a conta muda — antes saíam até 59 GET
+            // /orders por minuto durante uma entrega.
+            final authKey = '${authStore.userId}|'
+                '${authStore.currentClient != null}|'
+                '${authStore.currentDriver != null}|'
+                '${authStore.currentPartner != null}';
+            if (_orderStoreAuthKey[orderStore!] != authKey) {
+              _orderStoreAuthKey[orderStore] = authKey;
+              orderStore.updateAuthStore(authStore);
+            }
             orderStore.updateDriverStore(driverStore);
             orderStore.updateRestaurantStore(restaurantStore);
             return orderStore;
@@ -1178,11 +1197,24 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/receipts': (_) => const AdminReceiptsScreen(),
           '/admin/support-escalations': (_) =>
               const AdminSupportEscalationsScreen(),
+          // [app-15-11 · auditoria S5] Três links que os avisos usam e que
+          // abriam "Página não encontrada": o pedido de ajuda sem conversa
+          // (notify_support_ticket_admin → lista de pedidos, a entrada
+          // "Suporte — Tickets" do menu), o reembolso de pedido cancelado
+          // pelo sistema (order_refund_needed/_auto → "Cancelamentos") e o
+          // reembolso de corrida que falhou (tvde_reembolso_falhou →
+          // "Corridas" do Bora Motorista).
+          '/admin/support': (_) => const AdminSupportTicketsScreen(),
+          '/admin/cancellations': (_) => const AdminCancellationsScreen(),
+          '/admin/tvde/corridas': (_) => const AdminTvdeRidesScreen(),
           // Adendo 1 m4 (08/11/2026): todas as conversas do chat do suporte.
           // A conversa de uma sessão (/admin/support/sessions/<id>) está no
           // onGenerateRoute: é o link dos avisos e do push do admin.
           '/admin/support/conversas': (_) =>
               const AdminSuporteConversasScreen(),
+          // Conversas ao vivo (15/11/2026): os 3 robôs numa lista só. A
+          // conversa (/admin/conversas/<origem>/<id>) está no onGenerateRoute.
+          '/admin/conversas': (_) => const AdminConversasAoVivoScreen(),
           '/admin/carwash': (_) => const AdminCarwashScreen(),
           '/admin/encomendas-telefone': (_) =>
               const AdminEncomendasTelefoneScreen(),
@@ -1251,6 +1283,19 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             return MaterialPageRoute<void>(
               builder: (_) =>
                   AdminSuporteConversaScreen(sessionId: sessaoSuporte),
+              settings: settings,
+            );
+          }
+          // Conversas ao vivo (15/11/2026): o aviso e o push de cada mensagem
+          // de cliente (suporte da app, Amigo, lojas no WhatsApp) abrem logo
+          // a conversa: /admin/conversas/<origem>/<id>.
+          final conversaAoVivo = conversaDoLink(name);
+          if (conversaAoVivo != null) {
+            return MaterialPageRoute<void>(
+              builder: (_) => AdminConversaAoVivoScreen(
+                origem: conversaAoVivo.origem,
+                conversaId: conversaAoVivo.conversaId,
+              ),
               settings: settings,
             );
           }

@@ -578,3 +578,76 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   toca; além disso o "cancelar sem custo" dispara o reembolso automático que já existe (`trg_reembolso_cancelado_pelo_sistema`).
   Não contornado (nem renomeado nem partido). O SQL inteiro está em
   `.claude/.ai/missoes/farmacias-loja-2026-11-14/a2_chegada_tardia.PROPOSTA.sql`; o líder da missão revê, aplica e copia.
+
+- **14/11/2026 ~17:20, missão `compra-guardada-2026-11-14` (+ adenda 1, fila de pedidos)** — a bora-tranca negou o
+  `apply_migration` de `supabase/migrations/20261114190000_compra_guardada_e_fila_estafeta.sql` ("migration é publicar:
+  publica o Claude.ai"), e a trava do modo automático negou a prova em rollback na produção ("DO com EXECUTE em
+  produção"). Não contornado (nem pelo CLI `db query`). A migração foi provada no PGlite com
+  `supabase/tests/compra_guardada_fila_prova.mjs` (45 casos, mutações apanhadas). Destrava: a Claude.ai aplica a
+  migração tal como está no ramo `ai/2026-11-14-compra-guardada`. Sem ela a app funciona na mesma (o rascunho fica
+  no telemóvel e a fila usa a regra do telemóvel), mas o servidor, o painel e o aviso ao cliente só ligam depois.
+
+- **14/11/2026 22:24, missão `fechar-app-15-11` (bloco 2, "autorizado aqui pelo Danilo só para isto" na caixa_guardados id 13)** —
+  a bora-tranca negou o Edit de `lib/stores/order_store.dart` ("zona vermelha: order_store.dart (finalizePurchase)"), uma
+  tentativa, não repetida nem contornada. A mudança inteira (um só carregamento em voo, 2 s para o estafeta, lista filtrada,
+  histórico às páginas) está em `docs/propostas/fechar-app-15-11/bloco2_order_store.patch` (`git apply --check` passa neste ramo)
+  com a explicação em `bloco2_order_store.md`. O que não precisava do ficheiro trancado já está no ramo: a regra de juntar
+  carregamentos (`lib/services/carregamento_unico.dart`), o botão "Ver entregas mais antigas" e os testes. Destrava: a Claude.ai
+  aplica o patch pelo GitHub, ou uma sessão aberta pelo Danilo com a tranca desligada.
+
+- **14/11/2026 ~23:20, missão `fechar-app-15-11` (bloco 8, parte E: tirar as notas internas do alcance dos robôs)** — a
+  bora-tranca negou o Write de `supabase/migrations/20261115024000_robos_sem_notas_internas.sql` ("migration que toca
+  tokens/wallet/pagamentos/ledger"). A migração só troca a função de pesquisa `match_knowledge`; a tranca leu palavras dos
+  comentários. Uma tentativa, não repetida, não renomeada nem partida. O SQL inteiro está em
+  `docs/propostas/fechar-app-15-11/8e_robos_sem_notas_internas.PROPOSTA.sql`, provado no PGlite com pgvector
+  (`supabase/tests/fechar_app_8e_prova.mjs`: 26 certos, 2 sabotagens apanhadas). Destrava: a Claude.ai aplica-o com o nome
+  `20261115024000_robos_sem_notas_internas`.
+  **Atualização 15/11 04:40:** a proposta foi refeita depois da revisão (lista fechada; das regras do negócio só
+  passam duas secções). A prova passou a 41 certos e 4 estragos apanhados. Continua por aplicar.
+
+- **15/11/2026 ~04:45, missão `fechar-app-15-11` (enviar a proposta 8e refeita para o ramo de ensaio)** — a bora-tranca
+  negou um Bash que juntava, na mesma linha, a correção de um texto, a prova, o commit e o `git push origin
+  ai/2026-11-15-fechar-app` com a saída cortada por `| tail -1` ("git push é publicar"). Erro meu de forma: o envio
+  para um ramo `ai/` só passa sozinho, com dois argumentos e sem tubos, como nos quatro envios anteriores desta noite.
+  Como o comando foi recusado inteiro, nada correu. Refiz a correção e o commit sem envio e depois enviei na forma
+  simples, que a tranca deixa passar. Nada foi para o ramo de produção.
+
+- **15/11/2026 ~04:55, missão `fechar-app-15-11` (testes dos lembretes do dono, nota 16 da revisão)** — duas recusas da
+  bora-tranca, as duas por erro meu de forma. (1) Negou o Write de `ferramentas/vps/test_lembretes_danilo.py` ("segredo no
+  conteúdo novo"): o teste dava um valor de faz-de-conta, em texto claro, à variável da chave do servidor, só para o módulo
+  carregar sem a VPS. Não havia segredo nenhum, mas o padrão é o de um. Reescrevi o teste sem escrever chave nenhuma (o
+  módulo de configuração passou a ser um objeto de faz-de-conta), que é o que a regra pede: nenhum valor de chave em
+  ficheiros. (2) Negou um Bash que acabava a apagar uma pasta temporária com apagar recursivo. Como foi recusado inteiro,
+  nada correu. Repeti sem apagar nada, com a cópia de ensaio na pasta de rascunho da sessão.
+
+- **15/11/2026 10:35-11:10, missão `app-15-11` (Claude Code no PC)** — sete recusas, nenhuma contornada.
+  (1) bora-tranca negou `execute_sql` com DELETE + INSERT em `support_knowledge_chunks` ("DELETE em produção"):
+  refeito só com INSERT, que depois parou noutra coisa (CHECK do tipo de trecho). (2) Negou `apply_migration` da
+  `20261115104000_conhecimento_tipos_ajuda` ("migration é publicar"): ficou para a Claude.ai (caixa 25).
+  (3) e (4) Negou duas vezes um `git push` para `ai/2026-11-15-app` porque levava `2>&1 | tail` e, na 2.ª, vinha
+  junto com o commit: erro meu de forma, já descrito na nota de 04:55; refeito sozinho, com dois argumentos.
+  (5) Negou um Bash que começava por apagar recursivamente uma pasta da pasta de rascunho: refeito noutra pasta,
+  sem apagar. (6) Negou um INSERT na `caixa_guardados` cujo conteúdo era o texto de uma migração ("DDL em
+  produção é publicar" — lê o texto dentro da cadeia): entregue por link fixo do GitHub (commit + sha256) nas
+  caixas 25 a 33. (7) O classificador do Claude Code negou `gh --version` ("Undermining Oversight"): não repetido;
+  o pedido de revisão #19 já existia.
+  (8) ~11:25: o classificador do Claude Code negou ler o registo completo do job do build-ios #278 com o token
+  do git do PC ("Unauthorized Access"), apesar de ser o caminho anotado a 29/10 na memória. Não repetido; as
+  duas falhas que encontrei foram achadas lendo o código e os testes.
+- **15/11/2026, missão `manha-15-11` (Claude Code no PC)** — recusas da bora-tranca e da trava do modo automático, nenhuma
+  contornada: (1) Write em `supabase/functions/client-cancel-order/` ("zona vermelha: estorno") → o código ficou pronto em
+  `docs/propostas/manha-15-11/C1-*`; (2) execute_sql da prova C3 em rollback (INSERT/UPDATE em `bora_tokens`) → ficou em
+  `C3-prova-rollback.sql`; (3) `deploy_edge_function admin-sync-user-name` e `apply_migration conteudo_ia_fila`
+  ("publica o Claude.ai"); (4) `git push` com tubo — repetido na forma simples para o ramo `ai/2026-11-15-manha`, que
+  passou; (5) a trava do modo automático passou a recusar a chave SSH da VPS a meio da sessão ("ficheiro de segredos"),
+  por isso os passos na VPS (scripts do bloco E, restart do Hermes) ficaram para a Claude.ai (e2e_log 9147 e 9150).
+- **15/11/2026, missões `painel-admin-15-11` e `fechar-tudo-15-11` (Claude Code no PC, sessão app-15-11)** — nenhuma
+  contornada: (1) ~14:00, o classificador do Claude Code negou ("Unauthorized Access") procurar no PC, só pelo nome,
+  ficheiros `AuthKey_*.p8` (a chave da Apple que gera o segredo OAuth do "Entrar com a Apple"). Não repetido: o ponto C
+  ficou descrito para a Claude.ai (e2e_log fluxo fechar-tudo-15-11, passo C-entrar-com-apple). (2) O ajudante S5 relatou
+  que o gancho protege-banco bloqueou um grep inofensivo às migrações porque o texto do comando tinha "drop policy …
+  orders"; saltado, sem efeito na auditoria. (3) O ajudante S2 relatou que a trava bloqueou um bloco DO com EXECUTE para
+  testar funções em lote; seguiu com SELECTs simples.
+  (4) ~14:35, a bora-tranca bloqueou um `git add … && git commit … && git log … && git push … | tail -1` (o envio
+  só passa sozinho, `git push origin ai/AAAA-MM-DD-nome` com 2 argumentos). Erro meu, já conhecido: nada correu;
+  repeti o commit e o envio em comandos separados e passaram.

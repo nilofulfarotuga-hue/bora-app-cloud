@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '_admin_rpc_errors.dart';
 
 typedef AdminAmigoPesquisaCarregar = Future<Map<String, dynamic>?> Function();
 typedef AdminAmigoPesquisaDefinir = Future<void> Function(Map<String, Object> mudancas);
@@ -81,7 +82,7 @@ class _AdminAmigoPesquisaSecaoState extends State<AdminAmigoPesquisaSecao> {
       _aviso('Salvo: $oQue (fica na auditoria)');
       await _load();
     } catch (e) {
-      _aviso('Não salvei $oQue: $e');
+      _aviso('Não salvei $oQue: ${humanizeAdminRpcError(e)}');
     }
   }
 

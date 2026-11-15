@@ -691,7 +691,7 @@ class _GanhosScreenState extends State<GanhosScreen> {
       final String friendly;
       if (msg.contains('token_withdrawal_weekly_cap_exceeded')) {
         friendly =
-            'Limite semanal atingido. Podes sacar mais na próxima semana.';
+            'Limite semanal atingido. Podes levantar mais na próxima semana.';
       } else if (msg.contains('INSUFFICIENT_TOKENS')) {
         friendly = 'Tokens insuficientes.';
       } else {

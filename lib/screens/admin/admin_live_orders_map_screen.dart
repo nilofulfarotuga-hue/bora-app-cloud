@@ -7,20 +7,100 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../models/order_model.dart';
 import '../../services/admin/admin_order_service.dart';
 import '../../utils/constants.dart';
 import '../../widgets/admin/test_order_badge.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_cancel_order_dialog.dart';
+import '_admin_rpc_errors.dart';
+
+/// [15/11/2026 · S1] Estados de cada grupo do mapa, por lista explícita.
+/// Antes "ativos" era "tudo o que não é pendente", e o `readyForPickup`
+/// (pronto na loja, ainda sem entregador) contava como em entrega.
+const Set<OrderStatus> kMapaEsperandoEntregador = {
+  OrderStatus.created,
+  OrderStatus.preparing,
+  OrderStatus.readyForPickup,
+  OrderStatus.callingDriver,
+};
+const Set<OrderStatus> kMapaEmEntrega = {
+  OrderStatus.driverAccepted,
+  OrderStatus.pickedUp,
+  OrderStatus.onTheWay,
+};
+
+/// Um entregador só conta como ligado com GPS dos últimos 5 minutos.
+const Duration kMapaJanelaLigado = Duration(minutes: 5);
+
+const String kLegendaMapaAoVivo =
+    'Laranja = esperando entregador · Verde = em entrega · '
+    'Roxo = casa do cliente · Azul = entregador ligado (GPS nos últimos 5 min)';
+
+final Map<String, OrderStatus> _estadosPorNome = OrderStatus.values.asNameMap();
+
+/// O `status` (texto) de `admin_live_orders` no enum; desconhecido → null.
+OrderStatus? estadoDoPedidoNoMapa(Object? status) => _estadosPorNome['$status'];
+
+/// Quantos pedidos esperam entregador e quantos estão em entrega.
+({int esperando, int emEntrega}) contarPedidosNoMapa(
+    Iterable<Map<String, dynamic>> pedidos) {
+  var esperando = 0;
+  var emEntrega = 0;
+  for (final p in pedidos) {
+    final estado = estadoDoPedidoNoMapa(p['status']);
+    if (kMapaEsperandoEntregador.contains(estado)) esperando++;
+    if (kMapaEmEntrega.contains(estado)) emEntrega++;
+  }
+  return (esperando: esperando, emEntrega: emEntrega);
+}
+
+/// Chave de uma pessoa nas linhas de `admin_live_drivers()`. A mesma pessoa
+/// pode vir em duas linhas de `driver_locations` (uma com o `drivers.id`,
+/// outra com o `user_id`): os `driver_id` são diferentes, mas o nome e o
+/// telefone (vindos de `drivers`) são iguais. Por isso: telefone, senão nome,
+/// senão o id.
+String chaveEntregadorNoMapa(Map<String, dynamic> linha) {
+  final telefone =
+      '${linha['driver_phone'] ?? ''}'.replaceAll(RegExp(r'\s+'), '');
+  if (telefone.isNotEmpty) return 'tel:$telefone';
+  final nome = '${linha['driver_name'] ?? ''}'.trim();
+  if (nome.isNotEmpty) return 'nome:$nome';
+  return 'id:${linha['driver_id'] ?? ''}';
+}
+
+/// Uma linha por pessoa (a de `last_updated` mais recente) e só quem mandou
+/// GPS há [kMapaJanelaLigado] ou menos. O servidor já filtra os 5 minutos;
+/// isto é a defesa do painel. `agora` vem de fora para o teste.
+List<Map<String, dynamic>> entregadoresLigadosNoMapa(
+  Iterable<Map<String, dynamic>> linhas, {
+  required DateTime agora,
+}) {
+  final porPessoa = <String, Map<String, dynamic>>{};
+  final horaDe = <String, DateTime>{};
+  for (final linha in linhas) {
+    final hora = DateTime.tryParse('${linha['last_updated'] ?? ''}');
+    if (hora == null) continue; // sem hora não prova que está ligado
+    if (agora.difference(hora) > kMapaJanelaLigado) continue;
+    final chave = chaveEntregadorNoMapa(linha);
+    final anterior = horaDe[chave];
+    if (anterior == null || hora.isAfter(anterior)) {
+      porPessoa[chave] = linha;
+      horaDe[chave] = hora;
+    }
+  }
+  return porPessoa.values.toList();
+}
 
 /// Admin Live Operations — Pedidos & Drivers em Tempo Real (B1).
 ///
 /// Backend: `admin_live_orders` + `admin_live_drivers` RPCs (SECURITY DEFINER).
 /// Pinos:
-///   - laranja → pickup de pedido pending (created/preparing/callingDriver)
-///   - verde   → pickup de pedido active (driverAccepted/pickedUp/onTheWay)
-///   - cinza   → dropoff (cliente)
-///   - azul    → driver online
+///   - laranja → pickup de pedido esperando entregador
+///               ([kMapaEsperandoEntregador])
+///   - verde   → pickup de pedido em entrega ([kMapaEmEntrega])
+///   - roxo    → dropoff (casa do cliente)
+///   - azul    → entregador ligado (GPS nos últimos 5 min, uma vez por pessoa)
 ///
 /// Polling 5s para orders + driver_locations (Realtime channels seriam ideais
 /// mas exigem RLS público nas tabelas — preferimos polling via RPC com guard
@@ -90,23 +170,21 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = humanizeAdminRpcError(e);
         _loading = false;
       });
     }
   }
 
-  Set<Marker> _buildMarkers() {
+  /// [ligados]: já sem repetidos e só com GPS recente
+  /// ([entregadoresLigadosNoMapa]).
+  Set<Marker> _buildMarkers(List<Map<String, dynamic>> ligados) {
     final markers = <Marker>{};
 
     for (final o in _orders) {
       final id = o['id'] as String;
-      final status = o['status'] as String? ?? 'created';
-      final isActive = const {
-        'driverAccepted',
-        'pickedUp',
-        'onTheWay'
-      }.contains(status);
+      final isActive =
+          kMapaEmEntrega.contains(estadoDoPedidoNoMapa(o['status']));
       final pickupLat = (o['pickup_lat'] as num?)?.toDouble();
       final pickupLng = (o['pickup_lng'] as num?)?.toDouble();
       final dropLat = (o['dropoff_lat'] as num?)?.toDouble();
@@ -146,8 +224,8 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
       }
     }
 
-    for (final d in _drivers) {
-      final id = d['driver_id'] as String;
+    for (final d in ligados) {
+      final id = '${d['driver_id']}';
       final lat = (d['latitude'] as num?)?.toDouble();
       final lng = (d['longitude'] as num?)?.toDouble();
       if (lat == null || lng == null) continue;
@@ -225,15 +303,8 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final pendingCount = _orders
-        .where((o) => const {
-              'created',
-              'preparing',
-              'callingDriver'
-            }.contains(o['status']))
-        .length;
-    final activeCount = _orders.length - pendingCount;
-    final onlineCount = _drivers.length;
+    final contagem = contarPedidosNoMapa(_orders);
+    final ligados = entregadoresLigadosNoMapa(_drivers, agora: DateTime.now());
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -285,13 +356,33 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             color: AppColors.surface2,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _stat('Pendentes', pendingCount, AppColors.warning),
-                _stat('Ativos', activeCount, AppColors.success),
-                _stat('Entregadores', onlineCount, AppColors.info),
-                _stat('Total', _orders.length, AppColors.textPrimary),
+                const Text(
+                  'Aqui você vê no mapa os pedidos em andamento e os '
+                  'entregadores ligados agora; a tela se atualiza sozinha a '
+                  'cada 5 segundos.',
+                  style:
+                      TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _stat('Pendentes', contagem.esperando, AppColors.warning),
+                    _stat('Ativos', contagem.emEntrega, AppColors.success),
+                    _stat('Entregadores ligados', ligados.length,
+                        AppColors.info),
+                    _stat('Total', _orders.length, AppColors.textPrimary),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  kLegendaMapaAoVivo,
+                  style:
+                      TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                ),
               ],
             ),
           ),
@@ -300,7 +391,7 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(8),
               color: AppColors.error.withValues(alpha: 0.12),
-              child: Text('Erro: $_error',
+              child: Text(_error!,
                   style: const TextStyle(color: AppColors.error)),
             ),
           Expanded(
@@ -312,7 +403,7 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
                         kGuardaCenter.longitude),
                     zoom: 13,
                   ),
-                  markers: _buildMarkers(),
+                  markers: _buildMarkers(ligados),
                   // BLOCO D (2026-05-18) — overlay heatmap quando activo.
                   circles: _buildHeatmapCircles(),
                   myLocationButtonEnabled: false,
@@ -328,6 +419,21 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
                       width: 24,
                       height: 24,
                       child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                if (!_loading && _error == null && _orders.isEmpty)
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    right: 60,
+                    child: Material(
+                      elevation: 2,
+                      borderRadius: BorderRadius.circular(Radii.md),
+                      child: const Padding(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: Text('Nenhum pedido em andamento agora.'),
+                      ),
                     ),
                   ),
                 if (_selected != null)
@@ -365,14 +471,20 @@ class _AdminLiveOrdersMapScreenState extends State<AdminLiveOrdersMapScreen> {
   }
 
   Widget _stat(String label, int value, Color color) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text('$value',
-            style: TextStyle(
-                fontSize: 18, color: color, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(fontSize: 11)),
-      ],
+    // Expanded: "Entregadores ligados" quebra em duas linhas num telefone
+    // estreito em vez de estourar a linha.
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('$value',
+              style: TextStyle(
+                  fontSize: 18, color: color, fontWeight: FontWeight.bold)),
+          Text(label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11)),
+        ],
+      ),
     );
   }
 }

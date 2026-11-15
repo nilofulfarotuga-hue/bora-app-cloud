@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../utils/hora_lisboa_ext.dart';
+import '_admin_rpc_errors.dart';
 
 /// Painel admin (PT-BR) — Encomendas por telefone (missão 03/10 · bloco 6).
 ///
@@ -60,7 +61,7 @@ class _AdminEncomendasTelefoneScreenState
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _erro = '$e';
+        _erro = humanizeAdminRpcError(e);
         _loading = false;
       });
     }
@@ -85,8 +86,8 @@ class _AdminEncomendasTelefoneScreenState
       await _carregar();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Erro: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(humanizeAdminRpcError(e))));
       }
     } finally {
       if (mounted) setState(() => _aGravar = null);
@@ -134,7 +135,7 @@ class _AdminEncomendasTelefoneScreenState
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(t.contains('admin_chamar_estafeta_ja') && (t.contains('PGRST202') || t.contains('Could not find'))
               ? 'O botão ainda não está ligado no servidor (falta aplicar a função). Use "Encomendado à loja" por enquanto.'
-              : 'Erro: $t')));
+              : humanizeAdminRpcError(e))));
     } finally {
       if (mounted) setState(() => _aGravar = null);
     }
@@ -204,8 +205,8 @@ class _AdminEncomendasTelefoneScreenState
       await _carregar();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Erro ao salvar: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Não salvou: ${humanizeAdminRpcError(e)}')));
       }
     }
   }

@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../widgets/address_autocomplete_field.dart';
+import 'admin_bora_motorista_fechado_screen.dart'
+    show AvisoBotaoBoraMotoristaFechado, lerBoraMotoristaAberto;
 
 /// Painel admin (PT-BR) — MUDAR DESTINO de uma corrida TVDE (30/09/2026).
 ///
@@ -50,6 +52,11 @@ class _AdminTvdeDestChangeDialogState extends State<AdminTvdeDestChangeDialog> {
   double? _lng;
   bool _saving = false;
 
+  /// app-15-11 (S5): interruptor do Bora Motorista (`null` = a ler). Com o
+  /// serviço fechado o histórico continua a ver-se, mas "Mudar destino" fica
+  /// travado com a frase por baixo.
+  bool? _bmAberto;
+
   static String _eur(dynamic c) =>
       c is num ? '€${(c / 100).toStringAsFixed(2)}' : '—';
   static String _km1(dynamic v) {
@@ -94,10 +101,12 @@ class _AdminTvdeDestChangeDialogState extends State<AdminTvdeDestChangeDialog> {
           .whereType<Map>()
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
+      final bmAberto = await lerBoraMotoristaAberto();
       if (!mounted) return;
       setState(() {
         _ride = ride;
         _changes = list;
+        _bmAberto = bmAberto;
         final agreed = (ride?['agreed_fare_cents'] as num?)?.toInt();
         final ganho = ((ride?['agreed_driver_earn_cents'] ??
                 ride?['driver_earn_cents']) as num?)
@@ -329,6 +338,8 @@ class _AdminTvdeDestChangeDialogState extends State<AdminTvdeDestChangeDialog> {
                             '⚠️ ISTO MEXE EM DINHEIRO: o valor combinado é o que o cliente paga no fim. Fica registrado com o seu nome e o motivo.',
                             style: TextStyle(color: AppColors.error, fontSize: 12),
                           ),
+                          if (_bmAberto == false)
+                            const AvisoBotaoBoraMotoristaFechado(),
                         ],
                       ],
                     ),
@@ -339,7 +350,8 @@ class _AdminTvdeDestChangeDialogState extends State<AdminTvdeDestChangeDialog> {
             onPressed: () => Navigator.pop(context), child: const Text('Fechar')),
         if (_podeBalcao)
           FilledButton(
-            onPressed: _saving ? null : _salvarBalcao,
+            onPressed:
+                (_saving || _bmAberto != true) ? null : _salvarBalcao,
             child: Text(_saving ? 'Salvando…' : 'Mudar destino'),
           ),
       ],

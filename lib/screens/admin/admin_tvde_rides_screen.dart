@@ -13,6 +13,8 @@ import 'admin_tvde_cancellations_screen.dart'
 import 'admin_tvde_dest_change_dialog.dart';
 import '../../utils/hora_lisboa_ext.dart';
 import '../../widgets/tvde/filtro_tipo_tvde.dart';
+import 'admin_bora_motorista_fechado_screen.dart'
+    show AvisoBotaoBoraMotoristaFechado, lerBoraMotoristaAberto;
 import 'admin_tvde_acertos_tipo_tab.dart';
 
 /// Bora Motorista (TVDE) — Corridas: ao vivo + histórico + financeiro.
@@ -109,6 +111,10 @@ class _RidesListState extends State<_RidesList>
 
   bool get _isLive => widget.scope == 'live';
 
+  /// app-15-11 (S5): interruptor do Bora Motorista (`null` = a ler), lido
+  /// como no ecrã do interruptor. Só o "Ao Vivo" tem botões de ação.
+  bool? _bmAberto;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -118,6 +124,9 @@ class _RidesListState extends State<_RidesList>
     _load();
     if (_isLive) {
       _timer = Timer.periodic(const Duration(seconds: 15), (_) => _load());
+      lerBoraMotoristaAberto().then((v) {
+        if (mounted) setState(() => _bmAberto = v);
+      });
     }
   }
 
@@ -466,6 +475,7 @@ class _RidesListState extends State<_RidesList>
                       _isLive ? () => _forcarNovaRoda(r) : null,
                   onRefund: () => _reembolsar(r),
                   comp: _comps[r['id']?.toString()],
+                  bmAberto: _bmAberto,
                 )),
         ],
       ),
@@ -588,9 +598,15 @@ class _RideCard extends StatelessWidget {
     this.onReassign,
     this.onForceRedispatch,
     this.comp,
+    this.bmAberto,
   });
   final Map<String, dynamic> data;
   final bool live;
+
+  /// app-15-11 (S5): interruptor do Bora Motorista (`null` = a ler). Só com
+  /// `true` os botões Reatribuir e Forçar nova roda funcionam; com `false`
+  /// ficam travados e aparece a frase por baixo.
+  final bool? bmAberto;
 
   /// [17/10] Compensação ao motorista desta corrida (cancelamento tardio).
   final Map<String, dynamic>? comp;
@@ -888,7 +904,7 @@ class _RideCard extends StatelessWidget {
                   runSpacing: 4,
                   children: [
                     OutlinedButton.icon(
-                      onPressed: onReassign,
+                      onPressed: bmAberto == true ? onReassign : null,
                       icon: const Icon(Icons.swap_horiz, size: 16),
                       label: const Text('Reatribuir corrida'),
                       style: OutlinedButton.styleFrom(
@@ -898,12 +914,15 @@ class _RideCard extends StatelessWidget {
                     // roda do despacho (não atribui ninguém à força).
                     if (procurando && onForceRedispatch != null)
                       OutlinedButton.icon(
-                        onPressed: onForceRedispatch,
+                        onPressed:
+                            bmAberto == true ? onForceRedispatch : null,
                         icon: const Icon(Icons.replay, size: 16),
                         label: const Text('Forçar nova roda'),
                         style: OutlinedButton.styleFrom(
                             visualDensity: VisualDensity.compact),
                       ),
+                    if (bmAberto == false)
+                      const AvisoBotaoBoraMotoristaFechado(),
                   ],
                 ),
               ),

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/sessao.dart';
 
 /// T2.2 — Search history + favoritos cliente (RPC wrappers).
 class ClientPersonalizationService {
@@ -10,6 +11,8 @@ class ClientPersonalizationService {
 
   Future<void> logSearch(String query) async {
     if (query.trim().isEmpty) return;
+    // app-15-11 (varredura 9166, n.º 17): visitante sem sessão não chama (o servidor recusava ~400×/dia).
+    if (!temSessao()) return;
     try {
       await _supa.rpc('client_log_search', params: {'p_query': query});
     } catch (e) {

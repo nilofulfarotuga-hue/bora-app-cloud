@@ -308,7 +308,11 @@ void main() {
       expect(s, contains("'↳ inclui \${eurCents(order.debtCollectedCents)} de dívida anterior'"));
       expect(s, contains(r"× ${eur(0.10)} = ${eur(bagFee)}"));
       expect(s, isNot(contains('€0.10')));
-      expect(s, contains(r"'Pagar ao balcão: ${eur(order.items"));
+      // 14/11/2026 (estafeta-lento B.6b): o valor do balcão passou a vir da
+      // conta única `totalBalcao` (soma as opções pagas); continua a ser
+      // mostrado pelo mesmo helper `eur`. Este teste ainda esperava a conta
+      // antiga feita no ecrã e partia o CI do ramo (1 falha em 3555, 14/11).
+      expect(s, contains(r"'Pagar ao balcão: ${eur(totalBalcao(order.items))}'"));
     });
   });
 }

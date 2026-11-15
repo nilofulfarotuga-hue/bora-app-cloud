@@ -8,6 +8,7 @@ import '../widgets/pay_debt_modal.dart';
 
 import '../l10n/tr.dart';
 import '../utils/euros.dart';
+import '../utils/hora_lisboa.dart';
 
 /// Wallet History — lista de transactions do utilizador (saldo livre + tokens).
 class WalletHistoryScreen extends StatefulWidget {
@@ -244,9 +245,10 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
     );
   }
 
+  // app-15-11: hora de Lisboa (nunca a do telemóvel), "15/11 14:30".
   String _fmtDate(DateTime d) {
-    final l = d.toLocal();
-    return '${l.year}-${l.month.toString().padLeft(2,'0')}-${l.day.toString().padLeft(2,'0')} '
-        '${l.hour.toString().padLeft(2,'0')}:${l.minute.toString().padLeft(2,'0')}';
+    final l = horaLisboa(d);
+    String dd(int n) => n.toString().padLeft(2, '0');
+    return '${dd(l.day)}/${dd(l.month)} ${dd(l.hour)}:${dd(l.minute)}';
   }
 }

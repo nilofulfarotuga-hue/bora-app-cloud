@@ -6,6 +6,102 @@ import '../../config/app_spacing.dart';
 import '../../services/tvde_visibilidade.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 
+// app-15-11 (auditoria S5): a leitura do interruptor e a frase dos botões
+// travados vivem aqui, ao lado do ecrã do interruptor, e os outros ecrãs
+// do arquivo usam-nas (uma leitura só, a deste ecrã).
+
+/// Frase por baixo de cada botão travado com o Bora Motorista fechado.
+const String kBotaoBoraMotoristaFechado =
+    'Bora Motorista fechado: este botão volta quando reabrir.';
+
+/// O valor de `get_setting('tvde_app_visivel')` quer dizer "aberto"?
+/// A mesma leitura do ecrã do interruptor: só `true` abre.
+bool boraMotoristaAbertoDoValor(Object? valor) =>
+    valor?.toString().trim().toLowerCase() == 'true';
+
+/// Lê o interruptor como o ecrã do interruptor (RPC `get_setting`). Nunca
+/// lança: na dúvida (rede, chave em falta) devolve `false` — fechado.
+Future<bool> lerBoraMotoristaAberto() async {
+  try {
+    final v = await Supabase.instance.client
+        .rpc('get_setting', params: {'p_key': TvdeVisibilidade.chave});
+    return boraMotoristaAbertoDoValor(v);
+  } catch (e) {
+    debugPrint('[BoraMotorista] ler o interruptor => $e');
+    return false;
+  }
+}
+
+/// A frase [kBotaoBoraMotoristaFechado], pequena, por baixo dos botões.
+class AvisoBotaoBoraMotoristaFechado extends StatelessWidget {
+  const AvisoBotaoBoraMotoristaFechado({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          Icon(Icons.lock_outline, size: 14, color: AppColors.textSubtle),
+          SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              kBotaoBoraMotoristaFechado,
+              key: Key('aviso_bora_motorista_fechado'),
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Botão flutuante travado ("Nova reserva", "Nova corrida") com a frase
+/// [kBotaoBoraMotoristaFechado] por cima, enquanto o Bora Motorista está
+/// fechado. Antes o botão sumia sem dizer porquê.
+class BotaoFlutuanteTravado extends StatelessWidget {
+  const BotaoFlutuanteTravado(
+      {super.key, required this.rotulo, required this.icone});
+
+  final String rotulo;
+  final IconData icone;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Container(
+          constraints: const BoxConstraints(maxWidth: 260),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: const Text(
+            kBotaoBoraMotoristaFechado,
+            key: Key('aviso_fab_bora_motorista_fechado'),
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+        ),
+        const SizedBox(height: 6),
+        FloatingActionButton.extended(
+          onPressed: null,
+          tooltip: kBotaoBoraMotoristaFechado,
+          backgroundColor: Colors.grey.shade400,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          icon: Icon(icone),
+          label: Text(rotulo),
+        ),
+      ],
+    );
+  }
+}
+
 /// ARQUIVO — BORA MOTORISTA (FECHADO) · o interruptor das apps.
 ///
 /// 04/11/2026 (missão fechar-bora-motorista): o Bora Motorista (TVDE de
@@ -19,6 +115,12 @@ import '../../widgets/bora/bora_screen_app_bar.dart';
 ///
 /// Nada aqui apaga nem altera corridas, pagamentos, acertos ou saldos: o
 /// contabilista precisa deles. Os ecrãs do arquivo continuam a abrir.
+///
+/// app-15-11 (auditoria S5): este ficheiro também guarda a leitura do
+/// interruptor e a frase dos botões que ficam travados nos outros ecrãs do
+/// arquivo enquanto o Bora Motorista está fechado (Reatribuir, Forçar nova
+/// busca, Criar reserva, Trocar motorista, Remarcar, Mudar destino, Aprovar
+/// acesso, Nova corrida de balcão). Uma leitura só, a deste ecrã.
 class AdminBoraMotoristaFechadoScreen extends StatefulWidget {
   const AdminBoraMotoristaFechadoScreen({super.key});
 
@@ -45,9 +147,11 @@ class _AdminBoraMotoristaFechadoScreenState
     _carregar();
   }
 
-  Future<int?> _contar(Future<List<dynamic>> Function() q) async {
+  /// app-15-11 (S5): conta no servidor, ao número exato, sem baixar as
+  /// linhas (antes baixava até 100 000 ids só para os contar).
+  Future<int?> _contar(Future<int> Function() q) async {
     try {
-      return (await q()).length;
+      return await q();
     } catch (e) {
       debugPrint('[AdminBoraMotoristaFechado] contar => $e');
       return null;
@@ -62,16 +166,17 @@ class _AdminBoraMotoristaFechadoScreenState
     try {
       final v = await _sb.rpc('get_setting',
           params: {'p_key': TvdeVisibilidade.chave});
-      final aberto = v?.toString().trim().toLowerCase() == 'true';
+      final aberto = boraMotoristaAbertoDoValor(v);
       final r = await Future.wait([
-        _contar(() => _sb.from('tvde_rides').select('id').limit(100000)),
-        _contar(() =>
-            _sb.from('users').select('id').eq('tvde_access', true).limit(100000)),
+        _contar(() => _sb.from('tvde_rides').count(CountOption.exact)),
+        _contar(() => _sb
+            .from('users')
+            .count(CountOption.exact)
+            .eq('tvde_access', true)),
         _contar(() => _sb
             .from('tvde_access_requests')
-            .select('id')
-            .eq('status', 'pendente')
-            .limit(100000)),
+            .count(CountOption.exact)
+            .eq('status', 'pendente')),
       ]);
       if (!mounted) return;
       setState(() {
@@ -199,8 +304,9 @@ class _AdminBoraMotoristaFechadoScreenState
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         title: const Text('Mostrar o Bora Motorista nas apps'),
+                        // app-15-11 (S5): sem nomes técnicos.
                         subtitle: const Text(
-                            'Configuração tvde_app_visivel (registrada no log de auditoria)'),
+                            'Liga ou desliga o Bora Motorista nas apps. Fica registrado quem mudou.'),
                         value: aberto,
                         onChanged: _aGravar ? null : (v) => _mudar(v),
                       ),

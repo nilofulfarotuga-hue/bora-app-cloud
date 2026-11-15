@@ -27,11 +27,12 @@ void main() {
     test('as 11 secções pedidas existem, pela ordem, e "Arquivado" é a última',
         () {
       final ids = sections.map((s) => s.id).toList();
+      // app-15-11 (auditoria S5): o arquivo do Bora Motorista (fechado desde
+      // 04/11) desceu para o fim, logo antes do "Arquivado".
       expect(ids, [
         'operacao',
         'dinheiro',
         'entregas',
-        'tvde',
         'servicos',
         'limpeza',
         'reservas',
@@ -39,6 +40,7 @@ void main() {
         'parceiros',
         'sistema',
         'robos',
+        'tvde',
         'arquivado',
       ]);
       expect(sections.last.archived, isTrue);

@@ -363,7 +363,7 @@ void main() {
       expect(volta, greaterThan(catalogo));
       expect(volta - catalogo, lessThan(800));
       expect(menu, contains("title: 'Depósito Volta'"));
-      expect(menu, contains("subtitle: 'Latas e garrafas de plástico com depósito de 0,10 €'"));
+      expect(menu, contains("subtitle: 'Marcar em cada loja as latas e garrafas de plástico com depósito de 0,10 € e ver o relatório do mês'"));
     });
   });
 

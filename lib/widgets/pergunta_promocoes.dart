@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
 import '../l10n/tr.dart';
+import '../utils/sessao.dart';
 
 /// Autorização de promoções (03/11/2026, missão boom-hamburguer-mes, bloco H).
 ///
@@ -27,6 +28,10 @@ class PerguntaPromocoes {
     Future<void> Function(bool aceita)? gravar,
   }) async {
     if (_jaVistaNestaSessao) return;
+    // app-15-11 (varredura 9166, n.º 17): visitante sem sessão não chama (o servidor recusava ~400×/dia).
+    if (pendente == null && !temSessao()) {
+      return;
+    }
     bool falta;
     try {
       falta = pendente != null

@@ -123,6 +123,23 @@ class AmigoCerebro {
 
   Future<void> evento(String tipo, {int? duracaoS}) =>
       AssistantService.eventoAmigo(tipo, duracaoS: duracaoS);
+
+  /// Conversas ao vivo (15/11/2026): a última resposta da Equipa Bora nesta
+  /// conversa, se o cliente ainda não escreveu depois dela. Falha → null.
+  Future<AssistantHistoryMessage?> ultimaDaEquipa(String conversationId) async {
+    try {
+      return ultimaMensagemDaEquipa(
+          await AssistantService.historico(conversationId));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Ouve ao vivo as respostas da Equipa Bora nesta conversa. Devolve a função
+  /// que desliga (null = sem tempo real; o ecrã relê ao voltar à app).
+  void Function()? ouvirEquipa(String conversationId,
+          void Function(AssistantHistoryMessage m) aoChegar) =>
+      AssistantService.ouvirEquipa(conversationId, aoChegar);
 }
 
 /// O microfone (trocável nos testes).
@@ -195,7 +212,7 @@ class AmigoScreen extends StatefulWidget {
 }
 
 class _AmigoScreenState extends State<AmigoScreen>
-    with AssistantAcoesMixin<AmigoScreen> {
+    with AssistantAcoesMixin<AmigoScreen>, WidgetsBindingObserver {
   late final AmigoVoz _voz;
   late final AmigoOuvido _ouvido;
   final _input = TextEditingController();
@@ -218,9 +235,16 @@ class _AmigoScreenState extends State<AmigoScreen>
   /// acontecer do turno anterior deixa de mexer no ecrã.
   int _turno = 0;
 
+  /// Conversas ao vivo (15/11/2026): a última resposta da Equipa Bora nesta
+  /// conversa, enquanto o cliente não volta a escrever (null = nada).
+  AssistantHistoryMessage? _equipa;
+  void Function()? _desligarEquipa;
+  String? _conversaOuvida;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _voz = widget.voz ??
         AmigoVoz(
           velocidade: AssistantFlags.vozVelocidade.value,
@@ -233,6 +257,8 @@ class _AmigoScreenState extends State<AmigoScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _desligarEquipa?.call();
     _turno++;
     unawaited(_ouvido.parar());
     final duracao = DateTime.now().difference(_abertoEm).inSeconds;
@@ -290,6 +316,7 @@ class _AmigoScreenState extends State<AmigoScreen>
       unawaited(widget.cerebro.guardarConversa(_conversationId));
     }
     _respostas.add(r);
+    _ligarEquipa();
     await _dizer(r, emocao: AmigoEmocao.alegre);
     final m = widget.mensagemInicial?.trim() ?? '';
     if (mounted && m.isNotEmpty) await _enviar(m);
@@ -330,6 +357,7 @@ class _AmigoScreenState extends State<AmigoScreen>
       _pergunta = t;
       _resposta = null;
       _aEscrever = false;
+      _equipa = null; // o cliente respondeu: o cartão da equipa sai
       _input.clear();
     });
     final cart = _carrinho;
@@ -356,9 +384,43 @@ class _AmigoScreenState extends State<AmigoScreen>
       _conversationId = novoId;
       unawaited(widget.cerebro.guardarConversa(novoId));
     }
+    _ligarEquipa();
     _respostas.add(r);
     _erro = erro;
     await _dizer(r);
+  }
+
+  // ── Equipa Bora (conversas ao vivo, 15/11/2026) ───────────────────────
+
+  /// A app voltou: o tempo real pode ter perdido respostas da equipa.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_releEquipa());
+  }
+
+  /// Liga o tempo real das respostas da equipa à conversa atual (e desliga o
+  /// da anterior) e lê a última resposta que houver.
+  void _ligarEquipa() {
+    final id = _conversationId;
+    if (id == _conversaOuvida) return;
+    _desligarEquipa?.call();
+    _desligarEquipa = null;
+    _conversaOuvida = id;
+    if (id == null) return;
+    _desligarEquipa = widget.cerebro.ouvirEquipa(id, (m) {
+      if (!mounted || id != _conversationId) return;
+      setState(() => _equipa = m);
+    });
+    unawaited(_releEquipa());
+  }
+
+  Future<void> _releEquipa() async {
+    final id = _conversationId;
+    if (id == null) return;
+    final m = await widget.cerebro.ultimaDaEquipa(id);
+    if (!mounted || id != _conversationId) return;
+    if (m?.id == _equipa?.id && m?.content == _equipa?.content) return;
+    setState(() => _equipa = m);
   }
 
   String _textoDoErro(AssistantException e) {
@@ -549,7 +611,8 @@ class _AmigoScreenState extends State<AmigoScreen>
         child: LayoutBuilder(builder: (context, c) {
           final variante = amigoVarianteDe(AssistantFlags.rostoVariante.value);
           final propAlt = AmigoRosto.alturaPara(1, variante);
-          final maxAlt = c.maxHeight * (temCartoes || _aEscrever ? 0.30 : 0.44);
+          final maxAlt = c.maxHeight *
+              (temCartoes || _aEscrever || _equipa != null ? 0.30 : 0.44);
           final larg = (c.maxWidth * 0.66).clamp(56.0, 300.0);
           final tamanho = (larg * propAlt > maxAlt ? maxAlt / propAlt : larg)
               .clamp(48.0, 300.0)
@@ -582,6 +645,10 @@ class _AmigoScreenState extends State<AmigoScreen>
                         // cartão da deixa fica realçado
                         textoFixo: _aDizerDeixa && r != null ? semAvisoIA(r.texto) : null,
                       ),
+                      // Conversas ao vivo (15/11/2026): o que a Equipa Bora
+                      // escreveu, num cartão à parte (não é o Amigo a falar).
+                      if (_equipa != null && _fase != AmigoFase.aPensar && _fase != AmigoFase.aOuvir)
+                        _CartaoEquipa(texto: _equipa!.content),
                       if (r?.deixa != null && _fase != AmigoFase.aPensar && _fase != AmigoFase.aOuvir)
                         _CartaoDeixa(
                           deixa: r!.deixa!,
@@ -757,7 +824,54 @@ extension on AssistantReply {
         deixa: deixa,
         saudacao: saudacao,
         emocao: emocao,
+        modo: modo,
       );
+}
+
+/// Conversas ao vivo (15/11/2026): a resposta de uma pessoa da Equipa Bora no
+/// rosto do Amigo — cartão à parte, com "Equipa Bora" por cima; não se diz em
+/// voz (não é o Amigo a falar).
+class _CartaoEquipa extends StatelessWidget {
+  const _CartaoEquipa({required this.texto});
+  final String texto;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('amigo-equipa'),
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.support_agent, size: 18, color: AppColors.primaryDark),
+              const SizedBox(width: 6),
+              Text('Equipa Bora'.tr,
+                  style: const TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      color: AppColors.primaryDark)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(texto,
+              style: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 16,
+                  height: 1.35,
+                  color: AppColors.textPrimary)),
+        ],
+      ),
+    );
+  }
 }
 
 /// A legenda grande por baixo do rosto: o que o Amigo diz, com a palavra a

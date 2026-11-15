@@ -16,6 +16,7 @@ import '../widgets/bora_denunciar.dart';
 
 import '../l10n/tr.dart';
 import '../utils/euros.dart';
+import '../utils/hora_lisboa.dart';
 
 enum ChatTarget { client, driver, partner }
 
@@ -488,8 +489,12 @@ class _TextBubble extends StatelessWidget {
     );
   }
 
-  String _fmt(DateTime dt) => '${dt.hour.toString().padLeft(2, '0')}:'
-      '${dt.minute.toString().padLeft(2, '0')}';
+  // app-15-11: hora de Lisboa (o servidor manda o instante em UTC).
+  String _fmt(DateTime dt) {
+    final l = horaLisboa(dt);
+    return '${l.hour.toString().padLeft(2, '0')}:'
+        '${l.minute.toString().padLeft(2, '0')}';
+  }
 }
 
 // ── Substitution card ─────────────────────────────────────────────────────────
@@ -599,7 +604,7 @@ class _SubstitutionCard extends StatelessWidget {
                     )
                   else
                     Text(
-                      'Aguardando resposta do cliente...'.tr,
+                      'À espera da resposta do cliente…'.tr,
                       style:
                           TextStyle(fontSize: 12, color: Colors.grey.shade600),
                     ),
@@ -610,8 +615,9 @@ class _SubstitutionCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
               child: Text(
-                '${message.createdAt.hour.toString().padLeft(2, '0')}:'
-                '${message.createdAt.minute.toString().padLeft(2, '0')}',
+                // app-15-11: hora de Lisboa, não UTC.
+                '${horaLisboa(message.createdAt).hour.toString().padLeft(2, '0')}:'
+                '${horaLisboa(message.createdAt).minute.toString().padLeft(2, '0')}',
                 style: const TextStyle(fontSize: 11, color: Colors.black45),
               ),
             ),

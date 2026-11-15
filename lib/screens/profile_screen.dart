@@ -42,6 +42,7 @@ import 'orders_screen.dart';
 import 'client_addresses_screen.dart';
 import 'client_billing_screen.dart';
 import 'client_promo_code_screen.dart';
+import 'edit_profile_screen.dart';
 import 'client/checkin_premios_screen.dart';
 import 'connect/connect_payments_screen.dart';
 import 'connect/connect_statement_screen.dart';
@@ -93,6 +94,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _ensureDriverLoaded();
     _loadRoles();
     _loadMarketingOptIn();
+    // Editar perfil (11/11/2026): uma mudança feita no painel ou aprovada no
+    // Suporte aparece aqui logo, sem sair e voltar a entrar.
+    final authStore = context.read<AuthStore>();
+    if (authStore.role == AuthRole.client) {
+      unawaited(authStore.syncClientContactFromServer());
+    }
+  }
+
+  Future<void> _abrirEditarPerfil() async {
+    final gravou = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+    );
+    if (gravou == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Perfil atualizado.'.tr)),
+      );
+    }
   }
 
   Future<void> _loadRoles() async {
@@ -446,9 +464,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
       // Log full error for debugging (StorageException has statusCode field).
       debugPrint('[profile_screen] avatar upload error: $e · userId=$userId');
+      // app-15-11: o erro técnico fica no registo; no ecrã, frase simples.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erro ao enviar foto: {0}'.trArgs([e])),
+          content: Text('Não foi possível enviar a foto. Tente outra vez.'.tr),
           duration: const Duration(seconds: 6),
         ),
       );
@@ -516,6 +535,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       color: Colors.white.withValues(alpha: 0.8),
                     ),
                   ),
+                  // Editar perfil (11/11/2026): nome e telemóvel, como na
+                  // Uber e na Glovo. Antes só se mudava a foto.
+                  if (role == AuthRole.client) ...[
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      key: const Key('perfil_editar_perfil'),
+                      onPressed: _abrirEditarPerfil,
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: Text('Editar perfil'.tr),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white70),
+                        shape: const StadiumBorder(),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1711,7 +1747,8 @@ class _WalletCardsBlock extends StatelessWidget {
                 iconColor: iconColor,
                 title: 'Saldo Bora'.tr,
                 subtitle: subtitle,
-                value: loading ? null : (b?.freeFormatted ?? '€0.00'),
+                // app-15-11: sem leitura não se mostra "0,00 €" como se fosse o saldo.
+                value: loading ? null : (b?.freeFormatted ?? '—'),
                 valueColor: valueColor,
               ),
               if (!loading && isBlocked) ...[
@@ -1852,7 +1889,7 @@ class _TokenBalanceRow extends StatefulWidget {
 class _TokenBalanceRowState extends State<_TokenBalanceRow>
     with WidgetsBindingObserver {
   final _client = Supabase.instance.client;
-  late Future<int> _balanceFuture;
+  late Future<int?> _balanceFuture;
 
   @override
   void initState() {
@@ -1874,7 +1911,9 @@ class _TokenBalanceRowState extends State<_TokenBalanceRow>
     }
   }
 
-  Future<int> _fetch() async {
+  /// app-15-11: `null` = não se conseguiu ler (falha de rede). Antes dava 0
+  /// e o perfil dizia "0 tokens" a quem tinha tokens.
+  Future<int?> _fetch() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return 0;
     try {
@@ -1882,7 +1921,7 @@ class _TokenBalanceRowState extends State<_TokenBalanceRow>
           .rpc('get_user_tokens', params: {'p_user_id': userId});
       return (v as num?)?.toInt() ?? 0;
     } catch (_) {
-      return 0;
+      return null;
     }
   }
 
@@ -1892,10 +1931,10 @@ class _TokenBalanceRowState extends State<_TokenBalanceRow>
 
     if (userId == null) return const SizedBox.shrink();
 
-    return FutureBuilder<int>(
+    return FutureBuilder<int?>(
       future: _balanceFuture,
       builder: (context, snapshot) {
-        final balance = snapshot.data ?? 0;
+        final balance = snapshot.data;
         final isLoading = snapshot.connectionState == ConnectionState.waiting;
 
         return Container(
@@ -1930,7 +1969,7 @@ class _TokenBalanceRowState extends State<_TokenBalanceRow>
                           ),
                         )
                       : Text(
-                          '{0} tokens'.trArgs([balance]),
+                          balance == null ? '—' : '{0} tokens'.trArgs([balance]),
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,

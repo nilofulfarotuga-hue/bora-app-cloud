@@ -9,6 +9,7 @@ import '../../../models/tvde_dest_change.dart' show TvdeDestChangeQuote;
 import '../../../models/tvde_ride.dart';
 import '../../../services/payment_service.dart';
 import '../../../stores/tvde_store.dart';
+import '../../../utils/euros.dart';
 import '../../../utils/hora_lisboa.dart';
 import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/bora/bora.dart';
@@ -435,7 +436,7 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
 
   Widget _cartao(TvdeRide r, List<TvdeRide> todas) {
     final estado = estadoReservaPt(r);
-    final preco = (r.estFareCents / 100).toStringAsFixed(2);
+    final preco = eurCents(r.estFareCents); // app-15-11: "7,50 €"
     // [24/10/2026] Reserva em que o cliente não apareceu já fechou: não se cancela.
     final podeCancelar = r.reservationStatus != 'cancelada' &&
         r.reservationStatus != 'nao_compareceu' &&
@@ -502,7 +503,7 @@ class _TvdeMyReservationsScreenState extends State<TvdeMyReservationsScreen> {
                     fontWeight: FontWeight.w700, fontSize: 16),
               ),
               const Spacer(),
-              Text('€$preco',
+              Text(preco,
                   style: const TextStyle(fontWeight: FontWeight.w700)),
             ],
           ),

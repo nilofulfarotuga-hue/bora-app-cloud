@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../config/app_colors.dart';
+import '../../utils/search_text.dart' show normalizarPesquisa;
 
 import 'admin_order_edits_screen.dart';
 import 'admin_pesquisas_sem_resultado_screen.dart';
 import 'admin_ajustes_peso_screen.dart';
+import 'admin_filas_estafetas_screen.dart';
 import 'admin_favor_diferencas_screen.dart';
 import 'admin_farmacias_screen.dart';
 import 'admin_porteiro_screen.dart';
@@ -47,6 +49,7 @@ import 'admin_receitas_screen.dart';
 import 'admin_restaurante_do_dia_screen.dart';
 import 'admin_support_escalations_screen.dart';
 import 'admin_suporte_conversas_screen.dart';
+import 'admin_conversas_ao_vivo_screen.dart';
 import 'admin_tvde_chats_screen.dart';
 import 'admin_bora_motorista_fechado_screen.dart';
 import 'admin_connect_payments_screen.dart';
@@ -92,6 +95,8 @@ import 'admin_papeis_screen.dart';
 import 'admin_parceiros_termos_screen.dart';
 import 'admin_partners_pending_screen.dart';
 import 'admin_partners_screen.dart';
+import 'admin_area_parceiro_screen.dart';
+import 'admin_loja_online_screen.dart';
 import 'admin_payments_cards_screen.dart';
 import 'admin_pending_actions_screen.dart';
 import 'admin_platform_settings_screen.dart';
@@ -197,17 +202,22 @@ class AdminMenuItem {
   final List<String> keywords;
 
   /// Chave do contador dinâmico ('acertos' | 'skills'), se houver.
+  /// 'novo' não é contador: o acordeão desenha uma etiqueta "novo".
   final String? badge;
 
   /// Preenchido só nos itens da secção Arquivado.
   final String? archivedReason;
 
+  /// Busca por nome, descrição e palavra-chave, sem ligar a acentos nem a
+  /// maiúsculas dos dois lados (app-15-11, auditoria S5): "farmacias" acha
+  /// "Farmácias", "edicoes" acha "Edições de pedidos", "diferencas" acha
+  /// "Diferenças de Favor". Antes só "farmácias" (com acento) achava.
   bool matches(String q) {
-    final n = q.trim().toLowerCase();
+    final n = normalizarPesquisa(q);
     if (n.isEmpty) return true;
-    return title.toLowerCase().contains(n) ||
-        subtitle.toLowerCase().contains(n) ||
-        keywords.any((k) => k.contains(n));
+    return normalizarPesquisa(title).contains(n) ||
+        normalizarPesquisa(subtitle).contains(n) ||
+        keywords.any((k) => normalizarPesquisa(k).contains(n));
   }
 }
 
@@ -229,6 +239,52 @@ class AdminMenuSection {
   final Color color;
   final List<AdminMenuItem> items;
   final bool archived;
+
+  /// Quantas telas a secção abre: cada linha conta uma, e uma linha que é um
+  /// sub-menu ("Mais dinheiro") conta as telas que tem dentro.
+  int get telas => items.fold<int>(
+      0, (n, i) => n + (i.filhos.isEmpty ? 1 : i.filhos.length));
+}
+
+/// Legenda do número ao lado de cada secção (app-15-11, S5): antes era só
+/// "22", sem dizer 22 de quê.
+String legendaTelas(int n) => n == 1 ? '1 tela' : '$n telas';
+
+/// Um resultado da busca do menu: a tela e a secção onde ela mora.
+class AdminMenuResultado {
+  const AdminMenuResultado(this.item, this.secao, {this.dentroDe});
+
+  final AdminMenuItem item;
+  final AdminMenuSection secao;
+
+  /// Título do sub-menu onde a tela mora ("Mais dinheiro"), se for o caso.
+  final String? dentroDe;
+
+  /// Onde fica, como se mostra por baixo do resultado:
+  /// "Dinheiro e acertos › Mais dinheiro".
+  String get onde => dentroDe == null ? secao.title : '${secao.title} › $dentroDe';
+}
+
+/// Busca do menu (app-15-11, auditoria S5): cada resultado diz em que secção
+/// mora, e os do "Arquivado" vêm sempre depois dos outros. As secções vivas
+/// vêm pela ordem do menu, por isso o arquivo do Bora Motorista (a última
+/// antes do "Arquivado") também fica atrás das secções em uso.
+List<AdminMenuResultado> adminMenuBuscar(
+    List<AdminMenuSection> sections, String q) {
+  final vivos = <AdminMenuResultado>[];
+  final arquivados = <AdminMenuResultado>[];
+  for (final s in sections) {
+    final destino = s.archived ? arquivados : vivos;
+    for (final i in s.items) {
+      if (i.matches(q)) destino.add(AdminMenuResultado(i, s));
+      for (final f in i.filhos) {
+        if (f.matches(q)) {
+          destino.add(AdminMenuResultado(f, s, dentroDe: i.title));
+        }
+      }
+    }
+  }
+  return [...vivos, ...arquivados];
 }
 
 /// Todas as secções, pela ordem em que aparecem no painel.
@@ -237,7 +293,7 @@ List<AdminMenuSection> adminMenuSections() => [
   AdminMenuSection(
     id: 'operacao',
     title: 'Operação do dia',
-    subtitle: 'O que está a acontecer agora: pedidos, corridas, avisos.',
+    subtitle: 'Acompanhar o que está acontecendo agora: pedidos, entregadores, cancelamentos, falhas e avisos.',
     icon: Icons.bolt,
     color: AppColors.accent,
     items: [
@@ -271,7 +327,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'operacao_pedidos_parados',
       title: 'Pedidos parados',
-      subtitle: 'A chamar entregador há mais de 3 min (mesmo com entregador atribuído): escolher estafeta ou mandar para todos',
+      subtitle: 'Resolver pedidos chamando entregador há mais de 3 minutos, mesmo com um já atribuído: escolher um entregador ou mandar para todos',
       icon: Icons.hourglass_bottom,
       color: Colors.red,
       builder: () => const AdminStuckOrdersScreen(),
@@ -280,11 +336,11 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'operacao_pendencias',
       title: 'Pendências de operação',
-      subtitle: 'Tudo o que precisa de mão humana hoje: talões por reembolsar, pagamentos falhados, voltas retidas, reservas falhadas, GPS parado e estafetas sem push',
+      subtitle: 'Ver o que precisa de você hoje: talões por reembolsar, pagamentos falhados, reservas, GPS parado e entregadores que não recebem avisos',
       icon: Icons.pending_actions,
       color: Colors.red,
       builder: () => const AdminPendenciasOperacaoScreen(),
-      keywords: const ['pendencias', 'pendências', 'talao', 'taloes', 'reembolso', 'pagamento', 'falhado', 'volta', 'retida', 'vale', 'reserva', 'gps', 'push', 'notificacoes', 'sem sinal'],
+      keywords: const ['pendencias', 'pendências', 'talao', 'taloes', 'reembolso', 'pagamento', 'falhado', 'volta', 'retida', 'vale', 'reserva', 'gps', 'push', 'notificacoes', 'sem sinal', 'voltas retidas', 'estafeta'],
     ),
     // [14/10, tvde-pedir-nunca-trava] Saiu do Arquivado: passa a mostrar quem
     // tocou em "pedir" e não conseguiu, com nome e telefone para ligar.
@@ -302,16 +358,16 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'operacao_saude_das_chaves',
       title: 'Saúde das chaves',
-      subtitle: 'Teste diário: o servidor ainda consegue chamar cada função (avisos, pagamentos, despacho)?',
+      subtitle: 'Ver o teste diário das chaves de acesso do servidor (avisos, pagamentos, envio de pedidos) e repetir o teste agora',
       icon: Icons.vpn_key_outlined,
       color: Colors.teal,
       builder: () => const AdminSaudeChavesScreen(),
-      keywords: const ['chave', 'chaves', 'saude', 'vigia', 'funcao', 'edge', 'servidor', '401', 'recusada'],
+      keywords: const ['chave', 'chaves', 'saude', 'vigia', 'funcao', 'edge', 'servidor', '401', 'recusada', 'despacho'],
     ),
     AdminMenuItem(
       id: 'operacao_edicoes_pedidos',
       title: 'Edições de pedidos (parceiros)',
-      subtitle: 'Produtos acrescentados ou em falta pelas lojas parceiras: antes/depois, dinheiro devolvido ou cobrado, aprovar, cancelar, forçar estorno e exportar',
+      subtitle: 'Ver o que as lojas parceiras acrescentaram ou tiraram dos pedidos e a diferença em dinheiro; aprovar, cancelar, estornar e exportar',
       icon: Icons.edit_note,
       color: Colors.teal,
       builder: () => const AdminOrderEditsScreen(),
@@ -322,51 +378,36 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'operacao_ajustes_peso',
       title: 'Ajustes de peso',
-      subtitle: 'Mercados não-parceiros: produtos ao quilo em que o estafeta escreveu o valor da balança — previsto → real, diferença para o cliente, como foi acertado e exportar CSV',
+      subtitle: 'Ver o peso real anotado pelo entregador nos produtos ao quilo dos mercados não parceiros, a diferença para o cliente e o acerto; exportar',
       icon: Icons.scale_outlined,
       color: Colors.teal,
       builder: () => const AdminAjustesPesoScreen(),
-      keywords: const ['peso', 'peso variavel', 'balanca', 'quilo', 'kg', 'ajuste', 'etiqueta', 'diferenca', 'mercado', 'nao parceiro', 'continente', 'auchan'],
+      keywords: const ['peso', 'peso variavel', 'balanca', 'quilo', 'kg', 'ajuste', 'etiqueta', 'diferenca', 'mercado', 'nao parceiro', 'continente', 'auchan', 'estafeta', 'csv'],
     ),
-    // 11/11/2026 (farmácias): visibilidade por lista de permissão, receita e comissão extra.
+    // 14/11/2026 (compra-guardada + adenda 1): fila de cada entregador e o
+    // rascunho da compra (o que ele já marcou) de cada pedido em andamento.
     AdminMenuItem(
-      id: 'farmacias',
-      title: 'Farmácias',
-      subtitle: 'Farmácia da Sé e Teixeira: e-mail de login e link de senha, dados da empresa (NIF, IBAN, certidão), horário e preços, receita, lista de permissão, comissão extra, abrir ao público, extrato semanal',
-      icon: Icons.local_pharmacy,
-      color: Colors.green,
-      builder: () => const AdminFarmaciasScreen(),
-      keywords: const ['farmacia', 'farmácia', 'receita', 'prescricao', 'prescrição', 'se', 'sé', 'teixeira', 'lista de permissao', 'escondida', 'comissao extra', 'email', 'e-mail', 'login', 'senha', 'nif', 'iban', 'certidao', 'certidão', 'horario', 'horário', 'extrato', 'receitas reais'],
+      id: 'operacao_filas_entregadores',
+      title: 'Filas dos entregadores',
+      subtitle: 'Ver o pedido atual e os que esperam na fila de cada entregador, e a lista de compras com o que já foi marcado e a que horas',
+      icon: Icons.queue,
+      color: Colors.teal,
+      builder: () => const AdminFilasEstafetasScreen(),
+      keywords: const ['fila', 'filas', 'espera', 'stand-by', 'standby', 'entregador', 'estafeta', 'rascunho', 'compra', 'marcado', 'favor', 'urgente', 'talao', 'cupom'],
     ),
-    // 14/11/2026 (farmacias-loja): extrato semanal só de leitura das farmácias, com CSV.
-    AdminMenuItem(
-      id: 'farmacias_extrato',
-      title: 'Extrato das farmácias',
-      subtitle: 'Por semana e por farmácia: vendas na app, comissão, parte da farmácia, dinheiro em mão, comissão extra, saldo; exportar CSV',
-      icon: Icons.receipt,
-      color: Colors.green,
-      builder: () => const AdminFarmaciasScreen(abaInicial: 2),
-      keywords: const ['extrato', 'farmacia', 'farmácia', 'acerto', 'semana', 'csv', 'comissao extra'],
-    ),
-    AdminMenuItem(
-      id: 'pedidos_receita',
-      title: 'Pedidos de receita',
-      subtitle: 'Receitas e pedidos especiais às farmácias: estado, quem aceitou ou recusou e quando, forçar ou cancelar, exportar CSV',
-      icon: Icons.receipt_long,
-      color: Colors.green,
-      builder: () => const AdminFarmaciasScreen(abaInicial: 1),
-      keywords: const ['receita', 'prescricao', 'prescrição', 'farmacia', 'farmácia', 'medicamento', 'tenho receita', 'pedido especial'],
-    ),
+    // app-15-11 (auditoria S5): Farmácias, Extrato das farmácias e Pedidos de
+    // receita passaram para a secção Parceiros (são lojas parceiras). Os ids
+    // ficam iguais: são o que os favoritos guardam.
     // 04/11/2026: Favores pagos por MB Way com compra acima do orçado.
     // 08/11/2026: no topo, Favores à espera de aprovação do cliente (teto).
     AdminMenuItem(
       id: 'operacao_favor_diferencas',
       title: 'Diferenças de Favor',
-      subtitle: 'Favores à espera de aprovação do cliente (preço acima do teto, aprovar pelo cliente) e Favores pagos por MB Way em que a compra passou o orçado: quanto falta, estado do pedido MB Way (enviado, pago, expirou) e reenviar',
+      subtitle: 'Ver Favores que passaram do valor combinado, aprovar pelo cliente, ver quanto falta pagar por MB Way e reenviar o pedido de pagamento',
       icon: Icons.send_to_mobile,
       color: Colors.teal,
       builder: () => const AdminFavorDiferencasScreen(),
-      keywords: const ['favor', 'diferenca', 'mbway', 'mb way', 'orcamento', 'compra', 'reenviar', 'expirou', 'pagar', 'aprovacao', 'aprovar', 'teto', 'tecto', 'preco maior'],
+      keywords: const ['favor', 'diferenca', 'mbway', 'mb way', 'orcamento', 'compra', 'reenviar', 'expirou', 'pagar', 'aprovacao', 'aprovar', 'teto', 'tecto', 'preco maior', 'orcado'],
     ),
     AdminMenuItem(
       id: 'operacao_pedidos_de_cancelamento',
@@ -380,7 +421,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'operacao_cancelamentos',
       title: 'Cancelamentos',
-      subtitle: 'Histórico de cancelamentos, taxas e reembolsos (com reprocessar os que falharam)',
+      subtitle: 'Ver o histórico de cancelamentos, taxas e reembolsos e tentar de novo os reembolsos que falharam',
       icon: Icons.cancel_schedule_send_outlined,
       color: AppColors.error,
       builder: () => const AdminCancellationsScreen(),
@@ -389,7 +430,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'operacao_ofertas_de_prestadores',
       title: 'Ofertas e chamadas',
-      subtitle: 'Quem foi chamado em entregas, Favores, TVDE, limpeza e lavagem: fase, toque entregue, quanto tempo teve, como acabou',
+      subtitle: 'Ver quem foi chamado em cada entrega, Favor, corrida, limpeza ou lavagem, se o aviso chegou, quanto tempo teve e como acabou',
       icon: Icons.record_voice_over,
       color: Colors.teal,
       builder: () => const AdminOfertasLogScreen(),
@@ -398,7 +439,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'operacao_avisos_que_falharam',
       title: 'Avisos que falharam',
-      subtitle: 'Avisos por telemóvel que não chegaram nas últimas 24h, e o motivo',
+      subtitle: 'Ver os avisos no celular que não chegaram nas últimas 24 horas e o motivo',
       icon: Icons.notifications_off_outlined,
       color: AppColors.error,
       builder: () => const AdminNotificationFailuresScreen(),
@@ -413,23 +454,16 @@ List<AdminMenuSection> adminMenuSections() => [
       builder: () => const AdminCrashLogsScreen(),
       keywords: const ['crash', 'crashes', 'erros', 'android', 'iphone', 'ios', 'web', 'versao', 'aparelho', 'modelo'],
     ),
-    AdminMenuItem(
-      id: 'operacao_stripe_contas',
-      title: 'Stripe — duas contas',
-      subtitle: 'Que conta Stripe usa cada fluxo (TVDE na Pessoal, o resto na Empresa), o interruptor, as chaves e os webhooks',
-      icon: Icons.account_balance_outlined,
-      color: AppColors.primary,
-      builder: () => const AdminStripeContasScreen(),
-      keywords: const ['stripe', 'conta', 'empresa', 'pessoal', 'unipessoal', 'webhook', 'chave', 'interruptor', 'tvde'],
-    ),
+    // app-15-11 (auditoria S5): "Stripe — duas contas" passou para "Mais
+    // dinheiro" (secção Dinheiro e acertos), com o mesmo id.
     AdminMenuItem(
       id: 'operacao_pagamentos_presos',
       title: 'Pagamentos presos',
-      subtitle: 'Cartões que não chegaram ao fim (iPhone, Android, Web) e o erro real que a app gravou',
+      subtitle: 'Ver pagamentos com cartão que não terminaram (iPhone, Android, Web) e o erro exato que a app registrou',
       icon: Icons.credit_card_off_outlined,
       color: Colors.red.shade700,
       builder: () => const AdminPagamentosPresosScreen(),
-      keywords: const ['pagamento', 'preso', 'cartao', 'stripe', 'falhou', 'iphone', 'requires_payment_method', 'rodar'],
+      keywords: const ['pagamento', 'preso', 'cartao', 'stripe', 'falhou', 'iphone', 'requires_payment_method', 'rodar', 'cartoes'],
     ),
     AdminMenuItem(
       id: 'operacao_lembretes',
@@ -452,11 +486,11 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'dinheiro_dinheiro_e_acertos',
       title: 'Dinheiro e acertos',
-      subtitle: 'Um só lugar: quem a Bora paga, quem deve à Bora, marcar pago num toque, recibos e CSV',
+      subtitle: 'Ver num só lugar quem a Bora tem de pagar e quem deve à Bora, marcar como pago num toque e baixar recibos e planilha',
       icon: Icons.account_balance_wallet,
       color: AppColors.primary,
       builder: () => const AdminAcertosSemanaScreen(),
-      keywords: const ['acertos', 'bora', 'deve', 'dinheiro', 'lugar', 'marcar', 'paga', 'pago', 'quem', 'recibos', 'toque'],
+      keywords: const ['acertos', 'bora', 'deve', 'dinheiro', 'lugar', 'marcar', 'paga', 'pago', 'quem', 'recibos', 'toque', 'csv'],
       badge: 'acertos',
     ),
     AdminMenuItem(
@@ -472,11 +506,11 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'dinheiro_fecho_mensal',
       title: 'Fecho do mês',
-      subtitle: 'Receita da Bora, parceiros, estafetas, pedidos no prejuízo, faturas e parte para as Finanças — CSV e PDF',
+      subtitle: 'Ver o fechamento do mês: receita da Bora, parceiros, entregadores, pedidos com prejuízo e o que vai para as Finanças; baixar planilha e PDF',
       icon: Icons.calendar_month_outlined,
       color: AppColors.primary,
       builder: () => const AdminFechoMensalScreen(),
-      keywords: const ['fecho', 'mensal', 'mes', 'financas', 'recibo', 'verde', 'fatura', 'dac7', 'extrato', 'prejuizo'],
+      keywords: const ['fecho', 'mensal', 'mes', 'financas', 'recibo', 'verde', 'fatura', 'dac7', 'extrato', 'prejuizo', 'estafetas', 'csv'],
     ),
     AdminMenuItem(
       id: 'dinheiro_vigia',
@@ -491,7 +525,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'dinheiro_mais',
       title: 'Mais dinheiro',
-      subtitle: 'Extratos por pessoa, cartões, gorjetas, órfãos, reembolsos, preços por talão, carteiras, tokens e códigos',
+      subtitle: 'Abrir as outras telas de dinheiro: extratos, cartões, contas Stripe, gorjetas, reembolsos, talões, carteiras, tokens e códigos',
       icon: Icons.more_horiz,
       color: AppColors.primary,
       builder: () => AdminMenuSubScreen(
@@ -507,7 +541,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'dinheiro_extratos_pessoas',
       title: 'Extratos por pessoa',
-      subtitle: 'O extrato que cada estafeta, motorista e parceiro vê — aberto pelo admin, com CSV',
+      subtitle: 'Abrir o extrato que cada entregador, motorista e parceiro vê na app e baixar em planilha',
       icon: Icons.person_search_outlined,
       color: AppColors.primary,
       builder: () => const AdminExtratosPessoasScreen(),
@@ -516,11 +550,22 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'dinheiro_pagamentos_cartoes',
       title: 'Pagamentos/Cartões',
-      subtitle: 'Todas as cobranças por cartão e MB Way, de todas as áreas; estornos',
+      subtitle: 'Ver todas as cobranças por cartão e MB Way de todas as áreas e fazer estornos (devolver o dinheiro)',
       icon: Icons.credit_card,
       color: const Color(0xFF1565C0),
       builder: () => const AdminPaymentsCardsScreen(),
       keywords: const ['areas', 'cartao', 'cartoes', 'cobrancas', 'estornos', 'pagamentos', 'todas'],
+    ),
+    // app-15-11 (auditoria S5): veio da "Operação do dia". O id fica o antigo
+    // (é o que os favoritos guardam).
+    AdminMenuItem(
+      id: 'operacao_stripe_contas',
+      title: 'Stripe — duas contas',
+      subtitle: 'Ver qual conta Stripe (Empresa ou Pessoal) recebe cada tipo de pagamento, trocar a conta e conferir as chaves e os avisos automáticos',
+      icon: Icons.account_balance_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminStripeContasScreen(),
+      keywords: const ['stripe', 'conta', 'empresa', 'pessoal', 'unipessoal', 'webhook', 'chave', 'interruptor', 'tvde'],
     ),
     AdminMenuItem(
       id: 'dinheiro_gorjetas',
@@ -534,7 +579,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'dinheiro_pagamentos_orfaos',
       title: 'Pagamentos órfãos',
-      subtitle: 'Pagamentos recebidos sem pedido ligado a eles',
+      subtitle: 'Ver pagamentos que entraram sem pedido e, em cada um, criar o pedido agora ou excluir o rascunho de pagamento',
       icon: Icons.warning_amber_rounded,
       color: const Color(0xFFD32F2F),
       builder: () => const AdminOrphanPaymentsScreen(),
@@ -543,7 +588,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'dinheiro_reembolsos_estafetas',
       title: 'Reembolsos estafetas',
-      subtitle: 'Talões das compras em mercado e o reembolso ao entregador',
+      subtitle: 'Ver os talões das compras no mercado e reembolsar o entregador: creditar na carteira, marcar pago por fora, corrigir ou rejeitar',
       icon: Icons.receipt,
       color: AppColors.accent,
       builder: () => const AdminReceiptsScreen(),
@@ -554,7 +599,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'dinheiro_taloes_guardados',
       title: 'Talões (fotos guardadas 10 anos)',
-      subtitle: 'Todas as fotos de talão por mês, loja e entregador, com valor e NIF usado; baixar o mês num ZIP para o contabilista e ver pedidos entregues sem talão',
+      subtitle: 'Ver as fotos dos talões por mês, loja e entregador, com valor e NIF, baixar o mês para o contabilista e achar entregas sem talão',
       icon: Icons.photo_library_outlined,
       color: AppColors.primary,
       builder: () => const AdminTaloesScreen(),
@@ -568,13 +613,14 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'dinheiro_dados_fiscais_dac7',
       title: 'Dados fiscais (DAC7)',
-      subtitle: 'Nome legal, NIF, morada, data de nascimento, IBAN (sim/não) e comprovativo de atividade de entregadores, limpeza, Casa, lavagem e lojas parceiras; filtro "só em falta" e CSV',
+      subtitle: 'Ver os dados fiscais que a Bora tem de mandar às Finanças sobre prestadores e lojas (NIF, IBAN, endereço), o que falta, e exportar',
       icon: Icons.assignment_ind_outlined,
       color: AppColors.primary,
       builder: () => const AdminDadosFiscaisScreen(),
       keywords: const [
         'dac7', 'fiscal', 'fiscais', 'nif', 'iban', 'morada', 'data de nascimento', 'contabilista',
         'prestadores', 'estafetas', 'limpeza', 'casa', 'lojas', 'em falta', 'documentos',
+        'comprovativo', 'nome legal', 'entregadores', 'lavagem', 'csv',
       ],
     ),
     // M10 09/11/2026 (b2-nif): o NIF que o entregador dá no caixa nas compras
@@ -582,19 +628,20 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'dinheiro_nif_nas_compras',
       title: 'NIF nas compras',
-      subtitle: 'O NIF do cliente que o entregador dá no caixa (só quando o cliente pediu fatura com NIF; sem NIF é consumidor final) nas lojas não parceiras e Favores, se deu ou não e porquê; 7/30 dias e CSV',
+      subtitle: 'Ver se o entregador deu no caixa o NIF do cliente que pediu fatura (sem NIF é consumidor final), nas lojas não parceiras e Favores',
       icon: Icons.badge_outlined,
       color: AppColors.primary,
       builder: () => const AdminNifComprasScreen(),
       keywords: const [
         'nif', 'nif na caixa', 'nif no caixa', 'contribuinte', 'fatura', 'factura',
         'compras', 'nao parceiro', 'não parceiro', 'favor', 'favores', 'consumidor final', 'talao', 'talão',
+        'csv',
       ],
     ),
     AdminMenuItem(
       id: 'dinheiro_precos_por_talao',
       title: 'Preços por talão',
-      subtitle: 'Correções de preço detectadas nos talões dos mercados',
+      subtitle: 'Aprovar, rejeitar ou reverter as correções de preço lidas nos talões dos mercados e ver de onde vem cada preço',
       icon: Icons.price_change_outlined,
       color: AppColors.primary,
       builder: () => const AdminCorrecoesPrecoScreen(),
@@ -603,7 +650,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'dinheiro_wallets',
       title: 'Wallets',
-      subtitle: 'Saldo livre e tokens de cada cliente',
+      subtitle: 'Ver a carteira de cada cliente (saldo e tokens), dar ou tirar saldo, perdoar dívida e ver os movimentos',
       icon: Icons.wallet,
       color: Colors.green,
       builder: () => const AdminWalletsScreen(),
@@ -612,7 +659,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'dinheiro_tokens',
       title: 'Tokens',
-      subtitle: 'Tokens: saldo, dar, tirar (clientes e entregadores)',
+      subtitle: 'Ver o saldo de tokens de clientes e entregadores e dar ou tirar tokens',
       icon: Icons.account_balance_wallet,
       color: Colors.deepPurple,
       builder: () => const AdminTokensScreen(),
@@ -630,7 +677,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'dinheiro_embaixadores',
       title: 'Embaixadores',
-      subtitle: 'Códigos IPG: clientes trazidos e quanto pagar por semana',
+      subtitle: 'Ver e editar os embaixadores do Politécnico (IPG): códigos, clientes trazidos e quanto pagar a cada um por semana',
       icon: Icons.school,
       color: Colors.teal,
       builder: () => const AdminEmbaixadoresScreen(),
@@ -643,23 +690,34 @@ List<AdminMenuSection> adminMenuSections() => [
   AdminMenuSection(
     id: 'entregas',
     title: 'Entregas',
-    subtitle: 'Estafetas, lojas dos favores, mercados e despacho.',
+    subtitle: 'Entregadores e candidaturas, lojas e catálogo dos Favores, preços do Continente e regras de envio dos pedidos.',
     icon: Icons.delivery_dining,
     color: Colors.blue,
     items: [
     AdminMenuItem(
       id: 'entregas_entregadores',
       title: 'Entregadores',
-      subtitle: 'Lista e estado de todos os entregadores',
+      subtitle: 'Ver todos os entregadores e o estado de cada um, procurar por nome ou telefone, abrir a ficha e exportar',
       icon: Icons.delivery_dining,
       color: Colors.blue,
       builder: () => const AdminDriversScreen(),
       keywords: const ['entregadores', 'estado', 'lista', 'todos'],
     ),
+    // 15/11/2026 (painel-admin-15-11): a Área do estafeta abre-se na ficha de
+    // cada entregador (botão "Área do entregador (agir por ele)").
+    AdminMenuItem(
+      id: 'entregas_area_estafeta',
+      title: 'Área do entregador (agir por ele)',
+      subtitle: 'Abrir a ficha de um entregador e agir por ele: ver o que ele vê na app, pedidos, ganhos, conta e documentos, com registro de cada ação',
+      icon: Icons.badge_outlined,
+      color: Colors.blue,
+      builder: () => const AdminDriversScreen(),
+      keywords: const ['area do entregador', 'area do estafeta', 'agir por ele', 'estafeta', 'entregador', 'fazer por ele', 'auditoria'],
+    ),
     AdminMenuItem(
       id: 'entregas_aprovacoes',
       title: 'Aprovações',
-      subtitle: 'Candidaturas a entregador: pendentes, aprovadas e recusadas',
+      subtitle: 'Aprovar ou recusar quem se candidatou a entregador, ver os documentos e o que falta',
       icon: Icons.how_to_reg,
       color: Colors.teal,
       builder: () => const AdminDriverApprovalScreen(),
@@ -686,7 +744,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'entregas_precos_continente_pvpr',
       title: 'Preços Continente (PVPR)',
-      subtitle: 'Rever e aplicar os preços oficiais do site do Continente',
+      subtitle: 'Revisar e aplicar os preços oficiais do site do Continente (PVPR: preço de venda ao público recomendado)',
       icon: Icons.price_change,
       color: Colors.green,
       builder: () => const AdminContinentePricesScreen(),
@@ -700,230 +758,6 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.orange,
       builder: () => const AdminDispatchSettingsScreen(),
       keywords: const ['chamada', 'chegam', 'como', 'configuracoes', 'desligados', 'despacho', 'distancias', 'entregadores', 'pedidos', 'reforco', 'regras', 'tempos'],
-    ),
-    ],
-  ),
-  // 04/11/2026 (fechar-bora-motorista): o Bora Motorista fechou nas apps
-  // (sem licença do IMT). A secção passa a ser o ARQUIVO: tudo continua a
-  // abrir para consulta (o contabilista precisa), e o primeiro item é o
-  // interruptor `tvde_app_visivel` para reabrir quando a licença sair.
-  // O id 'tvde' fica igual (é o que os favoritos guardam).
-  AdminMenuSection(
-    id: 'tvde',
-    title: 'Arquivo — Bora Motorista (fechado)',
-    subtitle: 'Fechado nas apps desde 04/11/2026. Só consulta: corridas, pagamentos, recibos, acertos, motoristas, pedidos de acesso.',
-    icon: Icons.inventory_2_outlined,
-    color: const Color(0xFF64748B),
-    items: [
-    AdminMenuItem(
-      id: 'tvde_interruptor_app',
-      title: 'Interruptor do Bora Motorista',
-      subtitle: 'Fechado ou aberto nas apps (tvde_app_visivel): ver o estado, reabrir quando a licença do IMT sair, e quantas corridas estão guardadas',
-      icon: Icons.toggle_on_outlined,
-      color: const Color(0xFF64748B),
-      builder: () => const AdminBoraMotoristaFechadoScreen(),
-      keywords: const ['tvde', 'motorista', 'fechado', 'arquivo', 'interruptor', 'reabrir', 'licenca', 'imt', 'tvde_app_visivel', 'visivel'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_corridas',
-      title: 'Corridas',
-      subtitle: 'Todas as corridas: em curso, feitas, canceladas',
-      icon: Icons.local_taxi,
-      color: Colors.teal,
-      builder: () => const AdminTvdeRidesScreen(),
-      keywords: const ['canceladas', 'corridas', 'curso', 'feitas', 'todas'],
-    ),
-    // [A2 · 21/10/2026] Fila inteligente + carro a deslizar (paridade admin).
-    AdminMenuItem(
-      id: 'tvde_fila_inteligente',
-      title: 'Fila inteligente',
-      subtitle: 'Quem recebe cada corrida e por que ordem, ao vivo; ligar/desligar; tempo da oferta; histórico de recusas',
-      icon: Icons.format_list_numbered,
-      color: const Color(0xFF0EA5E9),
-      builder: () => const AdminTvdeFilaScreen(),
-      keywords: const ['fila', 'ordem', 'oferta', 'recusou', 'expirou', 'despacho', 'motoristas', 'aceitacao', 'carro', 'mapa'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_pedidos_de_acesso',
-      title: 'Pedidos de acesso TVDE',
-      subtitle: 'Clientes que pediram para usar o Bora Motorista: aprovar ou recusar',
-      icon: Icons.how_to_reg,
-      color: const Color(0xFF0EA5E9),
-      builder: () => const AdminTvdeAccessRequestsScreen(),
-      keywords: const ['acesso', 'pedidos', 'tvde', 'motorista', 'aprovar', 'recusar'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_chat_das_corridas',
-      title: 'Chat das corridas',
-      subtitle: 'Conversas entre cliente e motorista, por corrida, em hora de Lisboa',
-      icon: Icons.forum_outlined,
-      color: const Color(0xFF0EA5E9),
-      builder: () => const AdminTvdeChatsScreen(),
-      keywords: const ['chat', 'conversa', 'mensagens', 'corridas', 'cliente', 'motorista'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_pagamentos',
-      title: 'Pagamentos das corridas',
-      subtitle: 'Quem pagou, quem não conseguiu pagar, e estorno',
-      icon: Icons.payments,
-      color: const Color(0xFF0EA5E9),
-      builder: () => const AdminTvdePagamentosScreen(),
-      keywords: const [
-        'cartao', 'cobranca', 'estorno', 'falhou', 'mbway', 'pagamento',
-        'pagou', 'reembolso', 'stripe',
-      ],
-    ),
-    AdminMenuItem(
-      id: 'tvde_corridas_de_balcao',
-      title: 'Corridas de Balcão',
-      subtitle: 'Criar corrida por telefone para cliente sem app',
-      icon: Icons.phone_in_talk,
-      color: const Color(0xFF2563EB),
-      builder: () => const AdminTvdeBalcaoScreen(),
-      keywords: const ['balcao', 'cliente', 'ligou', 'sem app', 'telefone'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_agenda_de_clientes_de_balcao',
-      title: 'Agenda de Clientes de Balcão',
-      subtitle: 'Clientes sem app e as moradas guardadas deles',
-      icon: Icons.contacts,
-      color: const Color(0xFF2563EB),
-      builder: () => const AdminTvdeBalcaoAgendaScreen(),
-      keywords: const ['agenda', 'balcao', 'clientes', 'contactos', 'moradas'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_cancelamentos_de_corridas',
-      title: 'Cancelamentos de corridas',
-      // [17/10/2026] cancelamento tardio: o ecrã mostra e dá compensações.
-      subtitle: 'Corridas canceladas, taxas cobradas e compensação ao motorista',
-      icon: Icons.cancel_schedule_send,
-      color: Colors.redAccent,
-      builder: () => const AdminTvdeCancellationsScreen(),
-      keywords: const ['canceladas', 'cancelamentos', 'cobradas', 'compensacao', 'corridas', 'motorista', 'taxas'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_motoristas_de_passageiros',
-      title: 'Motoristas de passageiros',
-      subtitle: 'Motoristas: gerir, banir, saldo, avaliações',
-      icon: Icons.directions_car,
-      color: Colors.indigo,
-      builder: () => const AdminTvdeDriversScreen(),
-      keywords: const ['avaliacoes', 'banir', 'gerir', 'motoristas', 'passageiros', 'saldo'],
-    ),
-    // [Ficha legal · 23/09] O id fica o mesmo (é o que os favoritos
-    // guardam): quem tinha "Documentos TVDE" nos favoritos cai no hub novo.
-    AdminMenuItem(
-      id: 'tvde_documentos_tvde',
-      title: 'Documentos dos motoristas',
-      subtitle: 'Semáforo de validade (certificado IMT, carta, seguro, inspeção, dístico), editar ficha, bloqueio online',
-      icon: Icons.badge_outlined,
-      color: const Color(0xFF6366F1),
-      builder: () => const AdminMotoristasDocumentosScreen(),
-      keywords: const ['aprovar', 'carta', 'distico', 'documentos', 'fiscalizacao', 'imt', 'inspecao', 'motoristas', 'seguro', 'tvde', 'validade'],
-    ),
-    // 22/10 (documentos de todos os papéis): saiu do arquivo — o ecrã
-    // "Conformidade" da app do motorista regista aqui o contrato, o
-    // certificado e o seguro. Era o único sítio onde se viam os ficheiros.
-    AdminMenuItem(
-      id: 'arquivado_documentos_tvde_ficheiros',
-      title: 'Documentos TVDE (ficheiros)',
-      subtitle: 'Fotos enviadas pelos motoristas (contrato, certificado, seguro): ver em grande, aprovar ou recusar',
-      icon: Icons.fact_check_outlined,
-      color: const Color(0xFF6366F1),
-      builder: () => const AdminTvdeDocsReviewScreen(),
-      keywords: const ['aprovar', 'contrato', 'certificado', 'ficheiros', 'documentos', 'seguro', 'tvde'],
-    ),
-    // [Recibos · 24/09] paridade admin do recibo automático por viagem (23/09).
-    AdminMenuItem(
-      id: 'tvde_recibos_viagem',
-      title: 'Recibos por viagem',
-      subtitle: 'O recibo que o passageiro recebe por email no fim da viagem: ver, reenviar, ligar/desligar o automático',
-      icon: Icons.receipt_long_outlined,
-      color: const Color(0xFF0EA5E9),
-      builder: () => const AdminTvdeRecibosScreen(),
-      keywords: const ['recibo', 'recibos', 'email', 'passageiro', 'viagem', 'reenviar', 'taxa', 'intermediacao', 'tvde'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_assinaturas',
-      title: 'Assinaturas',
-      subtitle: 'Dar assinatura a um cliente e ver as que estão ativas',
-      icon: Icons.card_membership,
-      color: Colors.deepPurple,
-      builder: () => const AdminTvdeSubscriptionsScreen(),
-      keywords: const ['assinatura', 'assinaturas', 'ativas', 'cliente', 'estao'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_pedidos_de_plano',
-      title: 'Pedidos de plano',
-      subtitle: 'Pedidos de plano feitos pelos clientes: aprovar e ativar',
-      icon: Icons.assignment_turned_in,
-      color: Colors.purple,
-      builder: () => const AdminTvdePlanRequestsScreen(),
-      keywords: const ['aprovar', 'ativar', 'clientes', 'feitos', 'pedidos', 'pelos', 'plano'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_reservas_corridas_agendadas',
-      title: 'Reservas (corridas agendadas)',
-      subtitle: 'Corridas marcadas com antecedência',
-      icon: Icons.event,
-      color: Colors.indigo,
-      builder: () => const AdminTvdeReservasScreen(),
-      keywords: const ['agendadas', 'antecedencia', 'corridas', 'marcadas', 'reservas'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_ida_e_volta',
-      title: 'Ida e volta',
-      subtitle: 'Pacotes de ida e volta: por usar, usados, expirados',
-      icon: Icons.sync_alt,
-      color: Colors.teal,
-      builder: () => const AdminTvdeRoundtripsScreen(),
-      keywords: const ['expirados', 'pacotes', 'usados', 'usar', 'volta'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_pagos_sem_corrida',
-      title: 'Pagos sem corrida criada',
-      subtitle: 'Cliente pagou e a corrida não nasceu: ligar ou resolver',
-      icon: Icons.report_problem,
-      color: Colors.red,
-      builder: () => const AdminTvdePagosSemCorridaScreen(),
-      keywords: const ['corrida', 'criada', 'ida', 'pagos', 'pagou', 'sem', 'volta'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_corridas_presas_no_pagamento',
-      title: 'Corridas presas no pagamento',
-      subtitle: 'Corridas cujo pagamento ficou preso',
-      icon: Icons.hourglass_bottom,
-      color: Colors.redAccent,
-      builder: () => const AdminTvdeStuckPaymentsScreen(),
-      keywords: const ['corridas', 'cujo', 'ficou', 'pagamento', 'presas', 'preso'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_dividas_em_dinheiro',
-      title: 'Dívidas em dinheiro',
-      subtitle: 'O que cada motorista deve à Bora das corridas pagas em dinheiro',
-      icon: Icons.account_balance_wallet,
-      color: Colors.brown,
-      builder: () => const AdminTvdeDriverDebtsScreen(),
-      keywords: const ['bora', 'cada', 'corridas', 'deve', 'dinheiro', 'dividas', 'motorista', 'pagas'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_no_shows_tvde',
-      title: 'No-shows TVDE',
-      subtitle: 'Faltas de clientes nas corridas: ver e reverter',
-      icon: Icons.person_off,
-      color: const Color(0xFF0EA5E9),
-      builder: () => const AdminTvdeNoShowsScreen(),
-      keywords: const ['clientes', 'corridas', 'faltas', 'reverter', 'shows', 'tvde'],
-    ),
-    // [tvde-conformidade-lei-59-2026 · 30/09] Lei 45/2018 revista pela Lei 59/2026.
-    AdminMenuItem(
-      id: 'tvde_conformidade_imt_amt',
-      title: 'Conformidade TVDE (IMT/AMT)',
-      subtitle: 'Interruptor mestre das regras novas, operadores e veículos licenciados, impedimentos dos motoristas, documentos a caducar, horas, queixas, acesso da fiscalização, relatório AMT, teto de 25% e checklist para o licenciamento',
-      icon: Icons.verified_user_outlined,
-      color: const Color(0xFF0EA5E9),
-      builder: () => const AdminTvdeConformidadeScreen(),
-      keywords: const ['conformidade', 'tvde', 'imt', 'amt', 'lei', 'licenca', 'licenciamento', 'operador', 'veiculo', 'cmtvde', 'fiscalizacao', 'queixas', 'reclamacoes', 'horas', 'teto', 'intermediacao', 'checklist', 'distico', 'seguro'],
     ),
     ],
   ),
@@ -973,7 +807,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'servicos_metricas_barbearias',
       title: 'Métricas Barbearias',
-      subtitle: 'Números das barbearias: marcações, faltas, sem marcação',
+      subtitle: 'Ver os números das barbearias por período: marcações, faltas, cancelamentos, clientes sem marcação e receita',
       icon: Icons.bar_chart,
       color: Colors.deepPurple,
       builder: () => const AdminAppointmentsMetricsScreen(),
@@ -993,7 +827,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'limpeza_limpezas',
       title: 'Limpezas',
-      subtitle: 'Limpezas marcadas, em curso e feitas',
+      subtitle: 'Acompanhar as limpezas marcadas, em andamento e feitas: reagendar, cancelar, avançar o estado, conversar e pedir pagamento por MB Way',
       icon: Icons.cleaning_services,
       color: const Color(0xFF0284C7),
       builder: () => const AdminCleaningBookingsScreen(),
@@ -1002,7 +836,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'limpeza_profissionais_de_limpeza',
       title: 'Profissionais de limpeza',
-      subtitle: 'Profissionais de limpeza: aprovar e gerir',
+      subtitle: 'Aprovar, recusar, editar, suspender e reativar profissionais de limpeza e acertar o dinheiro que receberam em mão',
       icon: Icons.badge,
       color: const Color(0xFF38BDF8),
       builder: () => const AdminCleaningCleanersScreen(),
@@ -1011,7 +845,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'limpeza_lavagem_auto',
       title: 'Lavagem Auto',
-      subtitle: 'Lavagens de carro: pedidos, lavadores, acerto',
+      subtitle: 'Gerenciar as lavagens de carro: pedidos, lavadores, idas agrupadas, acertos e configurações',
       icon: Icons.local_car_wash,
       color: const Color(0xFF0891B2),
       builder: () => const AdminCarwashScreen(),
@@ -1038,7 +872,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'reservas_reservas',
       title: 'Reservas',
-      subtitle: 'Reservas de mesa em todos os restaurantes',
+      subtitle: 'Ver as reservas de mesa de todos os restaurantes, criar uma reserva, sentar quem chega sem reserva e cancelar em nome do cliente',
       icon: Icons.event_seat,
       color: Colors.teal,
       builder: () => const AdminReservationsScreen(),
@@ -1047,7 +881,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'reservas_mesas',
       title: 'Mesas',
-      subtitle: 'Mesas de cada restaurante com reservas: número, lugares, zona, ativa',
+      subtitle: 'Ver e editar as mesas de cada restaurante com reservas: número, lugares, zona e se está ativa',
       icon: Icons.table_restaurant,
       color: Colors.brown,
       builder: () => const AdminMesasScreen(),
@@ -1056,7 +890,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'reservas_metricas_reservas_pro',
       title: 'Métricas Reservas Pro',
-      subtitle: 'Números das reservas (7, 30 e 90 dias)',
+      subtitle: 'Ver os números das reservas de cada restaurante nos últimos 7, 30 e 90 dias',
       icon: Icons.bar_chart,
       color: Colors.deepPurple,
       builder: () => const AdminReservationsMetricsScreen(),
@@ -1065,7 +899,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'reservas_marcacoes_presas',
       title: 'Marcações presas',
-      subtitle: 'Reservas que ficaram presas a meio',
+      subtitle: 'Ver as reservas que ficaram presas no meio do processo (há 15 minutos, 1 hora ou mais) e liberar cada uma',
       icon: Icons.lock_clock,
       color: AppColors.error,
       builder: () => const AdminStuckReservationsScreen(),
@@ -1074,7 +908,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'reservas_reservas_pro_config',
       title: 'Reservas Pro — Config',
-      subtitle: 'Ritmo, regras por restaurante e fila de espera',
+      subtitle: 'Ligar ou desligar o limite de reservas por horário de cada restaurante e ver a fila de espera de hoje',
       icon: Icons.event_seat_outlined,
       color: const Color(0xFF10B981),
       builder: () => const AdminReservationsConfigScreen(),
@@ -1101,7 +935,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'clientes_avaliacoes',
       title: 'Avaliações',
-      subtitle: 'Avaliações baixas, casos problemáticos e denúncias',
+      subtitle: 'Ver as avaliações, achar quem tem nota baixa e sinalizar avaliações com problema ou denúncia',
       icon: Icons.star_outline,
       color: Colors.amber,
       builder: () => const AdminRatingsScreen(),
@@ -1110,7 +944,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'clientes_suporte_tickets',
       title: 'Suporte — Tickets',
-      subtitle: 'Pedidos de ajuda dos utilizadores, abertos e antigos',
+      subtitle: 'Ver os pedidos de ajuda (tickets) dos usuários, abertos e antigos, e marcar como resolvidos',
       icon: Icons.support_agent,
       color: Colors.indigo,
       builder: () => const AdminSupportTicketsScreen(),
@@ -1135,6 +969,16 @@ List<AdminMenuSection> adminMenuSections() => [
       builder: () => const AdminSuporteConversasScreen(),
       keywords: const ['suporte', 'conversas', 'chat', 'ajuda', 'responder', 'robô', 'não lidas', 'cliente'],
     ),
+    // 15/11/2026 (conversas ao vivo, app-15-11): os 3 robôs que falam com clientes numa lista só.
+    AdminMenuItem(
+      id: 'clientes_conversas_ao_vivo',
+      title: 'Conversas ao vivo (robôs)',
+      subtitle: 'Ver ao vivo, numa lista só, as conversas do suporte, do Amigo Bora e das lojas no WhatsApp; assumir, responder e devolver ao robô',
+      icon: Icons.forum,
+      color: Colors.green,
+      builder: () => const AdminConversasAoVivoScreen(),
+      keywords: const ['conversas', 'ao vivo', 'robôs', 'robo', 'amigo', 'whatsapp', 'lojas', 'suporte', 'assumir', 'responder', 'equipa', 'não lidas'],
+    ),
     AdminMenuItem(
       id: 'clientes_reclamacoes',
       title: 'Reclamações',
@@ -1148,11 +992,11 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'clientes_livro_reclamacoes',
       title: 'Livro de Reclamações',
-      subtitle: 'Reclamações oficiais recebidas (Livro eletrônico ou físico, DGC/ASAE): registrar, contar os 15 dias úteis, marcar respondida e exportar CSV',
+      subtitle: 'Registrar as reclamações oficiais do Livro de Reclamações, contar o prazo de 15 dias úteis, marcar como respondida e exportar',
       icon: Icons.menu_book,
       color: Colors.red,
       builder: () => const AdminLivroReclamacoesScreen(),
-      keywords: const ['livro', 'reclamacoes', 'livro de reclamacoes', 'lre', 'dgc', 'asae', 'consumidor', 'prazo', '15 dias', 'dias uteis', 'responder'],
+      keywords: const ['livro', 'reclamacoes', 'livro de reclamacoes', 'lre', 'dgc', 'asae', 'consumidor', 'prazo', '15 dias', 'dias uteis', 'responder', 'csv'],
     ),
     AdminMenuItem(
       id: 'clientes_bloqueios',
@@ -1166,7 +1010,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'clientes_contas_encerradas',
       title: 'Contas encerradas',
-      subtitle: 'Contas que foram encerradas',
+      subtitle: 'Ver as contas que foram encerradas, com o tipo de conta e o motivo, procurar e exportar a lista',
       icon: Icons.person_off_outlined,
       color: Colors.brown,
       builder: () => const AdminDeletedAccountsScreen(),
@@ -1184,7 +1028,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'clientes_referrals',
       title: 'Referrals',
-      subtitle: 'Convites entre amigos: quem convidou, quem entrou',
+      subtitle: 'Ver os convites entre amigos (quem convidou e quem entrou), dar um código de convite a alguém e exportar',
       icon: Icons.card_giftcard,
       color: Colors.purple,
       builder: () => const AdminReferralsScreen(),
@@ -1202,7 +1046,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'clientes_carrinho_abandonado',
       title: 'Carrinho abandonado',
-      subtitle: 'Push automático a quem largou o carrinho: ligar/desligar, minutos, texto e números',
+      subtitle: 'Configurar o aviso automático a quem largou o carrinho: ligar ou desligar, depois de quantos minutos, o texto e os resultados',
       icon: Icons.remove_shopping_cart_outlined,
       color: AppColors.primary,
       builder: () => const AdminCarrinhosAbandonadosScreen(),
@@ -1211,7 +1055,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'clientes_autorizacao_promocoes',
       title: 'Autorização de promoções',
-      subtitle: 'Quantos clientes aceitaram receber promoções (RGPD), quem e quando',
+      subtitle: 'Ver quantos clientes aceitaram receber promoções, quem foi e quando (exigência da lei de proteção de dados)',
       icon: Icons.mark_email_read_outlined,
       color: AppColors.primary,
       builder: () => const AdminAutorizacaoPromocoesScreen(),
@@ -1220,7 +1064,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'clientes_reativacao',
       title: 'Clientes parados (reativação)',
-      subtitle: 'Um aviso por dia a quem não pede há X dias (como Uber/Glovo): ligar, dias, texto e quantos voltaram a pedir',
+      subtitle: 'Mandar um aviso por dia a quem não pede há alguns dias: ligar, escolher os dias e o texto e ver quantos voltaram a pedir',
       icon: Icons.replay_circle_filled,
       color: Colors.green,
       builder: () => const AdminReativacaoScreen(),
@@ -1229,7 +1073,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'clientes_checkin_diario',
       title: 'Check-in diário',
-      subtitle: 'Sequência de 7 dias com tokens: ligar, valores, lembretes 11h/20h, quem está em que dia, custo e dar/tirar tokens',
+      subtitle: 'Configurar o check-in diário (7 dias seguidos com tokens): valores, lembretes das 11h e 20h, custo e dar ou tirar tokens',
       icon: Icons.event_available,
       color: AppColors.primary,
       builder: () => const AdminCheckinScreen(),
@@ -1238,16 +1082,16 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'clientes_checkin_premios',
       title: 'Prêmios do check-in (marcos)',
-      subtitle: '10, 15 e 30 dias seguidos: ligar, teto mensal, pedido pago, valores, vales (anular, entregar à mão, dar), a pagar às lojas e custo',
+      subtitle: 'Configurar os prêmios de 10, 15 e 30 dias seguidos de check-in: valores, limite do mês, vales e quanto pagar às lojas',
       icon: Icons.emoji_events_outlined,
       color: AppColors.primary,
       builder: () => const AdminCheckinPremiosScreen(),
-      keywords: const ['premio', 'premios', 'marco', 'marcos', 'vale', 'vales', 'checkin', 'keli', 'goola', 'salgados', 'acai', 'limpeza', 'lavagem'],
+      keywords: const ['premio', 'premios', 'marco', 'marcos', 'vale', 'vales', 'checkin', 'keli', 'goola', 'salgados', 'acai', 'limpeza', 'lavagem', 'teto', 'custo'],
     ),
     AdminMenuItem(
       id: 'clientes_checkin_regras',
       title: 'Regras do check-in (R2 a R8)',
-      subtitle: 'Custo do mês × teto (aviso aos 80%), pedido pago, perdão, sugestão, lembrete à hora habitual, quem está em que dia e a escada com foto, valor e custo',
+      subtitle: 'Ajustar as regras do check-in: limite de custo do mês (aviso aos 80%), pedido pago, perdão, sugestão, lembrete e escada de prêmios',
       icon: Icons.rule_rounded,
       color: AppColors.primary,
       builder: () => const AdminCheckinRegrasScreen(),
@@ -1293,7 +1137,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'clientes_filtros_de_descoberta',
       title: 'Filtros de Descoberta',
-      subtitle: 'Filtros que o cliente vê na página inicial (aberto agora, dieta)',
+      subtitle: 'Ligar ou desligar os filtros que o cliente vê na página inicial (aberto agora, ir buscar, entrega grátis, dieta)',
       icon: Icons.tune,
       color: const Color(0xFF8B5CF6),
       builder: () => const AdminDiscoveryFiltersScreen(),
@@ -1313,7 +1157,7 @@ List<AdminMenuSection> adminMenuSections() => [
   AdminMenuSection(
     id: 'parceiros',
     title: 'Parceiros',
-    subtitle: 'Restaurantes e lojas: aprovar, editar, catálogo, WhatsApp.',
+    subtitle: 'Restaurantes, lojas e farmácias: aprovar, editar, catálogo, WhatsApp.',
     icon: Icons.storefront,
     color: Colors.purple,
     items: [
@@ -1325,6 +1169,47 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.purple,
       builder: () => const AdminPartnersScreen(),
       keywords: const ['dados', 'desligar', 'editar', 'ligar', 'lojas', 'parceiros', 'restaurantes'],
+    ),
+    // 15/11/2026 (painel-admin-15-11): o admin faz pela loja o que o parceiro faz na app.
+    AdminMenuItem(
+      id: 'parceiros_area_parceiro',
+      title: 'Área do parceiro (agir pela loja)',
+      subtitle: 'Agir por uma loja como o parceiro faz na app: abrir ou fechar, pausar, modo ocupado, pedidos, produtos esgotados e dinheiro da semana',
+      icon: Icons.store_mall_directory_outlined,
+      color: Colors.purple,
+      builder: () => const AdminAreaParceiroScreen(),
+      keywords: const ['area do parceiro', 'agir pela loja', 'loja', 'parceiro', 'pausa', 'ocupado', 'esgotado', 'auditoria', 'menu'],
+    ),
+    // 11/11/2026 (farmácias): visibilidade por lista de permissão, receita e comissão extra.
+    // app-15-11 (auditoria S5): as três entradas das farmácias vieram da
+    // "Operação do dia" para aqui, com os mesmos ids.
+    AdminMenuItem(
+      id: 'farmacias',
+      title: 'Farmácias',
+      subtitle: 'Gerenciar as farmácias da Sé e Teixeira: acesso (e-mail e senha), dados da empresa, horário, preços, receitas, comissão e abrir ao público',
+      icon: Icons.local_pharmacy,
+      color: Colors.green,
+      builder: () => const AdminFarmaciasScreen(),
+      keywords: const ['farmacia', 'farmácia', 'receita', 'prescricao', 'prescrição', 'se', 'sé', 'teixeira', 'lista de permissao', 'escondida', 'comissao extra', 'email', 'e-mail', 'login', 'senha', 'nif', 'iban', 'certidao', 'certidão', 'horario', 'horário', 'extrato', 'receitas reais'],
+    ),
+    // 14/11/2026 (farmacias-loja): extrato semanal só de leitura das farmácias, com CSV.
+    AdminMenuItem(
+      id: 'farmacias_extrato',
+      title: 'Extrato das farmácias',
+      subtitle: 'Ver por semana e por farmácia as vendas na app, a comissão, a parte da farmácia, o dinheiro em mão e o saldo, e exportar',
+      icon: Icons.receipt,
+      color: Colors.green,
+      builder: () => const AdminFarmaciasScreen(abaInicial: 2),
+      keywords: const ['extrato', 'farmacia', 'farmácia', 'acerto', 'semana', 'csv', 'comissao extra'],
+    ),
+    AdminMenuItem(
+      id: 'pedidos_receita',
+      title: 'Pedidos de receita',
+      subtitle: 'Ver as receitas e pedidos especiais às farmácias, quem aceitou ou recusou e quando; forçar, cancelar e exportar',
+      icon: Icons.receipt_long,
+      color: Colors.green,
+      builder: () => const AdminFarmaciasScreen(abaInicial: 1),
+      keywords: const ['receita', 'prescricao', 'prescrição', 'farmacia', 'farmácia', 'medicamento', 'tenho receita', 'pedido especial', 'csv'],
     ),
     AdminMenuItem(
       id: 'parceiros_alergenos',
@@ -1338,7 +1223,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'parceiros_aprovacao_de_parceiros',
       title: 'Aprovação de parceiros',
-      subtitle: 'Candidaturas de parceiros: pendentes, aprovadas, recusadas',
+      subtitle: 'Aprovar ou recusar as candidaturas de novos parceiros, ver os documentos e falar com eles',
       icon: Icons.how_to_reg,
       color: Colors.deepPurple,
       builder: () => const AdminPartnersPendingScreen(),
@@ -1357,7 +1242,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'parceiros_papeis_e_candidaturas',
       title: 'Papeis e candidaturas',
-      subtitle: 'Papéis de cada pessoa (entregador, lavador, limpador...) e candidaturas',
+      subtitle: 'Ver os papéis de cada pessoa (entregador, lavador, limpador...), dar ou tirar um papel e aprovar ou recusar candidaturas',
       icon: Icons.badge,
       color: Colors.deepPurple,
       builder: () => const AdminPapeisScreen(),
@@ -1375,11 +1260,22 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'parceiros_deposito_volta',
       title: 'Depósito Volta',
-      subtitle: 'Latas e garrafas de plástico com depósito de 0,10 €',
+      subtitle: 'Marcar em cada loja as latas e garrafas de plástico com depósito de 0,10 € e ver o relatório do mês',
       icon: Icons.recycling,
       color: Colors.teal,
       builder: () => const AdminVoltaScreen(),
       keywords: const ['volta', 'deposito', 'latas', 'garrafas', 'plastico', 'embalagens', 'tara', 'reciclagem', 'retorno'],
+    ),
+    // 15/11/2026 (fechar-tudo-15-11, ponto E): Loja Online dentro do app.
+    AdminMenuItem(
+      id: 'parceiros_loja_online',
+      title: 'Loja Online',
+      subtitle: 'Produtos da loja Shopify da Bora dentro do app: ligar a categoria, '
+          'ativar produtos, destaque e nicho da semana (pagamentos ainda desligados)',
+      icon: Icons.storefront_outlined,
+      color: const Color(0xFF7C3AED),
+      builder: () => const AdminLojaOnlineScreen(),
+      keywords: const ['loja', 'online', 'shopify', 'dropshipping', 'pets', 'nicho', 'semana', 'correio', 'produtos', 'destaque'],
     ),
     AdminMenuItem(
       id: 'parceiros_maiores_18',
@@ -1412,7 +1308,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'parceiros_modo_ocupado',
       title: 'Modo ocupado',
-      subtitle: 'Parceiros com muitos pedidos: quem está ocupado, quantos minutos e até quando. Liga/desliga para todos e desliga uma loja',
+      subtitle: 'Ver as lojas em modo ocupado (muitos pedidos), quantos minutos a mais e até quando; ligar ou desligar para todas ou desligar uma loja',
       icon: Icons.hourglass_top,
       color: Colors.amber,
       builder: () => const AdminModoOcupadoScreen(),
@@ -1423,14 +1319,14 @@ List<AdminMenuSection> adminMenuSections() => [
   AdminMenuSection(
     id: 'sistema',
     title: 'Sistema e Configurações',
-    subtitle: 'Regras da plataforma, histórico, servidor.',
+    subtitle: 'Regras da plataforma, obrigações legais, documentos dos prestadores, promoções, histórico do painel e servidor.',
     icon: Icons.settings_outlined,
     color: Colors.blueGrey,
     items: [
     AdminMenuItem(
       id: 'sistema_configuracoes',
       title: 'Configurações',
-      subtitle: 'Regras da plataforma: preços, taxas, carteira, demo',
+      subtitle: 'Ver e mudar as regras da plataforma: preços, taxas, carteira e modo de demonstração (as mudanças ficam registradas)',
       icon: Icons.settings,
       color: Colors.grey,
       builder: () => const AdminPlatformSettingsScreen(),
@@ -1439,29 +1335,29 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'sistema_conformidade_legal',
       title: 'Conformidade legal',
-      subtitle: 'Dados legais dos prestadores (DSA art. 30), opt-in de marketing, lojas sem NIF ou morada e exportação DAC7 anual em CSV para a AT',
+      subtitle: 'Ver os dados que a lei exige de cada prestador, quem aceitou marketing, lojas sem NIF ou endereço, e exportar o relatório anual às Finanças',
       icon: Icons.gavel,
       color: Colors.blueGrey,
       builder: () => const AdminConformidadeLegalScreen(),
-      keywords: const ['conformidade', 'legal', 'dac7', 'dsa', 'nif', 'iban', 'morada', 'autocertificacao', 'opt-in', 'marketing', 'csv', 'financas', 'at'],
+      keywords: const ['conformidade', 'legal', 'dac7', 'dsa', 'nif', 'iban', 'morada', 'autocertificacao', 'opt-in', 'marketing', 'csv', 'financas', 'at', 'prestadores', 'anual'],
     ),
     // [01/11/2026 · B8] Diretiva (UE) 2024/2831, art. 11.º: revisão humana das
     // suspensões, resposta por escrito em 7 dias.
     AdminMenuItem(
       id: 'sistema_revisoes_suspensao',
       title: 'Revisões de suspensão',
-      subtitle: 'Prestadores que pediram revisão de uma suspensão (prazo de 7 dias) e propostas automáticas: responder, decidir, registrar pedido do WhatsApp e reativar',
+      subtitle: 'Responder a quem pediu revisão de uma suspensão (prazo de 7 dias): decidir, registrar um pedido feito pelo WhatsApp e reativar',
       icon: Icons.rate_review_outlined,
       color: Colors.deepPurple,
       builder: () => const AdminRevisoesScreen(),
-      keywords: const ['revisao', 'revisoes', 'suspensao', 'suspenso', 'suspender', 'banido', 'banir', 'recurso', 'contestar', 'diretiva', 'gestao algoritmica', 'prestador', 'estafeta', 'limpeza', 'lavagem', 'casa', 'parceiro', 'whatsapp', 'prazo'],
+      keywords: const ['revisao', 'revisoes', 'suspensao', 'suspenso', 'suspender', 'banido', 'banir', 'recurso', 'contestar', 'diretiva', 'gestao algoritmica', 'prestador', 'estafeta', 'limpeza', 'lavagem', 'casa', 'parceiro', 'whatsapp', 'prazo', 'prestadores'],
     ),
     // [10/11/2026 · fechar-tudo E4] Diretiva (UE) 2024/2831, art. 9.º (prazo
     // 02/12/2026): quem já leu "Como o Bora decide" e quem falta, por papel.
     AdminMenuItem(
       id: 'sistema_como_o_bora_decide_leituras',
       title: 'Como o Bora decide — leituras',
-      subtitle: 'Quem dos entregadores, limpeza, lavagem e Casa já carregou em "Li e percebi" na versão em vigor e quem falta, por papel; CSV',
+      subtitle: 'Ver quem já tocou em "Li e percebi" na versão atual do aviso "Como o Bora decide" e quem falta, por tipo de prestador; exportar',
       icon: Icons.policy_outlined,
       color: Colors.deepPurple,
       builder: () => const AdminAvisosPrestadoresScreen(),
@@ -1481,17 +1377,17 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'sistema_estafetas_fila',
       title: 'Estafetas — fila e documentos',
-      subtitle: 'O que falta a cada estafeta (o mesmo semáforo da app), quem está na fila de espera, aprovar, reenviar a mensagem do que falta e marcar atividade confirmada',
+      subtitle: 'Ver o que falta a cada entregador, quem está na fila de espera, aprovar, reenviar a mensagem do que falta e confirmar a atividade',
       icon: Icons.fact_check_outlined,
       color: Colors.blueGrey,
       builder: () => const AdminEstafetasFilaScreen(),
-      keywords: const ['estafetas', 'fila', 'espera', 'candidatos', 'documentos', 'falta', 'iban', 'nif', 'selfie', 'aprovar', 'valdemir', 'conta'],
+      keywords: const ['estafetas', 'fila', 'espera', 'candidatos', 'documentos', 'falta', 'iban', 'nif', 'selfie', 'aprovar', 'valdemir', 'conta', 'semaforo'],
     ),
     // [29/10/2026 · Adendo 3] Robô fiscal de documentos dos candidatos (modo sombra por defeito).
     AdminMenuItem(
       id: 'sistema_robo_documentos',
       title: 'Robô de documentos',
-      subtitle: 'Confere os documentos dos candidatos, avisa o que está errado. Liga/desliga, sombra, prontos para aprovar, histórico, avisos enviados e emails automáticos',
+      subtitle: 'Ligar ou desligar o robô que confere os documentos dos candidatos e avisa o que está errado; ver quem está pronto e os avisos enviados',
       icon: Icons.smart_toy_outlined,
       color: Colors.blueGrey,
       builder: () => const AdminRoboDocumentosScreen(),
@@ -1529,7 +1425,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'sistema_edge_functions',
       title: 'Edge Functions',
-      subtitle: 'Funções do servidor e os erros recentes',
+      subtitle: 'Ver as funções automáticas do servidor e os erros dos últimos 7 dias, incluindo os pagamentos MB Way',
       icon: Icons.cloud_outlined,
       color: Colors.cyan,
       builder: () => const AdminEdgeFunctionsScreen(),
@@ -1538,7 +1434,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'sistema_kpis_avancado',
       title: 'KPIs Avançado',
-      subtitle: 'Zonas com mais pedidos, valor médio, conversão',
+      subtitle: 'Ver os números do negócio: zonas com mais pedidos, valor médio por pedido e quantos pedidos criados chegam a ser entregues',
       icon: Icons.insights,
       color: Colors.cyan,
       builder: () => const AdminAdvancedKpisScreen(),
@@ -1549,7 +1445,7 @@ List<AdminMenuSection> adminMenuSections() => [
   AdminMenuSection(
     id: 'robos',
     title: 'Robôs e Autonomia',
-    subtitle: 'O que os robôs propõem e como estão os motores.',
+    subtitle: 'O que os robôs propõem, assistentes automáticos, e-mails, vendas e os motores de inteligência artificial.',
     icon: Icons.smart_toy_outlined,
     color: Colors.indigo,
     items: [
@@ -1574,7 +1470,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'robos_sugestoes_skills_ia',
       title: 'Sugestões Skills IA',
-      subtitle: 'Novas habilidades propostas pelo robô semanal',
+      subtitle: 'Aprovar, recusar ou desfazer as novas habilidades (skills) que o robô semanal propõe',
       icon: Icons.auto_awesome,
       color: const Color(0xFFFF8F00),
       builder: () => const AdminSkillSuggestionsScreen(),
@@ -1584,7 +1480,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'robos_motores_e_agentes',
       title: 'Motores e Agentes',
-      subtitle: 'Motores de IA: quota, velocidade, ligar e desligar cada robô',
+      subtitle: 'Ver os motores de inteligência artificial (IA), o crédito e a velocidade, e ligar ou desligar cada robô',
       icon: Icons.bolt,
       color: Colors.deepOrange,
       builder: () => const AdminMotoresScreen(),
@@ -1604,7 +1500,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'robos_porteiro_telegram',
       title: 'Porteiro do Telegram',
-      subtitle: 'Fila de avisos da base que o porteiro da VPS manda para o Telegram do Danilo (texto e voz): nível, destino, tratado ou por tratar, reenviar',
+      subtitle: 'Ver os avisos que o porteiro manda ao Telegram do Danilo (texto e voz), o nível de cada um e se já foi tratado, e reenviar',
       icon: Icons.mark_chat_unread_outlined,
       color: AppColors.primary,
       builder: () => const AdminPorteiroScreen(),
@@ -1615,7 +1511,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'robos_caixa_guardados',
       title: 'Caixa de guardados',
-      subtitle: 'Quadro Sim/Não com tudo o que espera por você (caixa, opções do radar, propostas do Córtex); a caixa inteira para ler, editar, marcar feito ou rejeitar; e o agente de segunda a correr agora',
+      subtitle: 'Decidir Sim ou Não no que espera por você (caixa, radar, propostas do Córtex), ler e editar a caixa e rodar o agente de segunda-feira',
       icon: Icons.inventory_2_outlined,
       color: AppColors.primary,
       builder: () => const AdminCaixaGuardadosScreen(),
@@ -1624,7 +1520,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'robos_decisoes_jev',
       title: 'Decisões (Jev)',
-      subtitle: 'O decisor rápido: o que decidiu, com que certeza, quanto custou hoje, sombra ou ativo',
+      subtitle: 'Ver o que o decisor rápido (Jev) decidiu, com que certeza, quanto custou hoje e se está em teste ou ligado de verdade',
       icon: Icons.rule,
       color: AppColors.primary,
       builder: () => const AdminDecisoesScreen(),
@@ -1634,7 +1530,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'robos_radar_videos',
       title: 'Radar de vídeos',
-      subtitle: 'Os ~20 vídeos do dia sobre crescer nas redes e ganhar dinheiro online, com resumo, ideias e nota; e o playbook que os robôs seguem',
+      subtitle: 'Ver os cerca de 20 vídeos do dia sobre crescer nas redes e ganhar dinheiro online, com resumo, ideias e nota, e o guia que os robôs seguem',
       icon: Icons.ondemand_video_rounded,
       color: const Color(0xFFDC2626),
       builder: () => const AdminRadarVideosScreen(),
@@ -1654,21 +1550,21 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'robos_caca_clientes',
       title: 'Caça-clientes',
-      subtitle: 'Negócios encontrados, email verificado, a peça e o email escrito; enviar agora, pausar, recusou, cliente, e o interruptor do carteiro',
+      subtitle: 'Ver os negócios que o robô de vendas achou e o e-mail de cada um; enviar agora, editar, marcar como cliente ou recusa e ligar o envio',
       icon: Icons.travel_explore_rounded,
       color: const Color(0xFF0E7490),
       builder: () => const AdminCacaClientesScreen(),
-      keywords: const ['caca', 'caça', 'clientes', 'prospect', 'carteiro', 'email', 'seguimento', 'vendedor', 'proposta', 'enviar', 'csv'],
+      keywords: const ['caca', 'caça', 'clientes', 'prospect', 'carteiro', 'email', 'seguimento', 'vendedor', 'proposta', 'enviar', 'csv', 'interruptor'],
     ),
     // [Secretário Virtual · 04/10] venda do assistente de WhatsApp a negócios de Portugal.
     AdminMenuItem(
       id: 'robos_secretario_virtual',
       title: 'Secretário Virtual',
-      subtitle: 'Prospects de Portugal com WhatsApp, quem testou a demo (7 dias), conversas da demo e o interruptor do envio',
+      subtitle: 'Ver os possíveis clientes em Portugal com WhatsApp, quem testou a demonstração de 7 dias e as conversas, e ligar ou desligar o envio',
       icon: Icons.support_agent_rounded,
       color: AppColors.primary,
       builder: () => const AdminSecretarioScreen(),
-      keywords: const ['secretario', 'secretário', 'virtual', 'whatsapp', 'demo', 'teste', 'prospect', 'assistente', 'vender'],
+      keywords: const ['secretario', 'secretário', 'virtual', 'whatsapp', 'demo', 'teste', 'prospect', 'assistente', 'vender', 'interruptor'],
     ),
     // [Assistentes · 01/10] o funcionário digital de WhatsApp dos negócios (assistant_tenants).
     AdminMenuItem(
@@ -1702,7 +1598,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'robos_modelos_de_ia',
       title: 'Modelos de IA',
-      subtitle: 'Qual modelo de IA cada robô usa',
+      subtitle: 'Escolher qual modelo de inteligência artificial (IA) cada robô usa; vale na próxima vez que o robô rodar',
       icon: Icons.memory_outlined,
       color: Colors.deepPurple,
       builder: () => const AdminAiModelsScreen(),
@@ -1711,7 +1607,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'robos_knowledge_base',
       title: 'Knowledge Base',
-      subtitle: 'Base de conhecimento que os robôs leem',
+      subtitle: 'Ver a base de conhecimento que os robôs consultam, quantos textos estão prontos para a busca, e preparar os que faltam',
       icon: Icons.menu_book_outlined,
       color: Colors.indigo,
       builder: () => const AdminKnowledgeScreen(),
@@ -1721,7 +1617,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'robos_central_suporte',
       title: 'Central do robô do suporte',
-      subtitle: 'Cada conversa com as ferramentas usadas, perguntas sem resposta, propor skill, ligar/desligar ferramentas e skills, trocar o modelo e exportar',
+      subtitle: 'Ver cada conversa do robô do suporte e as ferramentas que usou, perguntas sem resposta, ligar ou desligar ferramentas e trocar o modelo',
       icon: Icons.support_agent,
       color: Colors.deepPurple,
       builder: () => const AdminSuporteCentralScreen(),
@@ -1730,7 +1626,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'robos_estatisticas_suporte_ia',
       title: 'Estatísticas Suporte IA',
-      subtitle: 'Números do suporte automático: sessões, resolvidos, custo',
+      subtitle: 'Ver os números do suporte automático por período: conversas, quantas o robô resolveu, quantas passaram a uma pessoa e o custo',
       icon: Icons.smart_toy_outlined,
       color: Colors.deepPurple,
       builder: () => const AdminSupportStatsScreen(),
@@ -1738,10 +1634,238 @@ List<AdminMenuSection> adminMenuSections() => [
     ),
     ],
   ),
+  // 04/11/2026 (fechar-bora-motorista): o Bora Motorista fechou nas apps
+  // (sem licença do IMT). A secção passa a ser o ARQUIVO: tudo continua a
+  // abrir para consulta (o contabilista precisa), e o primeiro item é o
+  // interruptor `tvde_app_visivel` para reabrir quando a licença sair.
+  // O id 'tvde' fica igual (é o que os favoritos guardam).
+  // app-15-11 (auditoria S5): com o serviço fechado, a secção desceu para o
+  // fim do menu, logo antes do "Arquivado" (estava em 4.º lugar, no meio do
+  // que se usa todos os dias). Na busca, os resultados dela vêm depois dos
+  // das secções em uso.
+  AdminMenuSection(
+    id: 'tvde',
+    title: 'Arquivo — Bora Motorista (fechado)',
+    subtitle: 'Fechado nas apps desde 04/11/2026. Só consulta: corridas, pagamentos, recibos, acertos, motoristas, pedidos de acesso.',
+    icon: Icons.inventory_2_outlined,
+    color: const Color(0xFF64748B),
+    items: [
+    AdminMenuItem(
+      id: 'tvde_interruptor_app',
+      title: 'Interruptor do Bora Motorista',
+      subtitle: 'Ver se o Bora Motorista está fechado ou aberto nas apps, reabrir quando sair a licença do IMT e ver quantas corridas estão guardadas',
+      icon: Icons.toggle_on_outlined,
+      color: const Color(0xFF64748B),
+      builder: () => const AdminBoraMotoristaFechadoScreen(),
+      keywords: const ['tvde', 'motorista', 'fechado', 'arquivo', 'interruptor', 'reabrir', 'licenca', 'imt', 'tvde_app_visivel', 'visivel'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_corridas',
+      title: 'Corridas',
+      subtitle: 'Todas as corridas: em curso, feitas, canceladas',
+      icon: Icons.local_taxi,
+      color: Colors.teal,
+      builder: () => const AdminTvdeRidesScreen(),
+      keywords: const ['canceladas', 'corridas', 'curso', 'feitas', 'todas'],
+    ),
+    // [A2 · 21/10/2026] Fila inteligente + carro a deslizar (paridade admin).
+    AdminMenuItem(
+      id: 'tvde_fila_inteligente',
+      title: 'Fila inteligente',
+      subtitle: 'Quem recebe cada corrida e por que ordem, ao vivo; ligar/desligar; tempo da oferta; histórico de recusas',
+      icon: Icons.format_list_numbered,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdeFilaScreen(),
+      keywords: const ['fila', 'ordem', 'oferta', 'recusou', 'expirou', 'despacho', 'motoristas', 'aceitacao', 'carro', 'mapa'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_pedidos_de_acesso',
+      title: 'Pedidos de acesso TVDE',
+      subtitle: 'Clientes que pediram para usar o Bora Motorista: aprovar ou recusar',
+      icon: Icons.how_to_reg,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdeAccessRequestsScreen(),
+      keywords: const ['acesso', 'pedidos', 'tvde', 'motorista', 'aprovar', 'recusar'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_chat_das_corridas',
+      title: 'Chat das corridas',
+      subtitle: 'Conversas entre cliente e motorista, por corrida, em hora de Lisboa',
+      icon: Icons.forum_outlined,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdeChatsScreen(),
+      keywords: const ['chat', 'conversa', 'mensagens', 'corridas', 'cliente', 'motorista'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_pagamentos',
+      title: 'Pagamentos das corridas',
+      subtitle: 'Ver quem pagou a corrida e quem não conseguiu pagar, e estornar (devolver o dinheiro)',
+      icon: Icons.payments,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdePagamentosScreen(),
+      keywords: const [
+        'cartao', 'cobranca', 'estorno', 'falhou', 'mbway', 'pagamento',
+        'pagou', 'reembolso', 'stripe',
+      ],
+    ),
+    AdminMenuItem(
+      id: 'tvde_corridas_de_balcao',
+      title: 'Corridas de Balcão',
+      subtitle: 'Criar corrida por telefone para cliente sem app',
+      icon: Icons.phone_in_talk,
+      color: const Color(0xFF2563EB),
+      builder: () => const AdminTvdeBalcaoScreen(),
+      keywords: const ['balcao', 'cliente', 'ligou', 'sem app', 'telefone'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_agenda_de_clientes_de_balcao',
+      title: 'Agenda de Clientes de Balcão',
+      subtitle: 'Cadastrar os clientes sem app que pedem corrida por telefone e guardar ou apagar os endereços de cada um',
+      icon: Icons.contacts,
+      color: const Color(0xFF2563EB),
+      builder: () => const AdminTvdeBalcaoAgendaScreen(),
+      keywords: const ['agenda', 'balcao', 'clientes', 'contactos', 'moradas'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_cancelamentos_de_corridas',
+      title: 'Cancelamentos de corridas',
+      // [17/10/2026] cancelamento tardio: o ecrã mostra e dá compensações.
+      subtitle: 'Corridas canceladas, taxas cobradas e compensação ao motorista',
+      icon: Icons.cancel_schedule_send,
+      color: Colors.redAccent,
+      builder: () => const AdminTvdeCancellationsScreen(),
+      keywords: const ['canceladas', 'cancelamentos', 'cobradas', 'compensacao', 'corridas', 'motorista', 'taxas'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_motoristas_de_passageiros',
+      title: 'Motoristas de passageiros',
+      subtitle: 'Ver os motoristas com saldo e avaliações, banir ou reativar e escolher se fazem só corridas ou também entregas',
+      icon: Icons.directions_car,
+      color: Colors.indigo,
+      builder: () => const AdminTvdeDriversScreen(),
+      keywords: const ['avaliacoes', 'banir', 'gerir', 'motoristas', 'passageiros', 'saldo'],
+    ),
+    // [Ficha legal · 23/09] O id fica o mesmo (é o que os favoritos
+    // guardam): quem tinha "Documentos TVDE" nos favoritos cai no hub novo.
+    AdminMenuItem(
+      id: 'tvde_documentos_tvde',
+      title: 'Documentos dos motoristas',
+      subtitle: 'Ver a validade dos documentos de cada motorista (certificado, carta, seguro, inspeção, dístico), editar a ficha e impedir de ficar online',
+      icon: Icons.badge_outlined,
+      color: const Color(0xFF6366F1),
+      builder: () => const AdminMotoristasDocumentosScreen(),
+      keywords: const ['aprovar', 'carta', 'distico', 'documentos', 'fiscalizacao', 'imt', 'inspecao', 'motoristas', 'seguro', 'tvde', 'validade', 'semaforo', 'bloqueio'],
+    ),
+    // 22/10 (documentos de todos os papéis): saiu do arquivo — o ecrã
+    // "Conformidade" da app do motorista regista aqui o contrato, o
+    // certificado e o seguro. Era o único sítio onde se viam os ficheiros.
+    AdminMenuItem(
+      id: 'arquivado_documentos_tvde_ficheiros',
+      title: 'Documentos TVDE (ficheiros)',
+      subtitle: 'Fotos enviadas pelos motoristas (contrato, certificado, seguro): ver em grande, aprovar ou recusar',
+      icon: Icons.fact_check_outlined,
+      color: const Color(0xFF6366F1),
+      builder: () => const AdminTvdeDocsReviewScreen(),
+      keywords: const ['aprovar', 'contrato', 'certificado', 'ficheiros', 'documentos', 'seguro', 'tvde'],
+    ),
+    // [Recibos · 24/09] paridade admin do recibo automático por viagem (23/09).
+    AdminMenuItem(
+      id: 'tvde_recibos_viagem',
+      title: 'Recibos por viagem',
+      subtitle: 'O recibo que o passageiro recebe por email no fim da viagem: ver, reenviar, ligar/desligar o automático',
+      icon: Icons.receipt_long_outlined,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdeRecibosScreen(),
+      keywords: const ['recibo', 'recibos', 'email', 'passageiro', 'viagem', 'reenviar', 'taxa', 'intermediacao', 'tvde'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_assinaturas',
+      title: 'Assinaturas',
+      subtitle: 'Dar assinatura a um cliente e ver as que estão ativas',
+      icon: Icons.card_membership,
+      color: Colors.deepPurple,
+      builder: () => const AdminTvdeSubscriptionsScreen(),
+      keywords: const ['assinatura', 'assinaturas', 'ativas', 'cliente', 'estao'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_pedidos_de_plano',
+      title: 'Pedidos de plano',
+      subtitle: 'Pedidos de plano feitos pelos clientes: aprovar e ativar',
+      icon: Icons.assignment_turned_in,
+      color: Colors.purple,
+      builder: () => const AdminTvdePlanRequestsScreen(),
+      keywords: const ['aprovar', 'ativar', 'clientes', 'feitos', 'pedidos', 'pelos', 'plano'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_reservas_corridas_agendadas',
+      title: 'Reservas (corridas agendadas)',
+      subtitle: 'Ver as corridas marcadas com antecedência, criar uma reserva, trocar motorista, hora ou destino, forçar a chamada ou cancelar',
+      icon: Icons.event,
+      color: Colors.indigo,
+      builder: () => const AdminTvdeReservasScreen(),
+      keywords: const ['agendadas', 'antecedencia', 'corridas', 'marcadas', 'reservas'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_ida_e_volta',
+      title: 'Ida e volta',
+      subtitle: 'Pacotes de ida e volta: por usar, usados, expirados',
+      icon: Icons.sync_alt,
+      color: Colors.teal,
+      builder: () => const AdminTvdeRoundtripsScreen(),
+      keywords: const ['expirados', 'pacotes', 'usados', 'usar', 'volta'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_pagos_sem_corrida',
+      title: 'Pagos sem corrida criada',
+      subtitle: 'Ver clientes que pagaram e a corrida não foi criada, para ligar ao cliente ou resolver o caso',
+      icon: Icons.report_problem,
+      color: Colors.red,
+      builder: () => const AdminTvdePagosSemCorridaScreen(),
+      keywords: const ['corrida', 'criada', 'ida', 'pagos', 'pagou', 'sem', 'volta'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_corridas_presas_no_pagamento',
+      title: 'Corridas presas no pagamento',
+      subtitle: 'Ver corridas com o pagamento preso, conferir de novo na Stripe, reembolsar ou cancelar',
+      icon: Icons.hourglass_bottom,
+      color: Colors.redAccent,
+      builder: () => const AdminTvdeStuckPaymentsScreen(),
+      keywords: const ['corridas', 'cujo', 'ficou', 'pagamento', 'presas', 'preso'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_dividas_em_dinheiro',
+      title: 'Dívidas em dinheiro',
+      subtitle: 'O que cada motorista deve à Bora das corridas pagas em dinheiro',
+      icon: Icons.account_balance_wallet,
+      color: Colors.brown,
+      builder: () => const AdminTvdeDriverDebtsScreen(),
+      keywords: const ['bora', 'cada', 'corridas', 'deve', 'dinheiro', 'dividas', 'motorista', 'pagas'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_no_shows_tvde',
+      title: 'No-shows TVDE',
+      subtitle: 'Faltas de clientes nas corridas: ver e reverter',
+      icon: Icons.person_off,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdeNoShowsScreen(),
+      keywords: const ['clientes', 'corridas', 'faltas', 'reverter', 'shows', 'tvde'],
+    ),
+    // [tvde-conformidade-lei-59-2026 · 30/09] Lei 45/2018 revista pela Lei 59/2026.
+    AdminMenuItem(
+      id: 'tvde_conformidade_imt_amt',
+      title: 'Conformidade TVDE (IMT/AMT)',
+      subtitle: 'Cumprir a lei do transporte de passageiros: licenças, carros, motoristas, documentos a vencer, horas, queixas, relatórios e checklist',
+      icon: Icons.verified_user_outlined,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdeConformidadeScreen(),
+      keywords: const ['conformidade', 'tvde', 'imt', 'amt', 'lei', 'licenca', 'licenciamento', 'operador', 'veiculo', 'cmtvde', 'fiscalizacao', 'queixas', 'reclamacoes', 'horas', 'teto', 'intermediacao', 'checklist', 'distico', 'seguro', 'operadores', 'veiculos', 'impedimentos', 'caducar', 'interruptor'],
+    ),
+    ],
+  ),
   AdminMenuSection(
     id: 'arquivado',
     title: 'Arquivado',
-    subtitle: 'Ecrãs que você não usa ou que duplicam outros. Continuam a abrir; só saíram da frente.',
+    subtitle: 'Telas que você não usa ou que repetem outras; continuam abrindo, só saíram da frente.',
     icon: Icons.inventory_2_outlined,
     color: Colors.grey,
     archived: true,
@@ -1749,7 +1873,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'arquivado_pagamentos',
       title: 'Pagamentos',
-      subtitle: 'Saques e ganhos semanais dos entregadores (agora dentro do hub)',
+      subtitle: 'Ver os saques e ganhos semanais dos entregadores (tela antiga, agora dentro de Dinheiro e acertos)',
       icon: Icons.payments,
       color: AppColors.primary,
       builder: () => const AdminAcertosSemanaScreen(filtroInicial: 'driver'),
@@ -1759,7 +1883,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'arquivado_acerto_semanal_por_pessoa',
       title: 'Acerto semanal por pessoa',
-      subtitle: 'Acerto semanal por pessoa (agora dentro do hub)',
+      subtitle: 'Ver o acerto semanal de cada pessoa (tela antiga, agora dentro de Dinheiro e acertos)',
       icon: Icons.groups_2,
       color: AppColors.primary,
       builder: () => const AdminAcertoUnificadoScreen(),
@@ -1769,7 +1893,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'arquivado_ganho_do_dia_por_pessoa',
       title: 'Ganho do dia por pessoa',
-      subtitle: 'Ganho do dia por pessoa (agora dentro do hub)',
+      subtitle: 'Ver o ganho do dia de cada pessoa (tela antiga, agora dentro de Dinheiro e acertos)',
       icon: Icons.today,
       color: AppColors.primary,
       builder: () => const AdminGanhoDoDiaScreen(),
@@ -1779,7 +1903,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'arquivado_fechamento_semanal_estafetas',
       title: 'Fechamento Semanal — Estafetas',
-      subtitle: 'Fecho semanal antigo dos entregadores (agora dentro do hub)',
+      subtitle: 'Ver o fechamento semanal dos entregadores (tela antiga, agora dentro de Dinheiro e acertos)',
       icon: Icons.account_balance,
       color: Colors.indigo,
       builder: () => const AdminAcertosSemanaScreen(filtroInicial: 'driver'),
@@ -1789,7 +1913,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'arquivado_pagamentos_connect',
       title: 'Pagamentos Connect',
-      subtitle: 'Pagamentos por Stripe Connect (agora dentro do hub)',
+      subtitle: 'Ver os pagamentos pela Stripe Connect (tela antiga, agora dentro de Dinheiro e acertos)',
       icon: Icons.account_balance_wallet,
       color: Colors.deepPurple,
       builder: () => const AdminConnectPaymentsScreen(),
@@ -1799,7 +1923,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'arquivado_acerto_reservas_parceiros',
       title: 'Acerto reservas parceiros',
-      subtitle: 'Acerto das reservas de mesa (agora dentro do hub)',
+      subtitle: 'Ver o acerto das reservas de mesa (tela antiga, agora dentro de Dinheiro e acertos)',
       icon: Icons.event_seat,
       color: Colors.teal,
       builder: () => const AdminAcertosSemanaScreen(filtroInicial: 'partner'),
@@ -1809,7 +1933,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'arquivado_repasses_a_parceiros',
       title: 'Repasses a Parceiros',
-      subtitle: 'Repasses a parceiros (agora dentro do hub)',
+      subtitle: 'Ver os repasses aos parceiros (tela antiga, agora dentro de Dinheiro e acertos)',
       icon: Icons.payments_outlined,
       color: Colors.indigo,
       builder: () => const AdminAcertosSemanaScreen(filtroInicial: 'partner'),
@@ -1819,7 +1943,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'arquivado_fechamento_semanal_barbearias',
       title: 'Fechamento Semanal — Barbearias',
-      subtitle: 'Fecho semanal das barbearias (agora dentro do hub)',
+      subtitle: 'Ver o fechamento semanal das barbearias (tela antiga, agora dentro de Dinheiro e acertos)',
       icon: Icons.payments_outlined,
       color: Colors.indigo,
       builder: () => const AdminAcertosSemanaScreen(filtroInicial: 'provider'),
@@ -1829,7 +1953,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'arquivado_fechamento_semanal_limpeza',
       title: 'Fechamento Semanal — Limpeza',
-      subtitle: 'Fecho semanal da limpeza (agora dentro do hub)',
+      subtitle: 'Ver o fechamento semanal da limpeza (tela antiga, agora dentro de Dinheiro e acertos)',
       icon: Icons.payments_outlined,
       color: const Color(0xFF0EA5E9),
       builder: () => const AdminAcertosSemanaScreen(filtroInicial: 'cleaner'),
@@ -1839,7 +1963,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'arquivado_cashbacks',
       title: 'Cashbacks',
-      subtitle: 'Histórico de cashback (sem dados)',
+      subtitle: 'Ver o histórico de dinheiro de volta nas compras (cashback); ainda não há dados',
       icon: Icons.celebration,
       color: Colors.green,
       builder: () => const AdminCashbacksScreen(),

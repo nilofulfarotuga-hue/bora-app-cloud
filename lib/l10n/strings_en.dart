@@ -16,6 +16,122 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 15/11/2026 (fechar-tudo-15-11 — o parceiro rejeita uma reserva paga e a Bora
+  // devolve o pré-pagamento): só se diz ao parceiro o que aconteceu de facto.
+  // À mão; os mesmos pares estão em tool/l10n/traducoes/pt-en-39-reserva-recusa-reembolso.json.
+  'Ao rejeitar, o cliente é avisado e a Bora devolve-lhe os {0} do pré-pagamento.':
+      'If you reject it, the customer is notified and Bora refunds their {0} prepayment.',
+  'Ao rejeitar, o cliente é avisado.': 'If you reject it, the customer is notified.',
+  'Reserva rejeitada. O cliente foi avisado e a devolução de {0} já foi pedida.':
+      'Reservation rejected. The customer was notified and the {0} refund has been requested.',
+  'Reserva rejeitada. A devolução de {0} ao cliente já tinha sido feita.':
+      'Reservation rejected. The {0} refund to the customer had already been made.',
+  'Reserva rejeitada. O cliente foi avisado.':
+      'Reservation rejected. The customer was notified.',
+  'Reserva rejeitada. O cliente foi avisado e a equipa Bora trata da devolução.':
+      'Reservation rejected. The customer was notified and the Bora team will handle the refund.',
+  'Esta parte ainda não está instalada; tenta mais tarde ou fala com a equipa Bora.':
+      'This part is not installed yet; try again later or talk to the Bora team.',
+  'Esta reserva já foi decidida. Atualiza a lista.':
+      'This reservation has already been decided. Refresh the list.',
+  'Não tens acesso a esta reserva.': 'You do not have access to this reservation.',
+  'Reserva não encontrada.': 'Reservation not found.',
+  'Não foi possível concluir. Atualiza a lista e tenta de novo.':
+      'Could not finish. Refresh the list and try again.',
+  // 15/11/2026 (fechar-tudo-15-11, ponto E — Loja Online dentro da app, caixa 10):
+  // categoria dos produtos da loja Shopify da Bora, enviados pelo correio. À mão.
+  'Loja Online': 'Online Store',
+  'Novidade da semana': 'New this week',
+  'Produtos da nossa loja, enviados pelo correio para a tua casa.':
+      'Products from our store, shipped by mail to your home.',
+  'A Loja Online da Bora está quase pronta. Volta em breve.':
+      'The Bora Online Store is almost ready. Come back soon.',
+  'Não foi possível carregar a loja. Tenta outra vez.':
+      'We could not load the store. Try again.',
+  'Ainda não há produtos nesta loja.': 'There are no products in this store yet.',
+  'Enviado pelo correio': 'Shipped by mail',
+  'Chega pelo correio em 1 dia útil': 'Arrives by mail in 1 working day',
+  'Chega pelo correio em {0} dias úteis': 'Arrives by mail in {0} working days',
+  'Chega pelo correio em {0} a {1} dias úteis':
+      'Arrives by mail in {0} to {1} working days',
+  'Preço final, com IVA e envio incluídos': 'Final price, VAT and shipping included',
+  'Sobre este produto': 'About this product',
+  'Sem fotografia': 'No photo',
+  'Encomendar': 'Order',
+  'Os pagamentos desta loja abrem em breve.': 'Payments for this store open soon.',
+  'Produto': 'Product',
+  // 15/11/2026 (app-15-11, conversas ao vivo): aviso no chat do Amigo quando a
+  // Equipa Bora assumiu a conversa e o servidor não mandou texto. À mão.
+  'A Equipa Bora está a acompanhar esta conversa.':
+      'The Bora team is following this conversation.',
+  // 15/11/2026 (app-15-11): frase do Editar perfil da missão manha-15-11 (bloco B2)
+  // que ficou sem inglês e chumbava test/l10n_cobertura_test.dart. À mão.
+  'Para mudar o nome, fala com o suporte': 'To change your name, contact support',
+  // 15/11/2026 (fechar-app-15-11, revisão achados 1, 4, 6 e 17): MB WAY que
+  // falha no checkout — motivo, carrinho que fica e pedido anterior. À mão.
+  'O teu carrinho continua aqui: tenta outra vez ou escolhe outro meio de pagamento. Se o pedido antigo ainda aparecer na app MB WAY, recusa-o lá.':
+      'Your cart is still here: try again or choose another payment method. If the old request still shows in the MB WAY app, decline it there.',
+  'O MB WAY não está disponível de momento. O teu carrinho continua aqui: escolhe outro meio de pagamento.':
+      'MB WAY is not available right now. Your cart is still here: choose another payment method.',
+  'O pagamento MB WAY não foi confirmado: foi cancelado, recusado na app MB WAY ou passou o tempo.':
+      'The MB WAY payment was not confirmed: it was cancelled, declined in the MB WAY app or the time ran out.',
+  'Não há ligação à internet para pedir o pagamento MB WAY.':
+      'There is no internet connection to request the MB WAY payment.',
+  'A tua sessão terminou. Entra outra vez na tua conta para pagar com MB WAY.':
+      'Your session has ended. Sign in to your account again to pay with MB WAY.',
+  'O MB WAY só aceita pagamentos a partir de 0,50 €.':
+      'MB WAY only accepts payments from 0,50 €.',
+  'Este pedido já não estava à espera de pagamento, por isso o MB WAY não foi pedido outra vez.':
+      'This order was no longer waiting for payment, so MB WAY was not requested again.',
+  'Esse número de telemóvel não foi aceite pelo MB WAY. Confirma se é o número que tens na app MB WAY.':
+      'MB WAY did not accept that mobile number. Check that it is the number you have in the MB WAY app.',
+  'Não encontrámos o pedido para pedir o pagamento MB WAY.':
+      'We could not find the order to request the MB WAY payment.',
+  'O MB WAY não aceitou o pedido de pagamento neste momento.':
+      'MB WAY did not accept the payment request right now.',
+  'Não foi possível pedir o pagamento MB WAY.':
+      'The MB WAY payment could not be requested.',
+  'O pagamento MB WAY do teu pedido anterior entrou. Abrimos os teus pedidos.':
+      'The MB WAY payment for your previous order went through. We opened your orders.',
+  'O teu pedido MB WAY anterior ainda está ativo. Abrimos os teus pedidos.':
+      'Your previous MB WAY order is still active. We opened your orders.',
+  'Não conseguimos confirmar o teu pedido MB WAY anterior. Verifica a ligação e tenta de novo.':
+      'We could not check your previous MB WAY order. Check your connection and try again.',
+  'O pagamento MB WAY não avançou':
+      'The MB WAY payment did not go through',
+  'Escolher outro meio':
+      'Choose another method',
+  'Pagamento MB WAY confirmado. O teu pedido foi criado.':
+      'MB WAY payment confirmed. Your order has been created.',
+  'Aguarda a confirmação no MB WAY':
+      'Waiting for confirmation in MB WAY',
+  'Enviámos um pedido de {0} € para o teu telemóvel.\nAbre a app MB WAY e confirma.':
+      'We sent a request for €{0} to your phone.\nOpen the MB WAY app and confirm.',
+  // 11/11/2026 Editar perfil do cliente (nome e telemóvel; o email não muda). À mão.
+  'Editar perfil':
+      'Edit profile',
+  'Perfil atualizado.':
+      'Profile updated.',
+  'O email é o teu acesso e não se altera.':
+      'Your email is how you sign in and cannot be changed.',
+  'O nome tem de ter entre 2 e 60 caracteres.':
+      'Your name must be between 2 and 60 characters.',
+  'Escreve o teu nome com letras.':
+      'Write your name using letters.',
+  'Telemóvel inválido. Usa 9 dígitos a começar por 9 (ex.: 912345678).':
+      'Invalid mobile number. Use 9 digits starting with 9 (e.g. 912345678).',
+  'A tua sessão terminou. Entra outra vez na tua conta.':
+      'Your session has ended. Please sign in to your account again.',
+  'Cria uma conta para poderes guardar os teus dados.':
+      'Create an account to save your details.',
+  'Já mudaste os teus dados muitas vezes hoje. Tenta amanhã ou fala com o Suporte.':
+      'You have changed your details too many times today. Try again tomorrow or contact Support.',
+  'A ligação está lenta. Verifica a internet e tenta de novo.':
+      'The connection is slow. Check your internet and try again.',
+  'Não foi possível guardar. Verifica a ligação e tenta de novo.':
+      'Could not save. Check your connection and try again.',
+  'Conta não encontrada.':
+      'Account not found.',
   // 11/11/2026 Amigo: botão Voltar bem visível, etiqueta "assistente virtual" no cabeçalho e saudação
   // de reserva sem o aviso de IA na fala. À mão.
   'assistente virtual':
@@ -76,6 +192,8 @@ const Map<String, String> kStringsEn = <String, String>{
   'Preço de balcão. É só isto que pagas. Depois cobras ao cliente.': 'Counter price. This is all you pay. Then you collect from the customer.',
   'JÁ ESTÁ PAGO — não pagas nada na loja': 'ALREADY PAID — you pay nothing at the store',
   'TENS DE FAZER A COMPRA': 'YOU HAVE TO DO THE SHOPPING',
+  'Total a pagar na caixa: {0}': 'Total to pay at the till: {0}',
+  'Valor estimado: {0}': 'Estimated amount: {0}',
   'Paga na caixa e tira foto do talão.': 'Pay at the till and take a photo of the receipt.',
   'Paga na caixa e tira foto do talão. Valor estimado: {0}': 'Pay at the till and take a photo of the receipt. Estimated amount: {0}',
   'COBRA {0} AO CLIENTE': 'COLLECT {0} FROM THE CUSTOMER',
@@ -2038,8 +2156,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Add your address so we can show restaurants and stores near you.',
   'Adiciona uma foto da encomenda — obrigatório.':
       'Add a photo of the parcel — required.',
-  'Adicionado pelo estafeta · €{0}':
-      'Added by the courier · €{0}',
+  'Adicionado pelo estafeta · {0}':
+      'Added by the courier · {0}',
   'Adicionar':
       'Add',
   'Adicionar ao calendário — em breve.':
@@ -2066,8 +2184,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Awaiting payment',
   'Aguardando o estafeta concluir a compra na loja…':
       'Waiting for the courier to finish the purchase at the store…',
-  'Aguardando resposta do cliente...':
-      'Waiting for the customer\'s reply...',
+  'À espera da resposta do cliente…':
+      'Waiting for the customer\'s reply…',
   'Ainda estamos a confirmar o pagamento. Vê o estado no ecrã da corrida — se o MB Way passou, ela segue sozinha.':
       'We are still confirming the payment. Check the status on the ride screen — if MB Way went through, it continues on its own.',
   'Ainda estás a tempo — o cancelamento é grátis.':
@@ -2491,7 +2609,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'Ask the establishment for allergen information.',
   'Conta apagada.':
       'Account deleted.',
-  'Conta criada com sucesso. Faça login.':
+  'Conta criada com sucesso. Já pode entrar.':
       'Account created successfully. Please sign in.',
   'Conta criada!':
       'Account created!',
@@ -2665,7 +2783,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'Address',
   'Endereço de entrega':
       'Delivery address',
-  'Endereço de entrega não definido. Volte e selecione um endereço.':
+  'Falta a morada de entrega. Volta atrás e escolhe uma morada.':
       'Delivery address not set. Go back and select an address.',
   'Endereço de recolha':
       'Pickup address',
@@ -2752,8 +2870,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Error cancelling: {0}',
   'Erro ao criar o pedido. Verifica a ligação e tenta de novo.':
       'Error creating the order. Check your connection and try again.',
-  'Erro ao enviar foto: {0}':
-      'Error uploading photo: {0}',
+  'Não foi possível enviar a foto. Tente outra vez.':
+      'Could not send the photo. Try again.',
   'Erro ao iniciar pagamento. Verifica a ligação e tenta de novo.\n({0})':
       'Error starting payment. Check your connection and try again.\n({0})',
   'Erro ao remover foto: {0}':
@@ -3001,8 +3119,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'There are {0}h to the appointment (more than 24 hours).\n\nRule: FULL refund of {1} of €{2} (5–10 business days on the card).',
   'Faltam {0}h para a marcação (menos de 24 horas).\n\nRegra: {1} de €{2} NÃO é reembolsado.':
       'There are {0}h to the appointment (less than 24 hours).\n\nRule: {1} of €{2} is NOT refunded.',
-  'Faltam {0}h. Reembolso de €{1} em 5–10 dias.':
-      '{0}h to go. Refund of €{1} in 5–10 days.',
+  'Faltam {0}h. Reembolso de {1} em 5–10 dias.':
+      '{0}h to go. Refund of {1} in 5–10 days.',
   'Faltou':
       'Missing',
   'Farmácia':
@@ -3035,8 +3153,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Freshness guaranteed',
   'Galeria':
       'Gallery',
-  'Ganhaste {0} Bora Tokens (≈€{1})! Já estão na tua conta.':
-      'You earned {0} Bora Tokens (≈€{1})! They are already in your account.',
+  'Ganhaste {0} Bora Tokens (≈{1})! Já estão na tua conta.':
+      'You earned {0} Bora Tokens (≈{1})! They are already in your account.',
   'Garantir a volta':
       'Secure the return trip',
   'Garantir ida e volta · €{0}':
@@ -3129,7 +3247,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'Information about the fees ',
   'Informe a nova palavra-passe.':
       'Enter the new password.',
-  'Informe a palavra-passe.':
+  'Indique a palavra-passe.':
       'Enter the password.',
   'Informe o seu email.':
       'Enter your email.',
@@ -3397,8 +3515,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'We cannot send the email at the moment. Try later or get in touch through customer support.',
   'Não disponível':
       'Not available',
-  'Não disponível — €{0} creditados ao saldo':
-      'Not available — €{0} credited to your balance',
+  'Não disponível — {0} creditados ao saldo':
+      'Not available — {0} credited to your balance',
   'Não editável após pagamento confirmado':
       'Not editable once payment is confirmed',
   'Não encontrei essa morada.':
@@ -3471,8 +3589,6 @@ const Map<String, String> kStringsEn = <String, String>{
       'MB Way could not be started. Check the number and try again.',
   'Não foi possível iniciar o MBWay. Confirma o número e tenta de novo.':
       'MBWay could not be started. Check the number and try again.',
-  'Não foi possível iniciar o pagamento MBWay.':
-      'The MBWay payment could not be started.',
   'Não foi possível iniciar o pagamento da volta.':
       'The payment for the return trip could not be started.',
   'Não foi possível iniciar o pagamento.':
@@ -4010,7 +4126,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'You get a notification and confirm in MBWay.',
   'Recebe um pedido na app MB WAY':
       'You get a request in the MB WAY app',
-  'Recebemos. Resposta em até {0}h.':
+  'Recebemos. Resposta até {0} h.':
       'We got it. Reply within {0}h.',
   'Receber pagamentos':
       'Receive payments',
@@ -4094,7 +4210,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'Redeem code',
   'Resposta do parceiro:':
       'Partner\'s reply:',
-  'Resposta em até {0}h em {1}':
+  'Resposta até {0} h em {1}':
       'Reply within {0}h on {1}',
   'Resposta em até {0}h · {1}':
       'Reply within {0}h · {1}',
@@ -4277,8 +4393,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Standard',
   'Substituir produto?':
       'Replace product?',
-  'Substituído{0} · €{1}':
-      'Replaced{0} · €{1}',
+  'Substituído{0} · {1}':
+      'Replaced{0} · {1}',
   'Subtotal':
       'Subtotal',
   'Sugestão':
@@ -5431,4 +5547,7 @@ const Map<String, String> kStringsEn = <String, String>{
       '{0} — the pro only brings the tools',
   'Material do cliente — levas só as ferramentas':
       "Client's materials — bring only your tools",
+  // 15/11/2026 (app-15-11): convites sem o erro técnico no ecrã.
+  'Não foi possível carregar. Tente outra vez.':
+      'Could not load. Try again.',
 };

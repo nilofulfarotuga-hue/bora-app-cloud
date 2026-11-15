@@ -10,6 +10,7 @@ import '../../../widgets/tvde/recibo_pago.dart';
 import '../../../widgets/tvde/recibo_viagem_sheet.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/tvde/tvde_roundtrip_driver_notice.dart';
+import '../../../utils/euros.dart';
 import '../../../utils/hora_lisboa.dart';
 
 import '../../../l10n/tr.dart';
@@ -18,12 +19,14 @@ import '../../../l10n/tr.dart';
 /// corrida cancelada é a taxa que o servidor REALMENTE cobrou ("Sem custo" se
 /// 0) — antes mostrava a tarifa inteira, como se a corrida tivesse sido paga.
 String valorNoHistorico(TvdeRide ride, {required int packageCents}) {
+  // app-15-11: formato de Portugal ("7,00 €")
   if (ride.isCancelled) {
     return ride.cancelFeeCents > 0
-        ? '€${(ride.cancelFeeCents / 100).toStringAsFixed(2)}'
+        ? eurCents(ride.cancelFeeCents)
         : 'Sem custo'.tr;
   }
-  return '€${(TvdeFareView.of(ride, packageCents: packageCents).clientTotalCents / 100).toStringAsFixed(2)}';
+  return eurCents(
+      TvdeFareView.of(ride, packageCents: packageCents).clientTotalCents);
 }
 
 /// TVDE — Histórico de corridas do passageiro.

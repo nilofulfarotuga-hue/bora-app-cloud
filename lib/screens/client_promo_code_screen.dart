@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/app_colors.dart';
+import '../utils/euros.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 
 import '../l10n/tr.dart';
+import '../utils/sessao.dart';
 
 /// Ecrã para o cliente resgatar um código promocional → ganha tokens.
 /// Chama RPC `client_redeem_promo_tokens(p_code text)`.
@@ -66,8 +68,9 @@ class _ClientPromoCodeScreenState extends State<ClientPromoCodeScreen> {
       final tokensGranted = (m['tokens_granted'] as num?)?.toInt() ?? 0;
       final euroValue = (m['euro_value'] as num?)?.toDouble() ??
           (tokensGranted * 0.005);
+      // app-15-11: formato de Portugal ("≈1,50 €")
       final msg =
-          'Ganhaste {0} Bora Tokens (≈€{1})! Já estão na tua conta.'.trArgs([tokensGranted, euroValue.toStringAsFixed(2)]);
+          'Ganhaste {0} Bora Tokens (≈{1})! Já estão na tua conta.'.trArgs([tokensGranted, eur(euroValue)]);
       if (mounted) {
         setState(() {
           _successMessage = msg;
@@ -105,6 +108,7 @@ class _ClientPromoCodeScreenState extends State<ClientPromoCodeScreen> {
   /// Best-effort: força refresh do saldo de tokens em outros ecrãs.
   /// Usa wallet_get_balance que devolve tokens_balance actualizado.
   Future<void> _refreshTokenBalance() async {
+    if (!temSessao()) return; // app-15-11
     try {
       await Supabase.instance.client.rpc('wallet_get_balance');
     } catch (_) {/* silencioso */}

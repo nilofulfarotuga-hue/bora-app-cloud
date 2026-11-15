@@ -30,6 +30,7 @@ import '../services/payment_service.dart';
 import '../services/stripe_contas.dart';
 import '../services/tip_service.dart';
 import '../utils/hora_lisboa.dart';
+import '../utils/mensagem_mbway.dart';
 import '../utils/nota_do_pedido.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora/maior_18.dart';
@@ -41,6 +42,7 @@ import '../widgets/falta_para_entrega_gratis.dart';
 import '../widgets/fatura_nif_card.dart';
 import '../widgets/talheres_troco_cards.dart';
 import 'client_home_screen.dart' show abrirSeletorDeMorada;
+import 'orders_screen.dart';
 import '../widgets/unified_checkout_button.dart';
 import '../widgets/valor_com_risco.dart';
 
@@ -131,7 +133,8 @@ class PaymentMethodScreen extends StatefulWidget {
   State<PaymentMethodScreen> createState() => _PaymentMethodScreenState();
 }
 
-class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
+class _PaymentMethodScreenState extends State<PaymentMethodScreen>
+    with WidgetsBindingObserver {
   PaymentMethod _selectedMethod = PaymentMethod.card;
   bool _isProcessing = false;
 
@@ -217,10 +220,26 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       _mbwayPhoneController.text =
           digits.startsWith('351') ? digits.substring(3) : digits;
     }
+    // Revisão 15/11 (achado 1): um MB WAY anterior deste carrinho pode ter
+    // sido pago na app do banco depois de a Bora o cancelar. Lê-se ao abrir o
+    // ecrã e sempre que o cliente volta à app.
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_pedidoMbwayAnteriorTrava());
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Durante um pagamento o diálogo de espera já lê o pedido sozinho.
+    if (state == AppLifecycleState.resumed && mounted && !_isProcessing) {
+      unawaited(_pedidoMbwayAnteriorTrava());
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _mbwayPhoneController.dispose();
     _notesController.dispose();
     _faturaNif.dispose();
@@ -1256,7 +1275,16 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   /// failure. If [orderId] is provided, also calls `client-cancel-order` Edge
   /// Function to mark the orphan order as cancelled in DB (avoids stuck
   /// status='preparing' / payment_status='pending' rows).
-  Future<void> _bailOutAndCancel(String? orderId) async {
+  ///
+  /// [ficarNoPagamento] (Bloco 5, 14/11/2026): o cliente fica neste ecrã, com
+  /// o carrinho, para tentar outra vez ou escolher outro meio. Sem isso volta
+  /// ao início, como sempre.
+  ///
+  /// Devolve true quando o servidor recusou cancelar porque o pagamento JÁ
+  /// entrou (`already_paid`, manha-15-11 bloco C2): o pedido segue pago e o
+  /// ecrã abre os pedidos em vez de mostrar a falha.
+  Future<bool> _bailOutAndCancel(String? orderId,
+      {bool ficarNoPagamento = false}) async {
     var cancelFalhou = false;
     if (orderId != null) {
       try {
@@ -1264,16 +1292,26 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           'client-cancel-order',
           body: {'order_id': orderId, 'reason': 'payment_failed'},
         );
+      } on FunctionException catch (e) {
+        final d = e.details;
+        final erro = d is Map ? d['error']?.toString() : d?.toString();
+        // Quem chama trata o pedido como pago (limpa o carrinho e desconta
+        // os tokens como no pagamento normal — bloco C3).
+        if (cancelamentoRecusadoPorPagamento(e.status, erro)) return true;
+        debugPrint('[Checkout] _bailOutAndCancel error (non-fatal): $e');
+        cancelFalhou = true;
       } catch (e) {
         debugPrint('[Checkout] _bailOutAndCancel error (non-fatal): $e');
         cancelFalhou = true;
       }
     }
-    if (!mounted) return;
+    if (!mounted) return false;
     // 2026-10-03: se não deu para cancelar, o cliente tem de saber — o pedido
     // pode continuar activo à espera de pagamento.
     final messenger = ScaffoldMessenger.of(context);
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    if (!ficarNoPagamento) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
     if (cancelFalhou) {
       messenger.showSnackBar(SnackBar(
         duration: const Duration(seconds: 6),
@@ -1281,6 +1319,87 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
             'Não conseguimos cancelar o pedido por falta de rede. Vê em "Pedidos" e cancela-o lá se ainda aparecer.'),
       ));
     }
+    return false;
+  }
+
+  /// Revisão 15/11 (achado 1): o MB WAY anterior deste carrinho continua vivo?
+  ///
+  /// O cancelamento da Bora não tira o pedido de pagamento da app MB WAY, e o
+  /// servidor reativa o pedido se o dinheiro entrar depois. Por isso, antes de
+  /// criar outro pedido (e ao abrir o ecrã ou voltar à app) lê-se o anterior:
+  /// pago ou ainda não cancelado → o carrinho já virou esse pedido (o
+  /// [CartStore] limpa-o) e abrem-se os pedidos em vez de criar outro.
+  ///
+  /// Devolve true quando NÃO se deve criar outro pedido: o ecrã saiu para os
+  /// pedidos, ou [aoPagar] e não deu para ler o anterior (sem rede — criar
+  /// outro arriscava pagar duas vezes).
+  Future<bool> _pedidoMbwayAnteriorTrava({bool aoPagar = false}) async {
+    final cart = context.read<CartStore>();
+    if (cart.mbwayPendenteId == null) return false;
+    final r = await cart.verificarMbwayPendente();
+    final vivo =
+        r == PedidoMbwayAnterior.pago || r == PedidoMbwayAnterior.ativo;
+    if (!mounted) return vivo;
+    if (vivo) {
+      _abrirPedidos(r == PedidoMbwayAnterior.pago
+          ? 'O pagamento MB WAY do teu pedido anterior entrou. Abrimos os teus pedidos.'
+              .tr
+          : 'O teu pedido MB WAY anterior ainda está ativo. Abrimos os teus pedidos.'
+              .tr);
+      return true;
+    }
+    if (aoPagar && r == PedidoMbwayAnterior.semResposta) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            'Não conseguimos confirmar o teu pedido MB WAY anterior. Verifica a ligação e tenta de novo.'
+                .tr),
+        backgroundColor: Colors.red,
+      ));
+      return true;
+    }
+    return false;
+  }
+
+  /// Sai deste ecrã para "Pedidos" (o mesmo destino de um pagamento feito),
+  /// sem devolver `true` a quem abriu o ecrã: esse caminho é o do pagamento
+  /// acabado de fazer (gorjeta, etc.), não o de um pedido anterior.
+  void _abrirPedidos(String frase) {
+    final messenger = ScaffoldMessenger.of(context);
+    final nav = Navigator.of(context);
+    nav.popUntil((route) => route.isFirst);
+    nav.push(MaterialPageRoute(builder: (_) => const OrdersScreen()));
+    messenger.showSnackBar(SnackBar(content: Text(frase)));
+  }
+
+  /// Revisão 15/11 (achado 4): o motivo da falha do MB WAY num diálogo, com
+  /// "Tentar outra vez" e "Escolher outro meio" — antes era um aviso de 9 s
+  /// por cima do botão de pagar. Com o MB WAY desligado só há "outro meio".
+  Future<void> _mostrarFalhaMbway(
+      String frase, double amount, int tokensUsed) async {
+    final podeRepetir = !eMbwayDesligado(frase);
+    final repetir = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        key: const Key('mbway_falhou'),
+        title: Text('O pagamento MB WAY não avançou'.tr),
+        content: Text(frase),
+        actions: [
+          TextButton(
+            key: const Key('mbway_outro_meio'),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Escolher outro meio'.tr),
+          ),
+          if (podeRepetir)
+            FilledButton(
+              key: const Key('mbway_tentar_outra_vez'),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text('Tentar outra vez'.tr),
+            ),
+        ],
+      ),
+    );
+    if (repetir != true || !mounted) return;
+    unawaited(_confirmPayment(context, amount, tokensUsed: tokensUsed));
   }
 
   /// Parte 3 (rodada 2) — grava a paragem em casa do favor (morada + coords +
@@ -1337,7 +1456,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-              'Endereço de entrega não definido. Volte e selecione um endereço.'.tr),
+              'Falta a morada de entrega. Volta atrás e escolhe uma morada.'.tr),
           backgroundColor: Colors.red,
         ),
       );
@@ -1408,6 +1527,16 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           backgroundColor: Colors.red));
       return;
     }
+
+    // Revisão 15/11 (achado 1): antes de criar outro pedido, por qualquer
+    // meio, o MB WAY anterior deste carrinho não pode estar vivo — senão o
+    // cliente podia pagar duas vezes (o pedido antigo continua na app MB WAY).
+    if (!mounted) return;
+    if (await _pedidoMbwayAnteriorTrava(aoPagar: true)) {
+      if (mounted) setState(() => _isProcessing = false);
+      return;
+    }
+    if (!mounted) return;
 
     // ── Card: PAYMENT-FIRST flow (BUG 1 / Fase 2, 2026-04-30) ────────────────
     // Order is NOT created until Stripe charge confirms via webhook.
@@ -1681,6 +1810,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           customerName: authStore.currentClient?.name,
           notes: _orderNote,
           tokensUsed: tokensUsed,
+          // fechar-app-15-11 (Bloco 5): o carrinho só se limpa depois de o
+          // MB WAY ser confirmado. Se falhar, o cliente fica neste ecrã com
+          // o carrinho inteiro e pode tentar outra vez ou escolher outro meio
+          // (antes ficava sem carrinho e era mandado para o início).
+          manterCarrinho: true,
         );
         if (!mounted) return;
         if (!mbwayOrdered) {
@@ -1714,25 +1848,53 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           phone: clientPhone,
         );
         if (!mounted) return;
-        setState(() => _isProcessing = false);
-        if (piId == null) {
-          messenger.showSnackBar(SnackBar(
-            content: Text('Não foi possível iniciar o pagamento MBWay.'.tr),
-          ));
-          await _bailOutAndCancel(mbwayOrderId);
-          return;
+        // Revisão 15/11 (achado 5): o botão continua ocupado até o pedido
+        // antigo estar cancelado — antes ficava ativo logo aqui e um toque
+        // criava outro pedido com o primeiro ainda por cancelar.
+        // manha-15-11 bloco C2: 409 "já foi tratado" = o pedido já não está à
+        // espera e pode estar PAGO. Antes cancelava-se logo como falha; agora
+        // espera-se pelo estado real (o mesmo diálogo do MB WAY) e só se
+        // cancela se não entrar — e aí o servidor recusa se já estiver pago.
+        var pagoTarde = false;
+        if (piId == null && paymentService.ultimoMbwayJaTratado) {
+          pagoTarde = await _showMBWayWaitingDialog(mbwayOrderId, amount);
+          if (!mounted) return;
         }
-        final mbwayPaid = await _showMBWayWaitingDialog(mbwayOrderId, amount);
+        if (piId == null && !pagoTarde) {
+          // Diz PORQUE falhou (número sem MB WAY, sem rede, valor mínimo…)
+          // e o que fazer; o pedido que ficou criado é cancelado sem custo.
+          final frase = paymentService.ultimoErroMbway ?? mensagemErroMbway();
+          pagoTarde =
+              await _bailOutAndCancel(mbwayOrderId, ficarNoPagamento: true);
+          if (!mounted) return;
+          if (!pagoTarde) {
+            setState(() => _isProcessing = false);
+            await _mostrarFalhaMbway(frase, amount, tokensUsed);
+            return;
+          }
+        }
+        var mbwayPaid = pagoTarde ||
+            await _showMBWayWaitingDialog(mbwayOrderId, amount);
+        if (!mbwayPaid && mounted) {
+          // C3: o servidor recusa cancelar se o pagamento entrou entretanto;
+          // aí o pedido segue como pago, com os tokens descontados.
+          mbwayPaid =
+              await _bailOutAndCancel(mbwayOrderId, ficarNoPagamento: true);
+          if (!mbwayPaid) {
+            if (!mounted) return;
+            setState(() => _isProcessing = false);
+            await _mostrarFalhaMbway(mbwayNaoConfirmado, amount, tokensUsed);
+            return;
+          }
+        }
+        // Pago: o carrinho limpa-se JÁ, mesmo que o ecrã tenha saído
+        // entretanto (revisão 15/11, achado 2). Antes só depois do `mounted`.
+        if (mbwayPaid) cartStore.limparDepoisDoPedido();
         if (!mounted) return;
-        if (!mbwayPaid) {
-          messenger.showSnackBar(SnackBar(
-            content: Text('Pagamento MBWay não confirmado ou expirou.'.tr),
-          ));
-          await _bailOutAndCancel(mbwayOrderId);
-          return;
-        }
         await _persistErrandHomeStop(favorMbway, mbwayOrderId);
-        await _consumeTokensAndNavigate(tokensUsed);
+        await _consumeTokensAndNavigate(tokensUsed,
+            mensagem:
+                'Pagamento MB WAY confirmado. O teu pedido foi criado.'.tr);
         return;
       case PaymentMethod.cash:
         // 2026-06-04 — feedback visual imediato: cold-start RPC create_order +
@@ -1803,7 +1965,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   }
 
   /// Consumes loyalty tokens (non-fatal) and navigates back on success.
-  Future<void> _consumeTokensAndNavigate(int tokensUsed) async {
+  /// [mensagem] troca o aviso final (MB WAY já pago — revisão 15/11, nota 17).
+  Future<void> _consumeTokensAndNavigate(int tokensUsed,
+      {String? mensagem}) async {
     if (tokensUsed > 0) {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId != null) {
@@ -1828,7 +1992,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     setState(() => _isProcessing = false);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text('Pedido criado. A aguardar confirmação de pagamento.'.tr)),
+          content: Text(mensagem ??
+              'Pedido criado. A aguardar confirmação de pagamento.'.tr)),
     );
     Navigator.pop(context, true);
   }
@@ -2099,7 +2264,8 @@ class _MBWayWaitingDialogState extends State<_MBWayWaitingDialog> {
         children: [
           Icon(Icons.phone_iphone, color: Colors.red.shade700),
           const SizedBox(width: 8),
-          Text('Aguarda confirmação MBWay'.tr),
+          // Revisão 15/11 (nota 17): "MB WAY", como nas outras frases.
+          Text('Aguarda a confirmação no MB WAY'.tr),
         ],
       ),
       content: Column(
@@ -2107,7 +2273,7 @@ class _MBWayWaitingDialogState extends State<_MBWayWaitingDialog> {
         children: [
           const SizedBox(height: 4),
           Text(
-            'Enviámos um pedido de {0} € para o teu telemóvel.\nAbre o MBWay e confirma.'.trArgs([widget.amount.toStringAsFixed(2).replaceAll('.', ',')]),
+            'Enviámos um pedido de {0} € para o teu telemóvel.\nAbre a app MB WAY e confirma.'.trArgs([widget.amount.toStringAsFixed(2).replaceAll('.', ',')]),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),

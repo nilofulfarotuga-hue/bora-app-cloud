@@ -10,7 +10,9 @@ LEMBRETES_DESTINO (lido do .env da VPS na hora, nunca guardado em codigo).
 
 Ciclo de vida da linha em whatsapp_saida:
   pendente -> a-enviar (reservada aqui) -> emitida (+emitida_em, quando o ligar.js diz 'a-caminho')
-  falhou / cancelada-fora-da-allowlist / cancelada-expirada (>30 min) / cancelada-anonimato
+  falhou / cancelada-fora-da-allowlist / cancelada-expirada (>30 min)
+  ('cancelada-anonimato' so existe em linhas antigas: desde 15/11/2026 esta pista nao trava pelo nome
+  do dono, porque so entrega ao proprio dono.)
 Quando sai: escreve uma linha direcao='saida' em whatsapp_messages (msg_id = 'ld-<id>') e marca
 enviado_em nos itens de lembretes_danilo citados em 'ids=' no motivo. Os avisos 'entregue'/'visto'
 da WhatsApp atualizam essa linha.
@@ -34,8 +36,8 @@ IDADE_MAX_S = 1800
 VOZ_DIR = "/opt/data/voz/lembretes"
 SUF_VOZ = "~voz"
 def _re_dono():
-    """Nomes que nunca podem sair numa mensagem (anonimato do dono). Vem do .env
-    (LEMBRETES_NOMES_DONO=nome1,nome2), nunca do codigo: o repositorio e publico."""
+    """Nomes do dono (LEMBRETES_NOMES_DONO=nome1,nome2 no .env, nunca no codigo). Desde 15/11/2026 esta
+    pista ja nao os usa para travar (so entrega ao proprio dono); fica para quem importar RE_DONO."""
     nomes = []
     try:
         with open(ENV, encoding="utf-8") as fh:
@@ -93,9 +95,12 @@ def pendentes():
         if _digitos(r["numero"]) != dest:
             db.atualizar("whatsapp_saida", "id=eq." + rid, {"estado": "cancelada-fora-da-allowlist"})
             continue
-        if RE_DONO is not None and RE_DONO.search(r.get("texto") or ""):
-            db.atualizar("whatsapp_saida", "id=eq." + rid, {"estado": "cancelada-anonimato"})
-            continue
+        # TRAVA DO ANONIMATO FORA DESTA PISTA (missao fechar-app-15-11, bloco 8 parte F; ordem do dono de
+        # 12/11/2026: "a trava do anonimato vale so para mensagens a clientes, nunca para alertas ao meu
+        # numero"). Aqui ja so passa o que vai para LEMBRETES_DESTINO (o proprio dono, verificado na linha
+        # de cima): nao ha cliente nenhum a ler. A trava cancelou a 12/11 as 04:38 um alerta do suporte
+        # porque o CLIENTE se chamava como o dono, e o dono nunca soube que alguem precisava dele.
+        # O nome continua travado em tudo o que vai para clientes (servidor_cerebro.py, emitir()).
         if _idade_s(r["created_at"]) > IDADE_MAX_S:
             db.atualizar("whatsapp_saida", "id=eq." + rid, {"estado": "cancelada-expirada"})
             continue

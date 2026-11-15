@@ -6,6 +6,12 @@ import '../../config/app_spacing.dart';
 import '../../services/auth_admin_service.dart';
 import '../../utils/hora_lisboa.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '_admin_rpc_errors.dart';
+
+/// [15/11/2026] Explicação do botão "Excluir rascunho" desligado.
+const String kExcluirRascunhoIndisponivel =
+    'Excluir ainda não funciona: falta uma função de admin no servidor '
+    '(proposta enviada).';
 
 /// Painel admin para órfãos de pagamento (BUG 1 / Fase 2 — 2026-04-30).
 ///
@@ -30,6 +36,12 @@ class _AdminOrphanPaymentsScreenState extends State<AdminOrphanPaymentsScreen> {
   // (deep-link /admin/orphans dos alertas "PAGOU E NÃO TEM PEDIDO").
   late Future<List<Map<String, dynamic>>> _futurePagos;
   final Set<String> _aCriar = {};
+
+  /// [15/11/2026] Excluir rascunho nunca funciona hoje: `payment_drafts` só
+  /// tem política de LEITURA (o delete apaga zero linhas) e não há função de
+  /// admin para isto. O botão fica desligado, com a explicação, até existir
+  /// essa função no servidor (proposta enviada); liga-se aqui.
+  static const bool _excluirRascunhoDisponivel = false;
 
   @override
   void initState() {
@@ -233,7 +245,8 @@ class _AdminOrphanPaymentsScreenState extends State<AdminOrphanPaymentsScreen> {
                       padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator()));
                 }
                 if (snap.hasError) {
-                  return Text('Erro a carregar (admin_pagos_sem_pedido): ${snap.error}');
+                  return Text('Não consegui carregar os pagos sem pedido. '
+                      '${humanizeAdminRpcError(snap.error!)}');
                 }
                 final todos = snap.data ?? const [];
                 final pendentes = todos.where((r) => r['estado'] != 'com_pedido').toList();
@@ -277,10 +290,8 @@ class _AdminOrphanPaymentsScreenState extends State<AdminOrphanPaymentsScreen> {
                       padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator()));
                 }
                 if (snapshot.hasError) {
-                  return Text(
-                    'Erro a carregar: ${snapshot.error}\n\n'
-                    'Verifica que admin_list_orphans existe e tens role=admin.',
-                  );
+                  return Text('Não consegui carregar os outros órfãos. '
+                      '${humanizeAdminRpcError(snapshot.error!)}');
                 }
                 final rows = snapshot.data ?? const [];
                 if (rows.isEmpty) {
@@ -297,7 +308,10 @@ class _AdminOrphanPaymentsScreenState extends State<AdminOrphanPaymentsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     for (final r in rows) ...[
-                      _OrphanCard(row: r, onDelete: _deleteDraft),
+                      _OrphanCard(
+                          row: r,
+                          onDelete:
+                              _excluirRascunhoDisponivel ? _deleteDraft : null),
                       const SizedBox(height: 8),
                     ],
                   ],
@@ -417,7 +431,9 @@ class _OrphanCard extends StatelessWidget {
   const _OrphanCard({required this.row, required this.onDelete});
 
   final Map<String, dynamic> row;
-  final Future<void> Function(Map<String, dynamic> row) onDelete;
+
+  /// Nulo = excluir ainda não existe no servidor: botão desligado + motivo.
+  final Future<void> Function(Map<String, dynamic> row)? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -430,6 +446,7 @@ class _OrphanCard extends StatelessWidget {
 
     final isDraft = kind == 'payment_draft';
     final color = isDraft ? AppColors.warning : AppColors.error;
+    final apagar = onDelete;
 
     return Container(
       decoration: BoxDecoration(
@@ -464,10 +481,21 @@ class _OrphanCard extends StatelessWidget {
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
                   icon: const Icon(Icons.delete, size: 16),
-                  label: const Text('Excluir draft'),
-                  onPressed: () => onDelete(row),
+                  label: const Text('Excluir rascunho'),
+                  onPressed: apagar == null ? null : () => apagar(row),
                 ),
               ),
+              if (apagar == null)
+                const Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    kExcluirRascunhoIndisponivel,
+                    key: ValueKey('excluir_rascunho_indisponivel'),
+                    textAlign: TextAlign.right,
+                    style:
+                        TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                ),
             ],
           ],
         ),

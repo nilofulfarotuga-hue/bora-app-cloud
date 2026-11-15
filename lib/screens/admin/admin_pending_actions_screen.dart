@@ -15,6 +15,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../utils/hora_lisboa_ext.dart';
+import '../../services/admin_nome_sync.dart';
 
 class AdminPendingActionsScreen extends StatefulWidget {
   const AdminPendingActionsScreen({super.key});
@@ -53,7 +54,7 @@ class _AdminPendingActionsScreenState
     'CANCEL_DURING_PURCHASE': 'Cancelar pedido (entregador envolvido)',
     'RESERVATION_CANCEL': 'Cancelar reserva',
     'PASSWORD_RESET': 'Reset password',
-    'ACCOUNT_UPDATE': 'Actualizar dados conta',
+    'ACCOUNT_UPDATE': 'Atualizar dados da conta (nome/telefone)',
   };
 
   @override
@@ -169,6 +170,12 @@ class _AdminPendingActionsScreenState
       final r = result as Map?;
       final hasError = r != null && r['error'] != null;
       final isDispatch = r != null && r['action'] == 'EXTERNAL_DISPATCH_REQUIRED';
+      // manha-15-11 B1: o RPC só muda public.users; o nome que a app mostra
+      // é o do login (bora_name), que se copia aqui.
+      if (!hasError && action['action_type'] == 'ACCOUNT_UPDATE') {
+        await sincronizarNomeNoLogin(actionId: action['id']?.toString());
+        if (!mounted) return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: hasError
@@ -178,7 +185,13 @@ class _AdminPendingActionsScreenState
               ? 'Falhou: ${r['error']}'
               : isDispatch
                   ? 'Validado · aguarda dispatch (${r['target']})'
-                  : 'Acção executada com sucesso'),
+                  // Editar perfil (11/11/2026): aprovar ACCOUNT_UPDATE muda
+                  // users e o login, guarda o antes/depois e avisa o cliente.
+                  : action['action_type'] == 'ACCOUNT_UPDATE'
+                      ? (r?['alterado'] == false
+                          ? 'Nada mudou: o cliente já tinha estes dados.'
+                          : 'Dados do cliente atualizados e cliente avisado na app.')
+                      : 'Acção executada com sucesso'),
         ),
       );
       await _load();

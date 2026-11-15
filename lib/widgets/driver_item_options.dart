@@ -31,6 +31,14 @@ List<CartItem> copyOrderItemsForDriverSheet(List<CartItem> items) {
             basePrice: i.basePrice,
             selectedOptions: i.selectedOptions,
             selectedOptionsPriced: i.selectedOptionsPriced,
+            // fechar-app-15-11 (Bloco 3a): sem a versão crua do servidor o
+            // estado das compras gravava os itens SEM `selected_options_priced`
+            // e o preço de balcão perdia as opções. As marcas de maiores de 18
+            // e de produto ao quilo perdiam-se pelo mesmo caminho.
+            selectedOptionsPricedRaw: i.selectedOptionsPricedRaw,
+            ageRestricted: i.ageRestricted,
+            variableWeight: i.variableWeight,
+            optionsPriceAdd: i.optionsPriceAdd,
             // Depósito Volta (09/11): sem isto o estado das compras gravava
             // `deposit_units: 0` por cima do que o servidor pôs no item.
             depositUnits: i.depositUnits,
@@ -60,6 +68,12 @@ List<SelectedOption> optionsForDriver(CartItem item) {
   ].where((o) => o.group != WeightPortions.kGroupName).toList();
 }
 
+/// 14/11/2026 (B.6b): na lista do estafeta a opção diz só o que é ("Média
+/// (18 peças)"); o preço já está somado no preço de balcão da linha, à
+/// direita. Tira o sufixo " (+2,00 €)" que o modelo põe nas opções pagas.
+String semPrecoDaOpcao(String item) =>
+    item.replaceFirst(RegExp(r' \(\+[^()]*\)$'), '');
+
 /// Linhas com as escolhas do cliente por baixo do nome do produto: tamanho,
 /// bebida, acompanhamento, complementos, molhos e remoções — as grátis e as
 /// pagas, cada grupo uma só vez (ver [optionsForDriver]). Produtos sem
@@ -76,7 +90,10 @@ class DriverItemOptions extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 2),
       child: Text(
-        options.map((o) => '${o.group}: ${o.items.join(', ')}').join('\n'),
+        options
+            .map((o) =>
+                '${o.group}: ${o.items.map(semPrecoDaOpcao).join(', ')}')
+            .join('\n'),
         style: TextStyle(
           fontSize: 12,
           height: 1.3,

@@ -22,7 +22,13 @@ import '../widgets/terms_link_text.dart';
 import 'pending_approval_screen.dart';
 
 class RegisterPartnerScreen extends StatefulWidget {
-  const RegisterPartnerScreen({super.key});
+  const RegisterPartnerScreen({super.key, this.aoSubmeter});
+
+  /// app-15-11: quando o registo é o ecrã de entrada (dentro do
+  /// _RootNavigator), não se substitui a si próprio — avisa quem o mostrou
+  /// para reler o estado. Vazio = foi aberto por cima (do login) e segue
+  /// para o ecrã de análise como antes.
+  final VoidCallback? aoSubmeter;
 
   @override
   State<RegisterPartnerScreen> createState() => _RegisterPartnerScreenState();
@@ -334,7 +340,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
     }
     if (_phoneController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Informe o telefone')),
+        const SnackBar(content: Text('Indique o telefone')),
       );
       return false;
     }
@@ -354,13 +360,13 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
       }
       if (_passwordController.text.length < 6) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Senha mínima de 6 caracteres')),
+          const SnackBar(content: Text('A palavra-passe tem de ter pelo menos 6 caracteres')),
         );
         return false;
       }
       if (_confirmPasswordController.text != _passwordController.text) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('As senhas não coincidem')),
+          const SnackBar(content: Text('As palavras-passe não coincidem')),
         );
         return false;
       }
@@ -670,6 +676,11 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
   // Navega para PendingApprovalScreen (não muda role aqui — PendingApprovalScreen
   // oferece opção de "Gerir a Minha Loja" que chama setRole quando necessário)
   void _irParaPendente() {
+    final aoSubmeter = widget.aoSubmeter;
+    if (aoSubmeter != null) {
+      aoSubmeter();
+      return;
+    }
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) =>
@@ -918,7 +929,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                             Expanded(
                               child: Text(
                                 'Sessão iniciada como ${_emailController.text}. '
-                                'Não precisas de repetir email/senha — só falta '
+                                'Não precisas de repetir email/palavra-passe — só falta '
                                 'concluir o registo do estabelecimento.',
                               ),
                             ),
@@ -947,7 +958,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                       controller: _passwordController,
                       obscureText: _obscurePassword,
                       decoration: InputDecoration(
-                        labelText: 'Senha',
+                        labelText: 'Palavra-passe',
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
                           icon: Icon(
@@ -968,7 +979,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                       controller: _confirmPasswordController,
                       obscureText: _obscureConfirmPassword,
                       decoration: InputDecoration(
-                        labelText: 'Confirmar senha',
+                        labelText: 'Confirmar palavra-passe',
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
                           icon: Icon(
@@ -1160,7 +1171,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
                   ),
                   const SizedBox(height: Spacing.xl),
                   Text(
-                    'Ao submeter, sua conta ficará pendente de análise (24-48h).',
+                    'Ao submeter, a sua conta ficará pendente de análise (24-48h).',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey.shade600,

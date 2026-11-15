@@ -15,6 +15,7 @@ import '../stores/cleaning_store.dart';
 import '../stores/reservation_store.dart';
 import '../stores/services_store.dart';
 import '../stores/tvde_store.dart';
+import '../utils/euros.dart';
 import '../utils/hora_lisboa.dart';
 import '../utils/home_destino.dart';
 import '../utils/minhas_reservas.dart';
@@ -177,7 +178,9 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
     final hoursUntil =
         reservedFor.difference(DateTime.now()).inMinutes / 60.0;
     final willRefund = hoursUntil >= 2.0;
-    final prepaymentEur = (r.prepaymentCents / 100).toStringAsFixed(2);
+    // app-15-11: formato de Portugal ("3,00 €" e "0,5h")
+    final prepaymentEur = eurCents(r.prepaymentCents);
+    final horas = hoursUntil.toStringAsFixed(1).replaceAll('.', ',');
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -185,8 +188,8 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
         title: Text('Cancelar reserva?'.tr),
         content: Text(
           willRefund
-              ? 'Faltam {0}h. Reembolso de €{1} em 5–10 dias.'.trArgs([hoursUntil.toStringAsFixed(1), prepaymentEur])
-              : 'Faltam apenas ${hoursUntil.toStringAsFixed(1)}h (<2h). Pré-pagamento de €$prepaymentEur NÃO é devolvido.',
+              ? 'Faltam {0}h. Reembolso de {1} em 5–10 dias.'.trArgs([horas, prepaymentEur])
+              : 'Faltam apenas ${horas}h (<2h). Pré-pagamento de $prepaymentEur NÃO é devolvido.',
         ),
         actions: [
           TextButton(
@@ -200,7 +203,7 @@ class _ClientReservationsScreenState extends State<ClientReservationsScreen>
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(willRefund
                 ? 'Cancelar com reembolso'.tr
-                : 'Cancelar (perco €$prepaymentEur)'),
+                : 'Cancelar (perco $prepaymentEur)'),
           ),
         ],
       ),

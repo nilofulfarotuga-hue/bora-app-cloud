@@ -12,6 +12,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../services/amigo_voz_servidor.dart';
+import '_admin_rpc_errors.dart';
 
 typedef AdminAmigoVozCarregar = Future<Map<String, dynamic>?> Function(int dias);
 typedef AdminAmigoVozDefinir = Future<void> Function(Map<String, Object> mudancas);
@@ -143,7 +144,7 @@ class _AdminAmigoVozSecaoState extends State<AdminAmigoVozSecao> {
       _aviso('Salvo: $oQue (fica na auditoria)');
       await _load();
     } catch (e) {
-      _aviso('Não salvei $oQue: $e');
+      _aviso('Não salvei $oQue: ${humanizeAdminRpcError(e)}');
     }
   }
 

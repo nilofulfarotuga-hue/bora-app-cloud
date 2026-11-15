@@ -10,6 +10,7 @@ import '../../../config/app_spacing.dart';
 import '../../../models/tvde_subscription.dart';
 import '../../../services/payment_service.dart';
 import '../../../stores/tvde_store.dart';
+import '../../../utils/euros.dart';
 import '../../../widgets/bora/bora.dart';
 import '../reservation/reservation_payment_method_sheet.dart';
 import '../../../widgets/checkout_legal_notice.dart';
@@ -111,8 +112,9 @@ class _TvdePlansScreenState extends State<TvdePlansScreen> {
     final cents = _priceCents?[plan];
     if (cents == null || cents <= 0) return 'A carregar…'.tr;
     final v = cents / 100;
-    final euros = v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
-    return '€$euros / ${_period[plan]}';
+    // app-15-11: formato de Portugal ("30 €" ou "29,90 €")
+    final euros = v == v.roundToDouble() ? '${v.toStringAsFixed(0)} €' : eur(v);
+    return '$euros / ${_period[plan]}';
   }
 
   String _detailLabel(String plan) =>

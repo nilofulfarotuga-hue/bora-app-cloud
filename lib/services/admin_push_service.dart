@@ -17,6 +17,7 @@
 import 'dart:async';
 import '../utils/io_compat.dart' show Platform;
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -97,21 +98,32 @@ class AdminPushService {
   ///     (e.g. `/admin/drivers/approval`, `/admin/robot`, …).
   static void setupDeepLinks(BuildContext context) {
     if (_deepLinksWired) return;
+    // app-15-11 (varredura 9166, n.º 16): no painel web o Firebase nem sempre
+    // está iniciado e `FirebaseMessaging` rebentava com "No Firebase App"
+    // (getApp). Sem Firebase não há notificações a abrir: sai calado, como o
+    // NotificationService já faz.
+    if (Firebase.apps.isEmpty) return;
     _deepLinksWired = true;
 
     final navigator = Navigator.of(context);
 
-    FirebaseMessaging.onMessageOpenedApp.listen((msg) {
-      final route = _routeForMessage(msg);
-      if (route != null) navigator.pushNamed(route, arguments: _argFor(msg));
-    });
+    try {
+      FirebaseMessaging.onMessageOpenedApp.listen((msg) {
+        final route = _routeForMessage(msg);
+        if (route != null) navigator.pushNamed(route, arguments: _argFor(msg));
+      });
 
-    // Cold-start: tap on push that launched the app.
-    FirebaseMessaging.instance.getInitialMessage().then((msg) {
-      if (msg == null) return;
-      final route = _routeForMessage(msg);
-      if (route != null) navigator.pushNamed(route, arguments: _argFor(msg));
-    });
+      // Cold-start: tap on push that launched the app.
+      FirebaseMessaging.instance.getInitialMessage().then((msg) {
+        if (msg == null) return;
+        final route = _routeForMessage(msg);
+        if (route != null) navigator.pushNamed(route, arguments: _argFor(msg));
+      }).catchError((Object e) {
+        debugPrint('[admin_push] getInitialMessage falhou: $e');
+      });
+    } catch (e) {
+      debugPrint('[admin_push] notificações indisponíveis: $e');
+    }
   }
 
   /// [Fecho semanal 2026-09-07] O aviso é sempre de um assunto concreto, e o

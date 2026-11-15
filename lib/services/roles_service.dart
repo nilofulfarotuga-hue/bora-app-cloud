@@ -121,8 +121,31 @@ class TrabalhoPendente {
 }
 
 class RolesService {
+  /// Há sessão iniciada no Supabase?
+  ///
+  /// [15/11/2026] `my_roles_summary` e `my_trabalho_pendente` são fechadas a
+  /// quem não entrou — de propósito, e assim ficam. Sem sessão o pedido saía
+  /// com a chave pública e o servidor recusava ("permission denied", 401).
+  ///
+  /// Medido a 14/11 às 18:19:51: ao abrir a app, o `AuthStore` repõe o
+  /// estafeta guardado no telemóvel ANTES de acabar de entrar no Supabase, o
+  /// `PortaoDoPrestador` monta-se e pergunta logo — 4 s antes do login
+  /// (18:19:55). As duas respostas eram 401 e liam-se como "nada"; a mesma
+  /// leitura repetiu-se às 18:19:56, já com sessão, e deu 200.
+  ///
+  /// Agora o pedido sem sessão nem sai e a resposta é a mesma de antes
+  /// ("nada"), sem a viagem ao servidor nem o erro nos registos.
+  static bool get _temSessao {
+    try {
+      return Supabase.instance.client.auth.currentSession != null;
+    } catch (_) {
+      return false; // Supabase por inicializar
+    }
+  }
+
   /// Nunca lança: sem rede/sessão devolve "nada pendente".
   static Future<TrabalhoPendente> myTrabalhoPendente() async {
+    if (!_temSessao) return TrabalhoPendente.nenhum;
     try {
       final res =
           await Supabase.instance.client.rpc('my_trabalho_pendente');
@@ -135,7 +158,9 @@ class RolesService {
     return TrabalhoPendente.nenhum;
   }
 
+  /// Nunca lança: sem rede/sessão devolve o resumo vazio.
   static Future<RolesSummary> mySummary() async {
+    if (!_temSessao) return RolesSummary.empty();
     try {
       final res = await Supabase.instance.client.rpc('my_roles_summary');
       if (res is Map) {

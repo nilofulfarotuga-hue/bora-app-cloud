@@ -14,6 +14,7 @@ import '../models/order_model.dart';
 import '../models/rating_model.dart';
 import '../models/restaurant_model.dart' show BusinessCategory;
 import '../widgets/order_edit/client_order_edit_banner.dart';
+import '../widgets/aviso_estafeta_noutro_pedido.dart';
 import '../widgets/farmacia_chegada_cliente.dart';
 import '../widgets/address_text.dart';
 import '../widgets/ajustes_peso_pedido.dart';
@@ -690,12 +691,23 @@ class _BottomCardState extends State<_BottomCard> {
           ?.belongsTo(BusinessCategory.pharmacy) ??
       true;
 
-  /// Client can cancel from any non-terminal state (BR §8.3).
-  /// Fee tier is decided server-side based on current status.
+  /// Estados em que o servidor (`client-cancel-order`, `baseTier`) aceita o
+  /// cancelamento pelo cliente. Fee tier is decided server-side.
+  ///
+  /// app-15-11 (varredura 9166, n.º 20): antes contava qualquer estado não
+  /// final e o botão aparecia em "pronto para levantar" (takeaway), que o
+  /// servidor recusa com `cannot_cancel_at_status`.
+  static const Set<OrderStatus> estadosQueOServidorDeixaCancelar = {
+    OrderStatus.created,
+    OrderStatus.preparing,
+    OrderStatus.callingDriver,
+    OrderStatus.driverAccepted,
+    OrderStatus.pickedUp,
+    OrderStatus.onTheWay,
+  };
+
   bool get _canCancel =>
-      widget.order.status != OrderStatus.delivered &&
-      widget.order.status != OrderStatus.rejected &&
-      widget.order.status != OrderStatus.cancelled;
+      estadosQueOServidorDeixaCancelar.contains(widget.order.status);
 
   Future<void> _resendDeliveryCode() async {
     final order = widget.order;
@@ -757,6 +769,8 @@ class _BottomCardState extends State<_BottomCard> {
                 FavorDiferencaBanner(order: order),
                 // ── Loja parceira mudou o pedido (acrescentar/em falta) ──
                 ClientOrderEditBanner(order: order),
+                // ── Adenda 1 (14/11): estafeta a acabar outro pedido ─────
+                AvisoEstafetaNoutroPedido(order: order),
                 // ── Farmácia: "um produto só chega às HH:MM" (14/11/2026) ─
                 if (_podeSerFarmacia(context, order))
                   ClienteChegadaTardiaCartao(
@@ -840,7 +854,8 @@ class _BottomCardState extends State<_BottomCard> {
                       border: Border.all(color: const Color(0xFFFBCFE8)),
                     ),
                     child: Text(
-                      '📅 Encomenda para {0}/{1} às {2}:{3}{4}'.trArgs([order.scheduledFor!.day.toString().padLeft(2, '0'), order.scheduledFor!.month.toString().padLeft(2, '0'), order.scheduledFor!.hour.toString().padLeft(2, '0'), order.scheduledFor!.minute.toString().padLeft(2, '0'), order.status == OrderStatus.preparing && order.prepTimeMinutes != null ? ' · fica pronta em ${order.prepTimeMinutes} min' : '']),
+                      // app-15-11: dia e hora de Lisboa, não os do aparelho.
+                      '📅 Encomenda para {0}/{1} às {2}:{3}{4}'.trArgs([order.scheduledFor!.toLisboa().day.toString().padLeft(2, '0'), order.scheduledFor!.toLisboa().month.toString().padLeft(2, '0'), order.scheduledFor!.toLisboa().hour.toString().padLeft(2, '0'), order.scheduledFor!.toLisboa().minute.toString().padLeft(2, '0'), order.status == OrderStatus.preparing && order.prepTimeMinutes != null ? ' · fica pronta em ${order.prepTimeMinutes} min' : '']),
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 13.5,
@@ -881,9 +896,10 @@ class _BottomCardState extends State<_BottomCard> {
                   Text(
                     'A loja está a preparar o teu pedido — pronto por volta das {0}.'.trArgs([
                       () {
+                        // app-15-11: hora de Lisboa (o createdAt vem em UTC).
                         final t = order.createdAt
-                            .toLocal()
-                            .add(Duration(minutes: order.prepTimeMinutes!));
+                            .add(Duration(minutes: order.prepTimeMinutes!))
+                            .toLisboa();
                         return '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
                       }()
                     ]),

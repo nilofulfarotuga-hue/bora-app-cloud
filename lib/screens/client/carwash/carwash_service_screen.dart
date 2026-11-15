@@ -5,6 +5,7 @@ import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../models/carwash_models.dart';
 import '../../../stores/carwash_store.dart';
+import '../../../utils/euros.dart';
 import 'carwash_request_screen.dart';
 import 'carwash_tracking_screen.dart';
 
@@ -109,8 +110,8 @@ class _CarwashServiceScreenState extends State<CarwashServiceScreen> {
                             color: AppColors.textSubtle),
                         title: Text('${b.serviceType.label} · ${b.plate}'),
                         subtitle: Text(
-                          '${b.status.clientLabel} · '
-                          '${b.totalEur.toStringAsFixed(2)} €',
+                          // app-15-11: "12,50 €"
+                          '${b.status.clientLabel} · ${eur(b.totalEur)}',
                         ),
                         // "Marcar de novo" (04/10): mesmo serviço e carro.
                         trailing: store.availableServices

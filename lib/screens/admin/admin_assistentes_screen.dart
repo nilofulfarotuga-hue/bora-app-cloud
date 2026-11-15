@@ -14,8 +14,10 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../services/admin_audit_service.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../utils/hora_lisboa_ext.dart';
+import '_admin_rpc_errors.dart';
 
 final _numeroValido = RegExp(r'^\d{9,15}$');
 
@@ -60,20 +62,20 @@ void _aviso(BuildContext context, String texto) {
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(texto)));
 }
 
+final _uuidValido =
+    RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+
+/// 15/11/2026 (auditoria S6): pela RPC `log_admin_action` (AdminAuditService). A tabela
+/// `admin_audit_log` só deixa o admin LER, por isso o insert direto era recusado calado e nada
+/// ficava registado. O id do negócio (assistant_tenants.id) é uuid; se não for, vai nos detalhes.
 Future<void> _auditar(String acao, String tenantId, Map<String, dynamic> detalhes) async {
-  final c = Supabase.instance.client;
-  try {
-    await c.from('admin_audit_log').insert({
-      'admin_id': c.auth.currentUser?.id,
-      'admin_email': c.auth.currentUser?.email,
-      'action': acao,
-      'entity_type': 'assistant_tenant',
-      'entity_id': tenantId,
-      'details': detalhes,
-    });
-  } catch (e) {
-    debugPrint('[assistentes] auditoria falhou: $e');
-  }
+  final ehUuid = _uuidValido.hasMatch(tenantId);
+  await AdminAuditService.logAction(
+    action: acao,
+    entityType: 'assistant_tenant',
+    entityId: ehUuid ? tenantId : null,
+    details: {...detalhes, if (!ehUuid) 'tenant_id': tenantId},
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -114,7 +116,7 @@ class _AdminAssistentesScreenState extends State<AdminAssistentesScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _erro = e.toString();
+        _erro = humanizeAdminRpcError(e);
         _carregando = false;
       });
     }
@@ -133,7 +135,7 @@ class _AdminAssistentesScreenState extends State<AdminAssistentesScreen> {
       body: _carregando
           ? const Center(child: CircularProgressIndicator())
           : _erro != null
-              ? Center(child: Text('Erro: $_erro', style: const TextStyle(color: AppColors.error)))
+              ? Center(child: Text(_erro!, style: const TextStyle(color: AppColors.error)))
               : _lista.isEmpty
                   ? const Center(child: Text('Nenhum assistente cadastrado.'))
                   : RefreshIndicator(
@@ -242,7 +244,7 @@ class _AdminAssistenteDetalheScreenState extends State<AdminAssistenteDetalheScr
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _erro = e.toString());
+      setState(() => _erro = humanizeAdminRpcError(e));
     }
   }
 
@@ -266,7 +268,7 @@ class _AdminAssistenteDetalheScreenState extends State<AdminAssistenteDetalheScr
           ),
         ),
         body: _erro != null
-            ? Center(child: Text('Erro: $_erro', style: const TextStyle(color: AppColors.error)))
+            ? Center(child: Text(_erro!, style: const TextStyle(color: AppColors.error)))
             : _t == null
                 ? const Center(child: CircularProgressIndicator())
                 : TabBarView(
@@ -387,7 +389,7 @@ class _ConfigTabState extends State<_ConfigTab> {
       await widget.onMudou();
     } catch (e) {
       if (!mounted) return;
-      _aviso(context, 'Erro: $e');
+      _aviso(context, humanizeAdminRpcError(e));
     }
   }
 
@@ -400,7 +402,7 @@ class _ConfigTabState extends State<_ConfigTab> {
       await widget.onMudou();
     } catch (e) {
       if (!mounted) return;
-      _aviso(context, 'Erro: $e');
+      _aviso(context, humanizeAdminRpcError(e));
     }
   }
 
@@ -433,7 +435,7 @@ class _ConfigTabState extends State<_ConfigTab> {
       await widget.onMudou();
     } catch (e) {
       if (!mounted) return;
-      _aviso(context, 'Erro: $e');
+      _aviso(context, humanizeAdminRpcError(e));
     } finally {
       if (mounted) setState(() => _gravando = false);
     }
@@ -470,7 +472,7 @@ class _ConfigTabState extends State<_ConfigTab> {
       );
     } catch (e) {
       if (!mounted) return;
-      _aviso(context, 'Erro: $e');
+      _aviso(context, humanizeAdminRpcError(e));
     }
   }
 
@@ -784,7 +786,7 @@ class _FichaTabState extends State<_FichaTab> {
       await widget.onMudou();
     } catch (e) {
       if (!mounted) return;
-      _aviso(context, 'Erro: $e');
+      _aviso(context, humanizeAdminRpcError(e));
     } finally {
       if (mounted) setState(() => _gravando = false);
     }
@@ -1061,7 +1063,7 @@ class _ConversasTabState extends State<_ConversasTab> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _erro = e.toString();
+        _erro = humanizeAdminRpcError(e);
         _carregando = false;
       });
     }
@@ -1085,7 +1087,7 @@ class _ConversasTabState extends State<_ConversasTab> {
           child: _carregando
               ? const Center(child: CircularProgressIndicator())
               : _erro != null
-                  ? Center(child: Text('Erro: $_erro', style: const TextStyle(color: AppColors.error)))
+                  ? Center(child: Text(_erro!, style: const TextStyle(color: AppColors.error)))
                   : _conversas.isEmpty
                       ? const Center(child: Text('Sem conversas.'))
                       : RefreshIndicator(
@@ -1186,7 +1188,7 @@ class _FioScreenState extends State<_FioScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _erro = e.toString();
+        _erro = humanizeAdminRpcError(e);
         _carregando = false;
       });
     }
@@ -1205,7 +1207,7 @@ class _FioScreenState extends State<_FioScreen> {
       body: _carregando
           ? const Center(child: CircularProgressIndicator())
           : _erro != null
-              ? Center(child: Text('Erro: $_erro', style: const TextStyle(color: AppColors.error)))
+              ? Center(child: Text(_erro!, style: const TextStyle(color: AppColors.error)))
               : _msgs.isEmpty
                   ? const Center(child: Text('Sem mensagens.'))
                   : ListView.builder(

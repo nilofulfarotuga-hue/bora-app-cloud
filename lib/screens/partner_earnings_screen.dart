@@ -571,8 +571,14 @@ class _EarningsChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final daily = List<double>.filled(buckets, 0);
     for (final o in orders) {
-      final day = DateTime(o.createdAt.year, o.createdAt.month, o.createdAt.day);
-      final idx = day.difference(startDate).inDays;
+      // app-15-11: agrupa pelo dia de Lisboa (o createdAt vem em UTC); os
+      // dias contam-se em UTC para a mudança de hora não comer um dia.
+      final l = horaLisboa(o.createdAt);
+      final day = DateTime.utc(l.year, l.month, l.day);
+      final idx = day
+          .difference(
+              DateTime.utc(startDate.year, startDate.month, startDate.day))
+          .inDays;
       if (idx >= 0 && idx < buckets) {
         daily[idx] += revenue(o);
       }

@@ -9,7 +9,6 @@ import '../stores/restaurant_store.dart';
 import '../stores/session_store.dart';
 import '../widgets/aviso_atividade_banner.dart';
 import '../widgets/bora/bora_primary_button.dart';
-import 'partner_login_screen.dart';
 
 /// Tela mostrada APÓS parceiro submeter o signup com sucesso.
 /// Status: ⏳ Pendente de aprovação admin (análise típica 24-48h).
@@ -211,13 +210,15 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
               const SizedBox(height: Spacing.md),
 
               // Botão secundário: Voltar ao Login
+              // app-15-11: igual ao "Terminar sessão" do Perfil. Antes fazia
+              // a troca de rota do login a partir do ecrã de entrada, tirava o
+              // _RootNavigator da árvore e o parceiro ficava preso no login.
               OutlinedButton(
-                onPressed: () {
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(
-                      builder: (_) => const PartnerLoginScreen(),
-                    ),
-                  );
+                onPressed: () async {
+                  context.read<AuthStore>().logout();
+                  await context.read<SessionStore>().clearRole();
+                  if (!context.mounted) return;
+                  Navigator.of(context).popUntil((route) => route.isFirst);
                 },
                 child: const Text('Voltar ao Login'),
               ),

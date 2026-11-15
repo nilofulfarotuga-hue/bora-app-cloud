@@ -749,7 +749,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
       _shownDispatchModalForOrderIds.remove(orderId);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erro a registar decisão: $e'),
+          content: Text(_semDetalhe(e, 'Não foi possível registar a decisão. Tente outra vez.')),
           backgroundColor: AppColors.error,
         ),
       );
@@ -1037,7 +1037,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao aceitar: $e'),
+            content: Text(_semDetalhe(e, 'Não foi possível aceitar o pedido. Tente outra vez.')),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -1364,11 +1364,12 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                     );
                     cancelPartnerOrderNotification(order.id);
                     if (!context.mounted) return;
-                    // BUG F (2026-05-13) — incluir ultimos 4 chars do order id
+                    // BUG F (2026-05-13) — incluir o código do pedido
                     // para o parceiro identificar QUAL pedido em situacoes
                     // com varios pedidos simultaneos.
-                    final shortId = order.id.length >= 4
-                        ? order.id.substring(order.id.length - 4).toUpperCase()
+                    // app-15-11: o mesmo código dos cartões (6 primeiros).
+                    final shortId = order.id.length >= 6
+                        ? order.id.substring(0, 6).toUpperCase()
                         : order.id.toUpperCase();
                     final message = accepted
                         ? 'Pedido aceite — #$shortId. Pronto em $prep min.'
@@ -1382,8 +1383,8 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                         await orderStore.restaurantRejectOrder(order);
                     cancelPartnerOrderNotification(order.id);
                     if (!context.mounted) return;
-                    final shortId = order.id.length >= 4
-                        ? order.id.substring(order.id.length - 4).toUpperCase()
+                    final shortId = order.id.length >= 6
+                        ? order.id.substring(0, 6).toUpperCase()
                         : order.id.toUpperCase();
                     final message = rejected
                         ? 'Pedido rejeitado — #$shortId.'
@@ -1395,8 +1396,8 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   onCallDriver: (order) async {
                     final ready = await orderStore.restaurantMarkReady(order);
                     if (!context.mounted) return;
-                    final shortId = order.id.length >= 4
-                        ? order.id.substring(order.id.length - 4).toUpperCase()
+                    final shortId = order.id.length >= 6
+                        ? order.id.substring(0, 6).toUpperCase()
                         : order.id.toUpperCase();
                     final message = ready
                         ? 'Estafeta a caminho — #$shortId'
@@ -1772,8 +1773,10 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
     );
   }
 
-  String _formatHistoryDate(DateTime dt) {
-    final now = DateTime.now();
+  // app-15-11: dia e hora de Lisboa (o createdAt vem em UTC do servidor).
+  String _formatHistoryDate(DateTime instante) {
+    final dt = horaLisboa(instante);
+    final now = horaLisboa(DateTime.now());
     final sameDay = dt.year == now.year &&
         dt.month == now.month &&
         dt.day == now.day;
@@ -2153,11 +2156,12 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
               border: Border.all(color: const Color(0xFFFBCFE8)),
             ),
             child: Text(
+              // app-15-11: dia e hora de Lisboa, não os do aparelho.
               '📅 Encomenda para '
-              '${order.scheduledFor!.day.toString().padLeft(2, '0')}/'
-              '${order.scheduledFor!.month.toString().padLeft(2, '0')} às '
-              '${order.scheduledFor!.hour.toString().padLeft(2, '0')}:'
-              '${order.scheduledFor!.minute.toString().padLeft(2, '0')}'
+              '${horaLisboa(order.scheduledFor!).day.toString().padLeft(2, '0')}/'
+              '${horaLisboa(order.scheduledFor!).month.toString().padLeft(2, '0')} às '
+              '${horaLisboa(order.scheduledFor!).hour.toString().padLeft(2, '0')}:'
+              '${horaLisboa(order.scheduledFor!).minute.toString().padLeft(2, '0')}'
               '${order.prepTimeMinutes != null ? ' · aceite (${order.prepTimeMinutes} min)' : ''}',
               style: const TextStyle(
                 fontWeight: FontWeight.w700,
@@ -2449,7 +2453,7 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao aceitar pedido: $e'),
+            content: Text(_semDetalhe(e, 'Não foi possível aceitar o pedido. Tente outra vez.')),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -2486,7 +2490,7 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro: $e'),
+            content: Text(_semDetalhe(e, 'Não foi possível marcar como pronto. Tente outra vez.')),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -2520,7 +2524,7 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro: $e'),
+            content: Text(_semDetalhe(e, 'Não foi possível marcar como levantado. Tente outra vez.')),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -2751,8 +2755,9 @@ class _TakeawayBadge extends StatelessWidget {
     if (order.status == OrderStatus.readyForPickup && code != null) {
       detail = 'Código: $code';
     } else if (order.status == OrderStatus.preparing && readyAt != null) {
-      final hh = readyAt.hour.toString().padLeft(2, '0');
-      final mm = readyAt.minute.toString().padLeft(2, '0');
+      final pronto = horaLisboa(readyAt); // app-15-11: hora de Lisboa, não UTC
+      final hh = pronto.hour.toString().padLeft(2, '0');
+      final mm = pronto.minute.toString().padLeft(2, '0');
       detail = 'Pronto às $hh:$mm';
     } else if (order.status == OrderStatus.preparing && prep != null) {
       detail = '~$prep min';
@@ -3533,4 +3538,11 @@ class _PausaLojaCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// app-15-11: ao parceiro vai uma frase simples; o erro técnico
+/// (PostgrestException, SocketException…) fica só no registo da app.
+String _semDetalhe(Object e, String frase) {
+  debugPrint('[partner_dashboard] $e');
+  return frase;
 }

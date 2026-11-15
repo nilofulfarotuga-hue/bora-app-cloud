@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../utils/euros.dart';
+import '../utils/sessao.dart';
+
 /// Wallet Service — wraps Supabase RPCs for client_wallets + bora_tokens.
 ///
 /// RPCs (server-side, see migrations 20260430120000_client_wallets.sql):
@@ -19,6 +22,11 @@ class WalletService {
   final _supa = Supabase.instance.client;
 
   Future<WalletBalance> getBalance({String? userId}) async {
+    // app-15-11 (varredura 9166, n.º 17): visitante sem sessão não chama (o servidor recusava ~400×/dia).
+    // Quem chama já trata o erro (é o mesmo caminho de antes, sem ir ao servidor).
+    if (!temSessao()) {
+      throw StateError('sem sessão: saldo da carteira só com conta');
+    }
     final res = await _supa.rpc('wallet_get_balance',
         params: {'p_user_id': userId});
     final m = (res as Map).cast<String, dynamic>();
@@ -155,12 +163,9 @@ class WalletBalance {
   int get tokensValueCents =>
       (tokensBalance * tokenValueCentsX100 / 100).round();
 
-  /// Saldo formatado "€X.XX" (positivo) ou "-€X.XX" (negativo).
-  /// O sinal vem ANTES do símbolo de moeda para evitar "€-1.50".
-  String get freeFormatted {
-    final abs = (freeCents.abs() / 100).toStringAsFixed(2);
-    return freeCents < 0 ? '-€$abs' : '€$abs';
-  }
+  /// Saldo no formato de Portugal: "12,50 €" ou "-1,50 €" (app-15-11: era
+  /// "€12.50", formato inglês). O sinal fica à frente, como no resto da app.
+  String get freeFormatted => eurCents(freeCents);
 
   /// Saldo negativo (Sessão 3B): cliente em dívida.
   bool get isNegative => freeCents < 0;

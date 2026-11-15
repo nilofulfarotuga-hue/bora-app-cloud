@@ -8,6 +8,7 @@ import '../../widgets/admin/escolher_estafeta_sheet.dart';
 import '../../widgets/private_bucket_image.dart';
 import '../../widgets/admin/admin_fatura_nif_section.dart';
 import '../../widgets/admin/admin_substituicao_section.dart';
+import '../../widgets/admin/admin_rascunho_compra_section.dart';
 import '../../widgets/admin/admin_favor_passos_section.dart';
 import '../../widgets/admin/admin_entregue_sem_codigo_button.dart';
 import '../../widgets/admin/admin_recibo_cliente_section.dart';
@@ -465,6 +466,9 @@ class _SummaryTab extends StatelessWidget {
           // C7 (29/10/2026): a escolha "se faltar produto" e as devoluções por
           // produto em falta. Sem nada para mostrar não desenha nada.
           AdminSubstituicaoSection(order: order),
+          // 14/11/2026 (compra guardada): o que o entregador já marcou na
+          // lista de compras. Sem rascunho não desenha nada.
+          AdminRascunhoCompraSection(orderId: order['id'] as String),
           // 31/10/2026: peso variável dos mercados não-parceiros — o valor da
           // balança que o estafeta escreveu. Sem ajustes não desenha nada.
           AdminAjustesPesoSection(orderId: order['id'] as String),

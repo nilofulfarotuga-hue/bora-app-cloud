@@ -6,6 +6,7 @@ import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
 import '../../widgets/admin/admin_fecho_contabilista_section.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '_admin_rpc_errors.dart';
 import 'admin_order_detail_screen.dart';
 import 'faturas_bora_semana.dart';
 
@@ -106,7 +107,10 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
       final s = _semana;
       if (s != null) await _carregarSemana(s);
     } catch (e) {
-      if (mounted) setState(() => _erro = 'Não consegui carregar o fecho: $e');
+      if (mounted) {
+        setState(() => _erro =
+            'Não consegui carregar o fecho. ${humanizeAdminRpcError(e)}');
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -138,7 +142,8 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
       setState(() =>
           _linhasSemana = FaturasBoraSemana.daSemana(todas, segunda));
     } catch (e) {
-      _aviso('Não consegui carregar a semana: $e', erro: true);
+      _aviso('Não consegui carregar a semana. ${humanizeAdminRpcError(e)}',
+          erro: true);
     } finally {
       if (mounted) setState(() => _aCarregarSemana = false);
     }
@@ -251,7 +256,7 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
       await Future.delayed(const Duration(seconds: 4));
       if (mounted) _carregar();
     } catch (e) {
-      _aviso('Falhou: $e', erro: true);
+      _aviso(humanizeAdminRpcError(e), erro: true);
     }
   }
 
@@ -314,7 +319,7 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
       );
       _aviso('CSV gerado (só o arquivo; não foi enviado a ninguém).');
     } catch (e) {
-      _aviso('CSV falhou: $e', erro: true);
+      _aviso('CSV falhou. ${humanizeAdminRpcError(e)}', erro: true);
     }
   }
 
@@ -344,7 +349,7 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
       );
       _aviso('PDF gerado (só o arquivo; não foi enviado a ninguém).');
     } catch (e) {
-      _aviso('PDF falhou: $e', erro: true);
+      _aviso('PDF falhou. ${humanizeAdminRpcError(e)}', erro: true);
     }
   }
 
@@ -375,7 +380,10 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
 
   Future<void> _exportarDac7() async {
     try {
-      final r = _mapa(await _sb.rpc('admin_dac7_report', params: {'p_ano': _ano}));
+      // 15/11/2026: o servidor é admin_dac7_report(p_year int); antes ia o
+      // parâmetro em português, a chamada não encontrava a função e o DAC7
+      // nunca saía.
+      final r = _mapa(await _sb.rpc('admin_dac7_report', params: {'p_year': _ano}));
       String c(dynamic v) => '"${(v ?? '').toString().replaceAll('"', '""')}"';
       String eu(dynamic cents) =>
           (_n(cents) / 100).toStringAsFixed(2).replaceAll('.', ',');
@@ -398,7 +406,7 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
       final fn = _lista(r['falta_nif']).length;
       _aviso('DAC7 $_ano exportado (só preparado, não enviado). Falta morada: $fm · falta NIF: $fn');
     } catch (e) {
-      _aviso('DAC7 falhou: $e', erro: true);
+      _aviso('DAC7 falhou. ${humanizeAdminRpcError(e)}', erro: true);
     }
   }
 
@@ -436,7 +444,7 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
       });
       _carregar();
     } catch (e) {
-      _aviso('Falhou: $e', erro: true);
+      _aviso(humanizeAdminRpcError(e), erro: true);
     }
   }
 

@@ -9,6 +9,12 @@ import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../utils/hora_lisboa.dart';
 import '../../widgets/admin/admin_csv_button.dart';
+import '_admin_rpc_errors.dart';
+
+/// 15/11/2026 (auditoria S6): a tabela support_tickets só tem a regra "cada um vê os seus"
+/// (support_tickets_select_own), por isso a lista do painel pode vir vazia sem erro nenhum.
+const String kAvisoTicketsPermissao =
+    'A lista mostra só os tickets que o servidor deixa o painel ler; a permissão de admin está em proposta.';
 
 class AdminSupportTicketsScreen extends StatefulWidget {
   const AdminSupportTicketsScreen({super.key});
@@ -53,7 +59,7 @@ class _AdminSupportTicketsScreenState
       });
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = humanizeAdminRpcError(e);
         _loading = false;
       });
     }
@@ -102,7 +108,7 @@ class _AdminSupportTicketsScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e')),
+          SnackBar(content: Text(humanizeAdminRpcError(e))),
         );
       }
     }
@@ -189,7 +195,12 @@ class _AdminSupportTicketsScreenState
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _tickets.isEmpty
-                    ? const Center(child: Text('Sem tickets.'))
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text('Sem tickets.\n$kAvisoTicketsPermissao', textAlign: TextAlign.center),
+                        ),
+                      )
                     : ListView.builder(
                         itemCount: _tickets.length,
                         itemBuilder: (_, i) {

@@ -17,6 +17,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/restaurant_model.dart';
 import 'assistant_service.dart';
+import '../utils/sessao.dart';
 
 class ReceitaIngrediente {
   const ReceitaIngrediente({
@@ -165,6 +166,8 @@ class ReceitaService {
   /// Receita de hoje, ou `null` (desligada, sem função, sem rede, sem sessão).
   /// Nunca rebenta: quem chama esconde o cartão.
   Future<ReceitaHoje?> hoje() async {
+    // app-15-11 (varredura 9166, n.º 17): visitante sem sessão não chama (o servidor recusava ~400×/dia).
+    if (!temSessao()) return null;
     try {
       final res = await Supabase.instance.client
           .rpc('client_receita_de_hoje')

@@ -22,6 +22,7 @@ class GanhoDeHojeCard extends StatefulWidget {
     super.key,
     this.recarregarQuando,
     this.valorInicialCents,
+    this.aoTocar,
   });
 
   /// Store do ecrã onde o cartão vive. Quando notifica (um trabalho acabou,
@@ -32,6 +33,11 @@ class GanhoDeHojeCard extends StatefulWidget {
   /// Valor que o ecrã já tem em mão, para pintar o primeiro frame sem traço.
   /// Também vem de `meu_ganho_ao_vivo`, por isso não há duas contas.
   final int? valorInicialCents;
+
+  /// O que o toque faz. Vazio = abre o ecrã Ganhos por cima (casas sem barra
+  /// de baixo). O estafeta com barra salta para o separador Ganhos, para não
+  /// ficar com dois ecrãs de Ganhos empilhados (app-15-11).
+  final VoidCallback? aoTocar;
 
   @override
   State<GanhoDeHojeCard> createState() => _GanhoDeHojeCardState();
@@ -133,10 +139,11 @@ class _GanhoDeHojeCardState extends State<GanhoDeHojeCard>
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(Radii.md),
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const GanhosScreen()),
-      ).then((_) => _ler()),
+      onTap: widget.aoTocar ??
+          () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const GanhosScreen()),
+              ).then((_) => _ler()),
       child: Container(
         padding: const EdgeInsets.symmetric(
             horizontal: Spacing.md, vertical: Spacing.sm),

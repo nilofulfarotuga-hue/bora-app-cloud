@@ -11,6 +11,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/sessao.dart';
 
 class CheckinEstado {
   const CheckinEstado({
@@ -95,6 +96,8 @@ class CheckinService {
   /// Estado de hoje, ou `null` se o servidor não o der (função em falta,
   /// sem rede, sem sessão). Nunca rebenta: quem chama esconde o cartão.
   Future<CheckinEstado?> estado() async {
+    // app-15-11 (varredura 9166, n.º 17): visitante sem sessão não chama (o servidor recusava ~400×/dia).
+    if (!temSessao()) return null;
     try {
       final res = await Supabase.instance.client
           .rpc('client_checkin_status')

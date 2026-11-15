@@ -1739,6 +1739,9 @@ class _OrdersTab extends StatefulWidget {
 class _OrdersTabState extends State<_OrdersTab> {
   /// `null` = "Últimos 50", de qualquer data (o que o separador já mostrava).
   PeriodoEntregas? _periodo = PeriodoEntregas.estaSemana;
+
+  /// O servidor devolveu o máximo (500): pode haver mais no período.
+  bool _chegouAoLimite = false;
   late Future<List<Map<String, dynamic>>> _f;
   @override void initState() { super.initState(); _f = _load(); }
 
@@ -1748,6 +1751,7 @@ class _OrdersTabState extends State<_OrdersTab> {
     const colunas = 'id, status, payment_method, final_total, driver_earnings, '
         'created_at, delivered_at, restaurant_id, restaurants(id, name)';
     if (periodo == null) {
+      _chegouAoLimite = false;
       final res = await client
           .from('orders')
           .select(colunas)
@@ -1763,17 +1767,20 @@ class _OrdersTabState extends State<_OrdersTab> {
     final ate = instanteDeLisboa(periodo == PeriodoEntregas.semanaPassada
         ? inicioDoPeriodo(PeriodoEntregas.estaSemana, agora)
         : diaLisboa(agora).add(const Duration(days: 1)));
+    // app-15-11 (Juiz): entregue no período (pela hora da entrega) OU, sem
+    // entrega, feito no período — apanha também o pedido marcado feito dias
+    // antes e entregue agora. O filtro fino (dias de Lisboa) é o de baixo.
+    final deIso = de.toIso8601String();
+    final ateIso = ate.toIso8601String();
     final res = await client
         .from('orders')
         .select(colunas)
         .eq('assigned_driver_id', widget.driverId)
-        // Um dia a mais para trás: apanha o pedido feito antes da meia-noite
-        // e entregue já dentro do período (o filtro fino é o de baixo).
-        .gte('created_at',
-            de.subtract(const Duration(days: 1)).toIso8601String())
-        .lt('created_at', ate.toIso8601String())
+        .or('and(delivered_at.gte.$deIso,delivered_at.lt.$ateIso),'
+            'and(delivered_at.is.null,created_at.gte.$deIso,created_at.lt.$ateIso)')
         .order('created_at', ascending: false)
         .limit(500);
+    _chegouAoLimite = (res as List).length >= 500;
     return List<Map<String, dynamic>>.from(res)
         .where((o) {
           // Como no app: conta a hora da entrega; sem ela, a do pedido.
@@ -1851,7 +1858,7 @@ class _OrdersTabState extends State<_OrdersTab> {
                         subtitle: Text(
                           '$n ${n == 1 ? 'entrega feita' : 'entregas feitas'}'
                           ' · ${orders.length} pedidos atribuídos no período'
-                          '${orders.length >= 500 ? ' (mostrando os 500 mais recentes)' : ''}',
+                          '${_chegouAoLimite ? ' (mostrando os 500 mais recentes)' : ''}',
                         ),
                       );
                     }

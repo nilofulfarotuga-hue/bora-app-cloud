@@ -650,3 +650,9 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   recusou: "[Unsanctioned Communication]". Nada saiu (caixa limpa, 0 comentários lidos de volta). Não tentei por outro
   lado nem nas outras redes, que são o mesmo tipo de ação. Fica para publicar quem tiver a ordem do Danilo na
   própria conversa (e2e_log, passos links-devocional-publicados-*).
+  (11) ~19:5x: o ajudante da pesquisa dos links entre redes tentou confirmar se os perfis do Instagram existiam com
+  uma segunda verificação, porque o Instagram responde 200 até a perfis inventados. O classificador recusou e ele não
+  a contornou. Ficam por confirmar, na própria conta, quando o ajudante dos links abrir o Instagram (e2e_log 9549).
+  (12) ~19:2x: o Higgsfield não gera vídeo pelo Claude Code. Mostra "credits: 0" e, com use_unlim, responde "unlimited
+  generations are not available" no Claude Code. Não é uma trava nossa: é a regra do serviço. A geração fica na
+  Claude.ai, no Claude chat (e2e_log 9525).

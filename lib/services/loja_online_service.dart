@@ -47,6 +47,18 @@ const String kLojaOnlineColunasCliente =
     'id, nicho_id, titulo, descricao, imagens, preco_bora_cents, prazo_min_dias, '
     'prazo_max_dias, ativo, destaque, criado_em, atualizado_em';
 
+/// loja-nichos-15-11: as colunas novas (subcategoria e ordem por vendas). Se a
+/// proposta N1 ainda não estiver no servidor, a app lê só as de cima.
+const String kLojaOnlineColunasClienteNichos = '$kLojaOnlineColunasCliente, '
+    'subcategoria_id, cj_listas, vendas_loja, ordem_manual';
+const String kLojaOnlineTabelaSubcategorias = 'loja_online_subcategorias';
+const String kLojaOnlineRpcNichoPublico = 'admin_loja_online_nicho_publico';
+const String kLojaOnlineRpcProdutoOrdem = 'admin_loja_online_produto_ordem';
+const String kLojaOnlineRpcProdutoSubcategoria =
+    'admin_loja_online_produto_subcategoria';
+const String kLojaOnlineRpcSubcategoriaAtivo =
+    'admin_loja_online_subcategoria_ativo';
+
 /// A mesma frase que `humanizeAdminRpcError` dá a uma função por instalar
 /// (PGRST202); aqui serve também para tabela ou chave em falta.
 const String kLojaOnlineNaoInstalada =
@@ -113,13 +125,16 @@ class LojaOnlineCatalogo {
     required this.estado,
     this.nichos = const [],
     this.produtos = const [],
+    this.subcategorias = const [],
   });
 
   final LojaOnlineEstado estado;
   final List<LojaOnlineNicho> nichos;
   final List<LojaOnlineProduto> produtos;
+  final List<LojaOnlineSubcategoria> subcategorias;
 
-  LojaOnlineVitrine get vitrine => LojaOnlineVitrine.montar(nichos, produtos);
+  LojaOnlineVitrine get vitrine =>
+      LojaOnlineVitrine.montar(nichos, produtos, subcategorias);
 }
 
 class LojaOnlineService {
@@ -196,10 +211,21 @@ class LojaOnlineService {
       final produtos = (await _lerAtivos(kLojaOnlineTabelaProdutos))
           .map(LojaOnlineProduto.fromJson)
           .toList(growable: false);
+      // loja-nichos-15-11: sem a tabela das subcategorias (N1 por aplicar) a
+      // loja continua, só sem os separadores Cão/Gato/…
+      var subcategorias = const <LojaOnlineSubcategoria>[];
+      try {
+        subcategorias = (await _lerAtivos(kLojaOnlineTabelaSubcategorias))
+            .map(LojaOnlineSubcategoria.fromJson)
+            .toList(growable: false);
+      } catch (e) {
+        debugPrint('[LojaOnline] subcategorias indisponíveis: $e');
+      }
       return LojaOnlineCatalogo(
         estado: LojaOnlineEstado.pronta,
         nichos: nichos,
         produtos: produtos,
+        subcategorias: subcategorias,
       );
     } catch (e) {
       if (lojaOnlineServidorEmFalta(e)) {
@@ -219,19 +245,27 @@ class LojaOnlineService {
   /// Só linhas ativas (a RLS já filtra; o `eq` é cinto e suspensórios).
   static Future<List<Map<String, dynamic>>> _lerAtivosNoSupabase(
       String tabela) async {
-    if (tabela == kLojaOnlineTabelaNichos) {
+    if (tabela == kLojaOnlineTabelaNichos ||
+        tabela == kLojaOnlineTabelaSubcategorias) {
       return await Supabase.instance.client
           .from(tabela)
           .select()
           .eq('ativo', true)
           .order('ordem', ascending: true);
     }
-    return await Supabase.instance.client
-        .from(tabela)
-        .select(kLojaOnlineColunasCliente)
-        .eq('ativo', true)
-        .order('destaque', ascending: false)
-        .order('criado_em', ascending: false);
+    // A ordem final (mais vendidos) faz-se na app ([compararMaisVendidos]).
+    try {
+      return await Supabase.instance.client
+          .from(tabela)
+          .select(kLojaOnlineColunasClienteNichos)
+          .eq('ativo', true);
+    } catch (e) {
+      if (!lojaOnlineServidorEmFalta(e)) rethrow;
+      return await Supabase.instance.client
+          .from(tabela)
+          .select(kLojaOnlineColunasCliente)
+          .eq('ativo', true);
+    }
   }
 }
 
@@ -291,6 +325,71 @@ class LojaOnlineAdminService {
     });
   }
 
+  /// loja-nichos-15-11: abrir (true) ou fechar (false) um nicho a todos os
+  /// clientes. Fechado, só o admin e as contas da lista de permissão o veem.
+  Future<void> nichoPublico({
+    required String nichoId,
+    required bool publico,
+    required String motivo,
+  }) async {
+    await _rpc(kLojaOnlineRpcNichoPublico, {
+      'p_nicho_id': nichoId,
+      'p_publico': publico,
+      'p_motivo': motivo,
+    });
+  }
+
+  /// Fixar a posição de um produto (1 = primeiro) ou voltar à ordem
+  /// automática por vendas (null).
+  Future<void> produtoOrdem({
+    required String id,
+    required int? ordemManual,
+    required String motivo,
+  }) async {
+    await _rpc(kLojaOnlineRpcProdutoOrdem, {
+      'p_id': id,
+      'p_ordem_manual': ordemManual,
+      'p_motivo': motivo,
+    });
+  }
+
+  /// null quando a proposta N1 ainda não está no servidor (sem tabela).
+  Future<List<LojaOnlineSubcategoria>?> listarSubcategorias() async {
+    try {
+      final linhas = await _lerTabela(kLojaOnlineTabelaSubcategorias);
+      return linhas.map(LojaOnlineSubcategoria.fromJson).toList(growable: false);
+    } catch (e) {
+      if (lojaOnlineServidorEmFalta(e)) return null;
+      rethrow;
+    }
+  }
+
+  /// Mudar a subcategoria de um produto (null = sem subcategoria).
+  Future<void> produtoSubcategoria({
+    required String id,
+    required String? subcategoriaId,
+    required String motivo,
+  }) async {
+    await _rpc(kLojaOnlineRpcProdutoSubcategoria, {
+      'p_id': id,
+      'p_subcategoria_id': subcategoriaId,
+      'p_motivo': motivo,
+    });
+  }
+
+  /// Ligar/desligar uma subcategoria (desligada some da montra).
+  Future<void> subcategoriaAtivo({
+    required String id,
+    required bool ativo,
+    required String motivo,
+  }) async {
+    await _rpc(kLojaOnlineRpcSubcategoriaAtivo, {
+      'p_id': id,
+      'p_ativo': ativo,
+      'p_motivo': motivo,
+    });
+  }
+
   Future<void> nichoDaSemana({
     required String nichoId,
     required String motivo,
@@ -312,7 +411,8 @@ class LojaOnlineAdminService {
   /// colunas de cliente (sem custo) para o ecrã não ficar vazio.
   static Future<List<Map<String, dynamic>>> _lerTabelaNoSupabase(
       String tabela) async {
-    if (tabela == kLojaOnlineTabelaNichos) {
+    if (tabela == kLojaOnlineTabelaNichos ||
+        tabela == kLojaOnlineTabelaSubcategorias) {
       return await Supabase.instance.client
           .from(tabela)
           .select()

@@ -140,7 +140,7 @@ create or replace function public.admin_loja_online_produto_estado(p_id uuid, p_
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare
   v_antes  public.loja_online_produtos%rowtype;
@@ -192,7 +192,7 @@ create or replace function public.admin_loja_online_nicho_da_semana(p_nicho_id u
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare
   v_nicho public.loja_online_nichos%rowtype;

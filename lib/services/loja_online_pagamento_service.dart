@@ -9,6 +9,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/client_address.dart';
+import 'client_address_service.dart';
 import 'loja_online_service.dart';
 import 'payment_service.dart';
 import 'stripe_contas.dart';
@@ -40,6 +42,39 @@ String? lojaOnlineCodigoPostal(String bruto) {
   final s = bruto.replaceAll(' ', '');
   final m = RegExp(r'^([0-9]{4})-?([0-9]{3})$').firstMatch(s);
   return m == null ? null : '${m.group(1)}-${m.group(2)}';
+}
+
+/// loja-nichos-15-11 (C): código postal e localidade de uma morada escrita ou
+/// escolhida nas sugestões ("Rua X 5, 6300-123 Guarda, Portugal").
+({String? codigoPostal, String? localidade}) lojaOnlinePartesDaMorada(
+    String morada) {
+  final m = RegExp(r'([0-9]{4})-?([0-9]{3})\s*([^,0-9][^,]*)?').firstMatch(morada);
+  if (m == null) return (codigoPostal: null, localidade: null);
+  final loc = (m.group(3) ?? '').trim();
+  return (
+    codigoPostal: '${m.group(1)}-${m.group(2)}',
+    localidade: loc.isEmpty ? null : loc,
+  );
+}
+
+/// O que a app já sabe do cliente para encher o pagamento sozinho.
+class LojaOnlinePerfil {
+  const LojaOnlinePerfil({this.nome = '', this.telefone = '', this.moradas = const []});
+  final String nome;
+  final String telefone;
+
+  /// Moradas guardadas (a predefinida primeiro), as mesmas dos pedidos.
+  final List<ClientAddress> moradas;
+}
+
+/// Lê as moradas guardadas. Nunca lança: sem sessão ou sem rede, lista vazia.
+Future<List<ClientAddress>> lojaOnlineMoradasGuardadas() async {
+  try {
+    return await ClientAddressService.instance.list();
+  } catch (e) {
+    debugPrint('[LojaOnline] moradas guardadas: $e');
+    return const [];
+  }
 }
 
 /// O que falta preencher (frases em PT-PT, já prontas para .tr). Vazio = pode pagar.

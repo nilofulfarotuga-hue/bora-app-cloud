@@ -70,6 +70,10 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
   bool? _interruptor;
   List<LojaOnlineNicho> _nichos = const [];
   List<LojaOnlineProduto> _produtos = const [];
+  List<LojaOnlineSubcategoria> _subcategorias = const [];
+
+  /// Juiz 15/11 (9): sem a N1 no servidor não se mostram os controlos dos nichos.
+  bool _n1Instalado = false;
 
   @override
   void initState() {
@@ -87,12 +91,18 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
     try {
       final interruptor = await _svc.lerInterruptor();
       final nichos = await _svc.listarNichos();
-      final produtos = await _svc.listarProdutos();
+      // loja-nichos-15-11: a mesma ordem do cliente (mais vendidos primeiro).
+      final produtos = [...await _svc.listarProdutos()]
+        ..sort(compararMaisVendidos);
+      final subcategorias = await _svc.listarSubcategorias();
+      final n1 = subcategorias != null;
       if (!mounted) return;
       setState(() {
         _interruptor = interruptor;
         _nichos = nichos;
         _produtos = produtos;
+        _subcategorias = subcategorias ?? const [];
+        _n1Instalado = n1;
         _carregando = false;
       });
     } catch (e) {
@@ -230,6 +240,99 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
     }
   }
 
+  /// loja-nichos-15-11: abrir o nicho a todos os clientes ou fechar.
+  Future<void> _nichoPublico(LojaOnlineNicho n, bool publico) async {
+    final motivo = await _pedirMotivo(
+      publico ? 'Abrir "${n.nome}" para todos os clientes?' : 'Fechar "${n.nome}"?',
+      explicacao: publico
+          ? 'Os clientes passam a ver este nicho na Loja Online (com a categoria '
+              'ligada no app). Faça isso só depois de o Danilo dizer "abrir".'
+          : 'O nicho deixa de aparecer para os clientes. Você e as contas da lista '
+              'de permissão continuam vendo.',
+    );
+    if (motivo == null || !mounted) return;
+    setState(() => _ocupado = true);
+    try {
+      await _svc.nichoPublico(nichoId: n.id, publico: publico, motivo: motivo);
+      _msg(publico ? 'Nicho aberto: ${n.nome}.' : 'Nicho fechado: ${n.nome}.');
+      await _carregar();
+    } catch (e) {
+      _msg(erroAdminLojaOnline(e), erro: true);
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
+  /// loja-nichos-15-11: fixar a posição de um produto (vazio = automática).
+  Future<void> _produtoPosicao(LojaOnlineProduto p) async {
+    // Refinador 15/11: o diálogo é dono do seu campo (dispose no próprio diálogo).
+    final lido = await showDialog<String>(
+      context: context,
+      builder: (_) => _PosicaoLojaOnlineDialog(
+        titulo: 'Posição de "${p.titulo}"',
+        inicial: p.ordemManual?.toString() ?? '',
+      ),
+    );
+    if (lido == null || !mounted) return;
+    final texto = lido.trim();
+    final ordem = texto.isEmpty ? null : int.tryParse(texto);
+    if (texto.isNotEmpty && (ordem == null || ordem < 1)) {
+      _msg('A posição precisa ser um número a partir de 1.', erro: true);
+      return;
+    }
+    final motivo = await _pedirMotivo(ordem == null
+        ? 'Voltar "${p.titulo}" à ordem pelas vendas?'
+        : 'Pôr "${p.titulo}" na posição $ordem?');
+    if (motivo == null || !mounted) return;
+    setState(() => _ocupado = true);
+    try {
+      await _svc.produtoOrdem(id: p.id, ordemManual: ordem, motivo: motivo);
+      _msg('Posição atualizada.');
+      await _carregar();
+    } catch (e) {
+      _msg(erroAdminLojaOnline(e), erro: true);
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
+  Future<void> _produtoSubcategoria(LojaOnlineProduto p, String? subId) async {
+    final nome = subId == null ? 'sem subcategoria' : _nomeSubcategoria(subId);
+    final motivo = await _pedirMotivo('Pôr "${p.titulo}" em $nome?');
+    if (motivo == null || !mounted) return;
+    setState(() => _ocupado = true);
+    try {
+      await _svc.produtoSubcategoria(id: p.id, subcategoriaId: subId, motivo: motivo);
+      _msg('Subcategoria atualizada.');
+      await _carregar();
+    } catch (e) {
+      _msg(erroAdminLojaOnline(e), erro: true);
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
+  Future<void> _subcategoriaAtivo(LojaOnlineSubcategoria sc, bool ativo) async {
+    final motivo = await _pedirMotivo(
+        ativo ? 'Ligar a subcategoria "${sc.nome}"?' : 'Desligar a subcategoria "${sc.nome}"?',
+        explicacao: 'Desligada, some da loja do cliente; os produtos continuam em "Todos".');
+    if (motivo == null || !mounted) return;
+    setState(() => _ocupado = true);
+    try {
+      await _svc.subcategoriaAtivo(id: sc.id, ativo: ativo, motivo: motivo);
+      _msg('Subcategoria atualizada.');
+      await _carregar();
+    } catch (e) {
+      _msg(erroAdminLojaOnline(e), erro: true);
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
+  String _nomeSubcategoria(String? id) =>
+      _subcategorias.where((s) => s.id == id).map((s) => s.nome).firstOrNull ??
+      'sem subcategoria';
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -342,18 +445,49 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
                   subtitle: Text([
                     '${_produtos.where((p) => p.nichoId == n.id && p.ativo).length} '
                         'produto(s) ativo(s)',
+                    if (_n1Instalado)
+                      n.publico
+                          ? 'aberto a todos'
+                          : 'fechado: só admin e lista de permissão',
                     if (!n.ativo) 'nicho desligado',
                     if (semana == n && n.destaqueDesde != null)
                       'nicho da semana desde ${_diaMes(n.destaqueDesde)}',
                   ].join(' · ')),
-                  trailing: semana == n
-                      ? const Chip(label: Text('Em destaque'))
-                      : TextButton(
-                          onPressed:
-                              _ocupado ? null : () => _tornarNichoDaSemana(n),
-                          child: const Text('Tornar nicho da semana'),
+                  trailing: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 4,
+                    children: [
+                      if (_n1Instalado)
+                        Switch(
+                          key: Key('loja_online_nicho_publico_${n.id}'),
+                          value: n.publico,
+                          onChanged: _ocupado ? null : (v) => _nichoPublico(n, v),
                         ),
+                      semana == n
+                          ? const Chip(label: Text('Em destaque'))
+                          : TextButton(
+                              onPressed: _ocupado
+                                  ? null
+                                  : () => _tornarNichoDaSemana(n),
+                              child: const Text('Tornar nicho da semana'),
+                            ),
+                    ],
+                  ),
                 ),
+              for (final n in _nichos)
+                if (_subcategorias.any((sc) => sc.nichoId == n.id))
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      for (final sc in _subcategorias.where((sc) => sc.nichoId == n.id))
+                        FilterChip(
+                          key: Key('loja_online_subcategoria_ativa_${sc.id}'),
+                          label: Text('${n.nome} › ${sc.nome}'),
+                          selected: sc.ativo,
+                          onSelected: _ocupado ? null : (v) => _subcategoriaAtivo(sc, v),
+                        ),
+                    ],
+                  ),
           ],
         ),
       ),
@@ -427,6 +561,14 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
                         style: const TextStyle(
                             fontSize: 12, color: AppColors.textSecondary),
                       ),
+                      Text(
+                        '${_nomeSubcategoria(p.subcategoriaId)} · '
+                        'vendas na loja: ${p.vendasLoja} · ranking CJ: ${p.cjListas}'
+                        '${p.ordemManual == null ? '' : ' · posição fixa: ${p.ordemManual}'}',
+                        key: Key('loja_online_vendas_${p.id}'),
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.textSecondary),
+                      ),
                       if (p.shopifyProductId.isNotEmpty)
                         Text('Shopify: ${p.shopifyProductId}',
                             style: const TextStyle(
@@ -458,11 +600,81 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
                         : (v) => _produtoEstado(p, destaque: v),
                   ),
                 ),
+                if (_subcategorias.any((sc) => sc.nichoId == p.nichoId))
+                  DropdownButton<String?>(
+                    key: Key('loja_online_subcategoria_${p.id}'),
+                    value: _subcategorias.any((sc) =>
+                            sc.id == p.subcategoriaId && sc.nichoId == p.nichoId)
+                        ? p.subcategoriaId
+                        : null,
+                    hint: const Text('Subcategoria'),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                          value: null, child: Text('sem subcategoria')),
+                      for (final sc in _subcategorias.where((sc) => sc.nichoId == p.nichoId))
+                        DropdownMenuItem<String?>(value: sc.id, child: Text(sc.nome)),
+                    ],
+                    onChanged: _ocupado
+                        ? null
+                        : (v) {
+                            if (v != p.subcategoriaId) _produtoSubcategoria(p, v);
+                          },
+                  ),
+                TextButton(
+                  key: Key('loja_online_posicao_${p.id}'),
+                  onPressed: _ocupado ? null : () => _produtoPosicao(p),
+                  child: const Text('Posição'),
+                ),
               ],
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PosicaoLojaOnlineDialog extends StatefulWidget {
+  const _PosicaoLojaOnlineDialog({required this.titulo, this.inicial = ''});
+
+  final String titulo;
+  final String inicial;
+
+  @override
+  State<_PosicaoLojaOnlineDialog> createState() =>
+      _PosicaoLojaOnlineDialogState();
+}
+
+class _PosicaoLojaOnlineDialogState extends State<_PosicaoLojaOnlineDialog> {
+  late final TextEditingController _c =
+      TextEditingController(text: widget.inicial);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.titulo),
+      content: TextField(
+        key: const Key('loja_online_posicao_campo'),
+        controller: _c,
+        keyboardType: TextInputType.number,
+        decoration: const InputDecoration(
+          labelText: 'Posição (1 = primeiro; vazio = pelas vendas)',
+        ),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar')),
+        FilledButton(
+            onPressed: () => Navigator.pop(context, _c.text.trim()),
+            child: const Text('Continuar')),
+      ],
     );
   }
 }

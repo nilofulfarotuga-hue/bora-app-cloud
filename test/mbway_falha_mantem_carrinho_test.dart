@@ -7,18 +7,258 @@
 // início. Agora: diz porquê, o carrinho fica, e ele continua no ecrã do
 // pagamento para tentar outra vez ou escolher outro meio.
 //
+// Revisão 15/11 (achado 11): os testes provam COMPORTAMENTO, não texto do
+// código. Com o servidor trocado por portas de mentira (as mesmas do teste do
+// agendar), prova-se que:
+//  * `manterCarrinho: true` mantém os itens e a hora marcada, e marca o pedido
+//    MB WAY que ficou à espera; a 2.ª tentativa leva a mesma hora;
+//  * `limparDepoisDoPedido()` limpa tudo (itens, hora, marca);
+//  * pedido anterior pago (ou ainda não cancelado) → o carrinho limpa-se e
+//    não se cria outro pedido; cancelado e por pagar → pode criar-se outro;
+//  * a marca sobrevive a a app morrer e é lida ao repor o carrinho.
+//
 // Só fluxo e texto: nenhum valor muda.
-import 'dart:io';
+import 'dart:convert';
 
+import 'package:bora_app/models/order_model.dart';
+import 'package:bora_app/stores/cart_store.dart';
 import 'package:bora_app/utils/mensagem_mbway.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-String _ler(String caminho) =>
-    File(caminho).readAsStringSync().replaceAll(String.fromCharCode(13), '');
+import 'agendar_mercados_test.dart'
+    show
+        MarcacaoFalsa,
+        OrderStoreFalso,
+        ServidorFalso,
+        carrinhoDoContinente,
+        estado,
+        janela,
+        leite,
+        servidor;
+
+/// O `finishOrder` do MB WAY, como o ecrã de pagamento o chama.
+Future<bool> pedidoMbway(CartStore c, List<String> log) => c.finishOrder(
+      OrderStoreFalso(log),
+      paymentMethod: PaymentMethod.mbway,
+      paymentStatus: PaymentStatus.pending,
+      manterCarrinho: true,
+    );
+
+const _hora = 'preparar:continente:2026-11-03T10:00:00.000Z';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() => SharedPreferences.setMockInitialValues(<String, Object>{}));
+  tearDown(() => estado.reporParaTeste(ServidorFalso(ligado: false)));
+
+  group('carrinho mantido enquanto o MB WAY não entra', () {
+    test('manterCarrinho: ficam os itens, a hora marcada e a marca do pedido',
+        () async {
+      final log = <String>[];
+      await servidor(ServidorFalso(), MarcacaoFalsa(log, horaGravada: janela.instante));
+      final c = await carrinhoDoContinente(fechada: true);
+      c.addItem(leite());
+      estado.escolher('continente', janela);
+
+      expect(await pedidoMbway(c, log), isTrue);
+
+      expect(log, [_hora, 'createOrder', 'hora:pedido-1']);
+      expect(c.items, hasLength(1), reason: 'o pagamento ainda não entrou');
+      expect(estado.escolha, janela,
+          reason: 'sem a hora, a 2.ª tentativa sairia "para agora"');
+      expect(estado.escolhaPara('continente'), isTrue);
+      expect(c.mbwayPendenteId, 'pedido-1');
+    });
+
+    test('a 2.ª tentativa leva a mesma hora marcada', () async {
+      final log = <String>[];
+      await servidor(ServidorFalso(), MarcacaoFalsa(log, horaGravada: janela.instante));
+      final c = await carrinhoDoContinente(fechada: true);
+      c.addItem(leite());
+      estado.escolher('continente', janela);
+
+      expect(await pedidoMbway(c, log), isTrue);
+      expect(await pedidoMbway(c, log), isTrue);
+
+      expect(log.where((l) => l.startsWith('preparar:')).toList(), [_hora, _hora]);
+      expect(log.where((l) => l == 'createOrder'), hasLength(2));
+      expect(c.items, hasLength(1));
+    });
+
+    test('limparDepoisDoPedido limpa itens, hora marcada e a marca', () async {
+      final log = <String>[];
+      await servidor(ServidorFalso(), MarcacaoFalsa(log, horaGravada: janela.instante));
+      final c = await carrinhoDoContinente(fechada: true);
+      c.addItem(leite());
+      estado.escolher('continente', janela);
+      expect(await pedidoMbway(c, log), isTrue);
+
+      c.limparDepoisDoPedido();
+
+      expect(c.items, isEmpty);
+      expect(estado.escolha, isNull);
+      expect(c.mbwayPendenteId, isNull);
+    });
+
+    test('sem manterCarrinho (dinheiro) limpa como sempre e não marca nada',
+        () async {
+      final log = <String>[];
+      await servidor(ServidorFalso(), MarcacaoFalsa(log, horaGravada: janela.instante));
+      final c = await carrinhoDoContinente(fechada: true);
+      c.addItem(leite());
+      estado.escolher('continente', janela);
+
+      expect(
+          await c.finishOrder(OrderStoreFalso(log),
+              paymentMethod: PaymentMethod.cash, paymentStatus: PaymentStatus.paid),
+          isTrue);
+
+      expect(c.items, isEmpty);
+      expect(estado.escolha, isNull);
+      expect(c.mbwayPendenteId, isNull);
+    });
+  });
+
+  group('pedido MB WAY anterior (achado 1: não pagar duas vezes)', () {
+    Future<CartStore> carrinhoComMbwayAEspera(List<String> log) async {
+      await servidor(ServidorFalso(), MarcacaoFalsa(log));
+      final c = await carrinhoDoContinente();
+      c.addItem(leite());
+      expect(await pedidoMbway(c, log), isTrue);
+      expect(c.mbwayPendenteId, 'pedido-1');
+      return c;
+    }
+
+    test('pago na app do banco depois de cancelado: limpa e NÃO cria outro',
+        () async {
+      final log = <String>[];
+      final c = await carrinhoComMbwayAEspera(log);
+      final lidos = <String>[];
+      c.lerPedidoParaTeste = (id) async {
+        lidos.add(id);
+        // O webhook reativa o pedido cancelado quando o dinheiro entra.
+        return {'status': 'created', 'payment_status': 'paid'};
+      };
+
+      expect(await c.verificarMbwayPendente(), PedidoMbwayAnterior.pago);
+      expect(lidos, ['pedido-1']);
+      expect(c.items, isEmpty, reason: 'o carrinho já virou o pedido pago');
+      expect(c.mbwayPendenteId, isNull);
+
+      // Mesmo que alguém tente criar outro, já não há carrinho para isso.
+      log.clear();
+      expect(await pedidoMbway(c, log), isFalse);
+      expect(log, isNot(contains('createOrder')));
+    });
+
+    test('ainda não cancelado (cancelamento falhou): limpa e não cria outro',
+        () async {
+      final log = <String>[];
+      final c = await carrinhoComMbwayAEspera(log);
+      c.lerPedidoParaTeste =
+          (_) async => {'status': 'created', 'payment_status': 'pending'};
+
+      expect(await c.verificarMbwayPendente(), PedidoMbwayAnterior.ativo);
+      expect(c.items, isEmpty);
+    });
+
+    test('cancelado e por pagar: o carrinho fica e pode criar-se outro', () async {
+      final log = <String>[];
+      final c = await carrinhoComMbwayAEspera(log);
+      c.lerPedidoParaTeste =
+          (_) async => {'status': 'cancelled', 'payment_status': 'pending'};
+
+      expect(await c.verificarMbwayPendente(), PedidoMbwayAnterior.morto);
+      expect(c.items, hasLength(1));
+
+      log.clear();
+      expect(await pedidoMbway(c, log), isTrue);
+      expect(log, contains('createOrder'));
+    });
+
+    test('sem resposta do servidor: não mexe no carrinho', () async {
+      final log = <String>[];
+      final c = await carrinhoComMbwayAEspera(log);
+      c.lerPedidoParaTeste = (_) async => throw Exception('SocketException');
+
+      expect(await c.verificarMbwayPendente(), PedidoMbwayAnterior.semResposta);
+      expect(c.items, hasLength(1));
+      expect(c.mbwayPendenteId, 'pedido-1');
+    });
+
+    test('sem pedido à espera não pergunta nada ao servidor', () async {
+      final c = await carrinhoDoContinente();
+      c.addItem(leite());
+      var perguntou = false;
+      c.lerPedidoParaTeste = (_) async {
+        perguntou = true;
+        return null;
+      };
+      expect(await c.verificarMbwayPendente(), PedidoMbwayAnterior.nenhum);
+      expect(perguntou, isFalse);
+    });
+
+    test('estado do pedido: pago manda sempre; cancelado/recusado é morto', () {
+      expect(estadoDoPedidoMbway(null), PedidoMbwayAnterior.morto);
+      expect(estadoDoPedidoMbway({'status': 'cancelled', 'payment_status': 'paid'}),
+          PedidoMbwayAnterior.pago);
+      expect(estadoDoPedidoMbway({'status': 'rejected', 'payment_status': 'pending'}),
+          PedidoMbwayAnterior.morto);
+      expect(estadoDoPedidoMbway({'status': 'preparing', 'payment_status': 'pending'}),
+          PedidoMbwayAnterior.ativo);
+    });
+  });
+
+  group('a app morreu enquanto o cliente aprovava no banco (achado 2)', () {
+    // O carrinho reposto pergunta pela configuração do agendar: porta falsa.
+    setUp(() => estado.reporParaTeste(ServidorFalso(ligado: false)));
+
+    Map<String, Object> guardado() => {
+          'bora_cart_v1': jsonEncode({
+            'items': [
+              {'productId': 'leite', 'name': 'Leite', 'price': 0.89, 'quantity': 2}
+            ],
+            'serviceType': 'storeShopping',
+            'isPartnerStore': false,
+            'vendorName': 'Continente',
+            'mbwayPendenteId': 'pedido-velho',
+          }),
+        };
+
+    test('pagamento entrou: o carrinho reposto limpa-se sozinho', () async {
+      SharedPreferences.setMockInitialValues(guardado());
+      final lidos = <String>[];
+      final c = CartStore()
+        ..lerParceiraParaTeste = ((_, __) async => null)
+        ..lerPedidoParaTeste = (id) async {
+          lidos.add(id);
+          return {'status': 'preparing', 'payment_status': 'paid'};
+        };
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(lidos, ['pedido-velho']);
+      expect(c.items, isEmpty);
+      expect(c.mbwayPendenteId, isNull);
+    });
+
+    test('cancelado e por pagar: o carrinho reposto fica com a marca', () async {
+      SharedPreferences.setMockInitialValues(guardado());
+      final c = CartStore()
+        ..lerParceiraParaTeste = ((_, __) async => null)
+        ..lerPedidoParaTeste =
+            (_) async => {'status': 'cancelled', 'payment_status': 'pending'};
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(c.items, hasLength(1));
+      expect(c.mbwayPendenteId, 'pedido-velho');
+    });
+  });
+
   group('porque falhou, em português de Portugal', () {
-    test('todas as frases dizem que o carrinho continua e o que fazer', () {
+    test('as falhas dizem que o carrinho continua e para recusar o pedido antigo',
+        () {
       final frases = [
         mensagemErroMbway(),
         mensagemErroMbway(status: 500, erro: 'Invalid phone number'),
@@ -32,10 +272,32 @@ void main() {
       for (final f in frases) {
         expect(f, contains('O teu carrinho continua aqui'), reason: f);
         expect(f, contains('escolhe outro meio de pagamento'), reason: f);
+        expect(f, contains('recusa-o lá'), reason: f);
+        expect(f, contains('MB WAY'), reason: f);
+        expect(f, isNot(contains('MBWay')), reason: f);
         // Nada de inglês nem de códigos a aparecer ao cliente.
         expect(f.toLowerCase(), isNot(contains('error')), reason: f);
         expect(f, isNot(contains('500')), reason: f);
+        expect(eMbwayDesligado(f), isFalse, reason: f);
       }
+    });
+
+    test('MB WAY desligado (503): só "escolhe outro meio", sem "tenta outra vez"',
+        () {
+      for (final f in [
+        mensagemErroMbway(status: 503, erro: 'mbway_disabled'),
+        mensagemErroMbway(erro: 'mbway_disabled'),
+      ]) {
+        expect(f, mbwayDesligado);
+        expect(eMbwayDesligado(f), isTrue);
+        expect(f, contains('escolhe outro meio de pagamento'));
+        expect(f, isNot(contains('tenta outra vez')));
+      }
+    });
+
+    test('409 já não se contradiz', () {
+      expect(mensagemErroMbway(status: 409, erro: 'Order already processed'),
+          startsWith('Este pedido já não estava à espera de pagamento'));
     });
 
     test('número que o MB WAY não aceita', () {
@@ -77,60 +339,6 @@ void main() {
     test('não confirmado na app do banco', () {
       expect(mbwayNaoConfirmado,
           startsWith('O pagamento MB WAY não foi confirmado'));
-    });
-  });
-
-  group('pela fonte: o fluxo', () {
-    final ecra = _ler('lib/screens/payment_method_screen.dart');
-    final carrinho = _ler('lib/stores/cart_store.dart');
-    final servico = _ler('lib/services/payment_service.dart');
-
-    test('MB WAY cria o pedido SEM esvaziar o carrinho', () {
-      final ini = ecra.indexOf('case PaymentMethod.mbway:');
-      final fim = ecra.indexOf('case PaymentMethod.cash:', ini);
-      expect(ini, greaterThan(0));
-      expect(fim, greaterThan(ini));
-      final ramo = ecra.substring(ini, fim);
-      expect(ramo, contains('manterCarrinho: true'));
-      // Falhou: fica no ecrã do pagamento (duas saídas: ao iniciar e na espera).
-      expect('ficarNoPagamento: true'.allMatches(ramo).length, 2);
-      // Pagou: só então limpa o carrinho, antes de seguir.
-      final limpar = ramo.indexOf('cartStore.limparDepoisDoPedido();');
-      final seguir = ramo.indexOf('_consumeTokensAndNavigate(tokensUsed)');
-      expect(limpar, greaterThan(0));
-      expect(seguir, greaterThan(limpar));
-      // A frase antiga, sem motivo, saiu.
-      expect(ramo, isNot(contains('Não foi possível iniciar o pagamento MBWay.')));
-    });
-
-    test('ficar no pagamento = não voltar ao início', () {
-      final ini = ecra.indexOf('Future<void> _bailOutAndCancel(');
-      final corpo = ecra.substring(ini, ecra.indexOf('\n  }\n', ini));
-      expect(corpo, contains('if (!ficarNoPagamento) {'));
-      expect(corpo, contains("'reason': 'payment_failed'"),
-          reason: 'o pedido órfão continua a ser cancelado sem custo');
-    });
-
-    test('quem não pede para manter continua a limpar como sempre', () {
-      expect(carrinho, contains('bool manterCarrinho = false,'));
-      expect(carrinho, contains('if (!manterCarrinho) limparDepoisDoPedido();'));
-      final ini = carrinho.indexOf('void limparDepoisDoPedido() {');
-      final corpo = carrinho.substring(ini, carrinho.indexOf('\n  }\n', ini));
-      for (final linha in [
-        '_errandSession = null;',
-        '_tipCents = 0;',
-        '_walletAppliedCents = 0;',
-        'clearCart();',
-      ]) {
-        expect(corpo, contains(linha), reason: linha);
-      }
-    });
-
-    test('o serviço guarda o motivo em vez de o deitar fora', () {
-      expect(servico, contains('String? ultimoErroMbway;'));
-      expect(servico, contains('on FunctionException catch (e)'));
-      expect('ultimoErroMbway = mensagemErroMbway('.allMatches(servico).length,
-          greaterThanOrEqualTo(4));
     });
   });
 }

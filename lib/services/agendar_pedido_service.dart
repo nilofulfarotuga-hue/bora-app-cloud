@@ -551,18 +551,21 @@ class AgendarPedidoEstado extends ChangeNotifier {
   /// interruptor desligado, não faz nada e devolve true. A reserva tenta 3
   /// vezes; se falhar devolve false (a hora segue na nota do pedido para o
   /// parceiro ver). Limpa a escolha quando acaba, com sucesso ou não: o
-  /// carrinho foi-se.
+  /// carrinho foi-se. Com [manterEscolha] (revisão 15/11, achado 3: MB WAY à
+  /// espera, o carrinho fica para uma 2.ª tentativa) a escolha não se apaga;
+  /// apaga-a o carrinho quando o pagamento entra.
   Future<bool> gravarEscolha(
     String orderId, {
     required String? restaurantId,
     Duration pausa = const Duration(milliseconds: 600),
+    bool manterEscolha = false,
   }) async {
     if (!ligado || !escolhaPara(restaurantId)) return true;
     final janela = _escolha!;
     try {
       if (await marcacao.horaDoPedido(orderId) != null) {
         _marcacaoNoServidor = false;
-        limpar();
+        if (!manterEscolha) limpar();
         return true;
       }
     } catch (e) {
@@ -578,7 +581,7 @@ class AgendarPedidoEstado extends ChangeNotifier {
         if (i < 2) await Future<void>.delayed(pausa);
       }
     }
-    limpar();
+    if (!manterEscolha) limpar();
     return ok;
   }
 }

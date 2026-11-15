@@ -1,5 +1,5 @@
 // Prova local (PGlite = Postgres real em WASM) da migração
-// 20261114190000_compra_guardada_e_fila_estafeta.sql — compra-guardada-2026-11-14.
+// 20261115132849_compra_guardada_e_fila_estafeta.sql — compra-guardada-2026-11-14.
 //
 // Porquê local: a tranca recusa DDL em produção (apply_migration e DO+EXECUTE),
 // mesmo em rollback. Aqui aplica-se a migração TAL COMO ESTÁ sobre réplicas
@@ -22,7 +22,7 @@ if (!pastaPglite) {
 const require = createRequire(path.join(path.resolve(pastaPglite), 'x.js'));
 const { PGlite } = await import(pathToFileURL(require.resolve('@electric-sql/pglite')).href);
 let migracao = readFileSync(
-  path.join(aqui, '..', 'migrations', '20261114190000_compra_guardada_e_fila_estafeta.sql'),
+  path.join(aqui, '..', 'migrations', '20261115132849_compra_guardada_e_fila_estafeta.sql'),
   'utf8',
 );
 // Teste anti-mentira: MUTACAO="texto=>outro" estraga a migração de propósito;

@@ -16,7 +16,7 @@
 //   existia: DriverCapacityService) e o que já está recolhido nunca se esconde.
 //
 // GÉMEO no servidor: public.fila_do_estafeta / _fila_proximo_em_curso (migração
-// 20261114190000_compra_guardada_e_fila_estafeta.sql) — o painel e o aviso ao
+// 20261115132849_compra_guardada_e_fila_estafeta.sql) — o painel e o aviso ao
 // cliente usam esse. Mudar um = mudar o outro (testes nos dois lados).
 
 import 'dart:async';

@@ -1,3 +1,6 @@
+-- Texto aplicado em produção a 15/11/2026 (schema_migrations.statements, versão 20261115131148); antes estava no repo como 20261115010100_aprovar_account_update_pelo_nucleo.sql
+-- Conferido a 15/11/2026: o SQL que corre é igual ao gravado no servidor; só comentários e espaços diferem.
+
 -- Missão editar-perfil-2026-11-11 — Bloco 3.
 --
 -- Aprovar um pedido ACCOUNT_UPDATE do robô (painel → Propostas do robô →

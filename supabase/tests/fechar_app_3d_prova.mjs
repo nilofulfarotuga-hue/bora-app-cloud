@@ -1,5 +1,5 @@
 // Prova local (PGlite = Postgres real em WASM) da migração
-// 20261115020000_push_token_papel_handyman.sql — fechar-app-15-11, Bloco 3 (d).
+// 20261115123226_push_token_papel_handyman.sql — fechar-app-15-11, Bloco 3 (d).
 //
 // Porquê local: a tranca recusa DDL em produção, mesmo em rollback. Aqui
 // montam-se réplicas das quatro tabelas de aparelhos (colunas e regras lidas
@@ -30,7 +30,7 @@ const require = createRequire(path.join(path.resolve(pastaPglite), 'x.js'));
 const { PGlite } = await import(pathToFileURL(require.resolve('@electric-sql/pglite')).href);
 
 const ler = (...p) => readFileSync(path.join(aqui, ...p), 'utf8').replace(/\r\n/g, '\n');
-let migracao = ler('..', 'migrations', '20261115020000_push_token_papel_handyman.sql');
+let migracao = ler('..', 'migrations', '20261115123226_push_token_papel_handyman.sql');
 if (process.env.MUTACAO) {
   const [de, para] = process.env.MUTACAO.split('=>');
   if (!migracao.includes(de)) throw new Error(`mutação não encontrada: ${de}`);

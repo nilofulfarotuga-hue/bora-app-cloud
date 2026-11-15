@@ -1,3 +1,6 @@
+-- Texto aplicado em produção a 15/11/2026 (schema_migrations.statements, versão 20261115123226); antes estava no repo como 20261115020000_push_token_papel_handyman.sql
+-- Conferido a 15/11/2026: o SQL que corre é igual ao gravado no servidor; só comentários e espaços diferem.
+
 -- Missão fechar-app-15-11 — Bloco 3 (d).
 --
 -- O aparelho do profissional da Casa e manutenção (papel `handyman`) nunca

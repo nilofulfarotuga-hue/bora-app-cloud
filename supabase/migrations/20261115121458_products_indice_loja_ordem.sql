@@ -1,3 +1,6 @@
+-- Texto aplicado em produção a 15/11/2026 (schema_migrations.statements, versão 20261115121458); antes estava no repo como 20261115021000_products_indice_loja_ordem.sql
+-- Conferido a 15/11/2026: o SQL que corre é igual ao gravado no servidor; só comentários e espaços diferem.
+
 -- Missão fechar-app-15-11, Bloco 3c (14/11/2026) — POR APLICAR (aplica a Claude.ai).
 --
 -- A app passou a pedir os produtos de uma loja por cursor, na ordem de sempre:

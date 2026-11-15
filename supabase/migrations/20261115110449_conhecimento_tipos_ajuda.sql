@@ -1,3 +1,6 @@
+-- Texto aplicado em produção a 15/11/2026 (schema_migrations.statements, versão 20261115110449); antes estava no repo como 20261115104000_conhecimento_tipos_ajuda.sql
+-- Conferido a 15/11/2026: o SQL que corre é igual ao gravado no servidor; só comentários e espaços diferem.
+
 -- app-15-11 bloco A1 (15/11/2026): a base dos robôs passa a aceitar os tipos de
 -- texto público ('ajuda', 'faq', 'manual') — os mesmos da lista fechada da
 -- proposta 8e (docs/propostas/fechar-app-15-11/8e_robos_sem_notas_internas.PROPOSTA.sql).

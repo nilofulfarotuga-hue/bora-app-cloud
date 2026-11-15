@@ -1,3 +1,6 @@
+-- Texto aplicado em produção a 15/11/2026 (schema_migrations.statements, versão 20261115131125); antes estava no repo como 20261115010000_editar_perfil_cliente.sql
+-- Conferido a 15/11/2026: o SQL que corre é igual ao gravado no servidor; só comentários e espaços diferem.
+
 -- Missão editar-perfil-2026-11-11 (autorizada pelo Danilo a 11/11/2026, 16:54 e 17:00).
 --
 -- Porquê: uma cliente perguntou no suporte como mudar o perfil; o robô mandou-a

@@ -1,5 +1,5 @@
 // Prova local (PGlite) da migração
-// 20261115020100_cron_desencontrar_minutos_redondos.sql — fechar-app-15-11, Bloco 3 (h).
+// 20261115121500_cron_desencontrar_minutos_redondos.sql — fechar-app-15-11, Bloco 3 (h).
 //
 // O PGlite não tem pg_cron. Monta-se aqui um `cron.job` com as tarefas TAL
 // COMO ESTAVAM em produção a 14/11/2026 (jobid, horário, nome, ligada) e um
@@ -29,7 +29,7 @@ const require = createRequire(path.join(path.resolve(pastaPglite), 'x.js'));
 const { PGlite } = await import(pathToFileURL(require.resolve('@electric-sql/pglite')).href);
 
 let migracao = readFileSync(
-  path.join(aqui, '..', 'migrations', '20261115020100_cron_desencontrar_minutos_redondos.sql'), 'utf8',
+  path.join(aqui, '..', 'migrations', '20261115121500_cron_desencontrar_minutos_redondos.sql'), 'utf8',
 ).replace(/\r\n/g, '\n');
 if (process.env.MUTACAO) {
   const [de, para] = process.env.MUTACAO.split('=>');

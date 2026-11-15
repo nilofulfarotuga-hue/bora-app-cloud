@@ -1,3 +1,6 @@
+-- Texto aplicado em produção a 15/11/2026 (schema_migrations.statements, versão 20261115130609); antes estava no repo como 20261115120000_robos_livro_publico.sql
+-- Conferido a 15/11/2026: o SQL que corre é igual ao gravado no servidor; só comentários e espaços diferem.
+
 -- A3 (missão manha-15-11, 15/11/2026) — o livro comum que os robôs podem ler, por LISTA FECHADA.
 -- POR APLICAR: escrito no repo, não aplicado em produção.
 --

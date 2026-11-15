@@ -1,3 +1,26 @@
+-- Texto aplicado em produção a 15/11/2026 (schema_migrations.statements, versão 20261115132849); antes estava no repo como 20261114190000_compra_guardada_e_fila_estafeta.sql
+-- No servidor, statements guardou um carregador (copiado abaixo, comentado): leu a cópia deste ficheiro
+-- descarregada do GitHub (net._http_response 157471) e só a executou depois de conferir o sha256
+-- 554b7a54bad7eb4fe9e82d088edb115004134d35bea6d007ebcd6484e0dc16ab. O texto depois do carregador é
+-- byte a byte o que correu (mesmo sha256, versão do commit 3451e519).
+--
+-- >>> carregador gravado em schema_migrations.statements (versão 20261115132849):
+-- -- Caixa 39: ficheiro do commit 26faca7d (lido inteiro pela Claude.ai), executado a partir da copia
+-- -- byte a byte descarregada, so se o sha256 for o conferido.
+-- do $aplicar$
+-- declare
+--   v_sql text;
+-- begin
+--   select content into v_sql from net._http_response where id = 157471 and status_code = 200;
+--   if v_sql is null then raise exception 'caixa 39: copia do ficheiro nao encontrada'; end if;
+--   if encode(sha256(convert_to(v_sql,'UTF8')),'hex') <> '554b7a54bad7eb4fe9e82d088edb115004134d35bea6d007ebcd6484e0dc16ab' then
+--     raise exception 'caixa 39: sha256 diferente do conferido, nada aplicado';
+--   end if;
+--   execute v_sql;
+-- end
+-- $aplicar$;
+-- <<< fim do carregador; a seguir, o que ele executou.
+
 -- ════════════════════════════════════════════════════════════════════════════
 -- compra-guardada-2026-11-14 (+ adenda 1 do Danilo, 16:45: fila de pedidos)
 --

@@ -1,3 +1,7 @@
+-- Texto aplicado em produção a 15/11/2026 (schema_migrations.statements, versão 20261115121500); antes estava no repo como 20261115020100_cron_desencontrar_minutos_redondos.sql
+-- Acertado ao que correu: a versão aplicada não tem a linha RAISE NOTICE 'cron %: passa a "%"' dentro do
+-- ciclo (tirada daqui); o resto do SQL é igual ao gravado no servidor, só comentários e espaços diferem.
+
 -- Missão fechar-app-15-11 — Bloco 3 (h).
 --
 -- "remaining connection slots are reserved for roles with the SUPERUSER
@@ -68,7 +72,6 @@ BEGIN
     -- UPDATE direto em cron.job dá permission denied — sempre cron.alter_job.
     PERFORM cron.alter_job(r.jobid, schedule := r.novo);
     v_n := v_n + 1;
-    RAISE NOTICE 'cron %: passa a "%"', r.jobname, r.novo;
   END LOOP;
   RAISE NOTICE 'tarefas desencontradas nesta corrida: %', v_n;
 END

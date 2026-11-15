@@ -95,6 +95,7 @@ import 'admin_papeis_screen.dart';
 import 'admin_parceiros_termos_screen.dart';
 import 'admin_partners_pending_screen.dart';
 import 'admin_partners_screen.dart';
+import 'admin_area_parceiro_screen.dart';
 import 'admin_payments_cards_screen.dart';
 import 'admin_pending_actions_screen.dart';
 import 'admin_platform_settings_screen.dart';
@@ -1167,6 +1168,18 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.purple,
       builder: () => const AdminPartnersScreen(),
       keywords: const ['dados', 'desligar', 'editar', 'ligar', 'lojas', 'parceiros', 'restaurantes'],
+    ),
+    // 15/11/2026 (painel-admin-15-11): o admin faz pela loja o que o parceiro faz na app.
+    AdminMenuItem(
+      id: 'parceiros_area_parceiro',
+      title: 'Área do parceiro (agir pela loja)',
+      subtitle: 'Escolha uma loja e faça por ela: abrir ou fechar, pausa e modo '
+          'ocupado, pedidos de agora, menu disponível ou esgotado e o dinheiro da '
+          'semana, com registro de cada ação',
+      icon: Icons.store_mall_directory_outlined,
+      color: Colors.purple,
+      builder: () => const AdminAreaParceiroScreen(),
+      keywords: const ['area do parceiro', 'agir pela loja', 'loja', 'parceiro', 'pausa', 'ocupado', 'esgotado', 'auditoria'],
     ),
     // 11/11/2026 (farmácias): visibilidade por lista de permissão, receita e comissão extra.
     // app-15-11 (auditoria S5): as três entradas das farmácias vieram da

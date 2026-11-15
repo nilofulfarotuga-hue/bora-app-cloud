@@ -34,4 +34,4 @@ O menu, as fotos, os preços e o horário mudam-se no painel do parceiro. Mudan�
 O acerto com os parceiros é semanal e o extrato fica no painel do parceiro. As condições do teu contrato estão no painel; para dúvidas, fala com a equipa pelo Suporte.
 
 ## Parceiro: reservas
-Nas reservas o cliente paga 3 € adiantados. Quando o cliente chega, marca a chegada na app e os 3 € são descontados na conta dele.
+Nas reservas o cliente paga 3 € adiantados. Quando o cliente chega, marca a chegada na app e descontas 2 € na conta dele (1 € fica como taxa da reserva da Bora).

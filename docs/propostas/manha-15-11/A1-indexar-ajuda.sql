@@ -101,7 +101,7 @@ Nos Favores um estafeta faz um recado por ti: comprar alguma coisa numa loja, le
 Nos mercados, os produtos ao quilo (fruta, carne, peixe) têm um preço estimado. O estafeta pesa e escreve o valor certo da etiqueta; pagas o valor real. Se ficar mais barato, a diferença volta para a tua carteira.$aj$),
   ('ajuda-clientes.md', 14, 'Reservas em restaurantes',
    $aj$## Reservas em restaurantes
-Para reservar mesa pagas 3 € adiantados. Quando chegas, esse valor é descontado na conta do restaurante. Podes cancelar sem custo até 2 horas antes da hora marcada. Se cancelares com menos de 2 horas ou não apareceres, os 3 € não são devolvidos.$aj$),
+Para reservar mesa pagas 3 € adiantados. Quando chegas, 2 € são descontados na conta do restaurante; 1 € fica como taxa da reserva. Podes cancelar sem custo até 2 horas antes da hora marcada. Se cancelares com menos de 2 horas ou não apareceres, os 3 € não são devolvidos.$aj$),
   ('ajuda-clientes.md', 15, 'Limpezas',
    $aj$## Limpezas
 Podes marcar uma limpeza em casa pela app, com preço fixo conforme o tamanho da casa. Os materiais custam 3 € a mais e as limpezas repetidas têm 10 % de desconto. Se cancelares nos primeiros 5 minutos depois de marcar, não pagas nada.$aj$),
@@ -149,7 +149,7 @@ O menu, as fotos, os preços e o horário mudam-se no painel do parceiro. Mudan�
 O acerto com os parceiros é semanal e o extrato fica no painel do parceiro. As condições do teu contrato estão no painel; para dúvidas, fala com a equipa pelo Suporte.$aj$),
   ('ajuda-estafetas-parceiros.md', 10, 'Parceiro: reservas',
    $aj$## Parceiro: reservas
-Nas reservas o cliente paga 3 € adiantados. Quando o cliente chega, marca a chegada na app e os 3 € são descontados na conta dele.$aj$);
+Nas reservas o cliente paga 3 € adiantados. Quando o cliente chega, marca a chegada na app e descontas 2 € na conta dele (1 € fica como taxa da reserva da Bora).$aj$);
 
 -- 3. Versões antigas da ajuda destes dois ficheiros que já não existem no texto saem.
 delete from public.support_knowledge_chunks k

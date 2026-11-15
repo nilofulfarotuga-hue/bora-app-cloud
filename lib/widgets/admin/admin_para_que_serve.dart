@@ -22,10 +22,23 @@ class AdminTelaComProposito extends StatelessWidget {
   Widget build(BuildContext context) {
     final frase = proposito.trim();
     if (frase.isEmpty) return child;
+    // Juiz 15/11: com o teclado aberto (telemóvel) a faixa sai, para a tela usar
+    // a altura toda; sem teclado, a faixa trata da margem de baixo (SafeArea) e
+    // a tela deixa de a contar outra vez. A árvore fica sempre igual (o
+    // MediaQuery está sempre lá; só a faixa entra e sai), para a tela não perder
+    // o que se está a escrever.
+    final teclado = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Column(
       children: [
-        Expanded(child: child),
-        Material(
+        Expanded(
+          child: MediaQuery.removePadding(
+            context: context,
+            removeBottom: !teclado,
+            child: child,
+          ),
+        ),
+        if (!teclado)
+          Material(
           key: const Key('admin_para_que_serve'),
           color: AppColors.primaryLight,
           child: SafeArea(

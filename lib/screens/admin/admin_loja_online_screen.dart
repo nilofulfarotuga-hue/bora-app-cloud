@@ -78,6 +78,7 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
   }
 
   Future<void> _carregar() async {
+    if (!mounted) return;
     setState(() {
       _carregando = true;
       _erro = null;
@@ -131,39 +132,11 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
   }
 
   Future<String?> _pedirMotivo(String titulo, {String? explicacao}) async {
-    final c = TextEditingController();
     final r = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(titulo),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (explicacao != null) ...[
-              Text(explicacao),
-              const SizedBox(height: 12),
-            ],
-            TextField(
-              key: const Key('loja_online_motivo'),
-              controller: c,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Motivo (fica no registro, mínimo 3 letras)',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, c.text.trim()),
-              child: const Text('Confirmar')),
-        ],
-      ),
+      builder: (_) =>
+          _MotivoLojaOnlineDialog(titulo: titulo, explicacao: explicacao),
     );
-    c.dispose();
     if (r == null) return null;
     if (r.length < 3) {
       _msg('Escreva o motivo (mínimo 3 letras).', erro: true);
@@ -195,7 +168,7 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
         ],
       ),
     );
-    if (ok != true) return;
+    if (ok != true || !mounted) return;
     setState(() => _ocupado = true);
     try {
       await _svc.mudarInterruptor(ligado);
@@ -222,6 +195,7 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
     }
     final motivo = await _pedirMotivo(titulo);
     if (motivo == null) return;
+    if (!mounted) return;
     setState(() => _ocupado = true);
     try {
       await _svc.produtoEstado(
@@ -242,6 +216,7 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
           'do cliente como "Novidade da semana".',
     );
     if (motivo == null) return;
+    if (!mounted) return;
     setState(() => _ocupado = true);
     try {
       await _svc.nichoDaSemana(nichoId: n.id, motivo: motivo);
@@ -581,6 +556,62 @@ class _CartaoErro extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Diálogo do motivo (Juiz 15/11): o próprio diálogo é dono do campo de texto
+/// e só o liberta quando sai da árvore, depois da animação de fecho.
+class _MotivoLojaOnlineDialog extends StatefulWidget {
+  const _MotivoLojaOnlineDialog({required this.titulo, this.explicacao});
+
+  final String titulo;
+  final String? explicacao;
+
+  @override
+  State<_MotivoLojaOnlineDialog> createState() =>
+      _MotivoLojaOnlineDialogState();
+}
+
+class _MotivoLojaOnlineDialogState extends State<_MotivoLojaOnlineDialog> {
+  final _c = TextEditingController();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final explicacao = widget.explicacao;
+    return AlertDialog(
+      title: Text(widget.titulo),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (explicacao != null) ...[
+            Text(explicacao),
+            const SizedBox(height: 12),
+          ],
+          TextField(
+            key: const Key('loja_online_motivo'),
+            controller: _c,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Motivo (fica no registro, mínimo 3 letras)',
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar')),
+        FilledButton(
+            onPressed: () => Navigator.pop(context, _c.text.trim()),
+            child: const Text('Confirmar')),
+      ],
     );
   }
 }

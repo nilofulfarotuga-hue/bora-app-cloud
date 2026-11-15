@@ -31,6 +31,20 @@ void main() {
     expect(find.text('conteudo da tela'), findsOneWidget);
   });
 
+  testWidgets('com o teclado aberto a faixa sai e a tela fica', (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+      home: MediaQuery(
+        data: MediaQueryData(viewInsets: EdgeInsets.only(bottom: 300)),
+        child: AdminTelaComProposito(
+          proposito: 'Lista e estado de todos os entregadores',
+          child: Scaffold(body: Text('conteudo da tela')),
+        ),
+      ),
+    ));
+    expect(find.byKey(const Key('admin_para_que_serve')), findsNothing);
+    expect(find.text('conteudo da tela'), findsOneWidget);
+  });
+
   test('os dois sítios que abrem telas do menu usam a faixa', () {
     for (final caminho in [
       'lib/screens/admin/admin_menu_accordion.dart',

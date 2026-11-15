@@ -18,6 +18,7 @@ import '../../widgets/private_bucket_image.dart';
 import '_admin_password_reset_dialog.dart';
 import '_admin_rpc_errors.dart';
 import 'admin_papeis_screen.dart';
+import 'admin_area_estafeta_screen.dart';
 import 'admin_suspensao_comum.dart';
 import '../../utils/hora_lisboa_ext.dart';
 import '../../utils/hora_lisboa.dart';
@@ -321,6 +322,23 @@ class _OverviewTab extends StatelessWidget {
               'O que a equipe pode fazer com esta conta. Tudo fica registrado '
               'no Histórico.'),
           const SizedBox(height: 4),
+          // [15/11/2026 painel] Área do estafeta: o admin faz por ele o que ele
+          // faz na app (pedidos, ganhos, conta, documentos), tudo auditado.
+          _ActionButton(
+            icon: Icons.badge_outlined,
+            label: 'Área do estafeta (agir por ele)',
+            subtitle: 'Ver o que ele vê agora e fazer por ele: pedidos, ganhos, '
+                'conta e documentos. Tudo fica registrado.',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => AdminAreaEstafetaScreen(
+                  driverId: driver['id'].toString(),
+                  userId: (driver['user_id'] ?? driver['id']).toString(),
+                  nome: driver['name']?.toString(),
+                ),
+              ),
+            ),
+          ),
           _ActionButton(
             icon: Icons.edit,
             label: 'Editar dados',

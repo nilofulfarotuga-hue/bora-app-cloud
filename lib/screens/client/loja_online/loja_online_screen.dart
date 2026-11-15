@@ -18,6 +18,7 @@ import '../../../l10n/tr.dart';
 import '../../../models/loja_online_produto.dart';
 import '../../../services/loja_online_service.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
+import 'minhas_encomendas_loja_online_screen.dart';
 import 'produto_loja_online_screen.dart';
 
 class LojaOnlineScreen extends StatefulWidget {
@@ -56,7 +57,18 @@ class _LojaOnlineScreenState extends State<LojaOnlineScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: BoraScreenAppBar(title: 'Loja Online'.tr),
+      appBar: BoraScreenAppBar(
+        title: 'Loja Online'.tr,
+        actions: [
+          IconButton(
+            key: const Key('loja_online_minhas_encomendas'),
+            tooltip: 'As minhas encomendas'.tr,
+            icon: const Icon(Icons.receipt_long_outlined),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const MinhasEncomendasLojaOnlineScreen())),
+          ),
+        ],
+      ),
       body: FutureBuilder<LojaOnlineCatalogo>(
         future: _futuro,
         builder: (context, snap) {
@@ -258,7 +270,12 @@ class _ProdutoCard extends StatelessWidget {
                         const SizedBox(width: Spacing.xs),
                         Expanded(
                           child: Text(
-                            'Enviado pelo correio'.tr,
+                            textoPrazoCurto(produto.prazoMinDias,
+                                    produto.prazoMaxDias)
+                                .isNotEmpty
+                                ? textoPrazoCurto(
+                                    produto.prazoMinDias, produto.prazoMaxDias)
+                                : 'Enviado pelo correio'.tr,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(

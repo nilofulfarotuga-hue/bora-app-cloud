@@ -50,6 +50,12 @@ const Map<String, String> kStringsEn = <String, String>{
       'We could not load the store. Try again.',
   'Ainda não há produtos nesta loja.': 'There are no products in this store yet.',
   'Enviado pelo correio': 'Shipped by mail',
+  'O pagamento foi recusado. Não te foi cobrado nada. Tenta outra vez ou escolhe outro método.':
+      'The payment was declined. You were not charged. Try again or choose another method.',
+  'Tens pagamentos à espera. Espera uns minutos e tenta outra vez.':
+      'You have payments pending. Wait a few minutes and try again.',
+  '{0} a {1} dias úteis': '{0} to {1} working days',
+  '{0} dias úteis': '{0} working days',
   'Chega pelo correio em 1 dia útil': 'Arrives by mail in 1 working day',
   'Chega pelo correio em {0} dias úteis': 'Arrives by mail in {0} working days',
   'Chega pelo correio em {0} a {1} dias úteis':
@@ -5550,4 +5556,59 @@ const Map<String, String> kStringsEn = <String, String>{
   // 15/11/2026 (app-15-11): convites sem o erro técnico no ecrã.
   'Não foi possível carregar. Tente outra vez.':
       'Could not load. Try again.',
+  // checkup-15-11 (B3.7): pagamento e encomendas da Loja Online.
+  'Pagas com MB WAY ou cartão e recebes pelo correio.':
+      'Pay with MB WAY or card and get it by post.',
+  'Aceita o pagamento na app MB WAY do teu telemóvel.':
+      'Accept the payment in the MB WAY app on your phone.',
+  'Ainda não recebemos a confirmação do pagamento. Vê em "As minhas encomendas" daqui a pouco.':
+      'We have not received the payment confirmation yet. Check "My orders" in a little while.',
+  'O pagamento não foi concluído. Não te foi cobrado nada.':
+      'The payment was not completed. You were not charged.',
+  'Encomenda feita!':
+      'Order placed!',
+  'Vais receber a encomenda pelo correio.':
+      'You will receive your order by post.',
+  'Morada de envio':
+      'Shipping address',
+  'Rua, número e andar':
+      'Street, number and floor',
+  'Como queres pagar?':
+      'How do you want to pay?',
+  'Esta loja envia pelo correio: não há pagamento em dinheiro.':
+      'This store ships by post: no cash payment.',
+  'Pagar {0}':
+      'Pay {0}',
+  'As minhas encomendas':
+      'My orders',
+  'Ainda não fizeste nenhuma encomenda.':
+      'You have not placed any orders yet.',
+  'Código de seguimento: {0}':
+      'Tracking code: {0}',
+  'Escreve o teu nome completo.':
+      'Write your full name.',
+  'Escreve um telemóvel português válido.':
+      'Write a valid Portuguese mobile number.',
+  'Escreve a morada com rua e número.':
+      'Write the address with street and number.',
+  'O código postal tem de ser 1234-567.':
+      'The postcode must be 1234-567.',
+  'Escreve a localidade.':
+      'Write the town.',
+  'A loja ainda não está aberta.':
+      'The store is not open yet.',
+  'Falta completar a morada de envio.':
+      'Please complete the shipping address.',
+  'Podes encomendar de 1 a 5 unidades.':
+      'You can order 1 to 5 units.',
+  'Não foi possível iniciar o pagamento. Tenta outra vez.':
+      'Could not start the payment. Try again.',
+  'Paga, a preparar':
+      'Paid, being prepared',
+  'A caminho do armazém':
+      'On its way to the warehouse',
+  'Enviada pelo correio':
+      'Sent by post',
+  'Entregue':
+      'Delivered',
 };

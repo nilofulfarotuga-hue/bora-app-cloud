@@ -16,6 +16,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../models/loja_online_produto.dart';
 import '../../services/loja_online_service.dart';
+import 'admin_loja_online_encomendas_screen.dart';
 import '_admin_rpc_errors.dart';
 
 /// Tradução dos erros desta tela: tabela, função ou chave por instalar dão a
@@ -246,6 +247,22 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
                     _CartaoErro(texto: _erro!, onTentar: _carregar)
                   else ...[
                     _cartaoInterruptor(),
+                    const SizedBox(height: 12),
+                    Card(
+                      child: ListTile(
+                        key: const Key('loja_online_abrir_encomendas'),
+                        leading: const Icon(Icons.local_shipping_outlined),
+                        title: const Text('Encomendas a fazer ao fornecedor'),
+                        subtitle: const Text(
+                            'Compras pagas pelos clientes: encomendar na CJ, '
+                            'colocar o rastreio e marcar entregue.'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    const AdminLojaOnlineEncomendasScreen())),
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     _cartaoNichos(),
                     const SizedBox(height: 12),

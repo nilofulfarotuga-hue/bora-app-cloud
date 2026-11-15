@@ -196,6 +196,8 @@ export async function contaDoPaymentIntent(admin: Cliente, piId: string | null |
     ['appointments', 'full_payment_pi'],
     ['cleaning_bookings', 'stripe_payment_intent_id'],
     ['carwash_bookings', 'stripe_payment_intent_id'],
+    // checkup-15-11 (Juiz 2 da Claude.ai 19:05): encomendas da Loja Online.
+    ['loja_online_encomendas', 'payment_intent_id'],
   ];
   for (const [tabela, coluna] of sitios) {
     try {

@@ -504,7 +504,9 @@ class _PedidosEstafetaCorpoState extends State<PedidosEstafetaCorpo> {
                         subtitle: Text(
                           '${dataHoraLisboa(quando(historico[i]).toIso8601String())}'
                           ' • ${historico[i].distanceKm.toStringAsFixed(1)} km'
-                          '${historico[i].paymentMethod == PaymentMethod.cash ? ' • dinheiro ${eur(historico[i].total)}' : ''}',
+                          '${historico[i].paymentMethod == PaymentMethod.cash ? ' • dinheiro ${eur(historico[i].total)}' : ''}'
+                          // Caixa 71 B3.4 (15/11): a gorjeta do cliente aparece no pedido entregue.
+                          '${historico[i].tipCents > 0 ? ' • gorjeta +${eur(historico[i].tipCents / 100)}' : ''}',
                         ),
                         trailing: Text(
                           '+${eur(historico[i].driverEarnings)}',

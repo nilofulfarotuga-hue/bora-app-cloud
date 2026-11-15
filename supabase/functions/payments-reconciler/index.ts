@@ -89,7 +89,8 @@ async function entityConfirmed(pi: any, out: Finding[]): Promise<void> {
     const encId = String(md.encomenda_id ?? '');
     const { data } = await admin.from('loja_online_encomendas').select('estado, total_cents')
       .eq('id', encId).eq('payment_intent_id', pi.id).maybeSingle();
-    const ok = data && ['paga', 'encomendada_fornecedor', 'enviada', 'entregue', 'cancelada'].includes(String(data.estado))
+    // Juiz 2: 'cancelada' com dinheiro na Stripe NÃO está ok (ou se envia ou se reembolsa).
+    const ok = data && ['paga', 'encomendada_fornecedor', 'enviada', 'entregue'].includes(String(data.estado))
       && Number(data.total_cents) === amount;
     if (!ok) add('pi_sem_entidade', 'critical', 'loja_online_encomenda', encId || null,
       { estado: data?.estado ?? 'encomenda_nao_encontrada', total_cents: data?.total_cents ?? null });

@@ -182,13 +182,15 @@ Deno.serve(async (req: Request) => {
     const totalCents = produto.preco_bora_cents * quantidade;
     if (totalCents < 50) return json({ error: 'abaixo_do_minimo' }, 400);
 
-    // Travão: no máximo 3 encomendas à espera de pagamento em 10 minutos por cliente.
+    // Travão (Juiz 2, 19:05): no máximo 3 tentativas por cliente em 10 minutos, contando TODAS as
+    // encomendas não pagas (à espera, falhadas, canceladas) — senão dava para mandar pedidos MB WAY
+    // sem fim ao telemóvel de outra pessoa (cada falhada libertava uma vaga).
     const desde = new Date(Date.now() - 10 * 60 * 1000).toISOString();
     const { count: aEspera, error: contErr } = await admin
       .from('loja_online_encomendas')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id)
-      .eq('estado', 'aguarda_pagamento')
+      .neq('estado', 'paga')
       .gte('criado_em', desde);
     if (contErr) return json({ error: 'encomenda_nao_gravada' }, 500);
     if ((aEspera ?? 0) >= 3) return json({ error: 'demasiadas_tentativas' }, 429);
@@ -248,10 +250,11 @@ Deno.serve(async (req: Request) => {
     } catch (e) {
       // A Stripe recusou (ex.: MB WAY com número sem app). A encomenda não fica pendurada.
       console.error('[loja-online-pagamento] Stripe recusou:', enc.id, e instanceof Error ? e.message : String(e));
-      await admin
+      const { error: fErr } = await admin
         .from('loja_online_encomendas')
         .update({ estado: 'falhou_pagamento', atualizado_em: new Date().toISOString() })
         .eq('id', enc.id);
+      if (fErr) console.error('[loja-online-pagamento] falhou_pagamento nao gravado:', enc.id, fErr.message);
       return json({ error: 'pagamento_recusado', encomenda_id: enc.id }, 402);
     }
 
@@ -281,8 +284,9 @@ Deno.serve(async (req: Request) => {
       ...respostaConta(conta),
     });
   } catch (err) {
+    // Juiz 2: a mensagem crua fica só no registo; o cliente recebe um código genérico.
     const message = err instanceof Error ? err.message : String(err);
     console.error('[loja-online-pagamento] erro:', message);
-    return json({ error: message }, 500);
+    return json({ error: 'erro_interno' }, 500);
   }
 });

@@ -73,7 +73,9 @@ async function avisarPagamentoSemEtiqueta(intent: Stripe.PaymentIntent, eventTyp
 // de aguarda_pagamento ou falhou_pagamento. Valor diferente = aviso urgente no sininho do painel.
 async function lojaOnlineWebhook(intent: Stripe.PaymentIntent, eventType: string): Promise<void> {
   const encId = String(intent.metadata?.encomenda_id ?? '');
-  const { data: enc, error: selErr } = await supabase
+  // Juiz 2 (19:05): id que não é UUID nem chega à base (senão o select dava erro -> 500 -> a Stripe repetia).
+  const encIdValido = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(encId);
+  const { data: enc, error: selErr } = !encIdValido ? { data: null, error: null } : await supabase
     .from('loja_online_encomendas')
     .select('id, estado, total_cents, payment_intent_id')
     .eq('id', encId)
@@ -99,6 +101,13 @@ async function lojaOnlineWebhook(intent: Stripe.PaymentIntent, eventType: string
     return;
   }
   if (eventType === 'payment_intent.succeeded') {
+    if (enc.estado === 'cancelada') {
+      // Juiz 2: dinheiro entrou numa encomenda já cancelada -> o admin tem de decidir (reembolso é do Danilo).
+      await aviso('loja_online_paga_cancelada',
+        `URGENTE loja online: a encomenda cancelada ${enc.id} foi paga (${intent.id}). Ver se se envia ou se se reembolsa.`,
+        'critical');
+      return;
+    }
     if (enc.estado !== 'aguarda_pagamento' && enc.estado !== 'falhou_pagamento') return; // idempotente
     const recebido = Number(intent.amount_received ?? 0);
     if (recebido !== Number(enc.total_cents) || String(intent.currency).toLowerCase() !== 'eur') {

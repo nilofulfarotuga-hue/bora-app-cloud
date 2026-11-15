@@ -699,6 +699,19 @@ List<AdminMenuSection> adminMenuSections() => [
       builder: () => const AdminDriversScreen(),
       keywords: const ['entregadores', 'estado', 'lista', 'todos'],
     ),
+    // 15/11/2026 (painel-admin-15-11): a Área do estafeta abre-se na ficha de
+    // cada entregador (botão "Área do estafeta (agir por ele)").
+    AdminMenuItem(
+      id: 'entregas_area_estafeta',
+      title: 'Área do estafeta (agir por ele)',
+      subtitle: 'Escolha um entregador e toque em "Área do estafeta" na ficha: '
+          'o que ele vê agora, os pedidos, os ganhos, a conta e os documentos, '
+          'com registro de cada ação',
+      icon: Icons.badge_outlined,
+      color: Colors.blue,
+      builder: () => const AdminDriversScreen(),
+      keywords: const ['area do estafeta', 'agir por ele', 'estafeta', 'entregador', 'fazer por ele', 'auditoria'],
+    ),
     AdminMenuItem(
       id: 'entregas_aprovacoes',
       title: 'Aprovações',

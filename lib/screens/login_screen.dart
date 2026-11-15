@@ -139,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     messenger.showSnackBar(
                       SnackBar(
                         content:
-                            Text('Conta criada com sucesso. Inicia sessão.'.tr),
+                            Text('Conta criada com sucesso. Já pode entrar.'.tr),
                       ),
                     );
                   }

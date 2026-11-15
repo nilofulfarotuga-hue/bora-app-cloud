@@ -20,7 +20,7 @@ const Map<String, String> kStringsEn = <String, String>{
   // categoria dos produtos da loja Shopify da Bora, enviados pelo correio. À mão.
   'Loja Online': 'Online Store',
   'Novidade da semana': 'New this week',
-  'Produtos da nossa loja, enviados pelo correio para tua casa.':
+  'Produtos da nossa loja, enviados pelo correio para a tua casa.':
       'Products from our store, shipped by mail to your home.',
   'A Loja Online da Bora está quase pronta. Volta em breve.':
       'The Bora Online Store is almost ready. Come back soon.',
@@ -2587,7 +2587,7 @@ const Map<String, String> kStringsEn = <String, String>{
       'Ask the establishment for allergen information.',
   'Conta apagada.':
       'Account deleted.',
-  'Conta criada com sucesso. Inicia sessão.':
+  'Conta criada com sucesso. Já pode entrar.':
       'Account created successfully. Please sign in.',
   'Conta criada!':
       'Account created!',

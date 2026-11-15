@@ -99,7 +99,7 @@ class _Vitrine extends StatelessWidget {
           Spacing.lg, Spacing.md, Spacing.lg, Spacing.xxl),
       children: [
         Text(
-          'Produtos da nossa loja, enviados pelo correio para tua casa.'.tr,
+          'Produtos da nossa loja, enviados pelo correio para a tua casa.'.tr,
           style: const TextStyle(
             fontSize: 14,
             color: AppColors.textSecondary,

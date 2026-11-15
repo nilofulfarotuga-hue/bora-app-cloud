@@ -132,7 +132,7 @@ void main() {
       expect(ganhos, isNot(contains('Podes sacar')));
 
       final login = _ler('lib/screens/login_screen.dart');
-      expect(login, contains("'Conta criada com sucesso. Inicia sessão.'.tr"));
+      expect(login, contains("'Conta criada com sucesso. Já pode entrar.'.tr"));
       expect(login, isNot(contains('Faça login')));
 
       final parceiroLogin = _ler('lib/screens/partner_login_screen.dart');
@@ -153,7 +153,7 @@ void main() {
 
     test('as chaves renomeadas têm inglês no dicionário e no JSON de origem',
         () {
-      expect(kStringsEn['Conta criada com sucesso. Inicia sessão.'],
+      expect(kStringsEn['Conta criada com sucesso. Já pode entrar.'],
           'Account created successfully. Please sign in.');
       expect(kStringsEn.containsKey('Conta criada com sucesso. Faça login.'),
           isFalse);
@@ -161,7 +161,7 @@ void main() {
       expect(kStringsEn.containsKey('Informe a palavra-passe.'), isFalse);
 
       final json01 = _ler('tool/l10n/traducoes/pt-en-01.json');
-      expect(json01, contains('"Conta criada com sucesso. Inicia sessão."'));
+      expect(json01, contains('"Conta criada com sucesso. Já pode entrar."'));
       expect(json01, isNot(contains('Faça login')));
       final json03 = _ler('tool/l10n/traducoes/pt-en-03.json');
       expect(json03, contains('"Indique a palavra-passe."'));

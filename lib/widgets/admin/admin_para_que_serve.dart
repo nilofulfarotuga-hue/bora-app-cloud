@@ -53,7 +53,7 @@ class AdminTelaComProposito extends StatelessWidget {
                   Expanded(
                     child: Text(
                       'Para que serve: $frase',
-                      maxLines: 2,
+                      maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 12,

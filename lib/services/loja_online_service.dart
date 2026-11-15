@@ -31,6 +31,15 @@ const String kLojaOnlineTabelaProdutos = 'loja_online_produtos';
 const String kLojaOnlineRpcProdutoEstado = 'admin_loja_online_produto_estado';
 const String kLojaOnlineRpcNichoDaSemana = 'admin_loja_online_nicho_da_semana';
 
+/// checkup-15-11 (B3.7): true com a loja aberta a todos OU para quem está na
+/// lista de permissão (as contas do Danilo) e para o admin. Enquanto a função
+/// não estiver no servidor, a app usa só o interruptor (comportamento antigo).
+const String kLojaOnlineRpcVisivel = 'loja_online_visivel_para_mim';
+const String kLojaOnlineRpcEncomendas = 'admin_loja_online_encomendas';
+const String kLojaOnlineRpcEncomendaEstado = 'admin_loja_online_encomenda_estado';
+const String kLojaOnlineTabelaEncomendas = 'loja_online_encomendas';
+const String kLojaOnlineEdgePagamento = 'loja-online-pagamento';
+
 /// A mesma frase que `humanizeAdminRpcError` dá a uma função por instalar
 /// (PGRST202); aqui serve também para tabela ou chave em falta.
 const String kLojaOnlineNaoInstalada =
@@ -43,6 +52,7 @@ typedef LerLinhasFn = Future<List<Map<String, dynamic>>> Function(
 typedef RpcFn = Future<dynamic> Function(
     String funcao, Map<String, dynamic> params);
 typedef LerDefinicaoFn = Future<Map<String, dynamic>?> Function(String chave);
+typedef LerVisivelFn = Future<bool> Function();
 
 /// A parte do servidor ainda não foi instalada: tabela, função ou coluna em
 /// falta. Códigos do PostgREST (`PGRST205` tabela fora da cache, `PGRST202`
@@ -110,15 +120,18 @@ class LojaOnlineService {
     LerDefinicoesFn? lerDefinicoes,
     LerLinhasFn? lerAtivos,
     DateTime Function()? agora,
+    LerVisivelFn? lerVisivel,
   })  : _lerDefinicoes = lerDefinicoes ?? lerDefinicoesPublicas,
         _lerAtivos = lerAtivos ?? _lerAtivosNoSupabase,
-        _agora = agora ?? DateTime.now;
+        _agora = agora ?? DateTime.now,
+        _lerVisivel = lerVisivel ?? _lerVisivelNoSupabase;
 
   static final LojaOnlineService instance = LojaOnlineService();
 
   final LerDefinicoesFn _lerDefinicoes;
   final LerLinhasFn _lerAtivos;
   final DateTime Function() _agora;
+  final LerVisivelFn _lerVisivel;
 
   /// O interruptor tal como foi lido do servidor. Nasce desligado e só liga
   /// com `loja_online_ativa = true` em platform_settings. O ecrã inicial ouve
@@ -138,6 +151,15 @@ class LojaOnlineService {
         lidoEm != null &&
         _agora().difference(lidoEm) < validadeInterruptor) {
       return ativa.value;
+    }
+    // 1.º a função do servidor (lista de permissão: contas do Danilo veem a
+    // loja antes de abrir). Se ainda não existir ou falhar, fica o interruptor.
+    try {
+      ativa.value = await _lerVisivel();
+      _interruptorLidoEm = _agora();
+      return ativa.value;
+    } catch (e) {
+      debugPrint('[LojaOnline] visivel_para_mim indisponível: $e');
     }
     try {
       final lido = await _lerDefinicoes([kLojaOnlineChaveInterruptor]);
@@ -180,6 +202,11 @@ class LojaOnlineService {
       debugPrint('[LojaOnline] catálogo falhou: $e');
       return const LojaOnlineCatalogo(estado: LojaOnlineEstado.erro);
     }
+  }
+
+  static Future<bool> _lerVisivelNoSupabase() async {
+    final r = await Supabase.instance.client.rpc(kLojaOnlineRpcVisivel);
+    return r == true;
   }
 
   /// Só linhas ativas (a RLS já filtra; o `eq` é cinto e suspensórios).

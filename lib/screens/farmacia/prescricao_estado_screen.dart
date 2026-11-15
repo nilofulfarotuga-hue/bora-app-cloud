@@ -468,6 +468,14 @@ class _PrescricaoEstadoCorpoState extends State<PrescricaoEstadoCorpo> {
           icon: const Icon(Icons.event_repeat),
           label: const Text('Repetir todos os meses'),
         ));
+        // app-15-11: o lembrete mensal ("Toque para pedir outra vez") abre este
+        // ecrã; tem de haver um botão para pedir outra vez.
+        botoes.add(TextButton.icon(
+          key: const Key('prescricao_pedir_outra_vez'),
+          onPressed: _enviarOutraVez,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Pedir outra vez'),
+        ));
         break;
     }
 

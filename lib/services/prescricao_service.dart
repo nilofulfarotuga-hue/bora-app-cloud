@@ -251,6 +251,22 @@ class PrescricaoService {
         'p_volta_a_ter': _limpo(voltaATer),
       });
 
+  /// app-15-11: a farmácia fecha um pedido de DEMONSTRAÇÃO confirmado ("levantado").
+  /// Função do servidor da proposta docs/propostas/app-15-11/farmacias_servidor.PROPOSTA.sql;
+  /// enquanto não estiver aplicada, a mensagem diz isso em vez de um erro técnico.
+  Future<void> fecharDemo(String id) async {
+    try {
+      await _sb.rpc('farmacia_prescricao_fechar_demo', params: {'p_id': id});
+    } on PostgrestException catch (e) {
+      if (e.code == 'PGRST202' || e.message.contains('Could not find the function')) {
+        throw PrescricaoErro('Esta opção ainda não está disponível. Fale com a equipa Bora.');
+      }
+      throw PrescricaoErro(mensagemDe(e));
+    } catch (e) {
+      throw PrescricaoErro(mensagemDe(e));
+    }
+  }
+
   // ---------------------------------------------------------------- admin (PT-BR nos ecrãs)
 
   Future<List<Map<String, dynamic>>> adminListar({String? estado, String? restaurantId, int limite = 200}) async {

@@ -146,6 +146,15 @@ void main() {
     expect(find.text('Tenho, aceito'), findsNothing);
   });
 
+  // app-15-11: em demonstração a farmácia fecha o pedido e não lhe aparece "cartão".
+  testWidgets('farmácia: demonstração confirmada tem "Marcar como levantado" e nada cobrado', (t) async {
+    _tamanho(t, largura: 390);
+    await t.pumpWidget(_app(ParceiroPrescricaoCorpo(pedido: _pedido('confirmado', demo: true), semImagens: true)));
+    expect(find.byKey(const Key('farmacia_fechar_demo')), findsOneWidget);
+    expect(find.textContaining('nada cobrado'), findsOneWidget);
+    expect(find.textContaining('o estafeta mostra-o'), findsNothing);
+  });
+
   test('valor escrito pela farmácia vira cêntimos certos', () {
     expect(centsDeTexto('23,50'), 2350);
     expect(centsDeTexto('23.5'), 2350);

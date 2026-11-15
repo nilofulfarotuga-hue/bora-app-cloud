@@ -300,6 +300,22 @@ class ParceiroPrescricaoCorpo extends StatefulWidget {
 
 class _ParceiroPrescricaoCorpoState extends State<ParceiroPrescricaoCorpo> {
   bool _aResponder = false;
+  bool _aFechar = false;
+
+  /// app-15-11: a farmácia fecha um pedido de demonstração ("levantado").
+  Future<void> _fecharDemo() async {
+    if (_aFechar) return;
+    setState(() => _aFechar = true);
+    try {
+      await _svc.fecharDemo(p.id);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(PrescricaoService.mensagemDe(e))));
+      }
+    } finally {
+      if (mounted) setState(() => _aFechar = false);
+    }
+  }
   PrescricaoService get _svc => widget.service ?? PrescricaoService();
   PedidoPrescricao get p => widget.pedido;
 
@@ -443,7 +459,19 @@ class _ParceiroPrescricaoCorpoState extends State<ParceiroPrescricaoCorpo> {
                       style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w900, letterSpacing: 6)),
                 ),
                 const SizedBox(height: 6),
-                Text('Total ${eurosDeCents(p.totalCents)} · ${p.metodoPagamento == 'cash' ? 'dinheiro' : p.metodoPagamento == 'mbway' ? 'MB Way' : 'cartão'}'),
+                // app-15-11: em demonstração nada foi cobrado; não se diz "cartão".
+                Text(p.isDemo
+                    ? 'Total ${eurosDeCents(p.totalCents)} · demonstração, nada cobrado'
+                    : 'Total ${eurosDeCents(p.totalCents)} · ${p.metodoPagamento == 'cash' ? 'dinheiro' : p.metodoPagamento == 'mbway' ? 'MB Way' : 'cartão'}'),
+                if (p.isDemo && p.estado == PrescricaoEstado.confirmado) ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    key: const Key('farmacia_fechar_demo'),
+                    onPressed: _aFechar ? null : _fecharDemo,
+                    icon: const Icon(Icons.check),
+                    label: Text(_aFechar ? 'A marcar…' : 'Marcar como levantado'),
+                  ),
+                ],
               ])),
             if (p.eReceita)
               _cartao(Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

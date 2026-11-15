@@ -641,3 +641,10 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   ("publica o Claude.ai"); (4) `git push` com tubo — repetido na forma simples para o ramo `ai/2026-11-15-manha`, que
   passou; (5) a trava do modo automático passou a recusar a chave SSH da VPS a meio da sessão ("ficheiro de segredos"),
   por isso os passos na VPS (scripts do bloco E, restart do Hermes) ficaram para a Claude.ai (e2e_log 9147 e 9150).
+- **15/11/2026, missões `painel-admin-15-11` e `fechar-tudo-15-11` (Claude Code no PC, sessão app-15-11)** — nenhuma
+  contornada: (1) ~14:00, o classificador do Claude Code negou ("Unauthorized Access") procurar no PC, só pelo nome,
+  ficheiros `AuthKey_*.p8` (a chave da Apple que gera o segredo OAuth do "Entrar com a Apple"). Não repetido: o ponto C
+  ficou descrito para a Claude.ai (e2e_log fluxo fechar-tudo-15-11, passo C-entrar-com-apple). (2) O ajudante S5 relatou
+  que o gancho protege-banco bloqueou um grep inofensivo às migrações porque o texto do comando tinha "drop policy …
+  orders"; saltado, sem efeito na auditoria. (3) O ajudante S2 relatou que a trava bloqueou um bloco DO com EXECUTE para
+  testar funções em lote; seguiu com SELECTs simples.

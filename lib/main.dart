@@ -90,6 +90,7 @@ import 'screens/admin/admin_encomendas_telefone_screen.dart';
 import 'screens/admin/admin_reativacao_screen.dart';
 import 'screens/admin/admin_support_escalations_screen.dart';
 import 'screens/admin/admin_suporte_conversas_screen.dart';
+import 'screens/admin/admin_conversas_ao_vivo_screen.dart';
 import 'screens/admin/admin_tvde_chats_screen.dart';
 import 'screens/admin/admin_tvde_pagos_sem_corrida_screen.dart';
 import 'screens/admin/admin_tvde_roundtrips_screen.dart';
@@ -1199,6 +1200,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // onGenerateRoute: é o link dos avisos e do push do admin.
           '/admin/support/conversas': (_) =>
               const AdminSuporteConversasScreen(),
+          // Conversas ao vivo (15/11/2026): os 3 robôs numa lista só. A
+          // conversa (/admin/conversas/<origem>/<id>) está no onGenerateRoute.
+          '/admin/conversas': (_) => const AdminConversasAoVivoScreen(),
           '/admin/carwash': (_) => const AdminCarwashScreen(),
           '/admin/encomendas-telefone': (_) =>
               const AdminEncomendasTelefoneScreen(),
@@ -1267,6 +1271,19 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             return MaterialPageRoute<void>(
               builder: (_) =>
                   AdminSuporteConversaScreen(sessionId: sessaoSuporte),
+              settings: settings,
+            );
+          }
+          // Conversas ao vivo (15/11/2026): o aviso e o push de cada mensagem
+          // de cliente (suporte da app, Amigo, lojas no WhatsApp) abrem logo
+          // a conversa: /admin/conversas/<origem>/<id>.
+          final conversaAoVivo = conversaDoLink(name);
+          if (conversaAoVivo != null) {
+            return MaterialPageRoute<void>(
+              builder: (_) => AdminConversaAoVivoScreen(
+                origem: conversaAoVivo.origem,
+                conversaId: conversaAoVivo.conversaId,
+              ),
               settings: settings,
             );
           }

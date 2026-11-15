@@ -5,11 +5,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../models/order_model.dart';
+import '../services/assistant_service.dart';
 import '../services/in_app_notifications_service.dart';
 import '../stores/order_store.dart';
 import '../widgets/bora/lista_estado.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import 'client/assistant/assistant_chat_screen.dart';
 import 'order_details_screen.dart';
 import 'shared/comprovativo_atividade_screen.dart';
 
@@ -86,6 +88,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       await _load();
       return;
     }
+    // [15/11/2026 · conversas ao vivo] "A equipa Bora respondeu" → a conversa
+    // do Amigo onde a equipa escreveu (related_id = id da conversa).
+    if (n['kind'] == 'amigo_resposta') {
+      final conversa = n['related_id']?.toString() ?? '';
+      if (conversa.isNotEmpty) await AssistantService.guardarConversa(conversa);
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const AssistantChatScreen()),
+      );
+      if (!mounted) return;
+      await _load();
+      return;
+    }
     final order = await _orderFor(n['related_id'] as String?);
     if (!mounted) return;
     if (order != null) {
@@ -141,6 +157,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       // estafeta). Tocar abre o pedido, como as outras de pedido.
       case 'order_weight_adjusted':
         return Icons.scale_outlined;
+      // [15/11/2026] A Equipa Bora respondeu na conversa do Amigo.
+      case 'amigo_resposta':
+        return Icons.support_agent;
       default:
         return Icons.notifications;
     }

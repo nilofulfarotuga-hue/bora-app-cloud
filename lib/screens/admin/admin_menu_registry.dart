@@ -48,6 +48,7 @@ import 'admin_receitas_screen.dart';
 import 'admin_restaurante_do_dia_screen.dart';
 import 'admin_support_escalations_screen.dart';
 import 'admin_suporte_conversas_screen.dart';
+import 'admin_conversas_ao_vivo_screen.dart';
 import 'admin_tvde_chats_screen.dart';
 import 'admin_bora_motorista_fechado_screen.dart';
 import 'admin_connect_payments_screen.dart';
@@ -1146,6 +1147,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.teal,
       builder: () => const AdminSuporteConversasScreen(),
       keywords: const ['suporte', 'conversas', 'chat', 'ajuda', 'responder', 'robô', 'não lidas', 'cliente'],
+    ),
+    // 15/11/2026 (conversas ao vivo, app-15-11): os 3 robôs que falam com clientes numa lista só.
+    AdminMenuItem(
+      id: 'clientes_conversas_ao_vivo',
+      title: 'Conversas ao vivo (robôs)',
+      subtitle: 'Suporte da app, Amigo Bora e lojas no WhatsApp numa lista só, ao vivo: ler, assumir a conversa, responder como Equipa Bora e devolver ao robô',
+      icon: Icons.forum,
+      color: Colors.green,
+      builder: () => const AdminConversasAoVivoScreen(),
+      keywords: const ['conversas', 'ao vivo', 'robôs', 'robo', 'amigo', 'whatsapp', 'lojas', 'suporte', 'assumir', 'responder', 'equipa', 'não lidas'],
     ),
     AdminMenuItem(
       id: 'clientes_reclamacoes',

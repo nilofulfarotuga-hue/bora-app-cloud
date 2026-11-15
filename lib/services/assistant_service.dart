@@ -518,7 +518,16 @@ class AssistantReply {
     this.deixa,
     this.saudacao,
     this.emocao,
+    this.modo,
   });
+
+  /// Conversas ao vivo (15/11/2026): 'equipa' quando uma pessoa da Equipa Bora
+  /// assumiu a conversa no painel — o robô fica calado, o texto é só o aviso
+  /// ("A Equipa Bora está a acompanhar...") e não vêm ações nem cartões.
+  final String? modo;
+
+  /// A Equipa Bora está a acompanhar esta conversa (o robô não respondeu).
+  bool get equipaAcompanha => modo == 'equipa';
 
   /// O rosto do Amigo (09/11/2026): a cara que o servidor escolheu para esta
   /// resposta ('alegre', 'triste', 'surpreso', 'pensativo', 'confuso',
@@ -570,6 +579,7 @@ class AssistantReply {
           : null,
       saudacao: j['saudacao']?.toString(),
       emocao: j['emocao']?.toString(),
+      modo: j['modo']?.toString(),
       conversationId: j['conversation_id']?.toString(),
       texto: _str(j['texto']),
       propostas: _lista(j['propostas']).map(AssistantProposal.fromJson).toList(),
@@ -621,6 +631,10 @@ class AssistantException implements Exception {
   String toString() => 'AssistantException($codigo, $status): $texto';
 }
 
+/// Papéis do histórico que o cliente vê. 'admin' (conversas ao vivo,
+/// 15/11/2026) é uma resposta escrita por uma pessoa da Equipa Bora no painel.
+const List<String> kPapeisHistoricoAssistente = ['user', 'assistant', 'admin'];
+
 /// Mensagem do histórico (`assistant_chat_messages`).
 class AssistantHistoryMessage {
   const AssistantHistoryMessage({
@@ -629,12 +643,52 @@ class AssistantHistoryMessage {
     required this.imageUrl,
     required this.reply,
     required this.createdAt,
+    this.id,
   });
-  final String role; // user | assistant
+  final String role; // user | assistant | admin
   final String content;
   final String? imageUrl;
   final AssistantReply? reply;
   final DateTime? createdAt;
+
+  /// id da linha (para não mostrar duas vezes a mesma mensagem da equipa).
+  final String? id;
+
+  /// Escrita por uma pessoa da Equipa Bora (aparece como "Equipa Bora").
+  bool get daEquipa => role == 'admin';
+
+  /// Uma linha da tabela (histórico ou tempo real). Só as do robô trazem
+  /// [reply]; as da equipa e do cliente são só texto.
+  factory AssistantHistoryMessage.fromRow(Map<String, dynamic> m) {
+    final st = m['structured'];
+    AssistantReply? reply;
+    if (m['role'] == 'assistant') {
+      reply = st is Map
+          ? AssistantReply.fromJson(Map<String, dynamic>.from(st))
+          : AssistantReply.texto(_str(m['content']));
+    }
+    final id = _str(m['id']).trim();
+    return AssistantHistoryMessage(
+      id: id.isEmpty ? null : id,
+      role: _str(m['role']),
+      content: _str(m['content']),
+      imageUrl: m['image_url']?.toString(),
+      reply: reply,
+      createdAt: DateTime.tryParse(_str(m['created_at'])),
+    );
+  }
+}
+
+/// A mensagem da Equipa Bora a mostrar no rosto do Amigo: a última da equipa,
+/// se o cliente ainda não escreveu depois dela (puro, testado).
+AssistantHistoryMessage? ultimaMensagemDaEquipa(
+    List<AssistantHistoryMessage> historico) {
+  for (var i = historico.length - 1; i >= 0; i--) {
+    final h = historico[i];
+    if (h.daEquipa) return h.content.trim().isEmpty ? null : h;
+    if (h.role == 'user') return null;
+  }
+  return null;
 }
 
 class AssistantService {
@@ -708,33 +762,65 @@ class AssistantService {
     }
   }
 
-  /// Histórico de uma conversa (RLS deixa o cliente ler só o seu).
+  /// Histórico de uma conversa (RLS deixa o cliente ler só o seu). Inclui as
+  /// respostas da Equipa Bora (papel 'admin', conversas ao vivo 15/11/2026).
   static Future<List<AssistantHistoryMessage>> historico(
       String conversationId) async {
     final rows = await _c
         .from('assistant_chat_messages')
-        .select('role, content, image_url, structured, created_at')
+        .select('id, role, content, image_url, structured, created_at')
         .eq('conversation_id', conversationId)
-        .inFilter('role', ['user', 'assistant'])
+        .inFilter('role', kPapeisHistoricoAssistente)
         .order('created_at', ascending: true)
         .limit(200);
-    return (rows as List).whereType<Map>().map((r) {
-      final m = Map<String, dynamic>.from(r);
-      final st = m['structured'];
-      AssistantReply? reply;
-      if (m['role'] == 'assistant') {
-        reply = st is Map
-            ? AssistantReply.fromJson(Map<String, dynamic>.from(st))
-            : AssistantReply.texto(_str(m['content']));
-      }
-      return AssistantHistoryMessage(
-        role: _str(m['role']),
-        content: _str(m['content']),
-        imageUrl: m['image_url']?.toString(),
-        reply: reply,
-        createdAt: DateTime.tryParse(_str(m['created_at'])),
-      );
-    }).toList();
+    return (rows as List)
+        .whereType<Map>()
+        .map((r) => AssistantHistoryMessage.fromRow(Map<String, dynamic>.from(r)))
+        .toList();
+  }
+
+  /// Conversas ao vivo (15/11/2026): ouve as mensagens novas desta conversa e
+  /// chama [aoChegar] com as da Equipa Bora (papel 'admin'). Devolve a função
+  /// que desliga, ou null se não deu para ligar (ex.: sem Supabase nos testes).
+  /// A tabela só entra no tempo real com a migração conversas_ao_vivo; até lá
+  /// não chega nada e os ecrãs releem o histórico quando a app volta.
+  static void Function()? ouvirEquipa(
+    String conversationId,
+    void Function(AssistantHistoryMessage m) aoChegar,
+  ) {
+    try {
+      final canal = _c
+          .channel('amigo_equipa_${conversationId}_'
+              '${DateTime.now().microsecondsSinceEpoch}')
+        ..onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'assistant_chat_messages',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'conversation_id',
+            value: conversationId,
+          ),
+          callback: (payload) {
+            try {
+              final m = AssistantHistoryMessage.fromRow(
+                  Map<String, dynamic>.from(payload.newRecord));
+              if (m.daEquipa && m.content.trim().isNotEmpty) aoChegar(m);
+            } catch (e) {
+              debugPrint('[AssistantService] ouvirEquipa: $e');
+            }
+          },
+        )
+        ..subscribe();
+      return () {
+        try {
+          canal.unsubscribe().ignore();
+        } catch (_) {}
+      };
+    } catch (e) {
+      debugPrint('[AssistantService] ouvirEquipa (sem tempo real): $e');
+      return null;
+    }
   }
 
   /// Lê uma proposta pelo id (abrir pela URL `?proposta=`).

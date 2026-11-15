@@ -16,6 +16,10 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 15/11/2026 (app-15-11, conversas ao vivo): aviso no chat do Amigo quando a
+  // Equipa Bora assumiu a conversa e o servidor não mandou texto. À mão.
+  'A Equipa Bora está a acompanhar esta conversa.':
+      'The Bora team is following this conversation.',
   // 15/11/2026 (app-15-11): frase do Editar perfil da missão manha-15-11 (bloco B2)
   // que ficou sem inglês e chumbava test/l10n_cobertura_test.dart. À mão.
   'Para mudar o nome, fala com o suporte': 'To change your name, contact support',

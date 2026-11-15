@@ -67,14 +67,26 @@ class AssistantChatScreen extends StatefulWidget {
 class _Msg {
   _Msg.utilizador(this.texto, {this.imagens = const [], this.imageUrl})
       : deUtilizador = true,
+        daEquipa = false,
         reply = null;
   _Msg.assistente(this.reply)
       : deUtilizador = false,
+        daEquipa = false,
         texto = reply?.texto ?? '',
         imagens = const [],
         imageUrl = null;
 
+  /// Conversas ao vivo (15/11/2026): escrita por uma pessoa da Equipa Bora
+  /// no painel (papel 'admin').
+  _Msg.equipa(this.texto)
+      : deUtilizador = false,
+        daEquipa = true,
+        reply = null,
+        imagens = const [],
+        imageUrl = null;
+
   final bool deUtilizador;
+  final bool daEquipa;
   final String texto;
 
   /// Fotos enviadas nesta mensagem (uma ou várias, até [kAssistantMaxFotos]).
@@ -100,7 +112,7 @@ Uint8List _reencodar(Uint8List bytes) {
 }
 
 class _AssistantChatScreenState extends State<AssistantChatScreen>
-    with AssistantAcoesMixin<AssistantChatScreen> {
+    with AssistantAcoesMixin<AssistantChatScreen>, WidgetsBindingObserver {
   final List<_Msg> _msgs = [];
   final _input = TextEditingController();
   final _scroll = ScrollController();
@@ -119,20 +131,83 @@ class _AssistantChatScreenState extends State<AssistantChatScreen>
   bool _aOuvir = false;
   String _textoAntesDoDitado = '';
 
+  // Conversas ao vivo (15/11/2026): respostas da Equipa Bora nesta conversa.
+  final Set<String> _idsEquipa = {};
+  void Function()? _desligarEquipa;
+  String? _conversaOuvida;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     unawaited(AssistantFlags.carregar());
     unawaited(_arranque());
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _desligarEquipa?.call();
     _stt?.stop();
     _input.dispose();
     _scroll.dispose();
     _foco.dispose();
     super.dispose();
+  }
+
+  /// A app voltou: o tempo real pode ter perdido respostas da equipa.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_releEquipa());
+  }
+
+  /// Liga o tempo real das respostas da Equipa Bora à conversa aberta (e
+  /// desliga o da anterior). Sem conversa, fica desligado.
+  void _ouvirEquipa() {
+    final id = _conversationId;
+    if (id == _conversaOuvida) return;
+    _desligarEquipa?.call();
+    _desligarEquipa = null;
+    _conversaOuvida = id;
+    if (id == null) return;
+    _desligarEquipa = AssistantService.ouvirEquipa(id, _chegouDaEquipa);
+  }
+
+  void _chegouDaEquipa(AssistantHistoryMessage m) {
+    if (!mounted || m.content.trim().isEmpty) return;
+    final id = m.id;
+    if (id != null && !_idsEquipa.add(id)) return;
+    setState(() => _msgs.add(_Msg.equipa(m.content)));
+    _irParaOFim();
+  }
+
+  /// Relê o histórico e junta as respostas da equipa que ainda não estão no
+  /// ecrã (ao voltar à app; antes da migração não há tempo real).
+  Future<void> _releEquipa() async {
+    final id = _conversationId;
+    if (id == null || _carregando) return;
+    try {
+      final hist = await AssistantService.historico(id);
+      if (!mounted || id != _conversationId) return;
+      final novas = [
+        for (final h in hist)
+          if (h.daEquipa &&
+              h.id != null &&
+              !_idsEquipa.contains(h.id) &&
+              h.content.trim().isNotEmpty)
+            h,
+      ];
+      if (novas.isEmpty) return;
+      setState(() {
+        for (final h in novas) {
+          _idsEquipa.add(h.id!);
+          _msgs.add(_Msg.equipa(h.content));
+        }
+      });
+      _irParaOFim();
+    } catch (e) {
+      debugPrint('[Assistente] reler equipa: $e');
+    }
   }
 
   Future<void> _arranque() async {
@@ -147,6 +222,9 @@ class _AssistantChatScreenState extends State<AssistantChatScreen>
         for (final h in hist) {
           if (h.role == 'user') {
             _msgs.add(_Msg.utilizador(h.content, imageUrl: h.imageUrl));
+          } else if (h.daEquipa) {
+            if (h.id != null) _idsEquipa.add(h.id!);
+            if (h.content.trim().isNotEmpty) _msgs.add(_Msg.equipa(h.content));
           } else if (h.reply != null) {
             _msgs.add(_Msg.assistente(h.reply));
             final r = h.reply!;
@@ -162,6 +240,7 @@ class _AssistantChatScreenState extends State<AssistantChatScreen>
     if (!mounted) return;
     setState(() => _carregando = false);
     _irParaOFim();
+    _ouvirEquipa();
 
     // Amigo Bora (08/11/2026): saudação ao abrir (sem modelo, sem quota) —
     // "Hoje é sexta. Queres o do costume?" quando bate com um hábito.
@@ -211,6 +290,7 @@ class _AssistantChatScreenState extends State<AssistantChatScreen>
     if (r != null && (comecarDeNovo || r.conversationId != null)) {
       unawaited(AssistantService.guardarConversa(_conversationId));
     }
+    _ouvirEquipa();
     _irParaOFim();
   }
 
@@ -279,6 +359,7 @@ class _AssistantChatScreenState extends State<AssistantChatScreen>
         _conversationId = novoId;
         unawaited(AssistantService.guardarConversa(novoId));
       }
+      _ouvirEquipa();
       setState(() {
         _msgs.add(_Msg.assistente(reply));
         _aPensar = false;
@@ -499,8 +580,10 @@ class _AssistantChatScreenState extends State<AssistantChatScreen>
     setState(() {
       _conversationId = null;
       _msgs.clear();
+      _idsEquipa.clear();
       _banner = null;
     });
+    _ouvirEquipa();
   }
 
   // ── UI ────────────────────────────────────────────────────────────────
@@ -623,6 +706,12 @@ class _AssistantChatScreenState extends State<AssistantChatScreen>
         if (i >= _msgs.length) return const _APensar();
         final m = _msgs[i];
         if (m.deUtilizador) return _BalaoUtilizador(msg: m);
+        // Conversas ao vivo (15/11/2026): a resposta de uma pessoa da equipa
+        // e o aviso de que a equipa está a acompanhar (o robô calado).
+        if (m.daEquipa) return BalaoEquipaBora(texto: m.texto);
+        if (m.reply!.equipaAcompanha) {
+          return NotaEquipaAcompanha(texto: m.reply!.texto);
+        }
         return _BalaoAssistente(
           reply: m.reply!,
           aEncherId: aEncherId,
@@ -718,6 +807,103 @@ class _BalaoUtilizador extends StatelessWidget {
                   style: const TextStyle(color: Colors.white, fontSize: 15)),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Conversas ao vivo (15/11/2026): resposta escrita por uma pessoa da Equipa
+/// Bora no painel — balão à parte, com "Equipa Bora" por cima (nunca o nome
+/// de quem respondeu).
+class BalaoEquipaBora extends StatelessWidget {
+  const BalaoEquipaBora({super.key, required this.texto});
+  final String texto;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        key: const Key('balao-equipa-bora'),
+        margin: const EdgeInsets.only(bottom: 12, right: 48),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.primaryLight,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(4),
+            topRight: Radius.circular(16),
+            bottomLeft: Radius.circular(16),
+            bottomRight: Radius.circular(16),
+          ),
+          border: Border.all(color: AppColors.primary),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.support_agent,
+                    size: 16, color: AppColors.primaryDark),
+                const SizedBox(width: 6),
+                Text(
+                  'Equipa Bora'.tr,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primaryDark,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(texto,
+                style: const TextStyle(
+                    fontSize: 15, color: AppColors.textPrimary, height: 1.35)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A resposta do servidor quando a Equipa Bora assumiu a conversa (modo
+/// 'equipa'): o robô não responde; fica só o aviso, discreto, ao centro.
+class NotaEquipaAcompanha extends StatelessWidget {
+  const NotaEquipaAcompanha({super.key, required this.texto});
+  final String texto;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = texto.trim().isEmpty
+        ? 'A Equipa Bora está a acompanhar esta conversa.'.tr
+        : texto.trim();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Center(
+        child: Container(
+          key: const Key('nota-equipa-acompanha'),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.primaryWash,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.support_agent,
+                  size: 16, color: AppColors.primaryDark),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(t,
+                    style: const TextStyle(
+                        fontSize: 13, color: AppColors.primaryDark)),
+              ),
+            ],
+          ),
         ),
       ),
     );

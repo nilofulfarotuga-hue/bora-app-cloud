@@ -47,7 +47,7 @@ Nos Favores um estafeta faz um recado por ti: comprar alguma coisa numa loja, le
 Nos mercados, os produtos ao quilo (fruta, carne, peixe) têm um preço estimado. O estafeta pesa e escreve o valor certo da etiqueta; pagas o valor real. Se ficar mais barato, a diferença volta para a tua carteira.
 
 ## Reservas em restaurantes
-Para reservar mesa pagas 3 € adiantados. Quando chegas, esse valor é descontado na conta do restaurante. Podes cancelar sem custo até 2 horas antes da hora marcada. Se cancelares com menos de 2 horas ou não apareceres, os 3 € não são devolvidos.
+Para reservar mesa pagas 3 € adiantados. Quando chegas, o restaurante desconta 2 € na tua conta; o resto é a taxa da reserva. Podes cancelar sem custo até 2 horas antes da hora marcada. Se cancelares com menos de 2 horas ou não apareceres, os 3 € não são devolvidos.
 
 ## Limpezas
 Podes marcar uma limpeza em casa pela app, com preço fixo conforme o tamanho da casa. Os materiais custam 3 € a mais e as limpezas repetidas têm 10 % de desconto. Se cancelares nos primeiros 5 minutos depois de marcar, não pagas nada.

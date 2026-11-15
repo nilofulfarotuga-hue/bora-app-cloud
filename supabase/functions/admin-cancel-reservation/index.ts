@@ -1,33 +1,39 @@
 // supabase/functions/admin-cancel-reservation/index.ts
-// Sessao 5B-beta2a B0.2 — Admin reservation cancellation orchestrator.
-// Espelha admin-cancel-order. Decisao D2 (Fase A audit).
+// Sessao 5B-beta2a B0.2 — Admin reservation cancellation orchestrator (espelha admin-cancel-order).
+// v22 PROPOSTA (fechar-tudo-15-11, 15/11/2026): o valor e o pagamento da devolução passam a vir da
+// Stripe (como em partner-reject-reservation) e uma nova chamada sobre uma reserva já
+// 'cancelled_refunded' devolve o que ainda faltar. A lógica (e o porquê de cada mudança face à v21)
+// está em logica.ts, testada em logica_test.ts.
 //
 // Fluxo:
-//  1. Verifica admin JWT (app_metadata.role='admin')
-//  2. Chama RPC admin_cancel_reservation_on_behalf_of(p_reservation_id, p_reason)
-//  3. Se will_refund && prepayment_pi -> Stripe refund (idempotency key)
-//  4. Audit log
-//  5. Retorna { success, idempotent, refund }
+//  1. Corpo { reservation_id, reason } (400 invalid_body / invalid_reservation_id).
+//  2. Token confirmado no Auth (auth.getUser); só app_metadata.role='admin' (403 admin_required).
+//  3. RPC admin_cancel_reservation_on_behalf_of com o token do admin: muda o estado, avisa o
+//     cliente (in-app) e regista a ação. Já cancelada → idempotent=true.
+//  4. Com direito a devolução (>= janela, ou nova tentativa de uma 'cancelled_refunded'): reserva lida
+//     com a chave do servidor → PaymentIntent conferido na Stripe (metadata desta reserva,
+//     succeeded) → refunds.create do que falta, idempotencyKey admin-cancel-rsv-<id>, na conta
+//     onde entrou (reservations.stripe_account, _shared/stripe_contas.ts).
+//  5. admin_audit_log 'reservation_cancel_complete'; se a devolução não saiu, aviso no painel
+//     (notify_admin_event 'reservation_refund_failed').
+//  6. Resposta como na v21: { success, idempotent, reservation_id, new_status | previous_status,
+//     message?, refund: { result, stripe_id, amount, error, amount_cents, reason } }.
 //
-// NB: notification ao cliente ja e feita pela RPC via _push_in_app_notification.
-//     Push FCM externo nao e chamado aqui — RPC ja escreve in-app.
+// Segredos, só por Deno.env: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SECRET_KEYS ou
+// SUPABASE_SERVICE_ROLE_KEY (secretKey), STRIPE_SECRET_KEY e STRIPE_SECRET_KEY_EMPRESA
+// (_shared/stripe_contas.ts; em modo teste, BORA_STRIPE_MODE=test e as STRIPE_TEST_*).
 
-// @ts-nocheck
+// @ts-nocheck: só a ligação ao supabase-js e à Stripe (como na v21); logica.ts tem tipos.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
-import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { secretKey } from '../_shared/keys.ts';
 import { stripeDaLinha } from '../_shared/stripe_contas.ts';
+import { TIPO_AVISO, tratar } from './logica.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
-
-// Duas contas Stripe (missão stripe-empresa-2026-11-01): o reembolso sai pela conta onde o
-// pré-pagamento entrou (reservations.stripe_account) — _shared/stripe_contas.ts.
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -38,143 +44,93 @@ function jsonResponse(body, status = 200) {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-  if (req.method !== 'POST')   return jsonResponse({ error: 'method_not_allowed' }, 405);
+  if (req.method !== 'POST') return jsonResponse({ error: 'method_not_allowed' }, 405);
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-  const anonKey     = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-  const serviceKey  = secretKey() ?? '';
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+  const serviceKey = secretKey() ?? '';
   if (!supabaseUrl || !anonKey || !serviceKey) {
     return jsonResponse({ error: 'server_misconfigured' }, 500);
   }
 
-  let reservationId = '';
-  let reason = '';
+  let body = null;
   try {
-    const body = await req.json();
-    reservationId = (body?.reservation_id ?? '').toString().trim();
-    reason        = (body?.reason         ?? '').toString().trim();
+    body = await req.json();
   } catch (_) {
     return jsonResponse({ error: 'invalid_body' }, 400);
   }
-  if (!reservationId || !UUID_RE.test(reservationId)) {
-    return jsonResponse({ error: 'invalid_reservation_id' }, 400);
-  }
 
-  const authHeader = req.headers.get('Authorization') ?? '';
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-  if (!token) return jsonResponse({ error: 'missing_token' }, 401);
+  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
 
+  // Token do admin: a RPC corre como ele (auth.uid() = admin; is_admin() confere de novo).
   const userClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
-  const { data: userData, error: authError } = await userClient.auth.getUser();
-  const caller = userData?.user;
-  if (authError || !caller) return jsonResponse({ error: 'unauthorized' }, 401);
-
-  const callerRole = caller.app_metadata?.role;
-  if (callerRole !== 'admin') return jsonResponse({ error: 'admin_required' }, 403);
-
-  const adminId    = caller.id;
-  const adminEmail = caller.email ?? null;
+  // Chave do servidor: ler a reserva, registar e avisar a equipa.
   const admin = createClient(supabaseUrl, serviceKey);
 
-  // 1. Cancela via RPC SECURITY DEFINER (audit + push in-app + status update)
-  const { data: rpcData, error: rpcError } = await userClient.rpc(
-    'admin_cancel_reservation_on_behalf_of',
-    { p_reservation_id: reservationId, p_reason: reason || null },
-  );
-
-  if (rpcError) {
-    const msg = rpcError.message ?? 'rpc_failed';
-    let httpStatus = 500;
-    if (msg.startsWith('reservation_not_found')) httpStatus = 404;
-    else if (msg.startsWith('cannot_cancel_status')) httpStatus = 409;
-    else if (msg.startsWith('NOT_ADMIN')) httpStatus = 403;
-    return jsonResponse({ error: 'rpc_error', detail: msg }, httpStatus);
-  }
-  const r = rpcData;
-  if (!r || r.success !== true) {
-    return jsonResponse({ error: 'rpc_unexpected', detail: r }, 500);
-  }
-
-  if (r.idempotent === true) {
-    return jsonResponse({
-      success: true, idempotent: true, reservation_id: reservationId,
-      message: 'already cancelled — no action taken',
-      previous_status: r.status,
-    });
-  }
-
-  // 2. Stripe refund se aplicavel
-  const willRefund      = r.will_refund === true;
-  const prepaymentPi    = r.prepayment_pi ?? null;
-  const prepaymentCents = Number(r.prepayment_cents ?? 0);
-
-  let refundResult   = 'not_applicable';
-  let stripeRefundId = null;
-  let stripeError    = null;
-  let refundAmountEur = null;
-
-  let contaStripe = 'pessoal';
-  if (willRefund && prepaymentPi && prepaymentCents > 0) {
-    try {
-      // duas contas: a conta onde a reserva foi paga
-      const { data: rsvRow } = await admin.from('reservations').select('stripe_account').eq('id', reservationId).maybeSingle();
-      const { stripe, conta } = stripeDaLinha(rsvRow);
-      contaStripe = conta;
-      const refund = await stripe.refunds.create(
-        { payment_intent: prepaymentPi, amount: prepaymentCents },
-        { idempotencyKey: `admin-cancel-rsv-${reservationId}` },
-      );
-      stripeRefundId  = refund.id;
-      refundAmountEur = prepaymentCents / 100.0;
-      refundResult    = 'succeeded';
-    } catch (e) {
-      stripeError  = String(e?.message ?? e);
-      refundResult = 'failed';
-      console.error('[admin-cancel-reservation] stripe refund failed:', stripeError);
-    }
-  } else if (willRefund && !prepaymentPi) {
-    refundResult = 'no_payment_intent';
-  } else if (!willRefund) {
-    refundResult = 'forfeited_window'; // <2h, Bora retem
-  }
-
-  // 3. Audit
-  try {
-    await admin.from('admin_audit_log').insert({
-      admin_id: adminId,
-      admin_email: adminEmail,
-      action: 'reservation_cancel_complete',
-      entity_type: 'reservation',
-      entity_id: reservationId,
-      details: {
-        new_status: r.status,
-        will_refund: willRefund,
-        refund_result: refundResult,
-        stripe_account: contaStripe,
-        refund_id: stripeRefundId,
-        refund_amount: refundAmountEur,
-        stripe_error: stripeError,
-        prepayment_cents: prepaymentCents,
-        hours_until: r.hours_until_reservation,
-        reason: reason || null,
-      },
-    });
-  } catch (e) {
-    console.error('[admin-cancel-reservation] audit insert failed:', e);
-  }
-
-  return jsonResponse({
-    success: true,
-    idempotent: false,
-    reservation_id: reservationId,
-    new_status: r.status,
-    refund: {
-      result: refundResult,
-      stripe_id: stripeRefundId,
-      amount: refundAmountEur,
-      error: stripeError,
+  const deps = {
+    async utilizador() {
+      const { data, error } = await userClient.auth.getUser(token);
+      const u = data?.user;
+      if (error || !u) return null;
+      return { id: u.id, email: u.email ?? null, papel: u.app_metadata?.role ?? null };
     },
-  });
+    async cancelarPelaRpc(id, motivo) {
+      const { data, error } = await userClient.rpc('admin_cancel_reservation_on_behalf_of', {
+        p_reservation_id: id,
+        p_reason: motivo,
+      });
+      if (error) return { ok: false, mensagem: error.message ?? 'rpc_failed' };
+      return { ok: true, dados: data ?? null };
+    },
+    async lerReserva(id) {
+      const { data, error } = await admin
+        .from('reservations')
+        .select('id, restaurant_id, status, prepayment_pi, prepayment_cents, stripe_account')
+        .eq('id', id)
+        .maybeSingle();
+      if (error) throw new Error(`ler_reserva: ${error.message}`);
+      return data ?? null;
+    },
+    stripe(reserva) {
+      // Duas contas: o reembolso sai pela conta onde o pré-pagamento entrou.
+      const { stripe, conta } = stripeDaLinha(reserva);
+      return {
+        conta,
+        lerPagamento: (pi) => stripe.paymentIntents.retrieve(pi),
+        listarDevolucoes: async (pi) =>
+          (await stripe.refunds.list({ payment_intent: pi, limit: 100 })).data,
+        devolver: (pi, cents, chave, metadata) =>
+          stripe.refunds.create(
+            { payment_intent: pi, amount: cents, metadata },
+            { idempotencyKey: chave },
+          ),
+      };
+    },
+    async registar(linha) {
+      const { error } = await admin.from('admin_audit_log').insert(linha);
+      if (error) throw new Error(error.message);
+    },
+    async avisarEquipa(aviso) {
+      const { error } = await admin.rpc('notify_admin_event', {
+        p_event_type: TIPO_AVISO,
+        p_severity: 'high',
+        p_summary: aviso.resumo,
+        p_entity_type: 'reservation',
+        p_entity_id: aviso.reservaId,
+        p_payload: aviso.detalhes,
+        p_deep_link: '/admin/reservations',
+      });
+      if (error) throw new Error(error.message);
+    },
+  };
+
+  try {
+    const r = await tratar(body, token, deps);
+    return jsonResponse(r.body, r.status);
+  } catch (e) {
+    console.error('[admin-cancel-reservation] erro:', e);
+    return jsonResponse({ error: 'internal_error' }, 500);
+  }
 });

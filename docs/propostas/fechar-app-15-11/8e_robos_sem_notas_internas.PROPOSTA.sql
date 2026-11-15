@@ -27,9 +27,9 @@
 --     TÉCNICAS", "26. CHECKLIST DE LANÇAMENTO"...);
 --   * a secção 1 diz quem é o administrador pelo nome (o atendimento não pode dizer quem é o dono);
 --   * há regras DESATUALIZADAS face ao livro (regras-do-danilo, §8): a secção 4 diz que o cliente
---     ganha 3 % em tokens e desconta até 50 % do pedido (a regra em vigor é outra), a secção 12 diz
---     que a reserva se cancela sem custo até 4 horas antes (a regra em vigor são 2 horas) e a
---     secção 8 ainda traz taxas de cancelamento de antes da regra de 29/10.
+--     desconta em tokens até 50 % do valor do pedido (a regra em vigor é metade do valor dos tokens
+--     que tem), a secção 12 diz que a reserva se cancela sem custo até 4 horas antes (a regra em
+--     vigor são 2 horas) e a secção 8 ainda traz taxas de cancelamento de antes da regra de 29/10.
 --
 -- O QUE MUDA: match_knowledge passa a devolver só o que está numa LISTA FECHADA. Tudo o que não
 -- está na lista fica de fora, incluindo o que vier a ser indexado no futuro:

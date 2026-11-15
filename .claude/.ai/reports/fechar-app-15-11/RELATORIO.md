@@ -83,7 +83,7 @@ O teste antigo `test_restaurante.py` da pasta do assistente falha no PC (duas fa
 
 ## PARA O DANILO
 
-- Os robôs dos clientes pesquisam um documento de regras antigo. Diz que o cliente ganha 3 % em tokens e desconta até 50 % do pedido, que a reserva se cancela sem custo até 4 horas antes e traz taxas de cancelamento de antes de 29/10. As regras em vigor são outras. Também diz quem é o administrador pelo nome. Dizer se aplico a lista fechada (os robôs ficam sem essas regras até haver uma ajuda escrita para clientes) e quem escreve essa ajuda.
+- Os robôs dos clientes pesquisam um documento de regras antigo. Diz que o cliente desconta em tokens até 50 % do valor do pedido (a regra em vigor é metade do valor dos tokens que tem), que a reserva se cancela sem custo até 4 horas antes (são 2 horas) e traz taxas de cancelamento de antes de 29/10. As regras em vigor são outras. Também diz quem é o administrador pelo nome. Dizer se aplico a lista fechada (os robôs ficam sem essas regras até haver uma ajuda escrita para clientes) e quem escreve essa ajuda.
 
 - Dizer "autorizo" (ou não) à correção de raiz do MB WAY: o cancelamento da Bora passar a cancelar o pagamento na Stripe.
 - Trocar a palavra-passe da conta driver@bora.app.

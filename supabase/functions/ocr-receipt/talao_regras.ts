@@ -39,6 +39,12 @@ const PALAVRAS_GENERICAS = new Set([
   'snack', 'bar', 'loja', 'lojas', 'supermercado', 'supermercados', 'hipermercado', 'mercado', 'farmacia',
   'guarda', 'portugal', 'lda', 'limitada', 'unipessoal', 'sociedade', 'sistemas', 'comercio', 'distribuicao',
   'the', 'and', 'dos', 'das', 'del',
+  // 15/11/2026 (revisão): palavras que dizem o TIPO de comida ou de casa, não a marca. Medido em
+  // produção: pizza e sushi estão no nome de 3 lojas cada; açaí, burger, house, kebab e sabores
+  // em 2. Com uma delas a contar como "palavra forte", o talão de uma casa de hambúrgueres
+  // batia com o pedido de outra. Só entram essas sete e as suas formas de plural ou de escrita.
+  'pizza', 'pizzas', 'sushi', 'acai', 'burger', 'burgers', 'burguer', 'burguers', 'house', 'kebab', 'kebabs',
+  'sabores', 'sabor',
 ])
 
 /** Minúsculas, sem acentos, só letras e números separados por um espaço. */

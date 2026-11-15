@@ -121,6 +121,24 @@ Deno.test('sem loja lida ou sem loja no pedido: não se sabe', () => {
   igual(conferirLoja('  ', "McDonald's", ['KFC']).ok, null, 'lida em branco')
 })
 
+Deno.test('revisão 15/11: o tipo de comida no nome não faz duas lojas diferentes baterem', () => {
+  // Pares de nomes inventados com as palavras que se repetem nas lojas de produção.
+  igual(lojasBatem('Pizza Roma', 'Pizza Napoli'), false, 'pizza')
+  igual(lojasBatem('Sushi Sakura', 'Sushi Fuji'), false, 'sushi')
+  igual(lojasBatem('Burger Ranch', 'Burger Station'), false, 'burger')
+  igual(lojasBatem('Kebab House', 'Sushi House'), false, 'house')
+  igual(lojasBatem('Sabores da Serra', 'Sabores do Brasil'), false, 'sabores')
+  igual(lojasBatem('Açaí Tropical', 'Açaí da Praia'), false, 'açaí')
+  // A mesma loja continua a bater, com a terra ou a empresa à volta.
+  igual(lojasBatem('KEBAB HOUSE GUARDA', 'Kebab House'), true, 'mesma loja com a terra')
+  igual(lojasBatem('SABORES DA SERRA LDA', 'Sabores da Serra'), true, 'mesma loja com a empresa')
+  igual(lojasBatem('BURGER KING', 'Burger King Guarda'), true, 'marca com duas palavras')
+  // E o talão de outra casa do mesmo tipo já não passa como certo nem acusa a loja errada.
+  const r = conferirLoja('Burger Station', 'Burger Ranch', ['Burger Ranch', 'Burger Station', 'Burger King'])
+  igual(r.ok, false, 'talão de outra casa de hambúrgueres')
+  igual(r.outra_loja_conhecida, 'Burger Station', 'e diz qual é a outra loja')
+})
+
 Deno.test('pela fonte: o texto enviado ao modelo já não dá nomes de lojas como exemplo', async () => {
   const fonte = await Deno.readTextFile(new URL('./index.ts', import.meta.url))
   const ini = fonte.indexOf('const sistema =')

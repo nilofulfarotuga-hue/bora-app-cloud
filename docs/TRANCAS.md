@@ -619,3 +619,11 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   módulo de configuração passou a ser um objeto de faz-de-conta), que é o que a regra pede: nenhum valor de chave em
   ficheiros. (2) Negou um Bash que acabava a apagar uma pasta temporária com apagar recursivo. Como foi recusado inteiro,
   nada correu. Repeti sem apagar nada, com a cópia de ensaio na pasta de rascunho da sessão.
+
+- **15/11/2026, missão `manha-15-11` (Claude Code no PC)** — recusas da bora-tranca e da trava do modo automático, nenhuma
+  contornada: (1) Write em `supabase/functions/client-cancel-order/` ("zona vermelha: estorno") → o código ficou pronto em
+  `docs/propostas/manha-15-11/C1-*`; (2) execute_sql da prova C3 em rollback (INSERT/UPDATE em `bora_tokens`) → ficou em
+  `C3-prova-rollback.sql`; (3) `deploy_edge_function admin-sync-user-name` e `apply_migration conteudo_ia_fila`
+  ("publica o Claude.ai"); (4) `git push` com tubo — repetido na forma simples para o ramo `ai/2026-11-15-manha`, que
+  passou; (5) a trava do modo automático passou a recusar a chave SSH da VPS a meio da sessão ("ficheiro de segredos"),
+  por isso os passos na VPS (scripts do bloco E, restart do Hermes) ficaram para a Claude.ai (e2e_log 9147 e 9150).

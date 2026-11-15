@@ -46,9 +46,11 @@ Future<void> _assentar(WidgetTester t) async {
   }
 }
 
-/// Ecrã de telemóvel Android comum (412 x 860 lógicos).
+/// Altura de telemóvel Android comum (860 lógicos). A largura é 520 porque a
+/// letra quadrada dos testes do Flutter é mais larga do que a real (a 412 a
+/// linha do total transbordava só no teste; com a letra real cabe).
 void _telemovel(WidgetTester t) {
-  t.view.physicalSize = const Size(412, 860);
+  t.view.physicalSize = const Size(520, 860);
   t.view.devicePixelRatio = 1;
   addTearDown(t.view.reset);
 }
@@ -130,8 +132,14 @@ void main() {
       final antes = _rolagem(t).pixels;
       await t.tap(comprado);
       await _assentar(t);
-      expect(_rolagem(t).pixels, closeTo(antes, 1),
-          reason: 'a lista não salta ao marcar o produto ${i + 1}');
+      final depois = _rolagem(t).pixels;
+      // Ao marcar, o produto perde a linha dos botões e a folha encolhe: no fundo
+      // a posição encosta ao novo fim (desce no máximo o que o produto encolheu).
+      // O que não pode acontecer é voltar ao início nem saltar para baixo.
+      expect(depois, lessThanOrEqualTo(antes + 1),
+          reason: 'a lista não salta para baixo ao marcar o produto ${i + 1}');
+      expect(antes - depois, lessThan(60),
+          reason: 'a lista não volta ao início ao marcar o produto ${i + 1}');
     }
     final botao = find.descendant(
         of: find.byKey(const Key('lista_compras_confirmar')),

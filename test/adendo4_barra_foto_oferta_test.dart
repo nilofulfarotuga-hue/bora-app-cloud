@@ -3,6 +3,8 @@
 //   1  barra fixa do pedido em curso, com tempo estimado recalculado
 //   2  foto de prova da entrega visível ao cliente
 //   3  oferta ao estafeta com ganho, quilómetros e paragens antes de aceitar
+import 'dart:io';
+
 import 'package:bora_app/l10n/bora_lang.dart';
 import 'package:bora_app/models/order_model.dart';
 import 'package:bora_app/services/interruptores_app.dart';
@@ -326,6 +328,28 @@ void main() {
       await t.pumpWidget(_app(OfertaResumoEstafeta(order: _pedido(), ganho: 3.8)));
       await t.pump();
       expect(find.byKey(const Key('oferta_resumo_estafeta')), findsNothing);
+    });
+
+    // app-15-11 (aprovado pela Claude.ai 15/11 10:48): no cartão e na janela
+    // da oferta o ganho já está em número grande; o resumo não o repete.
+    testWidgets('sem ganho: só km e paragens, nada de "Ganhas"', (t) async {
+      await t.pumpWidget(_app(OfertaResumoEstafeta(
+          order: _pedido(), ganho: 3.8, mostrarGanho: false)));
+      await t.pump();
+      expect(find.byKey(const Key('oferta_ganho')), findsNothing);
+      expect(find.textContaining('Ganhas'), findsNothing);
+      expect(find.text('2 paragens'), findsOneWidget);
+      expect(find.textContaining('km no total'), findsOneWidget);
+    });
+
+    test('na oferta o ganho aparece uma vez só (fonte)', () {
+      final home = File('lib/screens/driver_home_screen.dart')
+          .readAsStringSync()
+          .replaceAll(String.fromCharCode(13), '');
+      expect(home, isNot(contains("'Aceitar · +")),
+          reason: 'o botão Aceitar já não repete o ganho');
+      expect('mostrarGanho: false'.allMatches(home).length, 2,
+          reason: 'cartão e janela da oferta');
     });
   });
 }

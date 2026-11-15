@@ -51,11 +51,17 @@ class OfertaResumoEstafeta extends StatefulWidget {
     required this.order,
     required this.ganho,
     this.driverLocation,
+    this.mostrarGanho = true,
   });
 
   final OrderModel order;
   final double? ganho;
   final LatLng? driverLocation;
+
+  /// app-15-11 (aprovado pela Claude.ai 15/11 10:48): no cartão e na janela
+  /// da oferta o ganho já está em número grande por cima — aqui ficava
+  /// repetido. `false` = só km e paragens.
+  final bool mostrarGanho;
 
   @override
   State<OfertaResumoEstafeta> createState() => _OfertaResumoEstafetaState();
@@ -93,6 +99,7 @@ class _OfertaResumoEstafetaState extends State<OfertaResumoEstafeta> {
         spacing: 16,
         runSpacing: 6,
         children: [
+          if (widget.mostrarGanho)
           _Dado(
             chave: const Key('oferta_ganho'),
             icone: Icons.payments_outlined,

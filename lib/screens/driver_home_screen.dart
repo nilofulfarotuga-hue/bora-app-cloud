@@ -2920,10 +2920,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   ),
                 ),
                 const SizedBox(height: 8),
+                // app-15-11: o ganho já está na caixa laranja de cima.
                 OfertaResumoEstafeta(
                   order: order,
                   ganho: stackedEarnings,
                   driverLocation: driverLoc,
+                  mostrarGanho: false,
                 ),
                 if (order.scheduledFor != null) ...[
                   const SizedBox(height: 8),
@@ -2993,9 +2995,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                 ),
                 onPressed: () =>
                     Navigator.of(dialogCtx, rootNavigator: true).pop('accept'),
-                child: Text(stackedEarnings != null
-                    ? 'Aceitar · +${_eurPt(stackedEarnings)}'
-                    : 'Aceitar'),
+                // app-15-11: o ganho já está em destaque por cima.
+                child: const Text('Aceitar'),
               ),
             ],
           ),
@@ -3514,10 +3515,12 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
           // Adendo 4 · item 3 (29/10/2026): o que ganha, quantos km e quantas
           // paragens, antes de aceitar. Interruptor feature_oferta_ganho_visivel.
           const SizedBox(height: 12),
+          // app-15-11: o ganho já está em número grande lá em cima.
           OfertaResumoEstafeta(
             order: order,
             ganho: order.driverEarnings,
             driverLocation: widget.driverLocation,
+            mostrarGanho: false,
           ),
           // Pedido agendado (30/10/2026): a hora marcada antes de aceitar.
           if (order.scheduledFor != null) ...[
@@ -3563,8 +3566,8 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                             color: Colors.white,
                           ),
                         )
-                      : Text(
-                          'Aceitar · +${eur(order.driverEarnings)}'),
+                      // app-15-11: o ganho já está em número grande por cima.
+                      : const Text('Aceitar'),
                 ),
               ),
             ],
@@ -3644,6 +3647,9 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
               spacing: 12,
               runSpacing: 8,
               children: [
+                // Regra do ganho grande: o valor do cliente só em
+                // pagamento a dinheiro (é o que o estafeta recebe à porta).
+                if (order.paymentMethod == PaymentMethod.cash)
                 _InfoChip(
                   icon: Icons.euro,
                   label: "Total",
@@ -3762,8 +3768,8 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
                             width: 16,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : Text(
-                            'Aceitar · +${eur(order.driverEarnings)}'),
+                        // app-15-11: o ganho já está no "Ganhos" de cima.
+                        : const Text('Aceitar'),
                   ),
                 ),
               ],

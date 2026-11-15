@@ -627,3 +627,6 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   ("publica o Claude.ai"); (4) `git push` com tubo — repetido na forma simples para o ramo `ai/2026-11-15-manha`, que
   passou; (5) a trava do modo automático passou a recusar a chave SSH da VPS a meio da sessão ("ficheiro de segredos"),
   por isso os passos na VPS (scripts do bloco E, restart do Hermes) ficaram para a Claude.ai (e2e_log 9147 e 9150).
+  (6) O ajudante das artes das farmácias (12:15–12:55) não conseguiu apagar a pasta temporária
+  `Desktop/Bora/farmacias-artes/_montar/_tmp` (54 MB de PDF que se refazem com o script); não contornou, a pasta fica e
+  pode apagar-se à mão (e2e_log, fluxo `farmacias-artes-15-11`, passo `bloco-terminado`).

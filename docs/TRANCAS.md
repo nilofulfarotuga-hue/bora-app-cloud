@@ -634,3 +634,10 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   (8) ~11:25: o classificador do Claude Code negou ler o registo completo do job do build-ios #278 com o token
   do git do PC ("Unauthorized Access"), apesar de ser o caminho anotado a 29/10 na memória. Não repetido; as
   duas falhas que encontrei foram achadas lendo o código e os testes.
+- **15/11/2026, missão `manha-15-11` (Claude Code no PC)** — recusas da bora-tranca e da trava do modo automático, nenhuma
+  contornada: (1) Write em `supabase/functions/client-cancel-order/` ("zona vermelha: estorno") → o código ficou pronto em
+  `docs/propostas/manha-15-11/C1-*`; (2) execute_sql da prova C3 em rollback (INSERT/UPDATE em `bora_tokens`) → ficou em
+  `C3-prova-rollback.sql`; (3) `deploy_edge_function admin-sync-user-name` e `apply_migration conteudo_ia_fila`
+  ("publica o Claude.ai"); (4) `git push` com tubo — repetido na forma simples para o ramo `ai/2026-11-15-manha`, que
+  passou; (5) a trava do modo automático passou a recusar a chave SSH da VPS a meio da sessão ("ficheiro de segredos"),
+  por isso os passos na VPS (scripts do bloco E, restart do Hermes) ficaram para a Claude.ai (e2e_log 9147 e 9150).

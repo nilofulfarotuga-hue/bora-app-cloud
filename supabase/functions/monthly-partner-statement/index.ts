@@ -44,10 +44,31 @@
 //  - às lojas: a parte da Bora fatura-se aos clientes, a loja não recebe fatura da Bora;
 //  - TVDE fora do resumo.
 // NÃO reenviar outubro: o contabilista já o recebeu e decide ele como tratar.
+//
+// v5 (15/11/2026, missão recibos-verdes-15-11, R1b; base = v14 no ar, igual ao v4 do repo). Desde
+// novembro/2026 quem paga é a sociedade e o contabilista (Hugo, 15/11) pediu UM recibo verde por
+// pessoa por mês. Por isso:
+//  - UM email por PESSOA (user_id) com tudo o que fez no mês (entregas + limpezas + lavagens + Casa),
+//    lido da RPC prestador_recibo_mensal_resumo (fonte única: app, painel, aviso do dia 10, trava).
+//    Os dois envios separados de antes (estafetas por driver_monthly_invoice_summary e limpeza por
+//    fecho_mensal_prestadores) saíram: a Mayra, que é estafeta e limpadora, recebia dois.
+//  - O email leva o total e as linhas por serviço, os dados da empresa para copiar, a descrição, o prazo,
+//    a retenção (só texto, da função), o IVA, "anexe o recibo na app, em Ganhos" e o aviso da trava.
+//    Antes de novembro/2026 (Danilo em nome individual) fica como na v4: IVA e retenção sem regra fixa.
+//  - Nunca duas vezes à mesma pessoa: driver_monthly_statement_log (user_id, ano, mes) é o registo da
+//    pessoa; um envio antigo à limpeza (cleaner_monthly_statement_log) também conta, e o envio novo fica
+//    espelhado lá (se a v4 voltar por rollback, não repete). Só force:true reenvia.
+//  - A conta do dono fica de fora enquanto fecho_dono_passa_recibo = false (a função decide).
+//  - { user_id } (ou { driver_user_id }) = só esta pessoa; um admin com sessão também pode chamar (botão
+//    "Reenviar" de uma pessoa no painel /admin/fecho-mensal). Antes, o reenvio de um estafeta com
+//    force:true reenviava também a TODAS as limpadoras (o laço da limpeza não olhava para o filtro).
+// Precisa do SQL R1a aplicado (prestador_recibo_mensal_resumo); sem ele, os prestadores não recebem e o
+// erro aparece no resumo ao admin e na resposta.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { secretKey } from '../_shared/keys.ts'
-import { chamadaDoServidor, respostaAoPing } from '../_shared/chaves.ts'
+import { exigirServidorOuAdmin, respostaAoPing } from '../_shared/chaves.ts'
+import { assuntoPrestador, htmlPrestador, jaEnviadoAPessoa, separarPessoas, textoPrestador } from './logica.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,7 +80,7 @@ const ADMIN_EMAIL = 'boraappbora@gmail.com'
 const EMAIL_FROM = 'Bora App <fecho@boraguarda.com>'
 const META = '<meta charset="utf-8">'
 const GREEN = '#16A34A'
-// Primeiro mês em que o estafeta passa recibo (modelo novo a 01/10/2026).
+// Primeiro mês em que os prestadores passam recibo (modelo novo a 01/10/2026; à sociedade desde 11/2026).
 const ESTAFETA_DESDE = 2026 * 12 + 10
 
 const TERMINACOES_MORTAS = ['.test', '.invalid', '.example', '.localhost', '.local',
@@ -105,7 +126,9 @@ Deno.serve(async (req) => {
 
   // 31/10/2026 (chaves-varredura): só o servidor, pela regra da casa (_shared/chaves.ts) — a
   // service_role legada passa confirmada no Auth; sem ler o papel do JWT à mão.
-  if (!(await chamadaDoServidor(req))) return json({ ok: false, error: 'forbidden' }, 403)
+  // v5: ou um admin com sessão (reenvio de uma pessoa a partir do painel). Resto: 403 como antes.
+  const bloqueio = await exigirServidorOuAdmin(req, corsHeaders)
+  if (bloqueio) return bloqueio
   const pong = await respostaAoPing(req, corsHeaders)
   if (pong) return pong
 
@@ -124,11 +147,12 @@ Deno.serve(async (req) => {
     mes = agora.mes === 1 ? 12 : agora.mes - 1
   }
   const partnerId = b?.partner_id ? String(b.partner_id) : null
-  const driverId = b?.driver_user_id ? String(b.driver_user_id) : null
+  // v5: uma pessoa só (qualquer prestador). driver_user_id fica como nome antigo do mesmo filtro.
+  const pessoaId = b?.user_id ? String(b.user_id) : (b?.driver_user_id ? String(b.driver_user_id) : null)
   const force = b?.force === true
-  const adminSummary = b?.admin_summary !== undefined ? b.admin_summary === true : (!partnerId && !driverId)
-  const fazerLojas = !driverId
-  const fazerEstafetas = !partnerId && (ano * 12 + mes) >= ESTAFETA_DESDE
+  const adminSummary = b?.admin_summary !== undefined ? b.admin_summary === true : (!partnerId && !pessoaId)
+  const fazerLojas = !pessoaId
+  const fazerPrestadores = !partnerId && (ano * 12 + mes) >= ESTAFETA_DESDE
 
   const supabase = createClient(Deno.env.get('SUPABASE_URL'), secretKey())
 
@@ -144,30 +168,8 @@ Deno.serve(async (req) => {
     .select('value').eq('key', 'weekly_digest_emails_enabled').maybeSingle()
   const emailsEnabled = gateRow?.value === true || gateRow?.value === 'true'
 
-  // v3: o adquirente dos recibos verdes (quem paga os prestadores neste mês). Primeiro o que a RPC
-  // devolve (driver_monthly_invoice_summary / fecho_mensal_prestadores já decidem individual vs
-  // sociedade pelo mês); as settings fecho_entidade_* são o recurso.
-  const { data: entRows } = await supabase.from('platform_settings').select('key,value')
-    .in('key', ['fecho_entidade_nome', 'fecho_entidade_nif', 'fecho_entidade_morada', 'fecho_entidade_tipo'])
-  const ent = {}
-  for (const r of (entRows ?? [])) ent[r.key] = typeof r.value === 'string' ? r.value : (r.value == null ? '' : String(r.value))
-  const adquirenteSettings = {
-    nome: (ent.fecho_entidade_nome || '').trim(),
-    nif: (ent.fecho_entidade_nif || '').trim(),
-    morada: (ent.fecho_entidade_morada || '').trim(),
-    tipo: (ent.fecho_entidade_tipo || 'individual').trim(),
-    retencao: '',
-  }
-  function adquirenteDe(rpc) {
-    const a = rpc ?? {}
-    return {
-      nome: String(a.nome ?? '').trim() || adquirenteSettings.nome,
-      nif: String(a.nif ?? '').trim() || adquirenteSettings.nif,
-      morada: String(a.morada ?? '').trim() || adquirenteSettings.morada,
-      tipo: String(a.tipo ?? '').trim() || adquirenteSettings.tipo,
-      retencao: String(a.retencao ?? '').trim(),
-    }
-  }
+  // v5: o adquirente (a quem o prestador passa o recibo) vem da RPC prestador_recibo_mensal_resumo,
+  // que já decide individual (até 10/2026, com as settings fecho_entidade_*) ou sociedade (desde 11/2026).
 
   async function destinoValido(email) {
     let to = email && !enderecoMorto(email) ? String(email).trim() : null
@@ -225,96 +227,83 @@ Deno.serve(async (req) => {
     }
   }
 
-  // ── Estafetas: resumo do recibo verde do mês ───────────────────────────
-  const estafetas = []
-  let adquirente = adquirenteSettings
-  if (fazerEstafetas) {
+  // ── Prestadores (v5): UM email por PESSOA com o recibo verde do mês ───────────────────
+  // Fonte única: RPC prestador_recibo_mensal_resumo (entregas + limpezas + lavagens + Casa, por user_id).
+  const prestadores = []
+  if (fazerPrestadores) {
     const { data: resumo, error: rErr } = await supabase
-      .rpc('driver_monthly_invoice_summary', { p_year: ano, p_month: mes })
+      .rpc('prestador_recibo_mensal_resumo', { p_year: ano, p_month: mes })
     if (rErr) {
-      estafetas.push({ erro: 'resumo falhou: ' + rErr.message })
+      prestadores.push({ erro: 'resumo falhou: ' + rErr.message })
     } else {
-      adquirente = adquirenteDe(resumo?.adquirente)
-      const lista = (resumo?.estafetas ?? []).filter((e) => !driverId || String(e.user_id) === driverId)
-      for (const e of lista) {
-        const uid = String(e.user_id)
-        const { data: logRow } = await supabase.from('driver_monthly_statement_log').select('*')
+      const { enviar, saltar } = separarPessoas(resumo?.prestadores, pessoaId)
+
+      // Conta do dono (enquanto fecho_dono_passa_recibo = false) e contas demo: ficam registadas, sem email.
+      for (const s of saltar) {
+        const uid = String(s.prestador.user_id)
+        const { data: logRow } = await supabase.from('driver_monthly_statement_log').select('email_status,sent_at')
           .eq('user_id', uid).eq('ano', ano).eq('mes', mes).maybeSingle()
-        if (logRow?.email_status === 'sent' && !force) {
-          estafetas.push({ user_id: uid, nome: e.nome, estado: 'ja_enviado' })
+        if (logRow?.email_status === 'sent') {
+          prestadores.push({ user_id: uid, nome: s.prestador.nome, estado: 'ja_enviado' })
           continue
-        }
-        let estado = 'failed'
-        let erro = null
-        const { data: email } = await supabase.rpc('driver_monthly_statement_email', { p_user_id: uid })
-        // v3: o próprio Danilo (conta admin) a fazer entregas não passa recibo a si mesmo — é o
-        // adquirente; os ganhos dele são rendimento próprio. Fica registado, sem email.
-        if (e.proprio_adquirente === true || String(email ?? '').trim().toLowerCase() === ADMIN_EMAIL) {
-          await supabase.from('driver_monthly_statement_log').upsert({
-            user_id: uid, ano, mes, email_to: null, email_status: 'skipped',
-            email_error: 'conta do próprio Danilo (adquirente): sem recibo a si mesmo',
-            sent_at: logRow?.sent_at ?? null, updated_at: new Date().toISOString(),
-          }, { onConflict: 'user_id,ano,mes' })
-          estafetas.push({ user_id: uid, nome: e.nome, estado: 'skipped', erro: 'conta do próprio Danilo' })
-          continue
-        }
-        const v = await destinoValido(email)
-        const to = v.to
-        if (v.estado) { estado = v.estado; erro = v.erro } else {
-          const res = await sendResend(resendKey, to,
-            'O seu recibo verde de ' + resumo.nome_mes + ' de ' + ano + ' · Bora',
-            htmlEstafeta(e, resumo.nome_mes, adquirenteDe({ nome: e.cliente, nif: e.cliente_nif, morada: e.cliente_morada, tipo: e.cliente_tipo, retencao: e.retencao }), 'entregas'))
-          estado = res.ok ? 'sent' : 'failed'
-          erro = res.ok ? null : res.error
         }
         await supabase.from('driver_monthly_statement_log').upsert({
-          user_id: uid, ano, mes, email_to: to, email_status: estado, email_error: erro,
-          sent_at: estado === 'sent' ? new Date().toISOString() : (logRow?.sent_at ?? null),
-          updated_at: new Date().toISOString(),
+          user_id: uid, ano, mes, email_to: null, email_status: 'skipped', email_error: s.erro,
+          sent_at: logRow?.sent_at ?? null, updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id,ano,mes' })
-        estafetas.push({ user_id: uid, nome: e.nome, email: to, estado, erro })
+        prestadores.push({ user_id: uid, nome: s.prestador.nome, estado: 'skipped', erro: s.erro })
       }
-    }
-  }
 
-  // ── Limpeza (v3): a profissional recebe o extrato do mês com os dados do recibo ────────
-  // Lê a RPC fecho_mensal_prestadores (limpeza = cleaning_bookings completed/done do mês).
-  // Idempotente em cleaner_monthly_statement_log (cleaner_id, ano, mes).
-  const limpeza = []
-  if (fazerEstafetas) {
-    const { data: prest, error: pErr } = await supabase
-      .rpc('fecho_mensal_prestadores', { p_year: ano, p_month: mes })
-    if (pErr) {
-      limpeza.push({ erro: 'fecho_mensal_prestadores falhou: ' + pErr.message })
-    } else {
-      const adqLimp = adquirenteDe(prest?.adquirente)
-      const nomeMes = prest?.periodo?.nome ?? ''
-      for (const c of (prest?.limpeza ?? [])) {
-        const cid = String(c.cleaner_id)
-        const { data: logRow } = await supabase.from('cleaner_monthly_statement_log').select('*')
-          .eq('cleaner_id', cid).eq('ano', ano).eq('mes', mes).maybeSingle()
-        if (logRow?.email_status === 'sent' && !force) {
-          limpeza.push({ cleaner_id: cid, nome: c.nome, estado: 'ja_enviado' })
+      for (const p of enviar) {
+        const uid = String(p.user_id)
+        // Nunca duas vezes à mesma pessoa: o registo dela (por user_id) e o registo antigo da limpeza.
+        const { data: logRow } = await supabase.from('driver_monthly_statement_log').select('*')
+          .eq('user_id', uid).eq('ano', ano).eq('mes', mes).maybeSingle()
+        const { data: fichasLimpeza } = await supabase.from('cleaners').select('id').eq('user_id', uid)
+        const cleanerIds = (fichasLimpeza ?? []).map((c) => String(c.id))
+        let logsLimpeza = []
+        if (cleanerIds.length) {
+          const { data: ll } = await supabase.from('cleaner_monthly_statement_log').select('cleaner_id,email_status')
+            .in('cleaner_id', cleanerIds).eq('ano', ano).eq('mes', mes)
+          logsLimpeza = ll ?? []
+        }
+        if (jaEnviadoAPessoa(logRow, logsLimpeza, force)) {
+          prestadores.push({ user_id: uid, nome: p.nome, estado: 'ja_enviado' })
           continue
         }
+
         let estado = 'failed'
         let erro = null
-        const v = await destinoValido(c.email)
+        // O endereço de contacto do estafeta (drivers.email) manda; senão o do login.
+        const { data: emailContacto } = await supabase.rpc('driver_monthly_statement_email', { p_user_id: uid })
+        const v = await destinoValido(String(emailContacto ?? '').trim() || p.email)
         const to = v.to
         if (v.estado) { estado = v.estado; erro = v.erro } else {
-          const e = { nome: c.nome, ano, entregas: c.servicos, total_a_faturar: c.ganho, nif: c.nif, atividade_aberta: true }
-          const res = await sendResend(resendKey, to,
-            'O seu recibo verde de ' + nomeMes + ' de ' + ano + ' · Bora',
-            htmlEstafeta(e, nomeMes, adqLimp, 'limpezas', c))
+          const res = await sendResend(resendKey, to, assuntoPrestador(resumo),
+            htmlPrestador(p, resumo), textoPrestador(p, resumo))
           estado = res.ok ? 'sent' : 'failed'
           erro = res.ok ? null : res.error
         }
-        await supabase.from('cleaner_monthly_statement_log').upsert({
-          cleaner_id: cid, ano, mes, email_to: to, email_status: estado, email_error: erro,
-          sent_at: estado === 'sent' ? new Date().toISOString() : (logRow?.sent_at ?? null),
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'cleaner_id,ano,mes' })
-        limpeza.push({ cleaner_id: cid, nome: c.nome, email: to, estado, erro })
+        const agoraIso = new Date().toISOString()
+        await supabase.from('driver_monthly_statement_log').upsert({
+          user_id: uid, ano, mes, email_to: to, email_status: estado, email_error: erro,
+          sent_at: estado === 'sent' ? agoraIso : (logRow?.sent_at ?? null),
+          updated_at: agoraIso,
+        }, { onConflict: 'user_id,ano,mes' })
+        // Espelho no registo antigo da limpeza (só quando saiu e a pessoa fez limpezas): se a v4 voltar
+        // por rollback, também não manda outra vez.
+        if (estado === 'sent' && (p.linhas ?? []).some((l) => l?.servico === 'limpeza')) {
+          for (const cid of cleanerIds) {
+            await supabase.from('cleaner_monthly_statement_log').upsert({
+              cleaner_id: cid, ano, mes, email_to: to, email_status: 'sent', email_error: null,
+              sent_at: agoraIso, updated_at: agoraIso,
+            }, { onConflict: 'cleaner_id,ano,mes' })
+          }
+        }
+        prestadores.push({
+          user_id: uid, nome: p.nome, email: to, estado, erro, total: p.total,
+          servicos: (p.linhas ?? []).map((l) => l?.servico),
+        })
       }
     }
   }
@@ -328,25 +317,28 @@ Deno.serve(async (req) => {
     } else {
       const res = await sendResend(resendKey, ADMIN_EMAIL,
         'Fecho de ' + fecho.periodo.nome + ' ' + ano + ' — resumo e parte para as Finanças',
-        htmlAdmin(fecho, resultados, estafetas.concat(limpeza)))
+        htmlAdmin(fecho, resultados, prestadores))
       admin = res
     }
   }
 
+  // v5: `prestadores` é a lista nova (uma linha por pessoa); `estafetas`/`limpeza` ficam pelo formato antigo.
   return json({
-    ok: true, ano, mes, partner_id: partnerId, driver_user_id: driverId, force,
+    ok: true, ano, mes, partner_id: partnerId, user_id: pessoaId, driver_user_id: pessoaId, force,
     emails_enabled: emailsEnabled, resend_key_present: !!resendKey,
-    extratos: resultados, estafetas, limpeza, estafetas_ativo: fazerEstafetas, admin_summary: admin,
+    extratos: resultados, prestadores, estafetas: prestadores, limpeza: [], estafetas_ativo: fazerPrestadores,
+    admin_summary: admin,
   })
 })
 
-async function sendResend(key, to, subject, html) {
+// v5: `text` (opcional) vai como parte text/plain.
+async function sendResend(key, to, subject, html, text = null) {
   if (!key) return { ok: false, error: 'RESEND_API_KEY em falta' }
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, html }),
+      body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, html, ...(text ? { text } : {}) }),
     })
     const txt = await res.text().catch(() => '')
     if (res.ok) {
@@ -366,59 +358,7 @@ function estadoAcerto(s) {
   return s ?? ''
 }
 
-// v3: o adquirente (a quem o recibo é passado) vem da RPC do mês, com as settings como recurso.
-// `tipo` = 'entregas' | 'limpezas'; `extra` (limpeza) traz o que a cliente pagou e os acertos.
-function htmlEstafeta(e, nomeMes, adquirente, tipo, extra) {
-  const linha = (a, b, forte) => '<tr><td style="padding:6px 0">' + a + '</td><td style="padding:6px 0;text-align:right' +
-    (forte ? ';font-weight:800;color:' + GREEN : '') + '">' + b + '</td></tr>'
-  const adq = adquirente ?? {}
-  const unidade = tipo === 'limpezas' ? 'limpezas' : 'entregas'
-  // v4: o adquirente vem sempre da RPC do mês (nunca "Consumidor final"); IVA e retenção sem regra fixa.
-  const nomeAdq = adq.nome || e.cliente || ''
-  const nifAdq = adq.nif || e.cliente_nif || ''
-  const moradaAdq = adq.morada || ''
-  const descricao = 'Serviços prestados em ' + nomeMes + ' de ' + e.ano + ' através da plataforma Bora' +
-    (e.entregas ? ' (' + e.entregas + ' ' + unidade + ')' : '')
-  const aviso = (!e.nif || !e.atividade_aberta)
-    ? '<p style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:8px;padding:10px;font-size:13px">' +
-      'Ainda falta confirmar na app o seu NIF e que tem atividade aberta nas Finanças. Sem atividade aberta não consegue passar o recibo, e sem recibo não pode continuar a trabalhar pela Bora.</p>'
-    : ''
-  let detalhe = ''
-  if (tipo === 'limpezas' && extra) {
-    const acertos = (extra.acertos ?? []).map((a) =>
-      '<tr><td style="padding:4px 0">Semana de ' + esc(a.semana) + '</td><td style="padding:4px 0;text-align:right">' +
-      (a.direcao === 'cleaner_to_bora' ? 'pagou à Bora ' : 'a Bora pagou-lhe ') + eur(Math.abs(Number(a.valor ?? 0))) +
-      ' · ' + esc(estadoAcerto(a.estado)) + '</td></tr>').join('')
-    detalhe = '<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:12px">' +
-      linha('Os clientes pagaram', eur(extra.pago_pelos_clientes)) +
-      linha('Em dinheiro (ficou consigo)', eur(extra.em_dinheiro)) +
-      linha('Por MB Way/cartão (a Bora recebeu e pagou-lhe)', eur(extra.por_mbway_cartao)) +
-      linha('Taxa da Bora', eur(extra.taxa_bora)) +
-      (acertos || '') + '</table>'
-  }
-  return META + '<div style="font-family:system-ui,Arial,sans-serif;max-width:620px;margin:auto">' +
-    '<div style="background:' + GREEN + ';color:#fff;padding:18px 20px;border-radius:12px 12px 0 0">' +
-    '<div style="font-size:20px;font-weight:800">Bora</div>' +
-    '<div style="opacity:.9">O seu recibo verde de ' + esc(nomeMes) + ' de ' + e.ano + '</div></div>' +
-    '<div style="border:1px solid #eee;border-top:0;border-radius:0 0 12px 12px;padding:20px">' +
-    '<p style="margin:0 0 12px">Olá <b>' + esc(e.nome) + '</b>, em ' + esc(nomeMes) + ' fez <b>' + esc(e.entregas ?? 0) + '</b> ' + unidade + ' pela Bora e ganhou <b>' + eur(e.total_a_faturar) + '</b>. ' +
-    'Cada um fatura a sua parte: passe a fatura-recibo (recibo verde) do que ganhou no Portal das Finanças com estes dados:</p>' +
-    '<table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:12px">' +
-    linha('Valor', eur(e.total_a_faturar), true) +
-    (nomeAdq ? linha('Passar a (adquirente)', esc(nomeAdq)) : '') +
-    (nifAdq ? linha('NIF do adquirente', esc(nifAdq)) : '') +
-    (moradaAdq ? linha('Morada do adquirente', esc(moradaAdq)) : '') +
-    linha('IVA e retenção de IRS', 'Dependem do seu regime nas Finanças (há quem seja isento de IVA e quem não seja); o contabilista da Bora confirma consigo.') +
-    '</table>' +
-    detalhe +
-    '<p style="font-size:13px;color:#555;margin:0 0 4px">Descrição para copiar:</p>' +
-    '<p style="background:#F3F4F6;border-radius:8px;padding:10px;font-size:14px;margin:0 0 14px">' + esc(descricao) + '</p>' +
-    aviso +
-    '<p style="font-size:13px">Prazo: a fatura-recibo passa-se até ao 5.º dia útil depois de receber o dinheiro. ' +
-    (tipo === 'limpezas' ? 'Depois responda a este email com o PDF do recibo.' : 'Depois carregue em <b>"Já passei o recibo"</b> na app, em Ganhos.') +
-    ' Se tiver dúvidas, responda a este email.</p>' +
-    '<p style="font-size:11px;color:#999;margin-top:12px">Bora App · resumo mensal automático</p></div></div>'
-}
+// v5: o email ao prestador (htmlPrestador / textoPrestador) está em ./logica.ts, com testes.
 
 function htmlParceiro(x) {
   const td = 'padding:6px 4px;border-bottom:1px solid #f1f1f1'
@@ -457,7 +397,7 @@ function htmlParceiro(x) {
     '<p style="font-size:11px;color:#999;margin-top:12px">Bora App · extrato mensal automático</p></div></div>'
 }
 
-function htmlAdmin(f, resultados, estafetas) {
+function htmlAdmin(f, resultados, prestadores) {
   const t = f.totais ?? {}
   const fin = f.para_as_financas ?? {}
   const fat = (fin.faturas_recibo ?? []).map((x) =>
@@ -467,7 +407,7 @@ function htmlAdmin(f, resultados, estafetas) {
     '<li>' + esc(p.data) + ' ' + esc(p.loja) + ': ' + eur(p.resultado) + ' — ' + esc(p.motivo) + '</li>').join('')
   const ext = (resultados ?? []).map((r) =>
     '<li>' + esc(r.nome) + ': ' + esc(r.estado) + (r.erro ? ' — ' + esc(r.erro) : '') + '</li>').join('')
-  const est = (estafetas ?? []).map((r) =>
+  const est = (prestadores ?? []).map((r) =>
     '<li>' + esc(r.nome) + ': ' + esc(r.estado) + (r.erro ? ' — ' + esc(r.erro) : '') + '</li>').join('')
   return META + '<div style="font-family:system-ui,Arial,sans-serif;max-width:640px;margin:auto">' +
     '<h2 style="color:' + GREEN + '">Fecho de ' + esc(f.periodo.nome) + ' ' + f.periodo.ano + '</h2>' +
@@ -480,6 +420,6 @@ function htmlAdmin(f, resultados, estafetas) {
     '<h3>Faturação da parte da Bora (emitida pelo escritório do contabilista)</h3><ul>' + fat + '</ul>' +
     (prej ? '<h3 style="color:#B45309">Pedidos no prejuízo</h3><ul>' + prej + '</ul>' : '') +
     (ext ? '<h3>Extratos às lojas</h3><ul>' + ext + '</ul>' : '') +
-    (est ? '<h3>Resumos do mês aos prestadores (estafetas e limpeza)</h3><ul>' + est + '</ul>' : '') +
+    (est ? '<h3>Recibo verde do mês aos prestadores (um email por pessoa)</h3><ul>' + est + '</ul>' : '') +
     '<p style="font-size:11px;color:#999">Bora App · fecho mensal · detalhe em /admin/fecho-mensal</p></div>'
 }

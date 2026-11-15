@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../auth/auth_store.dart';
 import '../../config/app_colors.dart';
 import '../../main.dart' show routeObserver;
+import '../../stores/session_store.dart';
 import '../../services/admin_push_service.dart';
 import '../../services/auth_admin_service.dart';
 import '../../widgets/admin/alerta_livro_reclamacoes_card.dart';
@@ -332,10 +335,33 @@ class AdminAcessoNegado extends StatelessWidget {
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(
-            mensagem(emailAtual),
-            key: const Key('admin_acesso_negado_texto'),
-            textAlign: TextAlign.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                mensagem(emailAtual),
+                key: const Key('admin_acesso_negado_texto'),
+                textAlign: TextAlign.center,
+              ),
+              // app-15-11 (caixa 18, ponto 5): a mensagem manda sair da conta,
+              // mas não havia botão. Faz o mesmo que "Terminar sessão" do
+              // Perfil e volta ao início, onde se entra com a conta de admin.
+              if ((emailAtual ?? '').trim().isNotEmpty) ...[
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  key: const Key('admin_acesso_negado_sair'),
+                  onPressed: () async {
+                    context.read<AuthStore>().logout();
+                    await context.read<SessionStore>().clearRole();
+                    if (!context.mounted) return;
+                    Navigator.of(context)
+                        .pushNamedAndRemoveUntil('/', (route) => false);
+                  },
+                  icon: const Icon(Icons.logout),
+                  label: const Text('Sair dessa conta'),
+                ),
+              ],
+            ],
           ),
         ),
       ),

@@ -3,7 +3,10 @@
 import 'dart:io';
 
 import 'package:bora_app/auth/auth_store.dart';
+import 'package:bora_app/screens/admin/admin_dashboard_screen.dart';
 import 'package:bora_app/services/wallet_service.dart';
+import 'package:bora_app/widgets/admin/talao_motivos.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 String _ler(String caminho) =>
@@ -86,5 +89,37 @@ void main() {
     final pendente = _ler('lib/screens/driver_pending_screen.dart');
     expect('popUntil((route) => route.isFirst)'.allMatches(pendente).length,
         greaterThanOrEqualTo(3));
+  });
+
+  // Caixa 18, ponto 5: o painel diz porque é que o talão está para revisar.
+  test('motivos do talão a partir do receipt_parsed', () {
+    expect(motivosParaRever(null), isEmpty);
+    expect(motivosParaRever({'store_check': {'ok': true}}), isEmpty);
+    final m = motivosParaRever({
+      'store_check': {
+        'ok': false,
+        'lida': 'KFC',
+        'pedido': "McDonald's",
+        'outra_loja_conhecida': 'KFC Guarda'
+      },
+      'lines_check': {
+        'aviso': 'linha_repetida_tirada',
+        'soma_antes_cents': 2540,
+        'soma_depois_cents': 2510
+      },
+    });
+    expect(m, hasLength(2));
+    expect(m.first, contains('"KFC"'));
+    expect(m.first, contains("McDonald's"));
+    expect(m.first, contains('KFC Guarda'));
+    expect(m.last, contains('€25.40 → €25.10'));
+  });
+
+  testWidgets('Acesso negado tem "Sair dessa conta" só com sessão', (t) async {
+    await t.pumpWidget(const MaterialApp(
+        home: AdminAcessoNegado(emailAtual: 'loja@exemplo.pt')));
+    expect(find.byKey(const Key('admin_acesso_negado_sair')), findsOneWidget);
+    await t.pumpWidget(const MaterialApp(home: AdminAcessoNegado()));
+    expect(find.byKey(const Key('admin_acesso_negado_sair')), findsNothing);
   });
 }

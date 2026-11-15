@@ -14,6 +14,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/bora_foto_ecra_inteiro.dart';
 import '../../widgets/private_bucket_image.dart';
+import '../../widgets/admin/talao_motivos.dart';
 
 class AdminReceiptsScreen extends StatefulWidget {
   const AdminReceiptsScreen({super.key});
@@ -956,6 +957,9 @@ class _ReceiptCardState extends State<_ReceiptCard> {
               diffCents: diffCents,
               ocrRanAt: ocrRanAt,
             ),
+            // app-15-11 (caixa 18, ponto 5): o porquê da revisão (loja lida e
+            // linhas repetidas), gravado pelo robô do talão em receipt_parsed.
+            TalaoMotivos(receiptParsed: row['receipt_parsed']),
             if (_driverName != null) ...[
               const SizedBox(height: 8),
               Text('Entregador: $_driverName',

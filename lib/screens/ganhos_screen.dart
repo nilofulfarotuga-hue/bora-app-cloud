@@ -8,6 +8,7 @@ import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora_support_fab.dart';
 import '../widgets/extrato_prestador_section.dart';
 import '../widgets/gorjetas_recebidas_section.dart';
+import '../widgets/recibo_verde_secao.dart';
 // M10 2.14 iii (09/11/2026): preços no formato de Portugal ("2,50 €"),
 // só a forma de mostrar — os valores são os mesmos.
 import '../utils/euros.dart' as euros;
@@ -829,6 +830,10 @@ class _GanhosScreenState extends State<GanhosScreen> {
                       // antigo WeeklySettlementCard: contas com a Bora (linha a
                       // linha), trabalhos um a um com as parcelas, dinheiro em
                       // mão, acerto semanal com comprovativo, talões pelo nome.
+                      // Missão 12 (15/11/2026): recibo verde do mês passado,
+                      // um por pessoa com todos os serviços (estafeta,
+                      // limpeza, lavagem). O servidor decide se aparece.
+                      const ReciboVerdeSecao(),
                       if (_souEstafeta) ...[
                         const ExtratoPrestadorSection(),
                         const SizedBox(height: 20),

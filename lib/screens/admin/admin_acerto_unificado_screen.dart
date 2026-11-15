@@ -6,6 +6,7 @@ import '../../config/app_spacing.dart';
 import '../../services/admin_export_service.dart';
 import '../../widgets/admin/meio_pagamento_acerto.dart';
 import '../../widgets/bora/bora.dart';
+import 'admin_recibo_retido.dart';
 
 /// PAINEL ADMIN — Acerto semanal unificado (PT-BR, só o Danilo).
 ///
@@ -133,6 +134,17 @@ class _AdminAcertoUnificadoScreenState
       await _load();
     } catch (e) {
       if (!mounted) return;
+      // Missão 12 (15/11/2026): pagamento retido por falta do recibo verde.
+      if (eErroReciboVerde(e)) {
+        setState(() => _busy = false);
+        if (await adminOferecerSoltarDepoisDoErro(context, e,
+            subjectType: 'user',
+            subjectId: '${item['user_id']}',
+            weekStart: adminDataSemana(_semana))) {
+          await _load();
+        }
+        return;
+      }
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Falhou: $e')));
     } finally {
@@ -260,11 +272,24 @@ class _AdminAcertoUnificadoScreenState
                               itemCount: _itens.length,
                               separatorBuilder: (_, __) =>
                                   const SizedBox(height: Spacing.sm),
-                              itemBuilder: (_, i) => _LinhaPessoa(
-                                item: _itens[i],
-                                eur: _eur,
-                                busy: _busy,
-                                onMarcarPago: () => _marcarPago(_itens[i]),
+                              itemBuilder: (_, i) => Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _LinhaPessoa(
+                                    item: _itens[i],
+                                    eur: _eur,
+                                    busy: _busy,
+                                    onMarcarPago: () => _marcarPago(_itens[i]),
+                                  ),
+                                  // Missão 12: "Retido" por falta do recibo verde.
+                                  AdminReciboRetidoLinha(
+                                    linha: _itens[i],
+                                    subjectType: 'user',
+                                    subjectId: '${_itens[i]['user_id'] ?? ''}',
+                                    weekStart: adminDataSemana(_semana),
+                                    aoSoltar: _load,
+                                  ),
+                                ],
                               ),
                             ),
                     ),

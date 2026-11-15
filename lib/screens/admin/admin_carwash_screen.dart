@@ -16,6 +16,7 @@ import '../../widgets/bora/bora_bottom_action_bar.dart';
 import '../../widgets/bora_foto_ecra_inteiro.dart';
 import '_admin_rpc_errors.dart';
 import '../../services/prestador_suspensao_service.dart';
+import 'admin_recibo_retido.dart';
 
 /// LAVAGEM AUTO — painel admin (PT-BR, só o Danilo usa).
 /// Autoridade total: ver, criar, editar, cancelar, reagendar, reatribuir,
@@ -1124,6 +1125,16 @@ class _AbaAcertosState extends State<_AbaAcertos> {
       if (mounted) _msg(context, 'Marcado como pago.');
       _load();
     } catch (e) {
+      // Missão 12 (15/11/2026): pagamento retido por falta do recibo verde.
+      if (eErroReciboVerde(e) && mounted) {
+        if (await adminOferecerSoltarDepoisDoErro(context, e,
+            subjectType: 'washer',
+            subjectId: '${s['washer_id'] ?? ''}',
+            weekStart: adminDataSemana(s['week_start_at']))) {
+          _load();
+        }
+        return;
+      }
       if (mounted) _msg(context, 'Erro: $e');
     }
   }
@@ -1158,9 +1169,21 @@ class _AbaAcertosState extends State<_AbaAcertos> {
                             DateTime.tryParse(s['week_start_at'].toString());
                         return ListTile(
                           title: Text(s['washer_name'].toString()),
-                          subtitle: Text(
-                              'Semana de ${ini?.day}/${ini?.month} · '
-                              '${s['total_jobs']} lavagens · ${s['status']}'),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Semana de ${ini?.day}/${ini?.month} · '
+                                  '${s['total_jobs']} lavagens · ${s['status']}'),
+                              // Missão 12: "Retido" por falta do recibo verde.
+                              AdminReciboRetidoLinha(
+                                linha: s,
+                                subjectType: 'washer',
+                                subjectId: '${s['washer_id'] ?? ''}',
+                                weekStart: adminDataSemana(s['week_start_at']),
+                                aoSoltar: _load,
+                              ),
+                            ],
+                          ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [

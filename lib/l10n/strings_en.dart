@@ -16,6 +16,46 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 15/11/2026 (fechar-app-15-11, revisão achados 1, 4, 6 e 17): MB WAY que
+  // falha no checkout — motivo, carrinho que fica e pedido anterior. À mão.
+  'O teu carrinho continua aqui: tenta outra vez ou escolhe outro meio de pagamento. Se o pedido antigo ainda aparecer na app MB WAY, recusa-o lá.':
+      'Your cart is still here: try again or choose another payment method. If the old request still shows in the MB WAY app, decline it there.',
+  'O MB WAY não está disponível de momento. O teu carrinho continua aqui: escolhe outro meio de pagamento.':
+      'MB WAY is not available right now. Your cart is still here: choose another payment method.',
+  'O pagamento MB WAY não foi confirmado: foi cancelado, recusado na app MB WAY ou passou o tempo.':
+      'The MB WAY payment was not confirmed: it was cancelled, declined in the MB WAY app or the time ran out.',
+  'Não há ligação à internet para pedir o pagamento MB WAY.':
+      'There is no internet connection to request the MB WAY payment.',
+  'A tua sessão terminou. Entra outra vez na tua conta para pagar com MB WAY.':
+      'Your session has ended. Sign in to your account again to pay with MB WAY.',
+  'O MB WAY só aceita pagamentos a partir de 0,50 €.':
+      'MB WAY only accepts payments from 0,50 €.',
+  'Este pedido já não estava à espera de pagamento, por isso o MB WAY não foi pedido outra vez.':
+      'This order was no longer waiting for payment, so MB WAY was not requested again.',
+  'Esse número de telemóvel não foi aceite pelo MB WAY. Confirma se é o número que tens na app MB WAY.':
+      'MB WAY did not accept that mobile number. Check that it is the number you have in the MB WAY app.',
+  'Não encontrámos o pedido para pedir o pagamento MB WAY.':
+      'We could not find the order to request the MB WAY payment.',
+  'O MB WAY não aceitou o pedido de pagamento neste momento.':
+      'MB WAY did not accept the payment request right now.',
+  'Não foi possível pedir o pagamento MB WAY.':
+      'The MB WAY payment could not be requested.',
+  'O pagamento MB WAY do teu pedido anterior entrou. Abrimos os teus pedidos.':
+      'The MB WAY payment for your previous order went through. We opened your orders.',
+  'O teu pedido MB WAY anterior ainda está ativo. Abrimos os teus pedidos.':
+      'Your previous MB WAY order is still active. We opened your orders.',
+  'Não conseguimos confirmar o teu pedido MB WAY anterior. Verifica a ligação e tenta de novo.':
+      'We could not check your previous MB WAY order. Check your connection and try again.',
+  'O pagamento MB WAY não avançou':
+      'The MB WAY payment did not go through',
+  'Escolher outro meio':
+      'Choose another method',
+  'Pagamento MB WAY confirmado. O teu pedido foi criado.':
+      'MB WAY payment confirmed. Your order has been created.',
+  'Aguarda a confirmação no MB WAY':
+      'Waiting for confirmation in MB WAY',
+  'Enviámos um pedido de {0} € para o teu telemóvel.\nAbre a app MB WAY e confirma.':
+      'We sent a request for €{0} to your phone.\nOpen the MB WAY app and confirm.',
   // 11/11/2026 Editar perfil do cliente (nome e telemóvel; o email não muda). À mão.
   'Editar perfil':
       'Edit profile',
@@ -3498,8 +3538,6 @@ const Map<String, String> kStringsEn = <String, String>{
       'MB Way could not be started. Check the number and try again.',
   'Não foi possível iniciar o MBWay. Confirma o número e tenta de novo.':
       'MBWay could not be started. Check the number and try again.',
-  'Não foi possível iniciar o pagamento MBWay.':
-      'The MBWay payment could not be started.',
   'Não foi possível iniciar o pagamento da volta.':
       'The payment for the return trip could not be started.',
   'Não foi possível iniciar o pagamento.':

@@ -12,6 +12,9 @@ import 'package:bora_app/models/loja_online_produto.dart';
 import 'package:bora_app/screens/admin/admin_loja_online_screen.dart';
 import 'package:bora_app/screens/client/loja_online/loja_online_screen.dart';
 import 'package:bora_app/screens/client/loja_online/produto_loja_online_screen.dart';
+import 'package:bora_app/screens/admin/admin_loja_online_encomendas_screen.dart';
+import 'package:bora_app/screens/client/loja_online/checkout_loja_online_screen.dart';
+import 'package:bora_app/services/loja_online_pagamento_service.dart';
 import 'package:bora_app/services/loja_online_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -86,10 +89,13 @@ LojaOnlineService _servico({
   int? leiturasDaChave,
   DateTime Function()? agora,
   void Function()? aoLerChave,
+  Future<bool> Function()? lerVisivel,
 }) {
   final Object? erro = erroTabelas;
   return LojaOnlineService(
     agora: agora,
+    // Por defeito a função do servidor "ainda não existe": vale o interruptor.
+    lerVisivel: lerVisivel ?? () async => throw StateError('sem rpc'),
     lerDefinicoes: (chaves) async {
       aoLerChave?.call();
       if (!chaveExiste) return <String, dynamic>{};
@@ -153,6 +159,8 @@ const List<String> _ficheirosCliente = <String>[
   'lib/models/loja_online_produto.dart',
   'lib/screens/client/loja_online/loja_online_screen.dart',
   'lib/screens/client/loja_online/produto_loja_online_screen.dart',
+  'lib/screens/client/loja_online/checkout_loja_online_screen.dart',
+  'lib/screens/client/loja_online/minhas_encomendas_loja_online_screen.dart',
 ];
 
 const List<String> _ficheirosNovos = <String>[
@@ -405,7 +413,8 @@ void main() {
           reason: 'sem destaque fica só na grelha');
       expect(find.text('12,90 €'), findsNWidgets(2));
       expect(find.text('24,90 €'), findsOneWidget);
-      expect(find.text('Enviado pelo correio'), findsNWidgets(3));
+      expect(find.text('7 a 15 dias úteis'), findsNWidgets(3),
+          reason: 'Juiz 15/11 18:27 (D): dias úteis já na montra');
 
       await tester.tap(find.text('Cama para gato'));
       await tester.pumpAndSettle();
@@ -420,7 +429,7 @@ void main() {
   });
 
   group('ficha do produto', () {
-    testWidgets('preço final, prazo em grande, descrição e botão desligado',
+    testWidgets('preço final, prazo em grande, descrição e botão que abre o pagamento',
         (tester) async {
       _ecraGrande(tester);
       await tester.pumpWidget(MaterialApp(
@@ -443,8 +452,8 @@ void main() {
               .widget<FilledButton>(
                   find.byKey(const Key('loja_online_encomendar')))
               .onPressed,
-          isNull);
-      expect(find.text('Os pagamentos desta loja abrem em breve.'),
+          isNotNull);
+      expect(find.text('Pagas com MB WAY ou cartão e recebes pelo correio.'),
           findsOneWidget);
       expect(find.text('6,45 €'), findsNothing,
           reason: 'o custo do fornecedor nunca aparece ao cliente');
@@ -578,6 +587,180 @@ void main() {
       await tester.tap(find.text('Confirmar'));
       await tester.pumpAndSettle();
       expect(chamadas, ['admin_update_setting']);
+    });
+  });
+
+  group('pagamento (checkup-15-11 B3.7)', () {
+    test('telemóvel e código postal portugueses', () {
+      expect(lojaOnlineTelemovel('912 345 678'), '912345678');
+      expect(lojaOnlineTelemovel('+351 932345678'), '932345678');
+      expect(lojaOnlineTelemovel('212345678'), isNull,
+          reason: 'fixo não serve para MB WAY');
+      expect(lojaOnlineCodigoPostal('6300-123'), '6300-123');
+      expect(lojaOnlineCodigoPostal('6300123'), '6300-123');
+      expect(lojaOnlineCodigoPostal('630-123'), isNull);
+    });
+
+    test('faltas da morada, vazio quando está tudo', () {
+      expect(
+          lojaOnlineFaltas(
+              nome: 'Ana',
+              telefone: '912345678',
+              morada: 'Rua A 1',
+              codigoPostal: '6300-123',
+              localidade: 'Guarda'),
+          isEmpty);
+      expect(
+          lojaOnlineFaltas(
+                  nome: '',
+                  telefone: '1',
+                  morada: '',
+                  codigoPostal: 'x',
+                  localidade: '')
+              .length,
+          5);
+    });
+
+    test('o corpo para o servidor nunca leva preço e marca as duas contas', () {
+      final c = const LojaOnlinePedidoPagamento(
+        produtoId: 'p1',
+        quantidade: 2,
+        metodo: LojaOnlineMetodo.mbway,
+        nome: ' Ana Sousa ',
+        telefone: '+351912345678',
+        morada: 'Rua A 1',
+        codigoPostal: '6300123',
+        localidade: 'Guarda',
+      ).corpo();
+      expect(c['acao'], 'criar');
+      expect(c['metodo'], 'mbway');
+      expect(c['telefone'], '912345678');
+      expect(c['codigo_postal'], '6300-123');
+      expect(
+          c.keys.where((k) =>
+              k.contains('preco') || k.contains('total') || k.contains('amount')),
+          isEmpty);
+      expect(c['stripe_contas_v2'], isTrue);
+    });
+
+    test('erro do servidor vira frase para o cliente', () async {
+      final s = LojaOnlinePagamentoService(
+          invocar: (f, b) async => {'error': 'loja_fechada'});
+      await expectLater(
+          s.criar(const LojaOnlinePedidoPagamento(
+              produtoId: 'p1',
+              quantidade: 1,
+              metodo: LojaOnlineMetodo.cartao,
+              nome: 'Ana',
+              telefone: '912345678',
+              morada: 'Rua A 1',
+              codigoPostal: '6300-123',
+              localidade: 'Guarda')),
+          throwsA(isA<StateError>().having(
+              (e) => e.message, 'message', 'A loja ainda não está aberta.')));
+    });
+
+    test('pagamento recusado e travão de tentativas têm frase própria', () {
+      expect(lojaOnlineErroPagamento('pagamento_recusado'), contains('recusado'));
+      expect(lojaOnlineErroPagamento('demasiadas_tentativas'), contains('Espera uns minutos'));
+      expect(lojaOnlineErroPagamento('Stripe: card_declined xyz'),
+          'Não foi possível iniciar o pagamento. Tenta outra vez.',
+          reason: 'nunca a mensagem crua');
+    });
+
+    test('Juiz 18:27: webhook e vigia conhecem a loja; a Edge recusa PI de outra encomenda', () {
+      final core = File('supabase/functions/_shared/stripe_webhook_core.ts').readAsStringSync();
+      expect(core, contains("if (intent.metadata?.kind === 'loja_online') {"));
+      expect(core.split("intent.metadata?.kind === 'loja_online'").length - 1, 2,
+          reason: 'succeeded e failed/canceled');
+      final rec = File('supabase/functions/payments-reconciler/index.ts').readAsStringSync();
+      expect(rec, contains("if (k === 'loja_online') {"));
+      final edge = File('supabase/functions/loja-online-pagamento/index.ts').readAsStringSync();
+      expect(edge, contains('pi.metadata?.encomenda_id !== enc.id'));
+      expect(edge, contains("'demasiadas_tentativas'"));
+      expect(edge, contains("'pagamento_recusado'"));
+      expect(edge, contains("rpc('is_admin')"));
+      final sql = File('docs/propostas/checkup-15-11/B3_7_loja_online_encomendas.PROPOSTA.sql').readAsStringSync();
+      expect(sql, contains('revoke select on public.loja_online_produtos from anon;'));
+      expect(sql, contains("raise exception 'pi_aberto'"));
+      final svc = File('lib/services/loja_online_service.dart').readAsStringSync();
+      expect(svc, contains('kLojaOnlineColunasCliente'));
+      expect(kLojaOnlineColunasCliente, isNot(contains('custo')));
+    });
+
+    test('esperarPagamento para quando fica paga', () async {
+      var n = 0;
+      final s = LojaOnlinePagamentoService(invocar: (f, b) async {
+        n++;
+        return {'ok': true, 'estado': n < 3 ? 'aguarda_pagamento' : 'paga'};
+      });
+      final e = await s.esperarPagamento('e1',
+          intervalo: Duration.zero, limite: const Duration(seconds: 5));
+      expect(e, 'paga');
+      expect(n, 3);
+    });
+
+    test('lista de permissão: a função do servidor manda; sem ela vale o interruptor',
+        () async {
+      final dono = _servico(ligada: false, lerVisivel: () async => true);
+      expect(await dono.atualizarInterruptor(), isTrue);
+      final outro = _servico(ligada: true, lerVisivel: () async => false);
+      expect(await outro.atualizarInterruptor(), isFalse);
+      final antigo = _servico(ligada: true);
+      expect(await antigo.atualizarInterruptor(), isTrue);
+    });
+
+    testWidgets('checkout: total com a quantidade, sem dinheiro, aviso da morada',
+        (tester) async {
+      _ecraGrande(tester);
+      var chamadas = 0;
+      await tester.pumpWidget(MaterialApp(
+          home: CheckoutLojaOnlineScreen(
+              produto: LojaOnlineProduto.fromJson(_produto()),
+              servico: LojaOnlinePagamentoService(invocar: (f, b) async {
+                chamadas++;
+                return null;
+              }))));
+      await tester.pumpAndSettle();
+      expect(find.text('Pagar 12,90 €'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('loja_online_mais')));
+      await tester.pumpAndSettle();
+      expect(find.text('Pagar 25,80 €'), findsOneWidget);
+      expect(find.text('Dinheiro'), findsNothing);
+      await tester.tap(find.byKey(const Key('loja_online_pagar')));
+      await tester.pumpAndSettle();
+      expect(find.text('Escreve o teu nome completo.'), findsOneWidget);
+      expect(chamadas, 0, reason: 'sem morada não se chama o servidor');
+    });
+
+    test('painel: passos de logística e nomes dos estados', () {
+      expect(adminProximoPasso('paga'), 'encomendada_fornecedor');
+      expect(adminProximoPasso('encomendada_fornecedor'), 'enviada');
+      expect(adminProximoPasso('enviada'), 'entregue');
+      expect(adminProximoPasso('aguarda_pagamento'), isNull);
+      expect(adminEstadoEncomenda('paga'), contains('PAGA'));
+    });
+
+    test('proposta SQL das encomendas e Edge batem com a app', () {
+      final sql = File(
+              'docs/propostas/checkup-15-11/B3_7_loja_online_encomendas.PROPOSTA.sql')
+          .readAsStringSync()
+          .replaceAll('\r\n', '\n');
+      expect(sql,
+          contains('create table if not exists public.loja_online_encomendas'));
+      expect(sql, contains('function public.loja_online_visivel_para_mim()'));
+      expect(sql,
+          contains('function public.admin_loja_online_encomendas(p_estado text default null)'));
+      expect(sql, contains('function public.admin_loja_online_encomenda_estado('));
+      expect(sql, contains("metodo in ('card', 'mbway')"));
+      final codigoSql =
+          sql.split('\n').map((l) => l.split('--').first).join('\n');
+      expect(codigoSql, isNot(contains('current_user')));
+      final edge = File('supabase/functions/loja-online-pagamento/index.ts')
+          .readAsStringSync();
+      expect(edge, contains("kind: 'loja_online'"));
+      expect(edge, contains('preco_bora_cents'));
+      expect(edge, isNot(contains("'cash'")));
     });
   });
 

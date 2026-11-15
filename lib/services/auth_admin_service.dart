@@ -6,12 +6,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// **UI gates only.** Server-side `admin_*` RPCs and RLS policies enforce
 /// `app_metadata.role='admin'` (migration `20260428000005_admin_gate_app_metadata.sql`).
 ///
-/// Lookup order (2-tier, fail-soft):
-///   1. `app_metadata.role == 'admin'`        ← canonical, immutable by client
-///   2. `user_metadata.bora_role == 'admin'`  ← legacy (UI fallback only,
-///                                              warns to refresh session)
+/// Só `app_metadata.role == 'admin'` conta (o utilizador não o pode escrever).
+/// O `user_metadata.bora_role` é editável pelo próprio utilizador com
+/// `auth.updateUser`, por isso deixou de abrir o painel (checkup 15/11/2026,
+/// e2e fora-de-scope-admin-user-metadata). O único admin real tem o
+/// `app_metadata.role` (SELECT a auth.users, 15/11).
 ///
-/// If both return null (claim missing — very old refresh token), the caller
+/// If the claim is missing ( — very old refresh token), the caller
 /// can opt-in to a one-shot `auth.refreshSession()` via [refreshAndCheckIsAdmin].
 class AuthAdminService {
   const AuthAdminService._();
@@ -23,20 +24,7 @@ class AuthAdminService {
 
     // Tier 1 — canonical: app_metadata.role
     final appRole = user.appMetadata['role'];
-    if (appRole is String && appRole == 'admin') return true;
-
-    // Tier 2 — legacy fallback: user_metadata.bora_role
-    final userMetadata = user.userMetadata ?? <String, dynamic>{};
-    final boraRole = userMetadata['bora_role'];
-    if (boraRole is String && boraRole == 'admin') {
-      debugPrint(
-        '[AuthAdminService] tier-2 fallback: user_metadata.bora_role=admin '
-        '(app_metadata.role missing). Consider signout+signin to refresh JWT.',
-      );
-      return true;
-    }
-
-    return false;
+    return appRole is String && appRole == 'admin';
   }
 
   /// Forces a JWT refresh, then checks isAdmin again. Use this when the

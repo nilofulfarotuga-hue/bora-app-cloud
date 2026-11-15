@@ -4,11 +4,9 @@
 // fotografias, título, preço final (IVA e envio incluídos, já vem do servidor),
 // o prazo em grande ("Chega pelo correio em X a Y dias úteis") e a descrição.
 //
-// Nesta primeira versão NÃO há pagamento (o dinheiro está só em relatório):
-// o botão "Encomendar" fica desligado com a frase
-// "Os pagamentos desta loja abrem em breve.". Quando a Claude.ai autorizar, o
-// pagamento entra pelo mesmo caminho do Stripe já provado no delivery; aqui
-// não se toca em preços, carrinho nem checkout.
+// checkup-15-11 (B3.7): o botão "Encomendar" abre o ecrã de pagamento
+// (checkout_loja_online_screen.dart: MB WAY ou cartão, nunca dinheiro). Este
+// ficheiro continua sem tocar em preços, carrinho nem pagamentos.
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
@@ -17,6 +15,7 @@ import '../../../config/app_spacing.dart';
 import '../../../l10n/tr.dart';
 import '../../../models/loja_online_produto.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
+import 'checkout_loja_online_screen.dart';
 import 'loja_online_screen.dart' show FotoLojaOnline;
 
 class ProdutoLojaOnlineScreen extends StatefulWidget {
@@ -150,8 +149,11 @@ class _ProdutoLojaOnlineScreenState extends State<ProdutoLojaOnlineScreen> {
                 height: 52,
                 child: FilledButton(
                   key: const Key('loja_online_encomendar'),
-                  // Desligado de propósito: sem pagamento nesta versão.
-                  onPressed: null,
+                  onPressed: p.precoBoraCents > 0
+                      ? () => Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) =>
+                              CheckoutLojaOnlineScreen(produto: p)))
+                      : null,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.accent,
                     disabledBackgroundColor: AppColors.divider,
@@ -168,7 +170,7 @@ class _ProdutoLojaOnlineScreenState extends State<ProdutoLojaOnlineScreen> {
               ),
               const SizedBox(height: Spacing.sm),
               Text(
-                'Os pagamentos desta loja abrem em breve.'.tr,
+                'Pagas com MB WAY ou cartão e recebes pelo correio.'.tr,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 13,

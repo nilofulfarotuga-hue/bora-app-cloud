@@ -4,15 +4,19 @@
 //
 // O que se prova: com a função de produção de 14/11, uma pergunta de cliente
 // traz notas internas (a fuga medida); com a proposta aplicada TAL COMO ESTÁ,
-// os robôs só veem as regras do negócio, os tipos de ajuda e as 4 secções do
-// mapa dos ecrãs, pela ordem certa, e nada é apagado da tabela.
+// os robôs só veem a LISTA FECHADA (tipos de ajuda, duas secções das regras e
+// as 4 secções do mapa dos ecrãs), pela ordem certa, e nada é apagado da
+// tabela. Refeita a 15/11 depois da revisão: as regras do negócio deixaram de
+// passar todas (têm margens, comissão e senhas), e a prova que a proposta faz
+// a si própria ao aplicar-se recusa texto sensível numa secção permitida.
 //
 // Uso: node supabase/tests/fechar_app_8e_prova.mjs <pasta-com-node_modules-do-pglite>
 //
 // Teste anti-mentira: MUTACAO="texto=>outro" estraga a proposta de propósito e
 // a prova TEM de falhar. Dois estragos que ela apanha:
 //   MUTACAO="where public._conhecimento_para_clientes(k.source_type, k.source_file, k.section_title)=>where true"
-//   MUTACAO="('business_rules', 'manual', 'faq', 'ajuda')=>('business_rules', 'manual', 'faq', 'ajuda', 'obsidian')"
+//   MUTACAO="'20. GDPR E PROTEÇÃO DE DADOS', '23. CHAT'=>'20. GDPR E PROTEÇÃO DE DADOS', '23. CHAT', '2. TAXAS E PREÇOS (DELIVERY LOCAL)'"
+//   MUTACAO="('manual', 'faq', 'ajuda')=>('manual', 'faq', 'ajuda', 'obsidian')"
 
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -119,12 +123,17 @@ for (let i = 0; i < 60; i++) {
   await trecho('obsidian', `sessoes/2026-04-${String((i % 28) + 1).padStart(2, '0')}-sessao.md`,
     'Próxima sessão', `INTERNO nota ${i}`, 0.97 - i * 0.0005);
 }
+// Regras do negócio que NÃO são para clientes (o achado 8 da revisão): parecidas com a pergunta.
+await trecho('business_rules', 'business_rules.md', '2. TAXAS E PREÇOS (DELIVERY LOCAL)', 'INTERNO markup oculto de 5%', 0.96, 0.95);
+await trecho('business_rules', 'business_rules.md', '7. FLUXO DO ESTAFETA', 'INTERNO conta de teste', 0.94);
+await trecho('business_rules', 'business_rules.md', '§28 — Wallet com Saldo Negativo (Sessão 3B-NOVA, 2026-05-04)', 'INTERNO sessão de programação', 0.93);
+await trecho('business_rules', 'business_rules.md', null, 'INTERNO regra sem título', 0.92);
 // O que é para clientes.
-await trecho('business_rules', 'business_rules.md', 'Entrega', 'PUBLICO entrega 2,50 até 4 km', 0.8, 0.9);
+await trecho('business_rules', 'business_rules.md', '23. CHAT', 'PUBLICO chat com o estafeta', 0.8, 0.9);
 await trecho('obsidian', 'mapa-ecras.md', 'Ecrãs do Cliente', 'PUBLICO onde fica o histórico', 0.7);
 await trecho('knowledge', 'C:\\vault\\Bora\\mapa-ecras.md', 'Ecrãs do Driver', 'PUBLICO ecrãs do estafeta', 0.65);
 await trecho('manual', 'manual-da-app.md', 'Como pagar', 'PUBLICO manual', 0.6);
-await trecho('business_rules', 'business_rules.md', 'Reservas', 'PUBLICO longe da pergunta', 0.1);
+await trecho('business_rules', 'business_rules.md', '20. GDPR E PROTEÇÃO DE DADOS', 'PUBLICO longe da pergunta', 0.1);
 
 const total = async () => Number((await db.query('select count(*) n from public.support_knowledge_chunks')).rows[0].n);
 const procurar = async (q, n, min) =>
@@ -148,7 +157,7 @@ console.log('DEPOIS:');
 const depois = await procurar(PERGUNTA, 5, 0.5);
 confere('só o que é para clientes, do mais parecido para o menos',
   depois.map((r) => r.chunk_text),
-  ['PUBLICO entrega 2,50 até 4 km', 'PUBLICO onde fica o histórico', 'PUBLICO ecrãs do estafeta', 'PUBLICO manual']);
+  ['PUBLICO chat com o estafeta', 'PUBLICO onde fica o histórico', 'PUBLICO ecrãs do estafeta', 'PUBLICO manual']);
 confere('as semelhanças são as certas', depois.map((r) => r.sim), [0.8, 0.7, 0.65, 0.6]);
 confere('nenhum trecho interno', depois.filter((r) => r.chunk_text.startsWith('INTERNO')).length, 0);
 confere('mesmo pedindo 100 trechos sem mínimo, não vem nenhum interno',
@@ -156,16 +165,24 @@ confere('mesmo pedindo 100 trechos sem mínimo, não vem nenhum interno',
 confere('pedindo 100 sem mínimo vêm os 5 públicos (não se perdeu nenhum)',
   (await procurar(PERGUNTA, 100, -1)).length, 5);
 confere('match_count continua a mandar', (await procurar(PERGUNTA, 2, 0.5)).map((r) => r.chunk_text),
-  ['PUBLICO entrega 2,50 até 4 km', 'PUBLICO onde fica o histórico']);
+  ['PUBLICO chat com o estafeta', 'PUBLICO onde fica o histórico']);
 confere('min_similarity continua a mandar', (await procurar(PERGUNTA, 5, 0.75)).map((r) => r.chunk_text),
-  ['PUBLICO entrega 2,50 até 4 km']);
+  ['PUBLICO chat com o estafeta']);
 confere('o outro tamanho de vetor (coluna embedding) também vem filtrado',
-  (await procurar(PERGUNTA8, 5, 0.5)).map((r) => r.chunk_text), ['PUBLICO entrega 2,50 até 4 km']);
+  (await procurar(PERGUNTA8, 5, 0.5)).map((r) => r.chunk_text), ['PUBLICO chat com o estafeta']);
 confere('nada foi apagado da tabela', await total(), totalAntes);
 
 const regra = async (t, f, s) =>
   (await db.query('select public._conhecimento_para_clientes($1, $2, $3) as r', [t, f, s])).rows[0].r;
-confere('regra: regras do negócio', await regra('business_rules', 'business_rules.md', 'Tokens'), true);
+confere('regra: regras do negócio, secção permitida (chat)', await regra('business_rules', 'business_rules.md', '23. CHAT'), true);
+confere('regra: regras do negócio, secção permitida (dados pessoais)', await regra('business_rules', 'business_rules.md', '20. GDPR E PROTEÇÃO DE DADOS'), true);
+confere('regra: regras do negócio, preços e margens', await regra('business_rules', 'business_rules.md', '2. TAXAS E PREÇOS (DELIVERY LOCAL)'), false);
+confere('regra: regras do negócio, tokens (desatualizada)', await regra('business_rules', 'business_rules.md', '4. SISTEMA DE TOKENS'), false);
+confere('regra: regras do negócio, secção que não está na lista', await regra('business_rules', 'business_rules.md', 'Uma secção nova'), false);
+confere('regra: regras do negócio, sem título', await regra('business_rules', 'business_rules.md', null), false);
+confere('regra: o título do chat noutro tipo de documento não passa', await regra('obsidian', 'notas/x.md', '23. CHAT'), false);
+confere('regra: ajuda escrita para clientes', await regra('ajuda', 'ajuda-clientes.md', 'Quanto custa a entrega'), true);
+confere('regra: perguntas frequentes', await regra('faq', 'faq.md', null), true);
 confere('regra: nota de programação', await regra('obsidian', 'sessoes/x.md', 'Próxima sessão'), false);
 confere('regra: cérebro interno', await regra('knowledge', 'credenciais-teste.md', null), false);
 confere('regra: mapa dos ecrãs, cliente', await regra('obsidian', 'mapa-ecras.md', 'Ecrãs do Cliente'), true);
@@ -185,6 +202,33 @@ confere('match_knowledge continua fechada a authenticated', await perm('authenti
 confere('match_knowledge continua aberta ao servidor', await perm('service_role', fMatch), true);
 confere('a proposta não mexe na pesquisa do robô interno',
   /function\s+public\.match_cortex_knowledge/i.test(proposta), false);
+
+// A prova que a proposta faz a si própria ao aplicar-se NÃO é verdade por construção:
+// se uma secção permitida passar a ter texto sensível, a proposta recusa-se.
+async function aplicarOutraVez() {
+  try { await db.exec(proposta); return null; } catch (e) { return String(e.message ?? e); }
+}
+confere('aplicada segunda vez com os mesmos dados: sem erro', await aplicarOutraVez(), null);
+const envenenar = async (texto) => (await db.query(
+  `insert into public.support_knowledge_chunks (source_type, source_file, section_title, chunk_text)
+   values ('business_rules', 'business_rules.md', '23. CHAT', $1) returning id`, [texto])).rows[0].id;
+const tirar = (id) => db.query('delete from public.support_knowledge_chunks where id = $1', [id]);
+for (const [nome, texto] of [
+  ['margem escondida', 'o cliente não vê o markup de 5 %'],
+  ['comissão', 'a comissão do parceiro é de 10 %'],
+  ['senha escrita', 'conta de teste, senha: abc123'],
+  ['nome do dono', 'o administrador é o Danilo'],
+]) {
+  const id = await envenenar(texto);
+  const erro = await aplicarOutraVez();
+  confere(`secção permitida com ${nome}: a proposta recusa-se`,
+    erro != null && /texto sensível/.test(erro), true);
+  await tirar(id);
+}
+const idSenha = await envenenar('Se esqueceste a senha, toca em "Esqueci a senha" no ecrã de entrada.');
+confere('falar do ecrã "Esqueci a senha" não é texto sensível', await aplicarOutraVez(), null);
+await tirar(idSenha);
+confere('depois dos ensaios a tabela ficou como estava', await total(), totalAntes);
 
 console.log(`\nRESULTADO: ${certos} certos, ${falhados} falhados`);
 process.exit(falhados === 0 ? 0 : 1);

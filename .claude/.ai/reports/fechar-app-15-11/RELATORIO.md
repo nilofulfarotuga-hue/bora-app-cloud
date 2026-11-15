@@ -53,7 +53,7 @@ Aplicar no servidor, pela Claude.ai, por esta ordem, antes de juntar o ramo:
 6. `20261115021000_products_indice_loja_ordem.sql`
 7. `20261115023000_bkp_tabelas_fechadas.sql`
 
-A proposta que tira as notas internas do alcance dos robôs (`8e_robos_sem_notas_internas.PROPOSTA.sql`) NÃO é para aplicar como está: o revisor mostrou que ainda deixa passar 9 trechos que falam de margens, comissão ou senha. Precisa de uma lista das secções que os clientes podem ver.
+A proposta que tira as notas internas do alcance dos robôs (`8e_robos_sem_notas_internas.PROPOSTA.sql`) foi refeita às 04:40. O revisor tinha mostrado que a primeira versão deixava passar 9 trechos com margens, comissão ou senha. Agora é uma lista fechada: de 605 trechos ficam 6 ao alcance dos robôs, nenhum com texto sensível. Antes de a aplicar há uma decisão a tomar, que está em "PARA O DANILO": com a lista fechada os robôs deixam de ter as regras de preços, tokens e cancelamentos, que hoje têm misturadas com margens e, em três pontos, desatualizadas.
 
 Publicar a função do talão (`ocr-receipt`) e copiar para a VPS os ficheiros `lembretes_lane.py` e `vigia_pedidos.py`.
 
@@ -77,9 +77,13 @@ Há 20 tabelas de cópia de segurança sem proteção; 13 podem ser lidas e escr
 
 No MB WAY, erros antigos que vi e não corrigi porque são dinheiro: quando o servidor responde que o pedido "já foi tratado", a app cancela-o como pagamento falhado, mesmo que já esteja pago; quando o pagamento entra tarde, os tokens não são descontados na app.
 
+Os robôs dos clientes têm ao alcance regras desatualizadas (tokens, cancelamento de reserva, taxas de cancelamento) e o nome do administrador. Está na secção "PARA O DANILO".
+
 O teste antigo `test_restaurante.py` da pasta do assistente falha no PC (duas falhas), numa parte que esta missão não tocou.
 
 ## PARA O DANILO
+
+- Os robôs dos clientes pesquisam um documento de regras antigo. Diz que o cliente ganha 3 % em tokens e desconta até 50 % do pedido, que a reserva se cancela sem custo até 4 horas antes e traz taxas de cancelamento de antes de 29/10. As regras em vigor são outras. Também diz quem é o administrador pelo nome. Dizer se aplico a lista fechada (os robôs ficam sem essas regras até haver uma ajuda escrita para clientes) e quem escreve essa ajuda.
 
 - Dizer "autorizo" (ou não) à correção de raiz do MB WAY: o cancelamento da Bora passar a cancelar o pagamento na Stripe.
 - Trocar a palavra-passe da conta driver@bora.app.

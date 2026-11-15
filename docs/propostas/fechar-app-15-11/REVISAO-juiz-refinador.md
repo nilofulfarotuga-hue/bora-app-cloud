@@ -34,6 +34,14 @@ Zonas proibidas: sem alterações (`pricing_service.dart`, `lib/dispatch`, `orde
 18. Migrações: `20261115023000` confere com produção (179 tabelas `bkp_`, 20 sem proteção); tabelas novas voltam a nascer abertas. `20261115020100`: as 10 tarefas existem e estão ativas. `20261115020000` e `20261115021000` batem.
 19. Pré-existente: `lib/services/auth_admin_service.dart:28-31` também aceita `user_metadata.bora_role`, que o próprio utilizador pode escrever.
 
+## O que já foi corrigido depois desta revisão (15/11, até às 04:40)
+
+- 1 a 6, 11 (MB WAY) e nota 17: commits `c9ff9945`, `9d3ad594`, `f60aa274`, `37246ea7`. Provado no CI (corrida 43664403934, 3589 testes).
+- 7 (vigia): `229d0f7c`. 9 (CarregamentoUnico) e 14 (cursor do catálogo): `19e0444e`.
+- 8 (proposta 8e): refeita com lista fechada; das regras do negócio só passam "20. GDPR" e "23. CHAT". A prova própria da proposta recusa texto sensível numa secção permitida. Prova local: 41 certos, 4 estragos apanhados.
+- 10a (talão, palavras de tipo de comida): `ad491df0`.
+- Por fazer: 10b (o painel mostrar o motivo do talão), 12 (botão de sair no "Acesso negado"), o 2.º teste do catálogo (11) e as notas 13, 15, 16, 18 e 19.
+
 ## O que o revisor correu
 
 `deno test` do talão: 14 certos. `python -m unittest` em `ferramentas/vps`: 4 certos; `test_lembretes_lane`: 6 certos (em `ferramentas/assistente-negocio` há 2 falhas em `test_restaurante.py`, que esta missão não tocou). Provas PGlite: 3d 37, 3h 38, 3f 39, 3g 33, 8e 26, todas sem falhas. 9 leituras só-SELECT em produção.

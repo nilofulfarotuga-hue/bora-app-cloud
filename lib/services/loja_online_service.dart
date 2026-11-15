@@ -39,6 +39,13 @@ const String kLojaOnlineRpcEncomendas = 'admin_loja_online_encomendas';
 const String kLojaOnlineRpcEncomendaEstado = 'admin_loja_online_encomenda_estado';
 const String kLojaOnlineTabelaEncomendas = 'loja_online_encomendas';
 const String kLojaOnlineEdgePagamento = 'loja-online-pagamento';
+const String kLojaOnlineRpcAdminProdutos = 'admin_loja_online_produtos';
+
+/// Juiz da Claude.ai 15/11 18:27 (A): o cliente lê só estas colunas (sem o custo do
+/// fornecedor nem as ligações à Shopify/CJ). O servidor só deixa ler estas.
+const String kLojaOnlineColunasCliente =
+    'id, nicho_id, titulo, descricao, imagens, preco_bora_cents, prazo_min_dias, '
+    'prazo_max_dias, ativo, destaque, criado_em, atualizado_em';
 
 /// A mesma frase que `humanizeAdminRpcError` dá a uma função por instalar
 /// (PGRST202); aqui serve também para tabela ou chave em falta.
@@ -212,12 +219,17 @@ class LojaOnlineService {
   /// Só linhas ativas (a RLS já filtra; o `eq` é cinto e suspensórios).
   static Future<List<Map<String, dynamic>>> _lerAtivosNoSupabase(
       String tabela) async {
-    final base =
-        Supabase.instance.client.from(tabela).select().eq('ativo', true);
     if (tabela == kLojaOnlineTabelaNichos) {
-      return await base.order('ordem', ascending: true);
+      return await Supabase.instance.client
+          .from(tabela)
+          .select()
+          .eq('ativo', true)
+          .order('ordem', ascending: true);
     }
-    return await base
+    return await Supabase.instance.client
+        .from(tabela)
+        .select(kLojaOnlineColunasCliente)
+        .eq('ativo', true)
         .order('destaque', ascending: false)
         .order('criado_em', ascending: false);
   }
@@ -295,14 +307,28 @@ class LojaOnlineAdminService {
     return r;
   }
 
-  /// O admin vê tudo (a RLS deixa passar pelo is_admin()).
+  /// O admin vê tudo. Os produtos (com o custo) vêm pela função do painel
+  /// admin_loja_online_produtos(); se ainda não estiver no servidor, lê as
+  /// colunas de cliente (sem custo) para o ecrã não ficar vazio.
   static Future<List<Map<String, dynamic>>> _lerTabelaNoSupabase(
       String tabela) async {
-    final base = Supabase.instance.client.from(tabela).select();
     if (tabela == kLojaOnlineTabelaNichos) {
-      return await base.order('ordem', ascending: true);
+      return await Supabase.instance.client
+          .from(tabela)
+          .select()
+          .order('ordem', ascending: true);
     }
-    return await base.order('criado_em', ascending: false);
+    try {
+      final r =
+          await Supabase.instance.client.rpc(kLojaOnlineRpcAdminProdutos);
+      return List<Map<String, dynamic>>.from(r as List);
+    } catch (e) {
+      if (!lojaOnlineServidorEmFalta(e)) rethrow;
+      return await Supabase.instance.client
+          .from(tabela)
+          .select(kLojaOnlineColunasCliente)
+          .order('criado_em', ascending: false);
+    }
   }
 
   static Future<Map<String, dynamic>?> _lerDefinicaoNoSupabase(

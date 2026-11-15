@@ -413,7 +413,8 @@ void main() {
           reason: 'sem destaque fica só na grelha');
       expect(find.text('12,90 €'), findsNWidgets(2));
       expect(find.text('24,90 €'), findsOneWidget);
-      expect(find.text('Enviado pelo correio'), findsNWidgets(3));
+      expect(find.text('7 a 15 dias úteis'), findsNWidgets(3),
+          reason: 'Juiz 15/11 18:27 (D): dias úteis já na montra');
 
       await tester.tap(find.text('Cama para gato'));
       await tester.pumpAndSettle();
@@ -657,6 +658,34 @@ void main() {
               localidade: 'Guarda')),
           throwsA(isA<StateError>().having(
               (e) => e.message, 'message', 'A loja ainda não está aberta.')));
+    });
+
+    test('pagamento recusado e travão de tentativas têm frase própria', () {
+      expect(lojaOnlineErroPagamento('pagamento_recusado'), contains('recusado'));
+      expect(lojaOnlineErroPagamento('demasiadas_tentativas'), contains('Espera uns minutos'));
+      expect(lojaOnlineErroPagamento('Stripe: card_declined xyz'),
+          'Não foi possível iniciar o pagamento. Tenta outra vez.',
+          reason: 'nunca a mensagem crua');
+    });
+
+    test('Juiz 18:27: webhook e vigia conhecem a loja; a Edge recusa PI de outra encomenda', () {
+      final core = File('supabase/functions/_shared/stripe_webhook_core.ts').readAsStringSync();
+      expect(core, contains("if (intent.metadata?.kind === 'loja_online') {"));
+      expect(core.split("intent.metadata?.kind === 'loja_online'").length - 1, 2,
+          reason: 'succeeded e failed/canceled');
+      final rec = File('supabase/functions/payments-reconciler/index.ts').readAsStringSync();
+      expect(rec, contains("if (k === 'loja_online') {"));
+      final edge = File('supabase/functions/loja-online-pagamento/index.ts').readAsStringSync();
+      expect(edge, contains('pi.metadata?.encomenda_id !== enc.id'));
+      expect(edge, contains("'demasiadas_tentativas'"));
+      expect(edge, contains("'pagamento_recusado'"));
+      expect(edge, contains("rpc('is_admin')"));
+      final sql = File('docs/propostas/checkup-15-11/B3_7_loja_online_encomendas.PROPOSTA.sql').readAsStringSync();
+      expect(sql, contains('revoke select on public.loja_online_produtos from anon;'));
+      expect(sql, contains("raise exception 'pi_aberto'"));
+      final svc = File('lib/services/loja_online_service.dart').readAsStringSync();
+      expect(svc, contains('kLojaOnlineColunasCliente'));
+      expect(kLojaOnlineColunasCliente, isNot(contains('custo')));
     });
 
     test('esperarPagamento para quando fica paga', () async {

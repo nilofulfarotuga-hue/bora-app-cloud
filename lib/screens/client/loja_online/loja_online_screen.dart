@@ -270,7 +270,12 @@ class _ProdutoCard extends StatelessWidget {
                         const SizedBox(width: Spacing.xs),
                         Expanded(
                           child: Text(
-                            'Enviado pelo correio'.tr,
+                            textoPrazoCurto(produto.prazoMinDias,
+                                    produto.prazoMaxDias)
+                                .isNotEmpty
+                                ? textoPrazoCurto(
+                                    produto.prazoMinDias, produto.prazoMaxDias)
+                                : 'Enviado pelo correio'.tr,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(

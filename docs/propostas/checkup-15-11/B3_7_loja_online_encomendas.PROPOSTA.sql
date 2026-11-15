@@ -12,6 +12,9 @@
 --     pagamento). O cliente so LE as suas; quem escreve e a Edge loja-online-pagamento (service_role)
 --     e o admin pelas funcoes abaixo. Nunca ha dinheiro (pagamento so cartao e MB WAY).
 --  4. admin_loja_online_encomendas(p_estado) e admin_loja_online_encomenda_estado(...) com auditoria.
+--  5. (Juiz da Claude.ai 15/11 18:27, ponto A) catalogo so para quem ve a loja: anon deixa de ler
+--     loja_online_produtos/nichos; o cliente le so colunas sem o custo do fornecedor; o admin le o
+--     custo pela funcao admin_loja_online_produtos(); o cliente le as suas encomendas sem o custo.
 -- Nada aqui muda precos de pedidos, comissoes, tokens nem carteira.
 
 -- 1. Lista de permissao -------------------------------------------------------------------------
@@ -87,7 +90,12 @@ create index if not exists loja_online_encomendas_estado_idx on public.loja_onli
 
 alter table public.loja_online_encomendas enable row level security;
 revoke all on public.loja_online_encomendas from public, anon, authenticated;
-grant select on public.loja_online_encomendas to authenticated;
+-- Por coluna: o cliente nunca le custo_unit_cents (o admin le tudo pela funcao do painel).
+grant select (id, user_id, produto_id, titulo, quantidade, preco_unit_cents, total_cents,
+              prazo_min_dias, prazo_max_dias, nome, telefone, email, morada, codigo_postal,
+              localidade, metodo, stripe_account, payment_intent_id, estado, fornecedor_ref,
+              tracking, paga_em, criado_em, atualizado_em)
+  on public.loja_online_encomendas to authenticated;
 drop policy if exists loja_online_encomendas_minhas on public.loja_online_encomendas;
 create policy loja_online_encomendas_minhas on public.loja_online_encomendas
   for select to authenticated using (user_id = auth.uid() or public.is_admin());
@@ -98,7 +106,7 @@ returns setof public.loja_online_encomendas
 language plpgsql
 stable
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 begin
   if not public.is_admin() then
@@ -123,7 +131,7 @@ create or replace function public.admin_loja_online_encomenda_estado(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare
   v_antes  public.loja_online_encomendas%rowtype;
@@ -146,6 +154,11 @@ begin
      and v_antes.estado in ('aguarda_pagamento', 'falhou_pagamento', 'cancelada') then
     raise exception 'encomenda_nao_paga' using errcode = '22023';
   end if;
+  -- Juiz 18:27: com um pagamento ainda aberto na Stripe nao se cancela (o cliente podia pagar depois).
+  if p_estado = 'cancelada' and v_antes.estado = 'aguarda_pagamento'
+     and v_antes.payment_intent_id is not null then
+    raise exception 'pi_aberto' using errcode = '22023';
+  end if;
   update public.loja_online_encomendas
      set estado         = coalesce(p_estado, estado),
          fornecedor_ref = coalesce(nullif(trim(p_fornecedor_ref), ''), fornecedor_ref),
@@ -164,9 +177,49 @@ $$;
 revoke all on function public.admin_loja_online_encomenda_estado(uuid, text, text, text, text) from public, anon;
 grant execute on function public.admin_loja_online_encomenda_estado(uuid, text, text, text, text) to authenticated;
 
+-- 5. Catalogo so para quem ve a loja (Juiz 18:27, ponto A) ----------------------------------------
+revoke select on public.loja_online_produtos from anon;
+revoke select on public.loja_online_nichos   from anon;
+revoke select on public.loja_online_produtos from authenticated;
+-- Por coluna: tudo menos custo_fornecedor_cents (e as ligacoes a Shopify/CJ ficam so no admin).
+grant select (id, nicho_id, titulo, descricao, imagens, preco_bora_cents, prazo_min_dias,
+              prazo_max_dias, ativo, destaque, criado_em, atualizado_em)
+  on public.loja_online_produtos to authenticated;
+
+drop policy if exists loja_online_produtos_leitura_ativos on public.loja_online_produtos;
+create policy loja_online_produtos_leitura_ativos on public.loja_online_produtos
+  for select to authenticated
+  using ((ativo and public.loja_online_visivel_para_mim()) or public.is_admin());
+
+drop policy if exists loja_online_nichos_leitura_ativos on public.loja_online_nichos;
+create policy loja_online_nichos_leitura_ativos on public.loja_online_nichos
+  for select to authenticated
+  using ((ativo and public.loja_online_visivel_para_mim()) or public.is_admin());
+
+-- O painel le o custo e as referencias por aqui.
+create or replace function public.admin_loja_online_produtos()
+returns setof public.loja_online_produtos
+language plpgsql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'admin_required' using errcode = '42501';
+  end if;
+  return query select * from public.loja_online_produtos order by criado_em desc;
+end;
+$$;
+revoke all on function public.admin_loja_online_produtos() from public, anon;
+grant execute on function public.admin_loja_online_produtos() to authenticated;
+
 -- Prova sugerida (em rollback):
 -- select public.loja_online_visivel_para_mim();                       -- anon: false
 -- select count(*) from public.loja_online_lista_permissao;            -- 2
 -- set local role authenticated; select set_config('request.jwt.claims','{"sub":"00000000-0000-0000-0000-000000000001","role":"authenticated"}',true);
 -- select public.loja_online_visivel_para_mim();                       -- false (nao esta na lista)
 -- select public.admin_loja_online_encomendas(null);                   -- admin_required
+-- set local role anon; select count(*) from public.loja_online_produtos;   -- permission denied
+-- conta estranha: select id, titulo from public.loja_online_produtos;      -- 0 linhas
+-- conta estranha: select custo_fornecedor_cents from public.loja_online_produtos; -- permission denied

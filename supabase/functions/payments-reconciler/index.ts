@@ -83,6 +83,18 @@ async function entityConfirmed(pi: any, out: Finding[]): Promise<void> {
   const k = String(md.kind ?? '');
   const purpose = String(md.purpose ?? '');
 
+  // checkup-15-11 (Juiz da Claude.ai 18:27, ponto B): LOJA ONLINE. Pago na Stripe tem de ter a
+  // encomenda com este PI e o mesmo total, em estado pago ou mais adiante.
+  if (k === 'loja_online') {
+    const encId = String(md.encomenda_id ?? '');
+    const { data } = await admin.from('loja_online_encomendas').select('estado, total_cents')
+      .eq('id', encId).eq('payment_intent_id', pi.id).maybeSingle();
+    const ok = data && ['paga', 'encomendada_fornecedor', 'enviada', 'entregue', 'cancelada'].includes(String(data.estado))
+      && Number(data.total_cents) === amount;
+    if (!ok) add('pi_sem_entidade', 'critical', 'loja_online_encomenda', encId || null,
+      { estado: data?.estado ?? 'encomenda_nao_encontrada', total_cents: data?.total_cents ?? null });
+    return;
+  }
   if (k === 'tvde_stop') {
     if (md.applied !== '1') add('pi_sem_entidade', 'warn', 'tvde_stop', String(md.ride_id ?? ''), { nota: 'parada paga sem applied=1' });
     return;

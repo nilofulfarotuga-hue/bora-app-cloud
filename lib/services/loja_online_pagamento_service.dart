@@ -113,6 +113,10 @@ String lojaOnlineErroPagamento(String? erro) {
       return 'Falta completar a morada de envio.';
     case 'quantidade_invalida':
       return 'Podes encomendar de 1 a 5 unidades.';
+    case 'pagamento_recusado':
+      return 'O pagamento foi recusado. Não te foi cobrado nada. Tenta outra vez ou escolhe outro método.';
+    case 'demasiadas_tentativas':
+      return 'Tens pagamentos à espera. Espera uns minutos e tenta outra vez.';
     default:
       return 'Não foi possível iniciar o pagamento. Tenta outra vez.';
   }

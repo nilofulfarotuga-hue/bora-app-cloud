@@ -14,11 +14,16 @@
 //       card  → devolve clientSecret + publishable_key (a app abre a folha / Payment Element).
 //       mbway → confirma no servidor com o telefone (o cliente recebe o pedido na app MB WAY).
 //   { acao: 'confirmar', encomenda_id }
-//     → só o dono (ou admin). Lê o PaymentIntent na Stripe; succeeded → 'paga' (+ paga_em);
+//     → só o dono (ou admin, por is_admin()). Lê o PaymentIntent na Stripe; só aceita o PI desta
+//       encomenda (metadata.encomenda_id) e em euros; succeeded com o valor certo → 'paga' (também
+//       a partir de 'falhou_pagamento'); valor diferente → aviso urgente ao admin e não marca;
 //       canceled/requires_payment_method → 'falhou_pagamento'. Idempotente.
 //
-// O stripe-webhook não é tocado: um PaymentIntent sem order_id/draft_id só fica registado lá.
-// A confirmação é este 'confirmar' (a app chama-o no fim e o painel tem o botão "Ver pagamento").
+// O stripe-webhook (_shared/stripe_webhook_core.ts, ramo kind='loja_online', checkup-15-11) marca a
+// encomenda paga/falhada com as mesmas regras; o 'confirmar' é o acelerador da app e do painel.
+// Juiz da Claude.ai 15/11 18:27 (C): no máximo 3 encomendas à espera de pagamento por cliente em
+// 10 minutos; se a Stripe recusar, a encomenda fica 'falhou_pagamento' e o cliente recebe só
+// {error:'pagamento_recusado'} (a mensagem crua da Stripe fica no registo).
 //
 // @ts-nocheck
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -88,21 +93,42 @@ Deno.serve(async (req: Request) => {
         .select('id, user_id, estado, payment_intent_id, stripe_account, total_cents')
         .eq('id', encomendaId)
         .maybeSingle();
-      const ehAdmin = (user.app_metadata as Record<string, unknown> | null)?.role === 'admin';
+      let ehAdmin = false;
+      if (enc && enc.user_id !== user.id) {
+        const { data: adm } = await userClient.rpc('is_admin');
+        ehAdmin = adm === true;
+      }
       if (!enc || (enc.user_id !== user.id && !ehAdmin)) return json({ error: 'not_found' }, 404);
-      if (enc.estado !== 'aguarda_pagamento' || !enc.payment_intent_id) {
+      const podeMudar = enc.estado === 'aguarda_pagamento' || enc.estado === 'falhou_pagamento';
+      if (!podeMudar || !enc.payment_intent_id) {
         return json({ ok: true, estado: enc.estado });
       }
       const { stripe } = stripeDaLinha(enc);
       const pi = await stripe.paymentIntents.retrieve(enc.payment_intent_id);
+      if (pi.metadata?.encomenda_id !== enc.id || String(pi.currency).toLowerCase() !== 'eur') {
+        console.error('[loja-online-pagamento] PI nao e desta encomenda:', enc.id, pi.id, pi.metadata?.encomenda_id, pi.currency);
+        return json({ ok: true, estado: enc.estado });
+      }
       let estado = enc.estado;
-      if (pi.status === 'succeeded' && pi.amount_received === enc.total_cents) {
-        estado = 'paga';
-      } else if (pi.status === 'canceled' || pi.status === 'requires_payment_method') {
+      if (pi.status === 'succeeded') {
+        if (pi.amount_received === enc.total_cents) {
+          estado = 'paga';
+        } else {
+          console.error('[loja-online-pagamento] valor diferente:', enc.id, pi.amount_received, enc.total_cents);
+          await admin.from('admin_notifications').insert({
+            event_type: 'loja_online_valor_diferente', severity: 'critical',
+            entity_type: 'loja_online_encomenda', entity_id: enc.id,
+            summary: `URGENTE loja online: encomenda ${enc.id} pagou ${(pi.amount_received / 100).toFixed(2)} EUR e o total é ${(enc.total_cents / 100).toFixed(2)} EUR`,
+            payload: { pi: pi.id, amount_received: pi.amount_received, total_cents: enc.total_cents },
+          }).then(() => {}, () => {});
+          return json({ ok: true, estado: enc.estado, aviso: 'valor_diferente' });
+        }
+      } else if (enc.estado === 'aguarda_pagamento' &&
+          (pi.status === 'canceled' || pi.status === 'requires_payment_method')) {
         estado = 'falhou_pagamento';
       }
       if (estado !== enc.estado) {
-        await admin
+        const { error: upErr } = await admin
           .from('loja_online_encomendas')
           .update({
             estado,
@@ -110,7 +136,11 @@ Deno.serve(async (req: Request) => {
             atualizado_em: new Date().toISOString(),
           })
           .eq('id', enc.id)
-          .eq('estado', 'aguarda_pagamento');
+          .in('estado', ['aguarda_pagamento', 'falhou_pagamento']);
+        if (upErr) {
+          console.error('[loja-online-pagamento] update falhou:', enc.id, upErr.message);
+          return json({ error: 'estado_nao_gravado' }, 500);
+        }
       }
       return json({ ok: true, estado, pi_status: pi.status });
     }
@@ -152,6 +182,17 @@ Deno.serve(async (req: Request) => {
     const totalCents = produto.preco_bora_cents * quantidade;
     if (totalCents < 50) return json({ error: 'abaixo_do_minimo' }, 400);
 
+    // Travão: no máximo 3 encomendas à espera de pagamento em 10 minutos por cliente.
+    const desde = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { count: aEspera, error: contErr } = await admin
+      .from('loja_online_encomendas')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('estado', 'aguarda_pagamento')
+      .gte('criado_em', desde);
+    if (contErr) return json({ error: 'encomenda_nao_gravada' }, 500);
+    if ((aEspera ?? 0) >= 3) return json({ error: 'demasiadas_tentativas' }, 429);
+
     const { stripe, conta } = await stripeParaNovoPagamento(admin, {
       body,
       origem: 'loja-online-pagamento',
@@ -191,7 +232,9 @@ Deno.serve(async (req: Request) => {
       description: `Bora Loja online: ${produto.titulo} x${quantidade}`.slice(0, 200),
       metadata: { kind: 'loja_online', encomenda_id: enc.id, user_id: user.id },
     };
-    const intent = metodo === 'mbway'
+    let intent;
+    try {
+      intent = metodo === 'mbway'
       ? await stripe.paymentIntents.create({
         ...base,
         payment_method_types: ['mb_way'],
@@ -202,11 +245,30 @@ Deno.serve(async (req: Request) => {
         ...base,
         payment_method_types: ['card'],
       }, { idempotencyKey: `loja_online_${enc.id}` });
+    } catch (e) {
+      // A Stripe recusou (ex.: MB WAY com número sem app). A encomenda não fica pendurada.
+      console.error('[loja-online-pagamento] Stripe recusou:', enc.id, e instanceof Error ? e.message : String(e));
+      await admin
+        .from('loja_online_encomendas')
+        .update({ estado: 'falhou_pagamento', atualizado_em: new Date().toISOString() })
+        .eq('id', enc.id);
+      return json({ error: 'pagamento_recusado', encomenda_id: enc.id }, 402);
+    }
 
-    await admin
+    const { error: piErr } = await admin
       .from('loja_online_encomendas')
       .update({ payment_intent_id: intent.id, atualizado_em: new Date().toISOString() })
       .eq('id', enc.id);
+    if (piErr) {
+      // O PI tem metadata.encomenda_id, mas sem o PI gravado o webhook não acha a encomenda: avisa.
+      console.error('[loja-online-pagamento] PI nao gravado:', enc.id, intent.id, piErr.message);
+      await admin.from('admin_notifications').insert({
+        event_type: 'loja_online_pi_nao_gravado', severity: 'critical',
+        entity_type: 'loja_online_encomenda', entity_id: enc.id,
+        summary: `URGENTE loja online: encomenda ${enc.id} com pagamento ${intent.id} que não ficou gravado`,
+        payload: { pi: intent.id },
+      }).then(() => {}, () => {});
+    }
 
     console.log('[loja-online-pagamento] criado', enc.id, intent.id, metodo, conta, intent.status);
     return json({

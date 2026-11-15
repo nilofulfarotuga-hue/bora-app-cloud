@@ -67,6 +67,66 @@ async function avisarPagamentoSemEtiqueta(intent: Stripe.PaymentIntent, eventTyp
   } catch (_) { /* o aviso é melhor-esforço */ }
 }
 
+// checkup-15-11 (Juiz da Claude.ai 18:27, ponto B) — LOJA ONLINE. PaymentIntent criado pela Edge
+// loja-online-pagamento com metadata { kind: 'loja_online', encomenda_id }. A encomenda tem de ter
+// este PI; só passa a 'paga' se o valor recebido for igual ao total da encomenda (em euros) e vindo
+// de aguarda_pagamento ou falhou_pagamento. Valor diferente = aviso urgente no sininho do painel.
+async function lojaOnlineWebhook(intent: Stripe.PaymentIntent, eventType: string): Promise<void> {
+  const encId = String(intent.metadata?.encomenda_id ?? '');
+  const { data: enc, error: selErr } = await supabase
+    .from('loja_online_encomendas')
+    .select('id, estado, total_cents, payment_intent_id')
+    .eq('id', encId)
+    .eq('payment_intent_id', intent.id)
+    .maybeSingle();
+  if (selErr) falha(`loja_online select: ${selErr.message}`);
+  const aviso = async (tipo: string, resumo: string, severidade = 'high') => {
+    try {
+      await supabase.from('admin_notifications').insert({
+        event_type: tipo, severity: severidade, entity_type: 'loja_online_encomenda',
+        entity_id: encId || intent.id, summary: resumo,
+        payload: { pi: intent.id, amount: intent.amount, amount_received: intent.amount_received,
+                   currency: intent.currency, metadata: intent.metadata ?? {}, event_type: eventType },
+      });
+    } catch (_) { /* melhor-esforço */ }
+  };
+  if (!enc) {
+    console.error('[stripe-webhook] loja_online sem encomenda:', encId, intent.id, eventType);
+    if (eventType === 'payment_intent.succeeded') {
+      await aviso('loja_online_sem_encomenda',
+        `Loja online: pagamento ${intent.id} sem encomenda ${encId || '(sem id)'}`);
+    }
+    return;
+  }
+  if (eventType === 'payment_intent.succeeded') {
+    if (enc.estado !== 'aguarda_pagamento' && enc.estado !== 'falhou_pagamento') return; // idempotente
+    const recebido = Number(intent.amount_received ?? 0);
+    if (recebido !== Number(enc.total_cents) || String(intent.currency).toLowerCase() !== 'eur') {
+      console.error('[stripe-webhook] loja_online valor diferente:', enc.id, recebido, enc.total_cents, intent.currency);
+      await aviso('loja_online_valor_diferente',
+        `URGENTE loja online: encomenda ${enc.id} pagou ${(recebido / 100).toFixed(2)} ${intent.currency} e o total é ${(Number(enc.total_cents) / 100).toFixed(2)} EUR`,
+        'critical');
+      return;
+    }
+    const { error: upErr } = await supabase
+      .from('loja_online_encomendas')
+      .update({ estado: 'paga', paga_em: new Date().toISOString(), atualizado_em: new Date().toISOString() })
+      .eq('id', enc.id)
+      .in('estado', ['aguarda_pagamento', 'falhou_pagamento']);
+    if (upErr) falha(`loja_online paga: ${upErr.message}`);
+    console.log('[stripe-webhook] loja_online paga:', enc.id, intent.id);
+    return;
+  }
+  // payment_failed / canceled: só mexe numa encomenda ainda à espera.
+  if (enc.estado !== 'aguarda_pagamento') return;
+  const { error: fErr } = await supabase
+    .from('loja_online_encomendas')
+    .update({ estado: 'falhou_pagamento', atualizado_em: new Date().toISOString() })
+    .eq('id', enc.id)
+    .eq('estado', 'aguarda_pagamento');
+  if (fErr) falha(`loja_online falhou: ${fErr.message}`);
+}
+
 // v36 (ronda 04/10 A.3) — falha REAL (RPC/UPDATE com erro): sobe até ao Deno.serve,
 // que grava last_error em stripe_webhook_events e devolve 500 para a Stripe repetir.
 // "metadata desconhecida" NÃO é falha: continua a ser só log + 200.
@@ -618,6 +678,12 @@ export async function tratarWebhookStripe(req: Request, conta: ContaStripe): Pro
     case 'payment_intent.succeeded': {
       const intent = event.data.object as Stripe.PaymentIntent;
 
+      // checkup-15-11 (Juiz 18:27) — LOJA ONLINE, antes de qualquer outro ramo.
+      if (intent.metadata?.kind === 'loja_online') {
+        await lojaOnlineWebhook(intent, event.type);
+        break;
+      }
+
       // ⭐ NOVO v26 (2026-05-16) — reservation_prepayment
       // Confirma reserva pending_payment → pending via RPC idempotente.
       // Termina aqui (não processar como order). Lock + PI validation no RPC.
@@ -985,6 +1051,12 @@ export async function tratarWebhookStripe(req: Request, conta: ContaStripe): Pro
     case 'payment_intent.payment_failed':
     case 'payment_intent.canceled': {
       const intent = event.data.object as Stripe.PaymentIntent;
+
+      // checkup-15-11 (Juiz 18:27) — LOJA ONLINE, antes de qualquer outro ramo.
+      if (intent.metadata?.kind === 'loja_online') {
+        await lojaOnlineWebhook(intent, event.type);
+        break;
+      }
 
       // ⭐ TVDE (2026-08-13) — antes dos ramos de reserva/draft/order.
       const tvdeKindFail = String(intent.metadata?.kind ?? '');

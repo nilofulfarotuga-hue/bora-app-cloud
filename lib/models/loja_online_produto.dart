@@ -106,6 +106,18 @@ String textoPrazoCorreio(int prazoMinDias, int prazoMaxDias) {
   return 'Chega pelo correio em {0} a {1} dias úteis'.trArgs([a, b]);
 }
 
+/// Etiqueta curta do prazo para a montra ("7 a 17 dias úteis"). Vazia se não houver prazo.
+/// checkup-15-11 (Juiz da Claude.ai 18:27, ponto D): o cliente vê "dias úteis" já na montra.
+String textoPrazoCurto(int prazoMinDias, int prazoMaxDias) {
+  final a = prazoMinDias < 0 ? 0 : prazoMinDias;
+  final b = prazoMaxDias < 0 ? 0 : prazoMaxDias;
+  if (a == 0 && b == 0) return '';
+  final lo = a == 0 ? b : (b == 0 ? a : (a < b ? a : b));
+  final hi = a == 0 ? b : (b == 0 ? a : (a < b ? b : a));
+  if (lo == hi) return '{0} dias úteis'.trArgs([lo]);
+  return '{0} a {1} dias úteis'.trArgs([lo, hi]);
+}
+
 /// Um nicho da loja (pets, casa, …). O "nicho da semana" é o ativo com o
 /// `destaque_desde` mais recente.
 @immutable

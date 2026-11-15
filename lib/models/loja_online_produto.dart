@@ -129,6 +129,7 @@ class LojaOnlineNicho {
     this.ordem = 100,
     this.ativo = true,
     this.destaqueDesde,
+    this.publico = false,
   });
 
   final String id;
@@ -137,6 +138,10 @@ class LojaOnlineNicho {
   final int ordem;
   final bool ativo;
   final DateTime? destaqueDesde;
+
+  /// loja-nichos-15-11: aberto a todos os clientes. false = só o admin e as
+  /// contas da lista de permissão o veem (até o Danilo dizer "abrir").
+  final bool publico;
 
   factory LojaOnlineNicho.fromJson(Map<String, dynamic> m) {
     final slug = _texto(m['slug']);
@@ -148,6 +153,7 @@ class LojaOnlineNicho {
       ordem: _inteiro(m['ordem'], 100),
       ativo: _booleano(m['ativo'], true),
       destaqueDesde: _data(m['destaque_desde']),
+      publico: _booleano(m['publico'], false),
     );
   }
 
@@ -156,6 +162,65 @@ class LojaOnlineNicho {
 
   @override
   int get hashCode => id.hashCode;
+}
+
+/// loja-nichos-15-11: subcategoria de um nicho (ex.: Pets › Cão, Gato…).
+@immutable
+class LojaOnlineSubcategoria {
+  const LojaOnlineSubcategoria({
+    required this.id,
+    required this.nichoId,
+    required this.slug,
+    required this.nome,
+    this.ordem = 100,
+    this.ativo = true,
+  });
+
+  final String id;
+  final String nichoId;
+  final String slug;
+  final String nome;
+  final int ordem;
+  final bool ativo;
+
+  factory LojaOnlineSubcategoria.fromJson(Map<String, dynamic> m) {
+    final slug = _texto(m['slug']);
+    final nome = _texto(m['nome']);
+    return LojaOnlineSubcategoria(
+      id: _texto(m['id']),
+      nichoId: _texto(m['nicho_id']),
+      slug: slug,
+      nome: nome.isEmpty ? slug : nome,
+      ordem: _inteiro(m['ordem'], 100),
+      ativo: _booleano(m['ativo'], true),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is LojaOnlineSubcategoria && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
+}
+
+/// loja-nichos-15-11 (ordem do Danilo 18:52): os MAIS VENDIDOS à frente.
+/// 1.º a posição fixada no painel (ordem_manual, 1 = primeiro); 2.º as vendas
+/// reais pagas na nossa loja; 3.º o ranking de vendas da CJ; 4.º os destaques;
+/// 5.º os mais novos; por fim o título (ordem estável).
+int compararMaisVendidos(LojaOnlineProduto a, LojaOnlineProduto b) {
+  final ma = a.ordemManual, mb = b.ordemManual;
+  if (ma != null || mb != null) {
+    if (ma == null) return 1;
+    if (mb == null) return -1;
+    if (ma != mb) return ma.compareTo(mb);
+  }
+  if (a.vendasLoja != b.vendasLoja) return b.vendasLoja.compareTo(a.vendasLoja);
+  if (a.cjListas != b.cjListas) return b.cjListas.compareTo(a.cjListas);
+  if (a.destaque != b.destaque) return a.destaque ? -1 : 1;
+  final ca = a.criadoEm, cb = b.criadoEm;
+  if (ca != null && cb != null && ca != cb) return cb.compareTo(ca);
+  return a.titulo.compareTo(b.titulo);
 }
 
 @immutable
@@ -176,6 +241,10 @@ class LojaOnlineProduto {
     this.destaque = false,
     this.criadoEm,
     this.atualizadoEm,
+    this.subcategoriaId,
+    this.cjListas = 0,
+    this.vendasLoja = 0,
+    this.ordemManual,
   });
 
   final String id;
@@ -202,6 +271,18 @@ class LojaOnlineProduto {
   final DateTime? criadoEm;
   final DateTime? atualizadoEm;
 
+  /// loja-nichos-15-11: subcategoria (null = só no nicho, aparece em "Todos").
+  final String? subcategoriaId;
+
+  /// Ranking de vendas da CJ (lojas que listam o produto).
+  final int cjListas;
+
+  /// Unidades vendidas e pagas na nossa loja (o servidor conta sozinho).
+  final int vendasLoja;
+
+  /// Posição fixada no painel (1 = primeiro). null = ordem automática.
+  final int? ordemManual;
+
   factory LojaOnlineProduto.fromJson(Map<String, dynamic> m) {
     final titulo = _texto(m['titulo']);
     final variante = _texto(m['shopify_variant_id']);
@@ -221,6 +302,14 @@ class LojaOnlineProduto {
       destaque: _booleano(m['destaque'], false),
       criadoEm: _data(m['criado_em']),
       atualizadoEm: _data(m['atualizado_em']),
+      subcategoriaId: _texto(m['subcategoria_id']).isEmpty
+          ? null
+          : _texto(m['subcategoria_id']),
+      cjListas: _inteiro(m['cj_listas']),
+      vendasLoja: _inteiro(m['vendas_loja']),
+      ordemManual: m['ordem_manual'] == null || _texto(m['ordem_manual']).isEmpty
+          ? null
+          : _inteiro(m['ordem_manual']),
     );
   }
 
@@ -240,9 +329,21 @@ class LojaOnlineProduto {
 /// Um nicho com os seus produtos ativos, já ordenados (destaques primeiro).
 @immutable
 class LojaOnlineNichoComProdutos {
-  const LojaOnlineNichoComProdutos(this.nicho, this.produtos);
+  const LojaOnlineNichoComProdutos(this.nicho, this.produtos,
+      [this.subcategorias = const []]);
   final LojaOnlineNicho nicho;
+
+  /// Já pela ordem dos mais vendidos ([compararMaisVendidos]).
   final List<LojaOnlineProduto> produtos;
+
+  /// loja-nichos-15-11: só as subcategorias ativas que têm produtos, por ordem.
+  final List<LojaOnlineSubcategoria> subcategorias;
+
+  /// Os produtos de uma subcategoria (null = todos), na mesma ordem.
+  List<LojaOnlineProduto> daSubcategoria(String? subcategoriaId) =>
+      subcategoriaId == null
+          ? produtos
+          : produtos.where((p) => p.subcategoriaId == subcategoriaId).toList();
 }
 
 /// O que o ecrã da loja mostra, montado só a partir dos dados (sem rede):
@@ -267,8 +368,9 @@ class LojaOnlineVitrine {
 
   static LojaOnlineVitrine montar(
     List<LojaOnlineNicho> nichos,
-    List<LojaOnlineProduto> produtos,
-  ) {
+    List<LojaOnlineProduto> produtos, [
+    List<LojaOnlineSubcategoria> subcategorias = const [],
+  ]) {
     final ativos = nichos.where((n) => n.ativo).toList()
       ..sort((a, b) {
         final c = a.ordem.compareTo(b.ordem);
@@ -304,9 +406,19 @@ class LojaOnlineVitrine {
 
     final porNicho = <LojaOnlineNichoComProdutos>[];
     for (final n in ativos) {
+      // loja-nichos-15-11: os mais vendidos à frente.
       final ps = produtosAtivos.where((p) => p.nichoId == n.id).toList()
-        ..sort(ordemProdutos);
-      if (ps.isNotEmpty) porNicho.add(LojaOnlineNichoComProdutos(n, ps));
+        ..sort(compararMaisVendidos);
+      if (ps.isEmpty) continue;
+      final comProdutos = ps.map((p) => p.subcategoriaId).toSet();
+      final subs = subcategorias
+          .where((s) => s.nichoId == n.id && s.ativo && comProdutos.contains(s.id))
+          .toList()
+        ..sort((a, b) {
+          final c = a.ordem.compareTo(b.ordem);
+          return c != 0 ? c : a.nome.compareTo(b.nome);
+        });
+      porNicho.add(LojaOnlineNichoComProdutos(n, ps, subs));
     }
 
     return LojaOnlineVitrine(

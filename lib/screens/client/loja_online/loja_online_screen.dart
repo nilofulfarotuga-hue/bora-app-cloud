@@ -9,6 +9,11 @@
 // interruptor desligado ou as tabelas por instalar mostra "Em breve", calmo.
 // Nesta versão não há pagamento: a ficha do produto tem o botão desligado.
 // Um laranja só: a etiqueta "Novidade da semana".
+//
+// loja-nichos-15-11 (ordem do Danilo 18:52/18:56): a loja é uma lista de
+// NICHOS (separadores no topo quando há mais de um) e cada nicho tem
+// SUBCATEGORIAS (Todos, Cão, Gato, …). Dentro de cada um, os MAIS VENDIDOS
+// vêm primeiro (posição do painel, vendas reais, ranking da CJ).
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
@@ -97,15 +102,36 @@ class _LojaOnlineScreenState extends State<LojaOnlineScreen> {
   }
 }
 
-class _Vitrine extends StatelessWidget {
+class _Vitrine extends StatefulWidget {
   const _Vitrine({required this.vitrine, required this.onAbrir});
 
   final LojaOnlineVitrine vitrine;
   final ValueChanged<LojaOnlineProduto> onAbrir;
 
   @override
+  State<_Vitrine> createState() => _VitrineState();
+}
+
+class _VitrineState extends State<_Vitrine> {
+  /// Nicho escolhido nos separadores (null = todos, quando há só um).
+  String? _nichoId;
+
+  /// Subcategoria escolhida por nicho (ausente = "Todos").
+  final Map<String, String?> _sub = {};
+
+  @override
   Widget build(BuildContext context) {
+    final vitrine = widget.vitrine;
+    final onAbrir = widget.onAbrir;
     final nichoSemana = vitrine.nichoDaSemana;
+    final variosNichos = vitrine.porNicho.length > 1;
+    final escolhido = variosNichos
+        ? (vitrine.porNicho
+                .where((g) => g.nicho.id == _nichoId)
+                .firstOrNull ??
+            vitrine.porNicho.first)
+        : null;
+    final grupos = escolhido == null ? vitrine.porNicho : [escolhido];
     return ListView(
       padding: const EdgeInsets.fromLTRB(
           Spacing.lg, Spacing.md, Spacing.lg, Spacing.xxl),
@@ -117,7 +143,29 @@ class _Vitrine extends StatelessWidget {
             color: AppColors.textSecondary,
           ),
         ),
-        if (vitrine.novidade.isNotEmpty && nichoSemana != null) ...[
+        if (variosNichos) ...[
+          const SizedBox(height: Spacing.md),
+          SizedBox(
+            height: 40,
+            child: ListView(
+              key: const Key('loja_online_nichos'),
+              scrollDirection: Axis.horizontal,
+              children: [
+                for (final g in vitrine.porNicho)
+                  Padding(
+                    padding: const EdgeInsets.only(right: Spacing.sm),
+                    child: ChoiceChip(
+                      label: Text(g.nicho.nome),
+                      selected: g.nicho.id == escolhido?.nicho.id,
+                      onSelected: (_) => setState(() => _nichoId = g.nicho.id),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+        if (vitrine.novidade.isNotEmpty && nichoSemana != null &&
+            (escolhido == null || escolhido.nicho.id == nichoSemana.id)) ...[
           const SizedBox(height: Spacing.lg),
           _TituloNovidade(nicho: nichoSemana),
           const SizedBox(height: Spacing.md),
@@ -137,7 +185,7 @@ class _Vitrine extends StatelessWidget {
             ),
           ),
         ],
-        for (final grupo in vitrine.porNicho) ...[
+        for (final grupo in grupos) ...[
           const SizedBox(height: Spacing.xl),
           Text(
             grupo.nicho.nome,
@@ -147,11 +195,49 @@ class _Vitrine extends StatelessWidget {
               color: AppColors.textPrimary,
             ),
           ),
+          Text(
+            'Os mais vendidos primeiro'.tr,
+            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          if (grupo.subcategorias.isNotEmpty) ...[
+            const SizedBox(height: Spacing.sm),
+            SizedBox(
+              height: 40,
+              child: ListView(
+                key: Key('loja_online_subcategorias_${grupo.nicho.slug}'),
+                scrollDirection: Axis.horizontal,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: Spacing.sm),
+                    child: ChoiceChip(
+                      label: Text('Todos'.tr),
+                      selected: _sub[grupo.nicho.id] == null,
+                      onSelected: (_) =>
+                          setState(() => _sub.remove(grupo.nicho.id)),
+                    ),
+                  ),
+                  for (final sc in grupo.subcategorias)
+                    Padding(
+                      padding: const EdgeInsets.only(right: Spacing.sm),
+                      child: ChoiceChip(
+                        key: Key('loja_online_sub_${sc.slug}'),
+                        label: Text(sc.nome),
+                        selected: _sub[grupo.nicho.id] == sc.id,
+                        onSelected: (_) =>
+                            setState(() => _sub[grupo.nicho.id] = sc.id),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: Spacing.md),
-          GridView.builder(
+          Builder(builder: (context) {
+            final lista = grupo.daSubcategoria(_sub[grupo.nicho.id]);
+            return GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: grupo.produtos.length,
+            itemCount: lista.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               mainAxisSpacing: Spacing.md,
@@ -159,10 +245,11 @@ class _Vitrine extends StatelessWidget {
               childAspectRatio: 0.72,
             ),
             itemBuilder: (context, i) => _ProdutoCard(
-              produto: grupo.produtos[i],
-              onTap: () => onAbrir(grupo.produtos[i]),
+              produto: lista[i],
+              onTap: () => onAbrir(lista[i]),
             ),
-          ),
+          );
+          }),
         ],
       ],
     );

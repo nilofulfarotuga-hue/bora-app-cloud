@@ -105,6 +105,7 @@ LojaOnlineService _servico({
       tabelasLidas?.add(tabela);
       final e = erro;
       if (e != null) throw e;
+      if (tabela == kLojaOnlineTabelaSubcategorias) return const [];
       if (tabela == kLojaOnlineTabelaNichos) return nichos ?? [_nicho()];
       return produtos ?? [_produto()];
     },
@@ -131,6 +132,7 @@ LojaOnlineAdminService _painel({
     lerTabela: (tabela) async {
       final e = erro;
       if (e != null) throw e;
+      if (tabela == kLojaOnlineTabelaSubcategorias) return const [];
       if (tabela == kLojaOnlineTabelaNichos) return nichos ?? [_nicho()];
       return produtos ?? [_produto()];
     },
@@ -718,6 +720,7 @@ void main() {
       await tester.pumpWidget(MaterialApp(
           home: CheckoutLojaOnlineScreen(
               produto: LojaOnlineProduto.fromJson(_produto()),
+              perfil: () async => const LojaOnlinePerfil(),
               servico: LojaOnlinePagamentoService(invocar: (f, b) async {
                 chamadas++;
                 return null;

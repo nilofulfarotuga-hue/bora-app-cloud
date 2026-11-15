@@ -50,6 +50,9 @@ const Map<String, String> kStringsEn = <String, String>{
       'We could not load the store. Try again.',
   'Ainda não há produtos nesta loja.': 'There are no products in this store yet.',
   'Enviado pelo correio': 'Shipped by mail',
+  'Os mais vendidos primeiro': 'Best sellers first',
+  'Todos': 'All',
+  'As tuas moradas': 'Your addresses',
   'O pagamento foi recusado. Não te foi cobrado nada. Tenta outra vez ou escolhe outro método.':
       'The payment was declined. You were not charged. Try again or choose another method.',
   'Tens pagamentos à espera. Espera uns minutos e tenta outra vez.':

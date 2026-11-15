@@ -173,12 +173,19 @@ Deno.serve(async (req: Request) => {
 
     const { data: produto } = await admin
       .from('loja_online_produtos')
-      .select('id, titulo, ativo, preco_bora_cents, custo_fornecedor_cents, prazo_min_dias, prazo_max_dias')
+      .select('id, nicho_id, titulo, ativo, preco_bora_cents, custo_fornecedor_cents, prazo_min_dias, prazo_max_dias')
       .eq('id', produtoId)
       .maybeSingle();
     if (!produto || produto.ativo !== true || !(produto.preco_bora_cents > 0)) {
       return json({ error: 'produto_indisponivel' }, 404);
     }
+    // loja-nichos-15-11: o NICHO deste produto tem de estar visivel para quem compra (um nicho
+    // novo fica escondido ate o Danilo dizer abrir). Sem a funcao no servidor (N1 por aplicar),
+    // vale a regra antiga (loja visivel, acima).
+    const { data: nichoVisivel, error: nvErr } = await userClient.rpc('loja_online_nicho_visivel', {
+      p_nicho_id: produto.nicho_id,
+    });
+    if (!nvErr && nichoVisivel !== true) return json({ error: 'produto_indisponivel' }, 404);
     const totalCents = produto.preco_bora_cents * quantidade;
     if (totalCents < 50) return json({ error: 'abaixo_do_minimo' }, 400);
 

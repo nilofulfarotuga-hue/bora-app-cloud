@@ -4,12 +4,16 @@
 // (1 a 5), cartão ou MB WAY (NUNCA dinheiro: vai pelo correio). O total mostrado é preço × quantidade;
 // o servidor volta a ler o preço da base e é esse que cobra.
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../auth/auth_store.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../l10n/tr.dart';
 import '../../../models/loja_online_produto.dart';
+import '../../../models/client_address.dart';
 import '../../../services/loja_online_pagamento_service.dart';
+import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 
 class CheckoutLojaOnlineScreen extends StatefulWidget {
@@ -17,12 +21,17 @@ class CheckoutLojaOnlineScreen extends StatefulWidget {
     super.key,
     required this.produto,
     this.servico,
+    this.perfil,
   });
 
   final LojaOnlineProduto produto;
 
   /// Injetável para os testes.
   final LojaOnlinePagamentoService? servico;
+
+  /// loja-nichos-15-11 (C): o que a app já sabe do cliente (nome, telemóvel,
+  /// moradas guardadas). Por defeito: a conta da app e as moradas guardadas.
+  final Future<LojaOnlinePerfil> Function()? perfil;
 
   @override
   State<CheckoutLojaOnlineScreen> createState() =>
@@ -39,6 +48,85 @@ class _CheckoutLojaOnlineScreenState extends State<CheckoutLojaOnlineScreen> {
   LojaOnlineMetodo _metodo = LojaOnlineMetodo.mbway;
   bool _aPagar = false;
   String? _aviso;
+  List<ClientAddress> _moradas = const [];
+  String? _moradaEscolhida;
+
+  @override
+  void initState() {
+    super.initState();
+    _preencher();
+  }
+
+  /// Enche o que estiver vazio com o perfil e a morada predefinida. Nunca
+  /// apaga o que o cliente já escreveu.
+  Future<void> _preencher() async {
+    LojaOnlinePerfil p;
+    try {
+      p = await (widget.perfil ?? _perfilDaApp)();
+    } catch (e) {
+      debugPrint('[LojaOnline] perfil: $e');
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      if (_nome.text.trim().isEmpty && p.nome.trim().isNotEmpty) {
+        _nome.text = p.nome.trim();
+      }
+      if (_telefone.text.trim().isEmpty && p.telefone.trim().isNotEmpty) {
+        _telefone.text = p.telefone.trim();
+      }
+      _moradas = p.moradas;
+      if (_morada.text.trim().isEmpty && p.moradas.isNotEmpty) {
+        _usarMorada(p.moradas.first);
+      }
+    });
+  }
+
+  Future<LojaOnlinePerfil> _perfilDaApp() async {
+    String nome = '', telefone = '';
+    try {
+      final c = Provider.of<AuthStore>(context, listen: false).currentClient;
+      nome = c?.name ?? '';
+      telefone = c?.phone ?? '';
+    } catch (_) {
+      // Sem AuthStore por cima (ex.: testes): fica só o que se escrever.
+    }
+    return LojaOnlinePerfil(
+      nome: nome,
+      telefone: telefone,
+      moradas: await lojaOnlineMoradasGuardadas(),
+    );
+  }
+
+  void _usarMorada(ClientAddress a) {
+    _moradaEscolhida = a.id;
+    final rua = [
+      (a.street ?? '').trim().isNotEmpty ? a.street!.trim() : a.address.trim(),
+      if ((a.details ?? '').trim().isNotEmpty) a.details!.trim(),
+    ].join(', ');
+    _morada.text = rua;
+    final partes = lojaOnlinePartesDaMorada(a.address);
+    final cp = (a.postalCode ?? '').trim().isNotEmpty
+        ? a.postalCode!.trim()
+        : partes.codigoPostal;
+    if (cp != null) _codigoPostal.text = lojaOnlineCodigoPostal(cp) ?? cp;
+    final loc = (a.city ?? '').trim().isNotEmpty ? a.city!.trim() : partes.localidade;
+    if (loc != null && loc.isNotEmpty) _localidade.text = loc;
+  }
+
+  void _moradaDasSugestoes(String morada) {
+    final partes = lojaOnlinePartesDaMorada(morada);
+    setState(() {
+      _moradaEscolhida = null;
+      if (partes.codigoPostal != null) _codigoPostal.text = partes.codigoPostal!;
+      if (partes.localidade != null) _localidade.text = partes.localidade!;
+      // Na rua fica só a parte antes do código postal.
+      final i = morada.indexOf(RegExp(r'[0-9]{4}-?[0-9]{3}'));
+      if (i > 0) {
+        _morada.text = morada.substring(0, i).replaceAll(RegExp(r'[,\s]+$'), '');
+      }
+    });
+  }
 
   LojaOnlinePagamentoService get _servico =>
       widget.servico ?? LojaOnlinePagamentoService();
@@ -216,9 +304,36 @@ class _CheckoutLojaOnlineScreenState extends State<CheckoutLojaOnlineScreen> {
           _campo(_telefone, 'Telemóvel'.tr,
               teclado: TextInputType.phone,
               key: const Key('loja_online_telefone')),
-          _campo(_morada, 'Rua, número e andar'.tr,
-              teclado: TextInputType.streetAddress,
-              key: const Key('loja_online_morada')),
+          if (_moradas.isNotEmpty) ...[
+            Text('As tuas moradas'.tr,
+                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+            const SizedBox(height: Spacing.xs),
+            Wrap(
+              spacing: Spacing.sm,
+              children: [
+                for (final a in _moradas)
+                  ChoiceChip(
+                    key: Key('loja_online_morada_guardada_${a.id}'),
+                    label: Text(a.label),
+                    selected: _moradaEscolhida == a.id,
+                    onSelected: _aPagar ? null : (_) => setState(() => _usarMorada(a)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: Spacing.sm),
+          ],
+          // A MESMA caixa de moradas com sugestões dos pedidos (Google Places).
+          Padding(
+            padding: const EdgeInsets.only(bottom: Spacing.md),
+            child: AddressAutocompleteField(
+              key: const Key('loja_online_morada'),
+              controller: _morada,
+              labelText: 'Rua, número e andar'.tr,
+              prefixIcon: const Icon(Icons.home_outlined),
+              onSelected: (morada, _) => _moradaDasSugestoes(morada),
+              onChanged: (_) => setState(() => _moradaEscolhida = null),
+            ),
+          ),
           Row(
             children: [
               Expanded(

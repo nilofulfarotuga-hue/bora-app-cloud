@@ -919,6 +919,26 @@ Deno.serve(async (req: Request) => {
     content: userMessage || (imagens.length > 1 ? `(${imagens.length} fotos enviadas)` : '(foto enviada)'), image_url: null,
   });
 
+  // app-15-11 (conversas ao vivo, pedido do Danilo de 12/11): com a Equipa Bora a
+  // acompanhar a conversa (assistant_conversations.equipa_ate no futuro, até 12 h
+  // depois da última resposta da equipa) o robô não responde nem gasta o motor —
+  // a mensagem do cliente fica guardada e a equipa responde no painel.
+  // Lido à parte e sem rebentar: se a coluna ainda não existir (migração
+  // conversas_ao_vivo por aplicar), segue tudo como antes.
+  try {
+    const { data: eq, error: eqErr } = await adminClient.from('assistant_conversations')
+      .select('equipa_ate').eq('id', conversationId).maybeSingle();
+    const ate = !eqErr && eq ? (eq as Json).equipa_ate : null;
+    if (typeof ate === 'string' && new Date(ate).getTime() > Date.now()) {
+      await adminClient.from('assistant_conversations')
+        .update({ last_message_at: new Date().toISOString() }).eq('id', conversationId);
+      return jsonResponse({
+        ok: true, conversation_id: conversationId, modo: 'equipa', acoes: [], amigo: false,
+        texto: 'A Equipa Bora está a acompanhar esta conversa e responde-te aqui em breve.',
+      });
+    }
+  } catch (_) { /* sem a coluna nova: o robô responde como sempre */ }
+
   // v8: `assistant_learned` pode ainda não existir (migração na gaveta): lê-se com rede.
   const lerAprendidas = async (): Promise<string> => {
     try {
@@ -1022,6 +1042,12 @@ Deno.serve(async (req: Request) => {
       pendingNotes = [];
       pushTurn('model', (m.content ?? '') + notes);
       flatLines.push(`Assistente: ${m.content ?? ''}${notes}`);
+    } else if (m.role === 'admin') {
+      // app-15-11 (conversas ao vivo): o que a Equipa Bora (uma pessoa) escreveu
+      // ao cliente; o robô continua a partir daí quando a conversa lhe é devolvida.
+      pendingNotes = [];
+      pushTurn('model', `(Equipa Bora, uma pessoa) ${m.content ?? ''}`);
+      flatLines.push(`Equipa Bora (pessoa): ${m.content ?? ''}`);
     }
   }
   while (contents.length && contents[0].role !== 'user') contents.shift();

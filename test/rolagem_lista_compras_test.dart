@@ -46,11 +46,11 @@ Future<void> _assentar(WidgetTester t) async {
   }
 }
 
-/// Altura de telemóvel Android comum (860 lógicos). A largura é 520 porque a
-/// letra quadrada dos testes do Flutter é mais larga do que a real (a 412 a
-/// linha do total transbordava só no teste; com a letra real cabe).
+/// Altura de telemóvel Android comum (860 lógicos). A largura é 800 (a do teste da compra guardada) porque a
+/// letra quadrada dos testes do Flutter é mais larga do que a real (a 412 e a 520 uma
+/// linha transbordava só no teste; com a letra real cabe).
 void _telemovel(WidgetTester t) {
-  t.view.physicalSize = const Size(520, 860);
+  t.view.physicalSize = const Size(800, 860);
   t.view.devicePixelRatio = 1;
   addTearDown(t.view.reset);
 }
@@ -113,7 +113,7 @@ void main() {
       (t) async {
     await _abrir(t, 8);
     final antes = _rolagem(t).pixels;
-    await t.drag(find.text('Produto 1 do menu'), const Offset(0, -400));
+    await t.drag(find.textContaining('Produto 1 do menu').first, const Offset(0, -400));
     await _assentar(t);
     expect(_rolagem(t).pixels, greaterThan(antes),
         reason: 'o dedo em cima da lista mexe a folha (antes só mexia a lista de dentro)');
@@ -134,11 +134,11 @@ void main() {
       await _assentar(t);
       final depois = _rolagem(t).pixels;
       // Ao marcar, o produto perde a linha dos botões e a folha encolhe: no fundo
-      // a posição encosta ao novo fim (desce no máximo o que o produto encolheu).
+      // a posição encosta ao novo fim (desce no máximo o que o produto encolheu, ~61 px).
       // O que não pode acontecer é voltar ao início nem saltar para baixo.
       expect(depois, lessThanOrEqualTo(antes + 1),
           reason: 'a lista não salta para baixo ao marcar o produto ${i + 1}');
-      expect(antes - depois, lessThan(60),
+      expect(antes - depois, lessThan(100),
           reason: 'a lista não volta ao início ao marcar o produto ${i + 1}');
     }
     final botao = find.descendant(

@@ -327,8 +327,14 @@ class _OverviewTab extends StatelessWidget {
           _ActionButton(
             icon: Icons.badge_outlined,
             label: 'Área do estafeta (agir por ele)',
-            subtitle: 'Ver o que ele vê agora e fazer por ele: pedidos, ganhos, '
-                'conta e documentos. Tudo fica registrado.',
+            // Sem conta de login ligada (user_id vazio) os ganhos, a conta e os
+            // documentos não têm de onde vir: o botão fica desligado e diz porquê.
+            subtitle: driver['user_id'] == null
+                ? 'Este entregador não tem conta de login ligada: a área dele '
+                    'não tem dados para mostrar.'
+                : 'Ver o que ele vê agora e fazer por ele: pedidos, ganhos, '
+                    'conta e documentos. Tudo fica registrado.',
+            enabled: driver['user_id'] != null,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => AdminAreaEstafetaScreen(

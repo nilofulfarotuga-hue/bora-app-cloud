@@ -169,9 +169,9 @@ class AdminDriverService {
   }
 
   /// As 10 chaves de `admin_update_driver`, SEMPRE todas (null = não mudar).
-  /// O servidor tem duas versões da função (8 e 10 parâmetros): com só 8
-  /// chaves o PostgREST não sabe qual usar (PGRST203); com as 10 só a nova
-  /// serve.
+  /// Até 15/11 o servidor tinha duas versões (8 e 10 parâmetros) e com só 8
+  /// chaves o PostgREST não sabia qual usar (PGRST203). Desde 15/11 13:59
+  /// (caixa 58) só existe a de 10; mandar as 10 continua a ser o certo.
   static Map<String, dynamic> paramsAtualizarEntregador({
     required String driverId,
     required String reason,

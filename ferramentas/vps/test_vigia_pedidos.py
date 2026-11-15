@@ -50,5 +50,44 @@ class InstanteParaUrl(unittest.TestCase):
         self.assertIn("vigia cega", corpo)
 
 
+class PedidosAgendadosEChave(unittest.TestCase):
+    """Revisao de 15/11/2026: agora que a vigia voltou a ver, nao pode gritar de 10 em 10 minutos nem
+    chamar preso a um pedido agendado que esta a espera da hora."""
+
+    def test_filtro_deixa_de_fora_o_agendado_que_ainda_espera(self):
+        f = vigia_pedidos.filtro_pedidos_presos("2026-11-15T19:35:00Z")
+        lido = urllib.parse.parse_qs(f)
+        self.assertEqual(lido["or"], ["(scheduled_for.is.null,scheduled_for.lt.2026-11-15T19:35:00Z)"])
+        self.assertEqual(lido["created_at"], ["lt.2026-11-15T19:35:00Z"])
+        self.assertEqual(lido["status"], ["in.(created,preparing,callingDriver)"])
+        self.assertEqual(lido["is_test_order"], ["eq.false"])
+
+    def test_o_relogio_do_agendado_comeca_na_hora_marcada(self):
+        agora = dt.datetime(2026, 11, 15, 20, 30, tzinfo=dt.timezone.utc)
+        agendado = {"id": "abc", "status": "preparing", "created_at": "2026-11-15T18:12:00+00:00",
+                    "scheduled_for": "2026-11-15T20:00:00+00:00"}
+        normal = {"id": "def", "status": "preparing", "created_at": "2026-11-15T19:50:00+00:00",
+                  "scheduled_for": None}
+        self.assertEqual(int((agora - vigia_pedidos.desde_quando_conta(agendado)).total_seconds() // 60), 30)
+        self.assertEqual(int((agora - vigia_pedidos.desde_quando_conta(normal)).total_seconds() // 60), 40)
+
+    def test_a_chave_nao_muda_com_os_minutos_mas_muda_com_o_estado(self):
+        p = {"id": "0f3a9c1e-1111-2222-3333-444455556666", "status": "preparing",
+             "created_at": "2026-11-15T19:00:00+00:00", "scheduled_for": None}
+        self.assertEqual(vigia_pedidos.chave_do_pedido_preso(p), vigia_pedidos.chave_do_pedido_preso(dict(p)))
+        self.assertNotIn("min", vigia_pedidos.chave_do_pedido_preso(p))
+        outro_estado = dict(p, status="callingDriver")
+        self.assertNotEqual(vigia_pedidos.chave_do_pedido_preso(p),
+                            vigia_pedidos.chave_do_pedido_preso(outro_estado))
+
+    def test_pela_fonte_o_mudou_olha_para_as_chaves_e_nao_para_o_texto(self):
+        with open(os.path.join(AQUI, "vigia_pedidos.py"), encoding="utf-8") as fh:
+            corpo = fh.read().split("def main():", 1)[1]
+        self.assertIn('"|".join(sorted(chaves))', corpo)
+        self.assertNotIn('"|".join(sorted(problemas))', corpo)
+        self.assertIn("chave_do_pedido_preso(p)", corpo)
+        self.assertIn("filtro_pedidos_presos(limite)", corpo)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -105,7 +105,40 @@ Do inventário, comecei as "Conversas ao vivo" dos robôs (pedido do Danilo de 1
 servidor está na caixa 55, o Amigo Bora já se cala quando a equipa assume, e os ecrãs do painel e
 do cliente estão a ser feitos.
 
+## Depois das 12:58: o painel admin (Missão 9) e "fechar tudo" (Missão 10)
+
+Fiz isto. Seis ajudantes revistaram o painel área a área, só a ler, e eu confirmei os achados maiores
+no servidor. O maior: o painel não tinha licença para ler os pedidos, os saldos e os tickets de
+ninguém a não ser da própria conta, por isso a lista de Pedidos, a ficha do pedido e a ficha do
+estafeta mostravam quase nada. Propus a regra de leitura e a Claude.ai aplicou-a. O mapa ao vivo
+mostrava 3 estafetas quando eram 2, porque um aparecia repetido; ficou certo. A ficha do estafeta
+passou a procurar pelos dois números de cada estafeta (17 dos 22 têm dois), o "Editar dados" deixou
+de dar erro e o "Remover" confere primeiro se ele tem pedidos a meio. Fiz a Área do entregador e a
+Área do parceiro: o admin escolhe uma pessoa ou uma loja e faz por ela o que ela faz na app, com o
+motivo de cada coisa guardado. O sino conta só os avisos que pedem ação, a pesquisa de telas ignora
+acentos, os erros técnicos passaram a frases em português do Brasil, e cada tela aberta pelo menu
+diz em baixo "Para que serve"; o Refinador reescreveu 99 dessas frases. Nas apps confirmei que os
+erros graves da manhã estão corrigidos e passei os textos que ainda eram do Brasil para português de
+Portugal. Fiz a categoria Loja Online, desligada até ser ligada no painel e ainda sem pagamentos.
+Fiz a prova das 40 perguntas ao robô do suporte publicado: respondeu a todas e recusou as 10
+armadilhas sem deixar escapar nada. Corrigi o robô do talão (depósitos e preços como estão
+impressos), refiz o cancelamento e o webhook do Stripe sobre as versões das duas contas que estão no
+ar, e fiz a devolução dos 3 euros quando a loja recusa uma reserva paga. Alinhei as migrações do
+repositório com o que correu no servidor.
+
+Falta isto. Publicar nas 3 lojas, autorizado pelo Danilo: espero a montagem do iPhone com os testes
+verdes no último commit (a corrida 308 deu 2 testes vermelhos, já corrigidos no commit 6d01cd0c).
+No servidor ainda por publicar: o cancelamento (client-cancel-order) sobre a v40, a admin-sync-user-name,
+a delete-account, a devolução dos 3 euros e a nova admin-cancel-reservation. O "Sair a sério" do
+estafeta fica para a Edge pela via oficial do Auth.
+
+Erros que encontrei. Um cliente podia mudar os campos do pagamento da própria reserva; a Claude.ai já
+pôs um gatilho a impedir. A confirmação do pagamento de reservas falha sempre por usar uma coluna que
+não existe (correção a caminho). O alarme de "qualquer conta escreve na auditoria" era falso. Erro
+meu: pus a Loja Online no meio de duas entradas do menu que um teste quer juntas (corrigido antes do
+CI) e juntei o envio a um commit num comando (a tranca bloqueou, repeti em separado).
+
 ## Próximo passo
 
-A Claude.ai aplica as caixas por ordem (39 a 55) e junta o #19 quando a montagem do iPhone ficar
-verde. A seguir nesta sessão: acabar e rever os ecrãs das conversas ao vivo e o resto do inventário.
+Com a montagem do iPhone verde no último commit, envio o #19 para o ramo de produção (a bora-tranca
+pergunta no ecrã do PC e o Danilo carrega em Permitir) e provo as 3 lojas com a versão no ar.

@@ -8,10 +8,167 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../models/reservation_model.dart';
+import '../../services/admin_area_parceiro_service.dart' show estadoReservaPtBr;
+import '../../utils/euros.dart' show eurCents;
 import '../../widgets/bora/bora_bottom_action_bar.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../utils/hora_lisboa_ext.dart';
 import '../../widgets/admin/admin_csv_button.dart';
+import '_admin_rpc_errors.dart';
+
+/// [15/11/2026 · fechar-tudo-15-11, revisão do Juiz da Claude.ai] "Cancelar em
+/// nome" chama a Edge `admin-cancel-reservation` (cancela pela RPC de sempre E
+/// devolve o pré-pagamento na Stripe). Antes chamava a RPC
+/// `admin_cancel_reservation_on_behalf_of` direto: a reserva ficava
+/// "cancelada com reembolso" e o dinheiro nunca voltava ao cliente.
+///
+/// Resposta da Edge em PT-BR: o texto para o painel e se correu bem (`ok`) ou
+/// se o reembolso ficou por fazer (a equipe já foi avisada pela Edge).
+({String texto, bool ok}) resumoCancelamentoReserva(Object? dados) {
+  if (dados is! Map || dados['success'] != true) {
+    return (
+      texto: 'Resposta inesperada do servidor ao cancelar a reserva. '
+          'Atualize a lista e confira o estado.',
+      ok: false,
+    );
+  }
+  final jaEstava = dados['idempotent'] == true;
+  final refund = dados['refund'];
+  if (refund is! Map) {
+    // Já estava cancelada sem direito a reembolso, recusada ou sem comparência.
+    final antes = '${dados['previous_status'] ?? ''}';
+    return (
+      texto: 'Nada mudou: esta reserva já estava fechada '
+          '(${estadoReservaPtBr(antes)}).',
+      ok: true,
+    );
+  }
+  final cents = (refund['amount_cents'] as num?)?.toInt() ?? 0;
+  final valor = cents > 0 ? eurCents(cents) : null;
+  final estadoStripe = '${refund['stripe_status'] ?? ''}';
+  final emCurso = estadoStripe == 'pending' || estadoStripe == 'requires_action'
+      ? ' (em processamento na Stripe)'
+      : '';
+  final motivo = _motivoDoReembolso(refund);
+  switch ('${refund['result'] ?? ''}') {
+    case 'succeeded':
+      return (
+        texto: jaEstava
+            ? 'Esta reserva já estava cancelada; o reembolso que faltava '
+                '(${valor ?? 'pré-pagamento'}) foi pedido agora à Stripe$emCurso.'
+            : 'Reserva cancelada. Reembolso de ${valor ?? 'pré-pagamento'} '
+                'pedido à Stripe$emCurso.',
+        ok: true,
+      );
+    case 'already_refunded':
+      return (
+        texto: '${jaEstava ? 'Esta reserva já estava cancelada' : 'Reserva cancelada'}. '
+            'O pré-pagamento${valor == null ? '' : ' ($valor)'} já tinha sido '
+            'devolvido ao cliente.',
+        ok: true,
+      );
+    case 'forfeited_window':
+      return (
+        texto: 'Reserva cancelada em cima da hora (dentro da janela sem '
+            'reembolso): o pré-pagamento fica com a Bora.',
+        ok: true,
+      );
+    case 'not_applicable':
+      return (
+        texto: 'Reserva cancelada. Não havia pré-pagamento para devolver.',
+        ok: true,
+      );
+    case 'not_paid':
+      return (
+        texto: 'Reserva cancelada. O pagamento nunca foi cobrado: não há nada '
+            'para devolver.',
+        ok: true,
+      );
+    case 'no_payment_intent':
+      return (
+        texto: '${jaEstava ? 'Esta reserva já estava cancelada' : 'Reserva cancelada'}, '
+            'mas não tem pagamento gravado: confira se o cliente pagou. A equipe '
+            'foi avisada.',
+        ok: false,
+      );
+    case 'failed':
+      return (
+        texto: '${jaEstava ? 'Esta reserva já estava cancelada' : 'Reserva cancelada'}, '
+            'mas o reembolso NÃO saiu ($motivo). A equipe foi avisada; reembolse '
+            'pelo painel de pagamentos.',
+        ok: false,
+      );
+    default:
+      return (
+        texto: jaEstava ? 'Esta reserva já estava cancelada.' : 'Reserva cancelada.',
+        ok: true,
+      );
+  }
+}
+
+/// O porquê de um reembolso que não saiu (`refund.reason` / `refund.error`).
+String _motivoDoReembolso(Map<dynamic, dynamic> refund) {
+  final erro = '${refund['error'] ?? ''}'.trim();
+  switch ('${refund['reason'] ?? ''}') {
+    case 'pi_mismatch':
+      return 'o pagamento gravado não é desta reserva';
+    case 'payment_processing':
+      return 'o pagamento ainda está em processamento';
+    case 'no_payment_intent':
+      return 'a reserva não tem pagamento gravado';
+    case 'reserva_ilegivel':
+      return 'não deu para ler a reserva depois de cancelar';
+    case 'refund_failed':
+      return 'a Stripe recusou o reembolso';
+    case 'refund_canceled':
+      return 'o reembolso foi cancelado na Stripe';
+    case 'refund_replay':
+      return 'a Stripe respondeu com um reembolso antigo';
+    case 'stripe_error':
+      return erro.isEmpty ? 'erro na Stripe' : 'erro na Stripe: $erro';
+    default:
+      return erro.isEmpty ? 'motivo desconhecido' : erro;
+  }
+}
+
+/// Erro da Edge `admin-cancel-reservation` (status ≠ 2xx → `FunctionException`
+/// com o corpo `{error, detail?}` em `details`) em PT-BR. O resto (rede,
+/// função por instalar, permissão) fica com [humanizeAdminRpcError].
+String erroCancelamentoReserva(Object erro) {
+  if (erro is FunctionException && erro.status != 0) {
+    final d = erro.details;
+    final codigo = d is Map ? '${d['error'] ?? ''}' : '';
+    final detalhe = d is Map ? '${d['detail'] ?? ''}'.trim() : '';
+    switch (codigo) {
+      case 'invalid_reservation_id':
+        return 'ID da reserva inválido: cole o UUID completo da reserva.';
+      case 'invalid_body':
+        return 'Pedido inválido (corpo mal formado).';
+      case 'missing_token':
+      case 'unauthorized':
+        return 'Sessão de admin expirada. Faça login de novo.';
+      case 'admin_required':
+        return 'Sem permissão de admin para cancelar reservas.';
+      case 'server_misconfigured':
+        return 'O servidor não está configurado para cancelar reservas; a '
+            'equipe técnica precisa ver.';
+      case 'rpc_error':
+        if (detalhe.startsWith('reservation_not_found')) {
+          return 'Reserva não encontrada. Confira o ID.';
+        }
+        if (detalhe.startsWith('cannot_cancel_status')) {
+          final estado = detalhe.split(':').last.trim();
+          return 'Esta reserva não pode ser cancelada no estado atual '
+              '(${estadoReservaPtBr(estado)}).';
+        }
+        if (detalhe.startsWith('NOT_ADMIN')) {
+          return 'Sem permissão de admin para cancelar reservas.';
+        }
+        if (detalhe.isNotEmpty) return 'Erro do servidor ao cancelar: $detalhe';
+    }
+  }
+  return humanizeAdminRpcError(erro);
+}
 
 /// Admin view: all table reservations across restaurants (BR §16.2).
 class AdminReservationsScreen extends StatefulWidget {
@@ -362,19 +519,27 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                           }
                           setSt(() => submitting = true);
                           try {
-                            await Supabase.instance.client.rpc(
-                              'admin_cancel_reservation_on_behalf_of',
-                              params: {
-                                'p_reservation_id': reservationIdCtrl.text,
-                                'p_reason': reasonCtrl.text,
+                            // [15/11/2026] A Edge cancela (mesma RPC) E devolve
+                            // o pré-pagamento na Stripe; a RPC sozinha não devolvia.
+                            final res = await Supabase.instance.client.functions
+                                .invoke(
+                              'admin-cancel-reservation',
+                              body: {
+                                'reservation_id': reservationIdCtrl.text.trim(),
+                                'reason': reasonCtrl.text.trim(),
                               },
                             );
+                            final resumo = resumoCancelamentoReserva(res.data);
                             if (!mounted) return;
                             Navigator.pop(ctx);
                             ScaffoldMessenger.of(outerContext).showSnackBar(
-                              const SnackBar(
-                                content: Text('Reserva cancelada em nome.'),
-                                backgroundColor: AppColors.primary,
+                              SnackBar(
+                                content: Text(resumo.texto),
+                                backgroundColor: resumo.ok
+                                    ? AppColors.primary
+                                    : AppColors.error,
+                                duration:
+                                    Duration(seconds: resumo.ok ? 5 : 12),
                               ),
                             );
                             setState(() => _future = _load());
@@ -383,7 +548,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                             setSt(() => submitting = false);
                             ScaffoldMessenger.of(ctx).showSnackBar(
                               SnackBar(
-                                content: Text('Erro: $e'),
+                                content: Text(erroCancelamentoReserva(e)),
                                 backgroundColor: AppColors.error,
                               ),
                             );

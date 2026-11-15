@@ -651,3 +651,7 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   (4) ~14:35, a bora-tranca bloqueou um `git add … && git commit … && git log … && git push … | tail -1` (o envio
   só passa sozinho, `git push origin ai/AAAA-MM-DD-nome` com 2 argumentos). Erro meu, já conhecido: nada correu;
   repeti o commit e o envio em comandos separados e passaram.
+  (5) ~17:22, a bora-tranca BLOQUEOU `git push origin 6d01cd0c:autonomous-night-2026-04-29` ("git push é publicar:
+  publica o Claude.ai"), mesmo com a autorização do Danilo das 14:57 transmitida pela Claude.ai. Não contornado. O #19
+  aponta para o ramo de produção e junta-se limpo: publicar = carregar em "Merge pull request" no GitHub (pedido no
+  e2e_log, passo G-publicar-merge-pr19).

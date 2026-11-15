@@ -89,6 +89,8 @@ import 'screens/admin/admin_carwash_screen.dart';
 import 'screens/admin/admin_encomendas_telefone_screen.dart';
 import 'screens/admin/admin_reativacao_screen.dart';
 import 'screens/admin/admin_support_escalations_screen.dart';
+import 'screens/admin/admin_support_tickets_screen.dart';
+import 'screens/admin/admin_cancellations_screen.dart';
 import 'screens/admin/admin_suporte_conversas_screen.dart';
 import 'screens/admin/admin_conversas_ao_vivo_screen.dart';
 import 'screens/admin/admin_tvde_chats_screen.dart';
@@ -1195,6 +1197,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/receipts': (_) => const AdminReceiptsScreen(),
           '/admin/support-escalations': (_) =>
               const AdminSupportEscalationsScreen(),
+          // [app-15-11 · auditoria S5] Três links que os avisos usam e que
+          // abriam "Página não encontrada": o pedido de ajuda sem conversa
+          // (notify_support_ticket_admin → lista de pedidos, a entrada
+          // "Suporte — Tickets" do menu), o reembolso de pedido cancelado
+          // pelo sistema (order_refund_needed/_auto → "Cancelamentos") e o
+          // reembolso de corrida que falhou (tvde_reembolso_falhou →
+          // "Corridas" do Bora Motorista).
+          '/admin/support': (_) => const AdminSupportTicketsScreen(),
+          '/admin/cancellations': (_) => const AdminCancellationsScreen(),
+          '/admin/tvde/corridas': (_) => const AdminTvdeRidesScreen(),
           // Adendo 1 m4 (08/11/2026): todas as conversas do chat do suporte.
           // A conversa de uma sessão (/admin/support/sessions/<id>) está no
           // onGenerateRoute: é o link dos avisos e do push do admin.

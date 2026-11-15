@@ -3,11 +3,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
-import '../../services/tvde_visibilidade.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_rpc_errors.dart';
 import '../../utils/hora_lisboa_ext.dart';
 import '../../widgets/admin/admin_csv_button.dart';
+import 'admin_bora_motorista_fechado_screen.dart'
+    show AvisoBotaoBoraMotoristaFechado, lerBoraMotoristaAberto;
 
 /// Bora Motorista (TVDE) — Pedidos de acesso à categoria escondida.
 ///
@@ -32,10 +33,17 @@ class _AdminTvdeAccessRequestsScreenState
   String _filter = 'pendente'; // pendente | aprovado | recusado | todos
   bool _busy = false;
 
+  /// app-15-11 (auditoria S5): interruptor do Bora Motorista, lido como no
+  /// ecrã do interruptor (`null` = a ler).
+  bool? _bmAberto;
+
   @override
   void initState() {
     super.initState();
     _future = _load();
+    lerBoraMotoristaAberto().then((v) {
+      if (mounted) setState(() => _bmAberto = v);
+    });
   }
 
   Future<List<Map<String, dynamic>>> _load() async {
@@ -208,6 +216,7 @@ class _AdminTvdeAccessRequestsScreenState
                       data: rows[i],
                       busy: _busy,
                       onAction: _act,
+                      bmAberto: _bmAberto,
                     ),
                   );
                 },
@@ -259,11 +268,15 @@ class _RequestCard extends StatelessWidget {
     required this.data,
     required this.busy,
     required this.onAction,
+    this.bmAberto,
   });
 
   final Map<String, dynamic> data;
   final bool busy;
   final Future<void> Function(Map<String, dynamic>, String) onAction;
+
+  /// app-15-11 (S5): interruptor do Bora Motorista (`null` = a ler).
+  final bool? bmAberto;
 
   @override
   Widget build(BuildContext context) {
@@ -346,15 +359,19 @@ class _RequestCard extends StatelessWidget {
     // 04/11/2026 (fechar-bora-motorista): com o Bora Motorista fechado
     // (tvde_app_visivel=false) não se aprova acesso — reabriria o servidor.
     // Recusar e revogar continuam.
-    final canApprove = (status == 'pendente' || status == 'recusado') &&
-        TvdeVisibilidade.aberto;
+    // app-15-11 (S5): o "Aprovar" já não some sem explicação — fica travado
+    // com a frase por baixo enquanto o serviço estiver fechado.
+    final canApprove = status == 'pendente' || status == 'recusado';
+    final aprovarTravado = bmAberto != true;
     final canRefuse = status == 'pendente';
     final canRevoke = tvdeAccess || status == 'aprovado';
 
     if (canApprove) {
       children.add(FilledButton.icon(
         style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-        onPressed: busy ? null : () => onAction(data, 'aprovar'),
+        onPressed: (busy || aprovarTravado)
+            ? null
+            : () => onAction(data, 'aprovar'),
         icon: const Icon(Icons.check, size: 18),
         label: Text(status == 'recusado' ? 'Aprovar mesmo assim' : 'Aprovar'),
       ));
@@ -378,6 +395,9 @@ class _RequestCard extends StatelessWidget {
     if (children.isEmpty) {
       return const Text('Sem ações disponíveis para este estado.',
           style: TextStyle(color: AppColors.textSubtle, fontSize: 12));
+    }
+    if (canApprove && bmAberto == false) {
+      children.add(const AvisoBotaoBoraMotoristaFechado());
     }
     return Wrap(spacing: 8, runSpacing: 8, children: children);
   }

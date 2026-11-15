@@ -648,3 +648,6 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   que o gancho protege-banco bloqueou um grep inofensivo às migrações porque o texto do comando tinha "drop policy …
   orders"; saltado, sem efeito na auditoria. (3) O ajudante S2 relatou que a trava bloqueou um bloco DO com EXECUTE para
   testar funções em lote; seguiu com SELECTs simples.
+  (4) ~14:35, a bora-tranca bloqueou um `git add … && git commit … && git log … && git push … | tail -1` (o envio
+  só passa sozinho, `git push origin ai/AAAA-MM-DD-nome` com 2 argumentos). Erro meu, já conhecido: nada correu;
+  repeti o commit e o envio em comandos separados e passaram.

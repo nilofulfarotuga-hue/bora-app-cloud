@@ -8,6 +8,11 @@ import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_rpc_errors.dart';
 import '../../utils/hora_lisboa_ext.dart';
 import '../../widgets/tvde/filtro_tipo_tvde.dart';
+import 'admin_bora_motorista_fechado_screen.dart'
+    show
+        AvisoBotaoBoraMotoristaFechado,
+        BotaoFlutuanteTravado,
+        lerBoraMotoristaAberto;
 
 /// Bora Motorista (TVDE) — RESERVAS (corridas agendadas).
 ///
@@ -33,10 +38,20 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
   /// [21/10 · A1] Filtro Passageiros/Encomendas (todos por omissão).
   String _tipo = 'todos';
 
+  /// app-15-11 (auditoria S5): interruptor do Bora Motorista, lido como no
+  /// ecrã do interruptor. `null` enquanto se lê. Fechado (ou por ler), os
+  /// botões que mexem em reservas ficam travados com a frase por baixo;
+  /// Cancelar e Histórico continuam.
+  bool? _aberto;
+  bool get _travado => _aberto != true;
+
   @override
   void initState() {
     super.initState();
     _future = _load();
+    lerBoraMotoristaAberto().then((v) {
+      if (mounted) setState(() => _aberto = v);
+    });
   }
 
   Future<List<Map<String, dynamic>>> _load() async {
@@ -85,11 +100,13 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
     List<Map<String, dynamic>> eventos = const [];
     Map<String, String> nomes = const {};
     try {
+      // app-15-11 (S5): a coluna da hora em tvde_ride_events chama-se `at`
+      // (não `created_at`) — com o nome errado o histórico dava sempre erro.
       final res = await Supabase.instance.client
           .from('tvde_ride_events')
-          .select('created_at, status, actor, meta')
+          .select('at, status, actor, meta')
           .eq('ride_id', rideId)
-          .order('created_at', ascending: false)
+          .order('at', ascending: false)
           .limit(60);
       eventos = (res as List)
           .whereType<Map>()
@@ -196,7 +213,7 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_quando(e['created_at']?.toString()),
+                    Text(_quando(e['at']?.toString()),
                         style: const TextStyle(
                             fontSize: 11, color: AppColors.textSubtle)),
                     Text(descrever(e), style: const TextStyle(fontSize: 13)),
@@ -557,13 +574,18 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const BoraScreenAppBar(title: 'TVDE — Reservas'),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _criar,
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Nova reserva'),
-      ),
+      floatingActionButton: switch (_aberto) {
+        true => FloatingActionButton.extended(
+            onPressed: _criar,
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            icon: const Icon(Icons.add),
+            label: const Text('Nova reserva'),
+          ),
+        false => const BotaoFlutuanteTravado(
+            rotulo: 'Nova reserva', icone: Icons.add),
+        null => null,
+      },
       body: Column(
         children: [
           Padding(
@@ -784,20 +806,22 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
             Wrap(
               spacing: Spacing.sm,
               children: [
+                // app-15-11 (S5): com o Bora Motorista fechado, os botões que
+                // mexem na reserva ficam travados (frase por baixo).
                 TextButton.icon(
-                  onPressed: () => _trocarMotorista(r),
+                  onPressed: _travado ? null : () => _trocarMotorista(r),
                   icon: const Icon(Icons.swap_horiz, size: 18),
                   label: const Text('Trocar motorista'),
                 ),
                 TextButton.icon(
-                  onPressed: () => _forcarBusca(r),
+                  onPressed: _travado ? null : () => _forcarBusca(r),
                   icon: const Icon(Icons.refresh, size: 18),
                   label: const Text('Forçar chamada'),
                 ),
                 // [12/10/2026] As mesmas funções do cliente (padrão Uber Reserve).
                 if (r['status'] == 'agendada')
                   TextButton.icon(
-                    onPressed: () => _mudarHora(r),
+                    onPressed: _travado ? null : () => _mudarHora(r),
                     icon: const Icon(Icons.schedule, size: 18),
                     label: const Text('Mudar hora'),
                   ),
@@ -805,7 +829,7 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
                     r['roundtrip_credit_id'] == null &&
                     estado != 'aguarda_pagamento')
                   TextButton.icon(
-                    onPressed: () => _mudarDestino(r),
+                    onPressed: _travado ? null : () => _mudarDestino(r),
                     icon: const Icon(Icons.edit_location_alt_outlined, size: 18),
                     label: const Text('Mudar destino'),
                   ),
@@ -820,7 +844,7 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
                 // daqui. Só aparece na perna da IDA, que é quem manda no vale.
                 if (r['roundtrip_credit_id'] != null && r['is_return_leg'] != true)
                   TextButton.icon(
-                    onPressed: () => _marcarVolta(r),
+                    onPressed: _travado ? null : () => _marcarVolta(r),
                     icon: const Icon(Icons.u_turn_left, size: 18),
                     label: Text(r['return_scheduled_at'] == null
                         ? 'Marcar volta'
@@ -833,6 +857,7 @@ class _AdminTvdeReservasScreenState extends State<AdminTvdeReservasScreen> {
                 ),
               ],
             ),
+            if (_aberto == false) const AvisoBotaoBoraMotoristaFechado(),
           ],
         ],
       ),

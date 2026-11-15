@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../config/app_colors.dart';
+import '../../utils/search_text.dart' show normalizarPesquisa;
 
 import 'admin_order_edits_screen.dart';
 import 'admin_pesquisas_sem_resultado_screen.dart';
@@ -199,17 +200,22 @@ class AdminMenuItem {
   final List<String> keywords;
 
   /// Chave do contador dinâmico ('acertos' | 'skills'), se houver.
+  /// 'novo' não é contador: o acordeão desenha uma etiqueta "novo".
   final String? badge;
 
   /// Preenchido só nos itens da secção Arquivado.
   final String? archivedReason;
 
+  /// Busca por nome, descrição e palavra-chave, sem ligar a acentos nem a
+  /// maiúsculas dos dois lados (app-15-11, auditoria S5): "farmacias" acha
+  /// "Farmácias", "edicoes" acha "Edições de pedidos", "diferencas" acha
+  /// "Diferenças de Favor". Antes só "farmácias" (com acento) achava.
   bool matches(String q) {
-    final n = q.trim().toLowerCase();
+    final n = normalizarPesquisa(q);
     if (n.isEmpty) return true;
-    return title.toLowerCase().contains(n) ||
-        subtitle.toLowerCase().contains(n) ||
-        keywords.any((k) => k.contains(n));
+    return normalizarPesquisa(title).contains(n) ||
+        normalizarPesquisa(subtitle).contains(n) ||
+        keywords.any((k) => normalizarPesquisa(k).contains(n));
   }
 }
 
@@ -231,6 +237,52 @@ class AdminMenuSection {
   final Color color;
   final List<AdminMenuItem> items;
   final bool archived;
+
+  /// Quantas telas a secção abre: cada linha conta uma, e uma linha que é um
+  /// sub-menu ("Mais dinheiro") conta as telas que tem dentro.
+  int get telas => items.fold<int>(
+      0, (n, i) => n + (i.filhos.isEmpty ? 1 : i.filhos.length));
+}
+
+/// Legenda do número ao lado de cada secção (app-15-11, S5): antes era só
+/// "22", sem dizer 22 de quê.
+String legendaTelas(int n) => n == 1 ? '1 tela' : '$n telas';
+
+/// Um resultado da busca do menu: a tela e a secção onde ela mora.
+class AdminMenuResultado {
+  const AdminMenuResultado(this.item, this.secao, {this.dentroDe});
+
+  final AdminMenuItem item;
+  final AdminMenuSection secao;
+
+  /// Título do sub-menu onde a tela mora ("Mais dinheiro"), se for o caso.
+  final String? dentroDe;
+
+  /// Onde fica, como se mostra por baixo do resultado:
+  /// "Dinheiro e acertos › Mais dinheiro".
+  String get onde => dentroDe == null ? secao.title : '${secao.title} › $dentroDe';
+}
+
+/// Busca do menu (app-15-11, auditoria S5): cada resultado diz em que secção
+/// mora, e os do "Arquivado" vêm sempre depois dos outros. As secções vivas
+/// vêm pela ordem do menu, por isso o arquivo do Bora Motorista (a última
+/// antes do "Arquivado") também fica atrás das secções em uso.
+List<AdminMenuResultado> adminMenuBuscar(
+    List<AdminMenuSection> sections, String q) {
+  final vivos = <AdminMenuResultado>[];
+  final arquivados = <AdminMenuResultado>[];
+  for (final s in sections) {
+    final destino = s.archived ? arquivados : vivos;
+    for (final i in s.items) {
+      if (i.matches(q)) destino.add(AdminMenuResultado(i, s));
+      for (final f in i.filhos) {
+        if (f.matches(q)) {
+          destino.add(AdminMenuResultado(f, s, dentroDe: i.title));
+        }
+      }
+    }
+  }
+  return [...vivos, ...arquivados];
 }
 
 /// Todas as secções, pela ordem em que aparecem no painel.
@@ -341,35 +393,9 @@ List<AdminMenuSection> adminMenuSections() => [
       builder: () => const AdminFilasEstafetasScreen(),
       keywords: const ['fila', 'filas', 'espera', 'stand-by', 'standby', 'entregador', 'estafeta', 'rascunho', 'compra', 'marcado', 'favor', 'urgente', 'talao', 'cupom'],
     ),
-    // 11/11/2026 (farmácias): visibilidade por lista de permissão, receita e comissão extra.
-    AdminMenuItem(
-      id: 'farmacias',
-      title: 'Farmácias',
-      subtitle: 'Farmácia da Sé e Teixeira: e-mail de login e link de senha, dados da empresa (NIF, IBAN, certidão), horário e preços, receita, lista de permissão, comissão extra, abrir ao público, extrato semanal',
-      icon: Icons.local_pharmacy,
-      color: Colors.green,
-      builder: () => const AdminFarmaciasScreen(),
-      keywords: const ['farmacia', 'farmácia', 'receita', 'prescricao', 'prescrição', 'se', 'sé', 'teixeira', 'lista de permissao', 'escondida', 'comissao extra', 'email', 'e-mail', 'login', 'senha', 'nif', 'iban', 'certidao', 'certidão', 'horario', 'horário', 'extrato', 'receitas reais'],
-    ),
-    // 14/11/2026 (farmacias-loja): extrato semanal só de leitura das farmácias, com CSV.
-    AdminMenuItem(
-      id: 'farmacias_extrato',
-      title: 'Extrato das farmácias',
-      subtitle: 'Por semana e por farmácia: vendas na app, comissão, parte da farmácia, dinheiro em mão, comissão extra, saldo; exportar CSV',
-      icon: Icons.receipt,
-      color: Colors.green,
-      builder: () => const AdminFarmaciasScreen(abaInicial: 2),
-      keywords: const ['extrato', 'farmacia', 'farmácia', 'acerto', 'semana', 'csv', 'comissao extra'],
-    ),
-    AdminMenuItem(
-      id: 'pedidos_receita',
-      title: 'Pedidos de receita',
-      subtitle: 'Receitas e pedidos especiais às farmácias: estado, quem aceitou ou recusou e quando, forçar ou cancelar, exportar CSV',
-      icon: Icons.receipt_long,
-      color: Colors.green,
-      builder: () => const AdminFarmaciasScreen(abaInicial: 1),
-      keywords: const ['receita', 'prescricao', 'prescrição', 'farmacia', 'farmácia', 'medicamento', 'tenho receita', 'pedido especial'],
-    ),
+    // app-15-11 (auditoria S5): Farmácias, Extrato das farmácias e Pedidos de
+    // receita passaram para a secção Parceiros (são lojas parceiras). Os ids
+    // ficam iguais: são o que os favoritos guardam.
     // 04/11/2026: Favores pagos por MB Way com compra acima do orçado.
     // 08/11/2026: no topo, Favores à espera de aprovação do cliente (teto).
     AdminMenuItem(
@@ -426,15 +452,8 @@ List<AdminMenuSection> adminMenuSections() => [
       builder: () => const AdminCrashLogsScreen(),
       keywords: const ['crash', 'crashes', 'erros', 'android', 'iphone', 'ios', 'web', 'versao', 'aparelho', 'modelo'],
     ),
-    AdminMenuItem(
-      id: 'operacao_stripe_contas',
-      title: 'Stripe — duas contas',
-      subtitle: 'Que conta Stripe usa cada fluxo (TVDE na Pessoal, o resto na Empresa), o interruptor, as chaves e os webhooks',
-      icon: Icons.account_balance_outlined,
-      color: AppColors.primary,
-      builder: () => const AdminStripeContasScreen(),
-      keywords: const ['stripe', 'conta', 'empresa', 'pessoal', 'unipessoal', 'webhook', 'chave', 'interruptor', 'tvde'],
-    ),
+    // app-15-11 (auditoria S5): "Stripe — duas contas" passou para "Mais
+    // dinheiro" (secção Dinheiro e acertos), com o mesmo id.
     AdminMenuItem(
       id: 'operacao_pagamentos_presos',
       title: 'Pagamentos presos',
@@ -504,7 +523,7 @@ List<AdminMenuSection> adminMenuSections() => [
     AdminMenuItem(
       id: 'dinheiro_mais',
       title: 'Mais dinheiro',
-      subtitle: 'Extratos por pessoa, cartões, gorjetas, órfãos, reembolsos, preços por talão, carteiras, tokens e códigos',
+      subtitle: 'Extratos por pessoa, cartões, as duas contas Stripe, gorjetas, órfãos, reembolsos, preços por talão, carteiras, tokens e códigos',
       icon: Icons.more_horiz,
       color: AppColors.primary,
       builder: () => AdminMenuSubScreen(
@@ -534,6 +553,17 @@ List<AdminMenuSection> adminMenuSections() => [
       color: const Color(0xFF1565C0),
       builder: () => const AdminPaymentsCardsScreen(),
       keywords: const ['areas', 'cartao', 'cartoes', 'cobrancas', 'estornos', 'pagamentos', 'todas'],
+    ),
+    // app-15-11 (auditoria S5): veio da "Operação do dia". O id fica o antigo
+    // (é o que os favoritos guardam).
+    AdminMenuItem(
+      id: 'operacao_stripe_contas',
+      title: 'Stripe — duas contas',
+      subtitle: 'Que conta Stripe usa cada fluxo (TVDE na Pessoal, o resto na Empresa), o interruptor, as chaves e os webhooks',
+      icon: Icons.account_balance_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminStripeContasScreen(),
+      keywords: const ['stripe', 'conta', 'empresa', 'pessoal', 'unipessoal', 'webhook', 'chave', 'interruptor', 'tvde'],
     ),
     AdminMenuItem(
       id: 'dinheiro_gorjetas',
@@ -713,230 +743,6 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.orange,
       builder: () => const AdminDispatchSettingsScreen(),
       keywords: const ['chamada', 'chegam', 'como', 'configuracoes', 'desligados', 'despacho', 'distancias', 'entregadores', 'pedidos', 'reforco', 'regras', 'tempos'],
-    ),
-    ],
-  ),
-  // 04/11/2026 (fechar-bora-motorista): o Bora Motorista fechou nas apps
-  // (sem licença do IMT). A secção passa a ser o ARQUIVO: tudo continua a
-  // abrir para consulta (o contabilista precisa), e o primeiro item é o
-  // interruptor `tvde_app_visivel` para reabrir quando a licença sair.
-  // O id 'tvde' fica igual (é o que os favoritos guardam).
-  AdminMenuSection(
-    id: 'tvde',
-    title: 'Arquivo — Bora Motorista (fechado)',
-    subtitle: 'Fechado nas apps desde 04/11/2026. Só consulta: corridas, pagamentos, recibos, acertos, motoristas, pedidos de acesso.',
-    icon: Icons.inventory_2_outlined,
-    color: const Color(0xFF64748B),
-    items: [
-    AdminMenuItem(
-      id: 'tvde_interruptor_app',
-      title: 'Interruptor do Bora Motorista',
-      subtitle: 'Fechado ou aberto nas apps (tvde_app_visivel): ver o estado, reabrir quando a licença do IMT sair, e quantas corridas estão guardadas',
-      icon: Icons.toggle_on_outlined,
-      color: const Color(0xFF64748B),
-      builder: () => const AdminBoraMotoristaFechadoScreen(),
-      keywords: const ['tvde', 'motorista', 'fechado', 'arquivo', 'interruptor', 'reabrir', 'licenca', 'imt', 'tvde_app_visivel', 'visivel'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_corridas',
-      title: 'Corridas',
-      subtitle: 'Todas as corridas: em curso, feitas, canceladas',
-      icon: Icons.local_taxi,
-      color: Colors.teal,
-      builder: () => const AdminTvdeRidesScreen(),
-      keywords: const ['canceladas', 'corridas', 'curso', 'feitas', 'todas'],
-    ),
-    // [A2 · 21/10/2026] Fila inteligente + carro a deslizar (paridade admin).
-    AdminMenuItem(
-      id: 'tvde_fila_inteligente',
-      title: 'Fila inteligente',
-      subtitle: 'Quem recebe cada corrida e por que ordem, ao vivo; ligar/desligar; tempo da oferta; histórico de recusas',
-      icon: Icons.format_list_numbered,
-      color: const Color(0xFF0EA5E9),
-      builder: () => const AdminTvdeFilaScreen(),
-      keywords: const ['fila', 'ordem', 'oferta', 'recusou', 'expirou', 'despacho', 'motoristas', 'aceitacao', 'carro', 'mapa'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_pedidos_de_acesso',
-      title: 'Pedidos de acesso TVDE',
-      subtitle: 'Clientes que pediram para usar o Bora Motorista: aprovar ou recusar',
-      icon: Icons.how_to_reg,
-      color: const Color(0xFF0EA5E9),
-      builder: () => const AdminTvdeAccessRequestsScreen(),
-      keywords: const ['acesso', 'pedidos', 'tvde', 'motorista', 'aprovar', 'recusar'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_chat_das_corridas',
-      title: 'Chat das corridas',
-      subtitle: 'Conversas entre cliente e motorista, por corrida, em hora de Lisboa',
-      icon: Icons.forum_outlined,
-      color: const Color(0xFF0EA5E9),
-      builder: () => const AdminTvdeChatsScreen(),
-      keywords: const ['chat', 'conversa', 'mensagens', 'corridas', 'cliente', 'motorista'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_pagamentos',
-      title: 'Pagamentos das corridas',
-      subtitle: 'Quem pagou, quem não conseguiu pagar, e estorno',
-      icon: Icons.payments,
-      color: const Color(0xFF0EA5E9),
-      builder: () => const AdminTvdePagamentosScreen(),
-      keywords: const [
-        'cartao', 'cobranca', 'estorno', 'falhou', 'mbway', 'pagamento',
-        'pagou', 'reembolso', 'stripe',
-      ],
-    ),
-    AdminMenuItem(
-      id: 'tvde_corridas_de_balcao',
-      title: 'Corridas de Balcão',
-      subtitle: 'Criar corrida por telefone para cliente sem app',
-      icon: Icons.phone_in_talk,
-      color: const Color(0xFF2563EB),
-      builder: () => const AdminTvdeBalcaoScreen(),
-      keywords: const ['balcao', 'cliente', 'ligou', 'sem app', 'telefone'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_agenda_de_clientes_de_balcao',
-      title: 'Agenda de Clientes de Balcão',
-      subtitle: 'Clientes sem app e as moradas guardadas deles',
-      icon: Icons.contacts,
-      color: const Color(0xFF2563EB),
-      builder: () => const AdminTvdeBalcaoAgendaScreen(),
-      keywords: const ['agenda', 'balcao', 'clientes', 'contactos', 'moradas'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_cancelamentos_de_corridas',
-      title: 'Cancelamentos de corridas',
-      // [17/10/2026] cancelamento tardio: o ecrã mostra e dá compensações.
-      subtitle: 'Corridas canceladas, taxas cobradas e compensação ao motorista',
-      icon: Icons.cancel_schedule_send,
-      color: Colors.redAccent,
-      builder: () => const AdminTvdeCancellationsScreen(),
-      keywords: const ['canceladas', 'cancelamentos', 'cobradas', 'compensacao', 'corridas', 'motorista', 'taxas'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_motoristas_de_passageiros',
-      title: 'Motoristas de passageiros',
-      subtitle: 'Motoristas: gerir, banir, saldo, avaliações',
-      icon: Icons.directions_car,
-      color: Colors.indigo,
-      builder: () => const AdminTvdeDriversScreen(),
-      keywords: const ['avaliacoes', 'banir', 'gerir', 'motoristas', 'passageiros', 'saldo'],
-    ),
-    // [Ficha legal · 23/09] O id fica o mesmo (é o que os favoritos
-    // guardam): quem tinha "Documentos TVDE" nos favoritos cai no hub novo.
-    AdminMenuItem(
-      id: 'tvde_documentos_tvde',
-      title: 'Documentos dos motoristas',
-      subtitle: 'Semáforo de validade (certificado IMT, carta, seguro, inspeção, dístico), editar ficha, bloqueio online',
-      icon: Icons.badge_outlined,
-      color: const Color(0xFF6366F1),
-      builder: () => const AdminMotoristasDocumentosScreen(),
-      keywords: const ['aprovar', 'carta', 'distico', 'documentos', 'fiscalizacao', 'imt', 'inspecao', 'motoristas', 'seguro', 'tvde', 'validade'],
-    ),
-    // 22/10 (documentos de todos os papéis): saiu do arquivo — o ecrã
-    // "Conformidade" da app do motorista regista aqui o contrato, o
-    // certificado e o seguro. Era o único sítio onde se viam os ficheiros.
-    AdminMenuItem(
-      id: 'arquivado_documentos_tvde_ficheiros',
-      title: 'Documentos TVDE (ficheiros)',
-      subtitle: 'Fotos enviadas pelos motoristas (contrato, certificado, seguro): ver em grande, aprovar ou recusar',
-      icon: Icons.fact_check_outlined,
-      color: const Color(0xFF6366F1),
-      builder: () => const AdminTvdeDocsReviewScreen(),
-      keywords: const ['aprovar', 'contrato', 'certificado', 'ficheiros', 'documentos', 'seguro', 'tvde'],
-    ),
-    // [Recibos · 24/09] paridade admin do recibo automático por viagem (23/09).
-    AdminMenuItem(
-      id: 'tvde_recibos_viagem',
-      title: 'Recibos por viagem',
-      subtitle: 'O recibo que o passageiro recebe por email no fim da viagem: ver, reenviar, ligar/desligar o automático',
-      icon: Icons.receipt_long_outlined,
-      color: const Color(0xFF0EA5E9),
-      builder: () => const AdminTvdeRecibosScreen(),
-      keywords: const ['recibo', 'recibos', 'email', 'passageiro', 'viagem', 'reenviar', 'taxa', 'intermediacao', 'tvde'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_assinaturas',
-      title: 'Assinaturas',
-      subtitle: 'Dar assinatura a um cliente e ver as que estão ativas',
-      icon: Icons.card_membership,
-      color: Colors.deepPurple,
-      builder: () => const AdminTvdeSubscriptionsScreen(),
-      keywords: const ['assinatura', 'assinaturas', 'ativas', 'cliente', 'estao'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_pedidos_de_plano',
-      title: 'Pedidos de plano',
-      subtitle: 'Pedidos de plano feitos pelos clientes: aprovar e ativar',
-      icon: Icons.assignment_turned_in,
-      color: Colors.purple,
-      builder: () => const AdminTvdePlanRequestsScreen(),
-      keywords: const ['aprovar', 'ativar', 'clientes', 'feitos', 'pedidos', 'pelos', 'plano'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_reservas_corridas_agendadas',
-      title: 'Reservas (corridas agendadas)',
-      subtitle: 'Corridas marcadas com antecedência',
-      icon: Icons.event,
-      color: Colors.indigo,
-      builder: () => const AdminTvdeReservasScreen(),
-      keywords: const ['agendadas', 'antecedencia', 'corridas', 'marcadas', 'reservas'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_ida_e_volta',
-      title: 'Ida e volta',
-      subtitle: 'Pacotes de ida e volta: por usar, usados, expirados',
-      icon: Icons.sync_alt,
-      color: Colors.teal,
-      builder: () => const AdminTvdeRoundtripsScreen(),
-      keywords: const ['expirados', 'pacotes', 'usados', 'usar', 'volta'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_pagos_sem_corrida',
-      title: 'Pagos sem corrida criada',
-      subtitle: 'Cliente pagou e a corrida não nasceu: ligar ou resolver',
-      icon: Icons.report_problem,
-      color: Colors.red,
-      builder: () => const AdminTvdePagosSemCorridaScreen(),
-      keywords: const ['corrida', 'criada', 'ida', 'pagos', 'pagou', 'sem', 'volta'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_corridas_presas_no_pagamento',
-      title: 'Corridas presas no pagamento',
-      subtitle: 'Corridas cujo pagamento ficou preso',
-      icon: Icons.hourglass_bottom,
-      color: Colors.redAccent,
-      builder: () => const AdminTvdeStuckPaymentsScreen(),
-      keywords: const ['corridas', 'cujo', 'ficou', 'pagamento', 'presas', 'preso'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_dividas_em_dinheiro',
-      title: 'Dívidas em dinheiro',
-      subtitle: 'O que cada motorista deve à Bora das corridas pagas em dinheiro',
-      icon: Icons.account_balance_wallet,
-      color: Colors.brown,
-      builder: () => const AdminTvdeDriverDebtsScreen(),
-      keywords: const ['bora', 'cada', 'corridas', 'deve', 'dinheiro', 'dividas', 'motorista', 'pagas'],
-    ),
-    AdminMenuItem(
-      id: 'tvde_no_shows_tvde',
-      title: 'No-shows TVDE',
-      subtitle: 'Faltas de clientes nas corridas: ver e reverter',
-      icon: Icons.person_off,
-      color: const Color(0xFF0EA5E9),
-      builder: () => const AdminTvdeNoShowsScreen(),
-      keywords: const ['clientes', 'corridas', 'faltas', 'reverter', 'shows', 'tvde'],
-    ),
-    // [tvde-conformidade-lei-59-2026 · 30/09] Lei 45/2018 revista pela Lei 59/2026.
-    AdminMenuItem(
-      id: 'tvde_conformidade_imt_amt',
-      title: 'Conformidade TVDE (IMT/AMT)',
-      subtitle: 'Interruptor mestre das regras novas, operadores e veículos licenciados, impedimentos dos motoristas, documentos a caducar, horas, queixas, acesso da fiscalização, relatório AMT, teto de 25% e checklist para o licenciamento',
-      icon: Icons.verified_user_outlined,
-      color: const Color(0xFF0EA5E9),
-      builder: () => const AdminTvdeConformidadeScreen(),
-      keywords: const ['conformidade', 'tvde', 'imt', 'amt', 'lei', 'licenca', 'licenciamento', 'operador', 'veiculo', 'cmtvde', 'fiscalizacao', 'queixas', 'reclamacoes', 'horas', 'teto', 'intermediacao', 'checklist', 'distico', 'seguro'],
     ),
     ],
   ),
@@ -1336,7 +1142,7 @@ List<AdminMenuSection> adminMenuSections() => [
   AdminMenuSection(
     id: 'parceiros',
     title: 'Parceiros',
-    subtitle: 'Restaurantes e lojas: aprovar, editar, catálogo, WhatsApp.',
+    subtitle: 'Restaurantes, lojas e farmácias: aprovar, editar, catálogo, WhatsApp.',
     icon: Icons.storefront,
     color: Colors.purple,
     items: [
@@ -1348,6 +1154,37 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.purple,
       builder: () => const AdminPartnersScreen(),
       keywords: const ['dados', 'desligar', 'editar', 'ligar', 'lojas', 'parceiros', 'restaurantes'],
+    ),
+    // 11/11/2026 (farmácias): visibilidade por lista de permissão, receita e comissão extra.
+    // app-15-11 (auditoria S5): as três entradas das farmácias vieram da
+    // "Operação do dia" para aqui, com os mesmos ids.
+    AdminMenuItem(
+      id: 'farmacias',
+      title: 'Farmácias',
+      subtitle: 'Farmácia da Sé e Teixeira: e-mail de login e link de senha, dados da empresa (NIF, IBAN, certidão), horário e preços, receita, lista de permissão, comissão extra, abrir ao público, extrato semanal',
+      icon: Icons.local_pharmacy,
+      color: Colors.green,
+      builder: () => const AdminFarmaciasScreen(),
+      keywords: const ['farmacia', 'farmácia', 'receita', 'prescricao', 'prescrição', 'se', 'sé', 'teixeira', 'lista de permissao', 'escondida', 'comissao extra', 'email', 'e-mail', 'login', 'senha', 'nif', 'iban', 'certidao', 'certidão', 'horario', 'horário', 'extrato', 'receitas reais'],
+    ),
+    // 14/11/2026 (farmacias-loja): extrato semanal só de leitura das farmácias, com CSV.
+    AdminMenuItem(
+      id: 'farmacias_extrato',
+      title: 'Extrato das farmácias',
+      subtitle: 'Por semana e por farmácia: vendas na app, comissão, parte da farmácia, dinheiro em mão, comissão extra, saldo; exportar CSV',
+      icon: Icons.receipt,
+      color: Colors.green,
+      builder: () => const AdminFarmaciasScreen(abaInicial: 2),
+      keywords: const ['extrato', 'farmacia', 'farmácia', 'acerto', 'semana', 'csv', 'comissao extra'],
+    ),
+    AdminMenuItem(
+      id: 'pedidos_receita',
+      title: 'Pedidos de receita',
+      subtitle: 'Receitas e pedidos especiais às farmácias: estado, quem aceitou ou recusou e quando, forçar ou cancelar, exportar CSV',
+      icon: Icons.receipt_long,
+      color: Colors.green,
+      builder: () => const AdminFarmaciasScreen(abaInicial: 1),
+      keywords: const ['receita', 'prescricao', 'prescrição', 'farmacia', 'farmácia', 'medicamento', 'tenho receita', 'pedido especial'],
     ),
     AdminMenuItem(
       id: 'parceiros_alergenos',
@@ -1758,6 +1595,234 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.deepPurple,
       builder: () => const AdminSupportStatsScreen(),
       keywords: const ['automatico', 'custo', 'estatisticas', 'numeros', 'resolvidos', 'sessoes', 'suporte'],
+    ),
+    ],
+  ),
+  // 04/11/2026 (fechar-bora-motorista): o Bora Motorista fechou nas apps
+  // (sem licença do IMT). A secção passa a ser o ARQUIVO: tudo continua a
+  // abrir para consulta (o contabilista precisa), e o primeiro item é o
+  // interruptor `tvde_app_visivel` para reabrir quando a licença sair.
+  // O id 'tvde' fica igual (é o que os favoritos guardam).
+  // app-15-11 (auditoria S5): com o serviço fechado, a secção desceu para o
+  // fim do menu, logo antes do "Arquivado" (estava em 4.º lugar, no meio do
+  // que se usa todos os dias). Na busca, os resultados dela vêm depois dos
+  // das secções em uso.
+  AdminMenuSection(
+    id: 'tvde',
+    title: 'Arquivo — Bora Motorista (fechado)',
+    subtitle: 'Fechado nas apps desde 04/11/2026. Só consulta: corridas, pagamentos, recibos, acertos, motoristas, pedidos de acesso.',
+    icon: Icons.inventory_2_outlined,
+    color: const Color(0xFF64748B),
+    items: [
+    AdminMenuItem(
+      id: 'tvde_interruptor_app',
+      title: 'Interruptor do Bora Motorista',
+      subtitle: 'Fechado ou aberto nas apps (tvde_app_visivel): ver o estado, reabrir quando a licença do IMT sair, e quantas corridas estão guardadas',
+      icon: Icons.toggle_on_outlined,
+      color: const Color(0xFF64748B),
+      builder: () => const AdminBoraMotoristaFechadoScreen(),
+      keywords: const ['tvde', 'motorista', 'fechado', 'arquivo', 'interruptor', 'reabrir', 'licenca', 'imt', 'tvde_app_visivel', 'visivel'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_corridas',
+      title: 'Corridas',
+      subtitle: 'Todas as corridas: em curso, feitas, canceladas',
+      icon: Icons.local_taxi,
+      color: Colors.teal,
+      builder: () => const AdminTvdeRidesScreen(),
+      keywords: const ['canceladas', 'corridas', 'curso', 'feitas', 'todas'],
+    ),
+    // [A2 · 21/10/2026] Fila inteligente + carro a deslizar (paridade admin).
+    AdminMenuItem(
+      id: 'tvde_fila_inteligente',
+      title: 'Fila inteligente',
+      subtitle: 'Quem recebe cada corrida e por que ordem, ao vivo; ligar/desligar; tempo da oferta; histórico de recusas',
+      icon: Icons.format_list_numbered,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdeFilaScreen(),
+      keywords: const ['fila', 'ordem', 'oferta', 'recusou', 'expirou', 'despacho', 'motoristas', 'aceitacao', 'carro', 'mapa'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_pedidos_de_acesso',
+      title: 'Pedidos de acesso TVDE',
+      subtitle: 'Clientes que pediram para usar o Bora Motorista: aprovar ou recusar',
+      icon: Icons.how_to_reg,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdeAccessRequestsScreen(),
+      keywords: const ['acesso', 'pedidos', 'tvde', 'motorista', 'aprovar', 'recusar'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_chat_das_corridas',
+      title: 'Chat das corridas',
+      subtitle: 'Conversas entre cliente e motorista, por corrida, em hora de Lisboa',
+      icon: Icons.forum_outlined,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdeChatsScreen(),
+      keywords: const ['chat', 'conversa', 'mensagens', 'corridas', 'cliente', 'motorista'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_pagamentos',
+      title: 'Pagamentos das corridas',
+      subtitle: 'Quem pagou, quem não conseguiu pagar, e estorno',
+      icon: Icons.payments,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdePagamentosScreen(),
+      keywords: const [
+        'cartao', 'cobranca', 'estorno', 'falhou', 'mbway', 'pagamento',
+        'pagou', 'reembolso', 'stripe',
+      ],
+    ),
+    AdminMenuItem(
+      id: 'tvde_corridas_de_balcao',
+      title: 'Corridas de Balcão',
+      subtitle: 'Criar corrida por telefone para cliente sem app',
+      icon: Icons.phone_in_talk,
+      color: const Color(0xFF2563EB),
+      builder: () => const AdminTvdeBalcaoScreen(),
+      keywords: const ['balcao', 'cliente', 'ligou', 'sem app', 'telefone'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_agenda_de_clientes_de_balcao',
+      title: 'Agenda de Clientes de Balcão',
+      subtitle: 'Clientes sem app e as moradas guardadas deles',
+      icon: Icons.contacts,
+      color: const Color(0xFF2563EB),
+      builder: () => const AdminTvdeBalcaoAgendaScreen(),
+      keywords: const ['agenda', 'balcao', 'clientes', 'contactos', 'moradas'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_cancelamentos_de_corridas',
+      title: 'Cancelamentos de corridas',
+      // [17/10/2026] cancelamento tardio: o ecrã mostra e dá compensações.
+      subtitle: 'Corridas canceladas, taxas cobradas e compensação ao motorista',
+      icon: Icons.cancel_schedule_send,
+      color: Colors.redAccent,
+      builder: () => const AdminTvdeCancellationsScreen(),
+      keywords: const ['canceladas', 'cancelamentos', 'cobradas', 'compensacao', 'corridas', 'motorista', 'taxas'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_motoristas_de_passageiros',
+      title: 'Motoristas de passageiros',
+      subtitle: 'Motoristas: gerir, banir, saldo, avaliações',
+      icon: Icons.directions_car,
+      color: Colors.indigo,
+      builder: () => const AdminTvdeDriversScreen(),
+      keywords: const ['avaliacoes', 'banir', 'gerir', 'motoristas', 'passageiros', 'saldo'],
+    ),
+    // [Ficha legal · 23/09] O id fica o mesmo (é o que os favoritos
+    // guardam): quem tinha "Documentos TVDE" nos favoritos cai no hub novo.
+    AdminMenuItem(
+      id: 'tvde_documentos_tvde',
+      title: 'Documentos dos motoristas',
+      subtitle: 'Semáforo de validade (certificado IMT, carta, seguro, inspeção, dístico), editar ficha, bloqueio online',
+      icon: Icons.badge_outlined,
+      color: const Color(0xFF6366F1),
+      builder: () => const AdminMotoristasDocumentosScreen(),
+      keywords: const ['aprovar', 'carta', 'distico', 'documentos', 'fiscalizacao', 'imt', 'inspecao', 'motoristas', 'seguro', 'tvde', 'validade'],
+    ),
+    // 22/10 (documentos de todos os papéis): saiu do arquivo — o ecrã
+    // "Conformidade" da app do motorista regista aqui o contrato, o
+    // certificado e o seguro. Era o único sítio onde se viam os ficheiros.
+    AdminMenuItem(
+      id: 'arquivado_documentos_tvde_ficheiros',
+      title: 'Documentos TVDE (ficheiros)',
+      subtitle: 'Fotos enviadas pelos motoristas (contrato, certificado, seguro): ver em grande, aprovar ou recusar',
+      icon: Icons.fact_check_outlined,
+      color: const Color(0xFF6366F1),
+      builder: () => const AdminTvdeDocsReviewScreen(),
+      keywords: const ['aprovar', 'contrato', 'certificado', 'ficheiros', 'documentos', 'seguro', 'tvde'],
+    ),
+    // [Recibos · 24/09] paridade admin do recibo automático por viagem (23/09).
+    AdminMenuItem(
+      id: 'tvde_recibos_viagem',
+      title: 'Recibos por viagem',
+      subtitle: 'O recibo que o passageiro recebe por email no fim da viagem: ver, reenviar, ligar/desligar o automático',
+      icon: Icons.receipt_long_outlined,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdeRecibosScreen(),
+      keywords: const ['recibo', 'recibos', 'email', 'passageiro', 'viagem', 'reenviar', 'taxa', 'intermediacao', 'tvde'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_assinaturas',
+      title: 'Assinaturas',
+      subtitle: 'Dar assinatura a um cliente e ver as que estão ativas',
+      icon: Icons.card_membership,
+      color: Colors.deepPurple,
+      builder: () => const AdminTvdeSubscriptionsScreen(),
+      keywords: const ['assinatura', 'assinaturas', 'ativas', 'cliente', 'estao'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_pedidos_de_plano',
+      title: 'Pedidos de plano',
+      subtitle: 'Pedidos de plano feitos pelos clientes: aprovar e ativar',
+      icon: Icons.assignment_turned_in,
+      color: Colors.purple,
+      builder: () => const AdminTvdePlanRequestsScreen(),
+      keywords: const ['aprovar', 'ativar', 'clientes', 'feitos', 'pedidos', 'pelos', 'plano'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_reservas_corridas_agendadas',
+      title: 'Reservas (corridas agendadas)',
+      subtitle: 'Corridas marcadas com antecedência',
+      icon: Icons.event,
+      color: Colors.indigo,
+      builder: () => const AdminTvdeReservasScreen(),
+      keywords: const ['agendadas', 'antecedencia', 'corridas', 'marcadas', 'reservas'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_ida_e_volta',
+      title: 'Ida e volta',
+      subtitle: 'Pacotes de ida e volta: por usar, usados, expirados',
+      icon: Icons.sync_alt,
+      color: Colors.teal,
+      builder: () => const AdminTvdeRoundtripsScreen(),
+      keywords: const ['expirados', 'pacotes', 'usados', 'usar', 'volta'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_pagos_sem_corrida',
+      title: 'Pagos sem corrida criada',
+      subtitle: 'Cliente pagou e a corrida não nasceu: ligar ou resolver',
+      icon: Icons.report_problem,
+      color: Colors.red,
+      builder: () => const AdminTvdePagosSemCorridaScreen(),
+      keywords: const ['corrida', 'criada', 'ida', 'pagos', 'pagou', 'sem', 'volta'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_corridas_presas_no_pagamento',
+      title: 'Corridas presas no pagamento',
+      subtitle: 'Corridas cujo pagamento ficou preso',
+      icon: Icons.hourglass_bottom,
+      color: Colors.redAccent,
+      builder: () => const AdminTvdeStuckPaymentsScreen(),
+      keywords: const ['corridas', 'cujo', 'ficou', 'pagamento', 'presas', 'preso'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_dividas_em_dinheiro',
+      title: 'Dívidas em dinheiro',
+      subtitle: 'O que cada motorista deve à Bora das corridas pagas em dinheiro',
+      icon: Icons.account_balance_wallet,
+      color: Colors.brown,
+      builder: () => const AdminTvdeDriverDebtsScreen(),
+      keywords: const ['bora', 'cada', 'corridas', 'deve', 'dinheiro', 'dividas', 'motorista', 'pagas'],
+    ),
+    AdminMenuItem(
+      id: 'tvde_no_shows_tvde',
+      title: 'No-shows TVDE',
+      subtitle: 'Faltas de clientes nas corridas: ver e reverter',
+      icon: Icons.person_off,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdeNoShowsScreen(),
+      keywords: const ['clientes', 'corridas', 'faltas', 'reverter', 'shows', 'tvde'],
+    ),
+    // [tvde-conformidade-lei-59-2026 · 30/09] Lei 45/2018 revista pela Lei 59/2026.
+    AdminMenuItem(
+      id: 'tvde_conformidade_imt_amt',
+      title: 'Conformidade TVDE (IMT/AMT)',
+      subtitle: 'Interruptor mestre das regras novas, operadores e veículos licenciados, impedimentos dos motoristas, documentos a caducar, horas, queixas, acesso da fiscalização, relatório AMT, teto de 25% e checklist para o licenciamento',
+      icon: Icons.verified_user_outlined,
+      color: const Color(0xFF0EA5E9),
+      builder: () => const AdminTvdeConformidadeScreen(),
+      keywords: const ['conformidade', 'tvde', 'imt', 'amt', 'lei', 'licenca', 'licenciamento', 'operador', 'veiculo', 'cmtvde', 'fiscalizacao', 'queixas', 'reclamacoes', 'horas', 'teto', 'intermediacao', 'checklist', 'distico', 'seguro'],
     ),
     ],
   ),

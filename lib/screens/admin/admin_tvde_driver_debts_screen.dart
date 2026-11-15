@@ -53,13 +53,19 @@ class _AdminTvdeDriverDebtsScreenState
 
     // Nomes/telefones numa 2.ª query (evita depender de uma FK declarada entre
     // tvde_driver_balances e drivers).
+    // app-15-11 (S5): `tvde_driver_balances.driver_id` é o id da CONTA (auth
+    // user id) = `drivers.user_id`, não `drivers.id` (regra identidade-
+    // estafeta). Procurar por `drivers.id` só acertava 2 dos 6 motoristas; os
+    // outros apareciam sem nome.
     final ids = balances.map((b) => b['driver_id'].toString()).toList();
     final Map<String, Map<String, dynamic>> byId = {};
     try {
-      final drv =
-          await sb.from('drivers').select('id, name, phone').inFilter('id', ids);
+      final drv = await sb
+          .from('drivers')
+          .select('user_id, name, phone')
+          .inFilter('user_id', ids);
       for (final d in ((drv as List?) ?? const []).whereType<Map>()) {
-        byId[d['id'].toString()] = Map<String, dynamic>.from(d);
+        byId[d['user_id'].toString()] = Map<String, dynamic>.from(d);
       }
     } catch (_) {
       // Sem nomes ainda dá para gerir pelo id — não falha o ecrã por isso.

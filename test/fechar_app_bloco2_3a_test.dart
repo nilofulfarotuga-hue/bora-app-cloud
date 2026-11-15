@@ -221,6 +221,7 @@ void main() {
         ofertas: 0,
         historico: entregas(45),
         aoAbrirInicio: () {},
+        agora: () => DateTime.utc(2026, 11, 14, 13),
       )));
       expect(linhas(), findsNWidgets(20));
 
@@ -241,6 +242,7 @@ void main() {
         ofertas: 0,
         historico: entregas(20),
         aoAbrirInicio: () {},
+        agora: () => DateTime.utc(2026, 11, 14, 13),
       )));
       expect(linhas(), findsNWidgets(20));
       expect(verMais, findsNothing);
@@ -255,6 +257,7 @@ void main() {
         ofertas: 0,
         historico: entregas(20),
         aoAbrirInicio: () {},
+        agora: () => DateTime.utc(2026, 11, 14, 13),
         haMaisNoServidor: true,
         aoPedirMaisAntigas: () => pedidos++,
       )));
@@ -270,6 +273,7 @@ void main() {
         ofertas: 0,
         historico: entregas(3),
         aoAbrirInicio: () {},
+        agora: () => DateTime.utc(2026, 11, 14, 13),
         haMaisNoServidor: true,
         aCarregarMais: true,
       )));

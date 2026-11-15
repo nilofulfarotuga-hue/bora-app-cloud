@@ -81,12 +81,20 @@ import '../utils/pedido_agendado.dart';
 import '../utils/euros.dart';
 
 class DriverHomeScreen extends StatefulWidget {
-  const DriverHomeScreen({super.key, this.dentroDaBarra = false});
+  const DriverHomeScreen({
+    super.key,
+    this.dentroDaBarra = false,
+    this.aoAbrirGanhos,
+  });
 
   /// Bloco F (10/11/2026): `true` quando é o separador "Início" do
   /// [DriverMainScreen]. A barra de baixo já sobe a altura da faixa do
   /// trabalho em curso, por isso o cartão do Online não a soma outra vez.
   final bool dentroDaBarra;
+
+  /// app-15-11: dentro da barra, o toque em "Ganhos de hoje" salta para o
+  /// separador Ganhos em vez de abrir outro ecrã de Ganhos por cima.
+  final VoidCallback? aoAbrirGanhos;
 
   @override
   State<DriverHomeScreen> createState() => _DriverHomeScreenState();
@@ -1080,6 +1088,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
             // [10/10/2026] O que pode calar a oferta (volume do alarme, canal,
             // "Não incomodar"…) + "Corrigir". Nos DOIS desenhos (PADRAO 2.6).
             AvisoToqueBanner(ativo: isAvailable),
+            // app-15-11 (Danilo 15/11 10:14, "tira o que confunde"): com a
+            // barra de baixo o veículo vive no Perfil; aqui só ocupava lugar
+            // por cima da oferta e da entrega em curso.
+            if (!widget.dentroDaBarra)
             Card(
               margin: const EdgeInsets.only(bottom: 16),
               child: ListTile(
@@ -1184,7 +1196,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                           onReject: () => _handleRejectOrder(order, orderStore),
                         ),
                       ),
-                    if (orderStore.completedOrders.isNotEmpty) ...[
+                    // app-15-11: com a barra de baixo as entregas feitas vivem
+                    // no separador Pedidos (com período e total) — aqui eram
+                    // a mesma lista repetida.
+                    if (!widget.dentroDaBarra &&
+                        orderStore.completedOrders.isNotEmpty) ...[
                       const SizedBox(height: 24),
                       const Text(
                         "Entregas concluídas",
@@ -1390,7 +1406,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
                 children: [
-                  // Status chip
+                  // Status chip — app-15-11: dentro da barra sai; o cartão de
+                  // baixo já diz "À espera de pedidos…"/"Estás offline" ao
+                  // lado do interruptor (como na Uber: o estado vive em baixo).
+                  if (!widget.dentroDaBarra)
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -1469,7 +1488,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      GanhoDeHojeCard(recarregarQuando: orderStore),
+                      GanhoDeHojeCard(
+                        recarregarQuando: orderStore,
+                        aoTocar: widget.aoAbrirGanhos,
+                      ),
                       // Mapa simples de procura (adendo 4 · item 10, 29/10/2026):
                       // só leitura; some com o interruptor desligado.
                       const BotaoMapaProcuraEstafeta(),
@@ -2009,7 +2031,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                   EntregaMarcadaEstafeta(order: order),
                 ],
                 const SizedBox(height: 16),
-                Text("Status atual: ${order.status.label}"),
+                Text("Estado: ${order.status.label}"),
                 if (order.isPurchaseFinalized) ...[
                   const SizedBox(height: 8),
                   Container(
@@ -2264,7 +2286,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(ok
-                              ? 'Pedido de ajuda enviado. Ajudante ganha €4. (BR §5.2)'
+                              ? 'Pedido de ajuda enviado. Quem vier ajudar ganha 4 €.'
                               : 'Não foi possível pedir ajuda.'),
                         ),
                       );
@@ -2286,11 +2308,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
             const SizedBox(height: 6),
             // 25/10/2026 (Danilo): nome do cliente em destaque.
             ClienteNomeDestaque(nome: order.customerName, telefone: order.clientPhone, compacto: true),
-            const SizedBox(height: 4),
-            Text(
-              'Telefone do cliente: '
-              '${(order.clientPhone ?? '').isNotEmpty ? order.clientPhone! : 'Não disponível'}',
-            ),
+            // app-15-11: o telefone já aparece no nome em destaque e no botão
+            // "Ligar cliente" — a linha "Telefone do cliente:" repetia-o.
+            if ((order.clientPhone ?? '').isEmpty) ...[
+              const SizedBox(height: 4),
+              const Text('Telefone do cliente: Não disponível'),
+            ],
             const SizedBox(height: 4),
             Row(
               children: [
@@ -3095,7 +3118,8 @@ class _TokenChip extends StatelessWidget {
           const Icon(Icons.monetization_on, color: Colors.amber, size: 16),
           const SizedBox(width: 4),
           Text(
-            '$balance',
+            // app-15-11: só o número confundia — diz o que é.
+            '$balance tokens',
             style: const TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 13,
@@ -3511,7 +3535,7 @@ class _DriverOrderAlertCardState extends State<_DriverOrderAlertCard>
                     foregroundColor: Colors.orange.shade900,
                     side: BorderSide(color: Colors.orange.shade900),
                   ),
-                  child: const Text("Rejeitar"),
+                  child: const Text("Recusar"),
                 ),
               ),
               const SizedBox(width: 12),
@@ -3717,7 +3741,7 @@ class _AvailableOrderCardState extends State<_AvailableOrderCard> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: widget.onReject,
-                    child: const Text("Rejeitar"),
+                    child: const Text("Recusar"),
                   ),
                 ),
                 const SizedBox(width: 12),

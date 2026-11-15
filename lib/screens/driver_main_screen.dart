@@ -9,6 +9,7 @@ import '../stores/session_store.dart';
 import '../utils/euros.dart';
 import '../utils/hora_lisboa.dart';
 import '../utils/mensagem_online_recusado.dart' show mostraInterruptorOnline;
+import '../utils/periodo_entregas.dart';
 import '../widgets/atalho_trabalho_em_curso.dart';
 import '../widgets/bora/bora_barra_separadores.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
@@ -17,6 +18,8 @@ import 'driver/minha_conta_screen.dart';
 import 'driver_home_screen.dart';
 import 'ganhos_screen.dart';
 import 'profile_screen.dart';
+
+export '../utils/periodo_entregas.dart';
 
 /// Casa do estafeta com a barra de baixo (missão fechar-tudo, bloco F,
 /// 10/11/2026 — pedido do Danilo: "igual ao padrão Uber/Glovo").
@@ -150,7 +153,10 @@ class _DriverMainScreenState extends State<DriverMainScreen> {
         children: [
           // Sempre na mesma posição da árvore: nunca se desmonta ao trocar de
           // separador nem quando a conta passa de "em análise" a aprovada.
-          const DriverHomeScreen(dentroDaBarra: true),
+          DriverHomeScreen(
+            dentroDaBarra: true,
+            aoAbrirGanhos: () => _mudar(DriverMainScreen.ganhos),
+          ),
           _abertos.contains(DriverMainScreen.ganhos)
               ? GanhosScreen(key: ValueKey('ganhos_$_aberturasGanhos'))
               : const SizedBox.shrink(),
@@ -279,8 +285,8 @@ class PedidosEstafetaScreen extends StatelessWidget {
 
 /// O que se vê no separador "Pedidos": o que está em curso (os cartões com
 /// os botões continuam no Início, onde sempre estiveram — daqui só se salta
-/// para lá) e o histórico das entregas feitas, da mais recente para a mais
-/// antiga, com o que cada uma rendeu.
+/// para lá) e as entregas feitas no período escolhido, da mais recente para a
+/// mais antiga, com o total ganho no período em número grande.
 class PedidosEstafetaCorpo extends StatefulWidget {
   const PedidosEstafetaCorpo({
     super.key,
@@ -291,6 +297,7 @@ class PedidosEstafetaCorpo extends StatefulWidget {
     this.haMaisNoServidor = false,
     this.aCarregarMais = false,
     this.aoPedirMaisAntigas,
+    this.agora,
   });
 
   /// fechar-app-15-11 (Bloco 2): o histórico mostra-se às páginas de 20.
@@ -310,18 +317,32 @@ class PedidosEstafetaCorpo extends StatefulWidget {
   /// Pedir ao servidor a página seguinte (quando as que cá estão acabam).
   final VoidCallback? aoPedirMaisAntigas;
 
+  /// Relógio do ecrã (só os testes o fixam). Vazio = agora.
+  final DateTime Function()? agora;
+
   @override
   State<PedidosEstafetaCorpo> createState() => _PedidosEstafetaCorpoState();
 }
 
 class _PedidosEstafetaCorpoState extends State<PedidosEstafetaCorpo> {
   int _visiveis = PedidosEstafetaCorpo.porPagina;
+  PeriodoEntregas _periodo = PeriodoEntregas.estaSemana;
+  bool _aberto = true;
 
-  void _verMais() {
+  void _verMais(int noPeriodo) {
     setState(() => _visiveis += PedidosEstafetaCorpo.porPagina);
-    if (_visiveis > widget.historico.length && widget.haMaisNoServidor) {
+    if (_visiveis > noPeriodo && widget.haMaisNoServidor) {
       widget.aoPedirMaisAntigas?.call();
     }
+  }
+
+  void _escolher(PeriodoEntregas p) {
+    if (p == _periodo) return;
+    setState(() {
+      _periodo = p;
+      _visiveis = PedidosEstafetaCorpo.porPagina;
+      _aberto = true;
+    });
   }
 
   @override
@@ -329,9 +350,20 @@ class _PedidosEstafetaCorpoState extends State<PedidosEstafetaCorpo> {
     final emCurso = widget.emCurso;
     final ofertas = widget.ofertas;
     final aoAbrirInicio = widget.aoAbrirInicio;
-    final historico = widget.historico.take(_visiveis).toList();
-    final haMais =
-        widget.historico.length > _visiveis || widget.haMaisNoServidor;
+    final agora = (widget.agora ?? DateTime.now)();
+    final doPeriodo = widget.historico
+        .where((o) => entregaNoPeriodo(o.createdAt, _periodo, agora))
+        .toList();
+    final ganho = doPeriodo.fold<double>(0, (s, o) => s + o.driverEarnings);
+    final historico = doPeriodo.take(_visiveis).toList();
+    // O servidor manda as entregas da mais recente para a mais antiga: se a
+    // mais antiga que cá está ainda não é anterior ao período, pode haver
+    // mais do período lá.
+    final podeHaverMaisNoServidor = widget.haMaisNoServidor &&
+        (widget.historico.isEmpty ||
+            !diaLisboa(widget.historico.last.createdAt)
+                .isBefore(inicioDoPeriodo(_periodo, agora)));
+    final haMais = doPeriodo.length > _visiveis || podeHaverMaisNoServidor;
     const titulo = TextStyle(fontWeight: FontWeight.bold, fontSize: 16);
     final String? resumo = emCurso > 0
         ? (emCurso == 1 ? '1 pedido em curso' : '$emCurso pedidos em curso')
@@ -340,6 +372,10 @@ class _PedidosEstafetaCorpoState extends State<PedidosEstafetaCorpo> {
                 ? '1 oferta à espera de resposta'
                 : '$ofertas ofertas à espera de resposta')
             : null;
+    final n = doPeriodo.length;
+    // Total honesto: se ainda faltam entregas do período no servidor, diz-se.
+    final contagem = (n == 1 ? '1 entrega' : '$n entregas') +
+        (podeHaverMaisNoServidor ? ' (há mais por carregar)' : '');
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -372,45 +408,113 @@ class _PedidosEstafetaCorpoState extends State<PedidosEstafetaCorpo> {
           const SizedBox(height: 24),
           const Text('Histórico', style: titulo),
           const SizedBox(height: 8),
-          if (historico.isEmpty)
-            Card(
-              margin: EdgeInsets.zero,
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Text(
-                  'Ainda não há entregas concluídas.',
-                  key: const Key('pedidos_estafeta_historico_vazio'),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
-              ),
-            )
-          else
-            Card(
-              margin: EdgeInsets.zero,
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                children: [
-                  for (var i = 0; i < historico.length; i++) ...[
-                    if (i > 0) const Divider(height: 1),
-                    ListTile(
-                      key: ValueKey('pedido_feito_${historico[i].id}'),
-                      title: Text(historico[i].serviceType.label),
-                      subtitle: Text(
-                        '${dataHoraLisboa(historico[i].createdAt.toIso8601String())}'
-                        ' • ${eur(historico[i].total)}'
-                        ' • ${historico[i].distanceKm.toStringAsFixed(1)} km',
-                      ),
-                      trailing: Text(
-                        '+${eur(historico[i].driverEarnings)}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final p in PeriodoEntregas.values) ...[
+                  ChoiceChip(
+                    key: ValueKey('pedidos_estafeta_periodo_${p.name}'),
+                    label: Text(p.rotulo),
+                    selected: p == _periodo,
+                    selectedColor: AppColors.primary.withValues(alpha: 0.15),
+                    onSelected: (_) => _escolher(p),
+                  ),
+                  const SizedBox(width: 8),
                 ],
-              ),
+              ],
             ),
-          if (haMais) ...[
+          ),
+          const SizedBox(height: 8),
+          Card(
+            margin: EdgeInsets.zero,
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                InkWell(
+                  key: const Key('pedidos_estafeta_total'),
+                  onTap: () => setState(() => _aberto = !_aberto),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Ganhaste — ${_periodo.rotulo.toLowerCase()}',
+                                style: TextStyle(
+                                    color: Colors.grey.shade700, fontSize: 13),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                eur(ganho),
+                                key: const Key('pedidos_estafeta_total_valor'),
+                                style: const TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              Text(
+                                contagem,
+                                key: const Key(
+                                    'pedidos_estafeta_total_contagem'),
+                                style: TextStyle(color: Colors.grey.shade700),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          _aberto ? Icons.expand_less : Icons.expand_more,
+                          semanticLabel: _aberto
+                              ? 'Fechar a lista'
+                              : 'Abrir a lista',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_aberto) ...[
+                  const Divider(height: 1),
+                  if (historico.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Text(
+                        widget.historico.isEmpty
+                            ? 'Ainda não há entregas concluídas.'
+                            : 'Sem entregas neste período.',
+                        key: const Key('pedidos_estafeta_historico_vazio'),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey.shade700),
+                      ),
+                    )
+                  else
+                    for (var i = 0; i < historico.length; i++) ...[
+                      if (i > 0) const Divider(height: 1),
+                      ListTile(
+                        key: ValueKey('pedido_feito_${historico[i].id}'),
+                        title: Text(historico[i].serviceType.label),
+                        // Regra do ganho grande: o valor do cliente só em
+                        // pequeno e só quando ele pagou em dinheiro.
+                        subtitle: Text(
+                          '${dataHoraLisboa(historico[i].createdAt.toIso8601String())}'
+                          ' • ${historico[i].distanceKm.toStringAsFixed(1)} km'
+                          '${historico[i].paymentMethod == PaymentMethod.cash ? ' • dinheiro ${eur(historico[i].total)}' : ''}',
+                        ),
+                        trailing: Text(
+                          '+${eur(historico[i].driverEarnings)}',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                      ),
+                    ],
+                ],
+              ],
+            ),
+          ),
+          if (_aberto && haMais) ...[
             const SizedBox(height: 8),
             Center(
               child: widget.aCarregarMais
@@ -424,7 +528,7 @@ class _PedidosEstafetaCorpoState extends State<PedidosEstafetaCorpo> {
                     )
                   : TextButton(
                       key: const Key('pedidos_estafeta_ver_mais'),
-                      onPressed: _verMais,
+                      onPressed: () => _verMais(n),
                       child: const Text('Ver entregas mais antigas'),
                     ),
             ),

@@ -20,6 +20,7 @@ import 'admin_papeis_screen.dart';
 import 'admin_suspensao_comum.dart';
 import '../../utils/hora_lisboa_ext.dart';
 import '../../utils/hora_lisboa.dart';
+import '../../utils/periodo_entregas.dart';
 
 /// Full-screen admin detail for an approved driver. Pushed from
 /// `admin_drivers_screen` and from the "Aprovados" tab of
@@ -1731,56 +1732,129 @@ class _OrdersTab extends StatefulWidget {
   @override State<_OrdersTab> createState() => _OrdersTabState();
 }
 
+/// app-15-11 (paridade admin do separador Pedidos do estafeta): o mesmo
+/// seletor de período (hoje, esta semana, semana passada, este mês), com o
+/// total que o entregador ganhou e o número de entregas feitas no período.
+/// A conta do período é a mesma função do app ([entregaNoPeriodo]).
 class _OrdersTabState extends State<_OrdersTab> {
+  PeriodoEntregas _periodo = PeriodoEntregas.estaSemana;
   late Future<List<Map<String, dynamic>>> _f;
   @override void initState() { super.initState(); _f = _load(); }
+
+  /// Instante (UTC) da meia-noite de Lisboa do dia [dia] (data UTC 00:00).
+  DateTime _meiaNoite(DateTime dia) =>
+      instanteDeLisboa(DateTime(dia.year, dia.month, dia.day));
+
   Future<List<Map<String, dynamic>>> _load() async {
+    final agora = DateTime.now();
+    final de = _meiaNoite(inicioDoPeriodo(_periodo, agora));
+    final ateDia = _periodo == PeriodoEntregas.semanaPassada
+        ? inicioDoPeriodo(PeriodoEntregas.estaSemana, agora)
+        : diaLisboa(agora).add(const Duration(days: 1));
+    final ate = _meiaNoite(ateDia);
     final res = await Supabase.instance.client
         .from('orders')
-        .select('id, status, payment_method, final_total, created_at, '
-            'restaurant_id, restaurants(id, name)')
+        .select('id, status, payment_method, final_total, driver_earnings, '
+            'created_at, restaurant_id, restaurants(id, name)')
         .eq('assigned_driver_id', widget.driverId)
+        .gte('created_at', de.toUtc().toIso8601String())
+        .lt('created_at', ate.toUtc().toIso8601String())
         .order('created_at', ascending: false)
-        .limit(50);
-    return List<Map<String, dynamic>>.from(res);
+        .limit(500);
+    return List<Map<String, dynamic>>.from(res)
+        .where((o) {
+          final at = DateTime.tryParse((o['created_at'] as String?) ?? '');
+          return at != null && entregaNoPeriodo(at, _periodo, agora);
+        })
+        .toList();
   }
+
+  void _escolher(PeriodoEntregas p) {
+    if (p == _periodo) return;
+    setState(() {
+      _periodo = p;
+      _f = _load();
+    });
+  }
+
+  Widget _seletor() => SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+        child: Row(children: [
+          for (final p in PeriodoEntregas.values) ...[
+            ChoiceChip(
+              key: ValueKey('admin_estafeta_periodo_${p.name}'),
+              label: Text(p.rotulo),
+              selected: p == _periodo,
+              onSelected: (_) => _escolher(p),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ]),
+      );
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _f,
-      builder: (ctx, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snap.hasError) return Center(child: Text('Erro: ${snap.error}'));
-        final orders = snap.data ?? const [];
-        if (orders.isEmpty) {
-          return const Center(child: Text('Sem pedidos atribuídos.'));
-        }
-        return RefreshIndicator(
-          onRefresh: () async => setState(() => _f = _load()),
-          child: ListView.separated(
-            padding: const EdgeInsets.all(12),
-            itemCount: orders.length,
-            separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.divider),
-            itemBuilder: (_, i) {
-              final o = orders[i];
-              final at = DateTime.tryParse((o['created_at'] as String?) ?? '');
-              final restaurantName =
-                  (o['restaurants'] as Map?)?['name'] as String?;
-              return ListTile(
-                title: Text(restaurantName ?? 'Sem origem'),
-                subtitle: Text('${o['status']} · ${o['payment_method'] ?? '—'} · '
-                    '€${((o['final_total'] as num?) ?? 0).toStringAsFixed(2)}'),
-                trailing: Text(at == null ? '—' : _fmtDate(at),
-                    style: const TextStyle(fontSize: 11)),
-                dense: true,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _seletor(),
+        Expanded(
+          child: FutureBuilder<List<Map<String, dynamic>>>(
+            future: _f,
+            builder: (ctx, snap) {
+              if (snap.connectionState != ConnectionState.done) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snap.hasError) return Center(child: Text('Erro: ${snap.error}'));
+              final orders = snap.data ?? const [];
+              final entregues =
+                  orders.where((o) => o['status'] == 'delivered').toList();
+              final ganho = entregues.fold<double>(
+                  0, (s, o) => s + ((o['driver_earnings'] as num?) ?? 0));
+              final n = entregues.length;
+              return RefreshIndicator(
+                onRefresh: () async => setState(() => _f = _load()),
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: orders.length + 1,
+                  separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.divider),
+                  itemBuilder: (_, i) {
+                    if (i == 0) {
+                      return ListTile(
+                        key: const Key('admin_estafeta_total_periodo'),
+                        title: Text(
+                          'Ganhou €${ganho.toStringAsFixed(2)} — ${_periodo.rotulo.toLowerCase()}',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: Text(
+                          '$n ${n == 1 ? 'entrega feita' : 'entregas feitas'}'
+                          ' · ${orders.length} pedidos atribuídos no período'
+                          '${orders.length >= 500 ? ' (mostrando os 500 mais recentes)' : ''}',
+                        ),
+                      );
+                    }
+                    final o = orders[i - 1];
+                    final at = DateTime.tryParse((o['created_at'] as String?) ?? '');
+                    final restaurantName =
+                        (o['restaurants'] as Map?)?['name'] as String?;
+                    final ganhoPedido = (o['driver_earnings'] as num?) ?? 0;
+                    return ListTile(
+                      title: Text(restaurantName ?? 'Sem origem'),
+                      subtitle: Text('${o['status']} · ${o['payment_method'] ?? '—'} · '
+                          '€${((o['final_total'] as num?) ?? 0).toStringAsFixed(2)}'
+                          ' · ganho €${ganhoPedido.toStringAsFixed(2)}'),
+                      trailing: Text(at == null ? '—' : _fmtDate(at),
+                          style: const TextStyle(fontSize: 11)),
+                      dense: true,
+                    );
+                  },
+                ),
               );
             },
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 }

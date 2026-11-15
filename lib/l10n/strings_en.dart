@@ -16,6 +16,28 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 15/11/2026 (fechar-tudo-15-11, ponto E — Loja Online dentro da app, caixa 10):
+  // categoria dos produtos da loja Shopify da Bora, enviados pelo correio. À mão.
+  'Loja Online': 'Online Store',
+  'Novidade da semana': 'New this week',
+  'Produtos da nossa loja, enviados pelo correio para tua casa.':
+      'Products from our store, shipped by mail to your home.',
+  'A Loja Online da Bora está quase pronta. Volta em breve.':
+      'The Bora Online Store is almost ready. Come back soon.',
+  'Não foi possível carregar a loja. Tenta outra vez.':
+      'We could not load the store. Try again.',
+  'Ainda não há produtos nesta loja.': 'There are no products in this store yet.',
+  'Enviado pelo correio': 'Shipped by mail',
+  'Chega pelo correio em 1 dia útil': 'Arrives by mail in 1 working day',
+  'Chega pelo correio em {0} dias úteis': 'Arrives by mail in {0} working days',
+  'Chega pelo correio em {0} a {1} dias úteis':
+      'Arrives by mail in {0} to {1} working days',
+  'Preço final, com IVA e envio incluídos': 'Final price, VAT and shipping included',
+  'Sobre este produto': 'About this product',
+  'Sem fotografia': 'No photo',
+  'Encomendar': 'Order',
+  'Os pagamentos desta loja abrem em breve.': 'Payments for this store open soon.',
+  'Produto': 'Product',
   // 15/11/2026 (app-15-11, conversas ao vivo): aviso no chat do Amigo quando a
   // Equipa Bora assumiu a conversa e o servidor não mandou texto. À mão.
   'A Equipa Bora está a acompanhar esta conversa.':

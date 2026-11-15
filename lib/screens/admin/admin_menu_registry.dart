@@ -96,6 +96,7 @@ import 'admin_parceiros_termos_screen.dart';
 import 'admin_partners_pending_screen.dart';
 import 'admin_partners_screen.dart';
 import 'admin_area_parceiro_screen.dart';
+import 'admin_loja_online_screen.dart';
 import 'admin_payments_cards_screen.dart';
 import 'admin_pending_actions_screen.dart';
 import 'admin_platform_settings_screen.dart';
@@ -1257,6 +1258,17 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.brown,
       builder: () => const AdminCatalogScreen(),
       keywords: const ['cada', 'catalogo', 'desligar', 'ligar', 'parceiro', 'preco', 'produtos'],
+    ),
+    // 15/11/2026 (fechar-tudo-15-11, ponto E): Loja Online dentro do app.
+    AdminMenuItem(
+      id: 'parceiros_loja_online',
+      title: 'Loja Online',
+      subtitle: 'Produtos da loja Shopify da Bora dentro do app: ligar a categoria, '
+          'ativar produtos, destaque e nicho da semana (pagamentos ainda desligados)',
+      icon: Icons.storefront_outlined,
+      color: const Color(0xFF7C3AED),
+      builder: () => const AdminLojaOnlineScreen(),
+      keywords: const ['loja', 'online', 'shopify', 'dropshipping', 'pets', 'nicho', 'semana', 'correio', 'produtos', 'destaque'],
     ),
     AdminMenuItem(
       id: 'parceiros_deposito_volta',

@@ -38,6 +38,8 @@ import '../widgets/language_toggle.dart';
 import '../widgets/notification_bell.dart';
 import 'carry_groceries_screen.dart';
 import 'client/carwash/carwash_service_screen.dart';
+import 'client/loja_online/loja_online_screen.dart';
+import '../services/loja_online_service.dart';
 import 'client/casa/casa_categoria_screen.dart';
 import 'client/cleaning/cleaning_bookings_screen.dart';
 import 'client/services/services_category_screen.dart';
@@ -79,6 +81,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
   @override
   void initState() {
     super.initState();
+    // Loja Online (15/11/2026, fechar-tudo-15-11 ponto E): o ladrilho só
+    // aparece com loja_online_ativa ligada no painel.
+    LojaOnlineService.instance.ativa.addListener(_onLojaOnline);
+    LojaOnlineService.instance.atualizarInterruptor();
     // BUG #5 (2026-05-12) — observa lifecycle para re-checar pedidos avaliáveis
     // quando app volta ao foreground (não precisa reabrir manualmente).
     WidgetsBinding.instance.addObserver(this);
@@ -115,7 +121,12 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
     _perguntaPromocoes?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _orderStore?.removeListener(_onOrderStoreChanged);
+    LojaOnlineService.instance.ativa.removeListener(_onLojaOnline);
     super.dispose();
+  }
+
+  void _onLojaOnline() {
+    if (mounted) setState(() {});
   }
 
   // BUG #5 (2026-05-12) — quando a app volta ao foreground (resumed),
@@ -739,6 +750,24 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const CarwashServiceScreen()),
+          ),
+        ),
+      );
+    }
+
+    // Loja Online (15/11/2026, ponto E): os produtos da loja Shopify da Bora
+    // dentro do app, enviados pelo correio. Só com loja_online_ativa ligada no
+    // painel; até lá nada muda para o cliente. Usa o desenho das Lojas até
+    // haver um ladrilho próprio.
+    if (LojaOnlineService.instance.ativa.value) {
+      tiles.add(
+        _TileData(
+          label: 'Loja Online'.tr,
+          gradient: AppColors.tileStores,
+          imageAsset: 'assets/categories/cat_lojas.png',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const LojaOnlineScreen()),
           ),
         ),
       );

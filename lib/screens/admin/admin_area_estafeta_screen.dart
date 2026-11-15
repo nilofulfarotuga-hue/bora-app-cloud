@@ -648,7 +648,7 @@ class _AdminAreaEstafetaScreenState extends State<AdminAreaEstafetaScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: BoraScreenAppBar(
-        title: 'Área do estafeta',
+        title: 'Área do entregador',
         actions: [
           IconButton(
             tooltip: 'Atualizar tudo',

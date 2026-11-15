@@ -1010,10 +1010,10 @@ String rotuloRegistoAdmin(RegistoAdmin r, {required Set<String> idsDele}) {
     case 'tvde_set_work_mode':
       return 'Modo de trabalho: ${rotuloModoTrabalho(r.detalhes['mode'])}';
     case 'area_estafeta_modo_trabalho':
-      return 'Área do estafeta: modo de trabalho mudado para '
+      return 'Área do entregador: modo de trabalho mudado para '
           '${rotuloModoTrabalho(r.detalhes['depois'])}';
     case 'area_estafeta_entregue_sem_codigo':
-      return 'Área do estafeta: pedido marcado entregue sem código';
+      return 'Área do entregador: pedido marcado entregue sem código';
     case 'driver_set_online':
       return r.detalhes['depois'] == true ? 'Ligado pelo painel' : 'Desligado pelo painel';
     case 'order_estafeta_avancar':
@@ -1046,7 +1046,7 @@ String rotuloRegistoAdmin(RegistoAdmin r, {required Set<String> idsDele}) {
   }
   const prefixo = 'area_estafeta_';
   if (r.acao.startsWith(prefixo)) {
-    return 'Área do estafeta: ${r.acao.substring(prefixo.length).replaceAll('_', ' ')}';
+    return 'Área do entregador: ${r.acao.substring(prefixo.length).replaceAll('_', ' ')}';
   }
   return r.acao.replaceAll('_', ' ');
 }

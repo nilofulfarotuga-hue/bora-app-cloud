@@ -634,7 +634,13 @@ void main() {
       expect(sql, contains('security definer'));
       expect(sql, contains('enable row level security'));
       expect(sql, contains("('pets', 'Pets'"));
-      expect(sql, isNot(contains('current_user')),
+      // 15/11 (CI 308): só o código conta — o comentário da proposta explica
+      // justamente que a guarda é is_admin() e "nunca current_user".
+      final codigoSql = sql
+          .split('\n')
+          .map((l) => l.split('--').first)
+          .join('\n');
+      expect(codigoSql, isNot(contains('current_user')),
           reason: 'guarda por is_admin(), nunca current_user');
       expect(sql.toLowerCase(), isNot(contains('shpat_')),
           reason: 'nenhum token da Shopify no repo');

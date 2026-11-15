@@ -326,7 +326,7 @@ class _OverviewTab extends StatelessWidget {
           // faz na app (pedidos, ganhos, conta, documentos), tudo auditado.
           _ActionButton(
             icon: Icons.badge_outlined,
-            label: 'Área do estafeta (agir por ele)',
+            label: 'Área do entregador (agir por ele)',
             // Sem conta de login ligada (user_id vazio) os ganhos, a conta e os
             // documentos não têm de onde vir: o botão fica desligado e diz porquê.
             subtitle: driver['user_id'] == null

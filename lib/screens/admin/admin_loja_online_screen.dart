@@ -265,32 +265,16 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
 
   /// loja-nichos-15-11: fixar a posição de um produto (vazio = automática).
   Future<void> _produtoPosicao(LojaOnlineProduto p) async {
-    final campo = TextEditingController(text: p.ordemManual?.toString() ?? '');
-    final ok = await showDialog<bool>(
+    // Refinador 15/11: o diálogo é dono do seu campo (dispose no próprio diálogo).
+    final lido = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Posição de "${p.titulo}"'),
-        content: TextField(
-          key: const Key('loja_online_posicao_campo'),
-          controller: campo,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            labelText: 'Posição (1 = primeiro; vazio = pelas vendas)',
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Continuar')),
-        ],
+      builder: (_) => _PosicaoLojaOnlineDialog(
+        titulo: 'Posição de "${p.titulo}"',
+        inicial: p.ordemManual?.toString() ?? '',
       ),
     );
-    final texto = campo.text.trim();
-    campo.dispose();
-    if (ok != true || !mounted) return;
+    if (lido == null || !mounted) return;
+    final texto = lido.trim();
     final ordem = texto.isEmpty ? null : int.tryParse(texto);
     if (texto.isNotEmpty && (ordem == null || ordem < 1)) {
       _msg('A posição precisa ser um número a partir de 1.', erro: true);
@@ -619,7 +603,8 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
                 if (_subcategorias.any((sc) => sc.nichoId == p.nichoId))
                   DropdownButton<String?>(
                     key: Key('loja_online_subcategoria_${p.id}'),
-                    value: _subcategorias.any((sc) => sc.id == p.subcategoriaId)
+                    value: _subcategorias.any((sc) =>
+                            sc.id == p.subcategoriaId && sc.nichoId == p.nichoId)
                         ? p.subcategoriaId
                         : null,
                     hint: const Text('Subcategoria'),
@@ -645,6 +630,51 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PosicaoLojaOnlineDialog extends StatefulWidget {
+  const _PosicaoLojaOnlineDialog({required this.titulo, this.inicial = ''});
+
+  final String titulo;
+  final String inicial;
+
+  @override
+  State<_PosicaoLojaOnlineDialog> createState() =>
+      _PosicaoLojaOnlineDialogState();
+}
+
+class _PosicaoLojaOnlineDialogState extends State<_PosicaoLojaOnlineDialog> {
+  late final TextEditingController _c =
+      TextEditingController(text: widget.inicial);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.titulo),
+      content: TextField(
+        key: const Key('loja_online_posicao_campo'),
+        controller: _c,
+        keyboardType: TextInputType.number,
+        decoration: const InputDecoration(
+          labelText: 'Posição (1 = primeiro; vazio = pelas vendas)',
+        ),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar')),
+        FilledButton(
+            onPressed: () => Navigator.pop(context, _c.text.trim()),
+            child: const Text('Continuar')),
+      ],
     );
   }
 }

@@ -72,6 +72,9 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
   List<LojaOnlineProduto> _produtos = const [];
   List<LojaOnlineSubcategoria> _subcategorias = const [];
 
+  /// Juiz 15/11 (9): sem a N1 no servidor não se mostram os controlos dos nichos.
+  bool _n1Instalado = false;
+
   @override
   void initState() {
     super.initState();
@@ -92,12 +95,14 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
       final produtos = [...await _svc.listarProdutos()]
         ..sort(compararMaisVendidos);
       final subcategorias = await _svc.listarSubcategorias();
+      final n1 = subcategorias != null;
       if (!mounted) return;
       setState(() {
         _interruptor = interruptor;
         _nichos = nichos;
         _produtos = produtos;
-        _subcategorias = subcategorias;
+        _subcategorias = subcategorias ?? const [];
+        _n1Instalado = n1;
         _carregando = false;
       });
     } catch (e) {
@@ -283,11 +288,12 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
         ],
       ),
     );
-    if (ok != true || !mounted) return;
     final texto = campo.text.trim();
+    campo.dispose();
+    if (ok != true || !mounted) return;
     final ordem = texto.isEmpty ? null : int.tryParse(texto);
     if (texto.isNotEmpty && (ordem == null || ordem < 1)) {
-      _msg('A posição tem de ser um número a partir de 1.', erro: true);
+      _msg('A posição precisa ser um número a partir de 1.', erro: true);
       return;
     }
     final motivo = await _pedirMotivo(ordem == null
@@ -298,6 +304,39 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
     try {
       await _svc.produtoOrdem(id: p.id, ordemManual: ordem, motivo: motivo);
       _msg('Posição atualizada.');
+      await _carregar();
+    } catch (e) {
+      _msg(erroAdminLojaOnline(e), erro: true);
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
+  Future<void> _produtoSubcategoria(LojaOnlineProduto p, String? subId) async {
+    final nome = subId == null ? 'sem subcategoria' : _nomeSubcategoria(subId);
+    final motivo = await _pedirMotivo('Pôr "${p.titulo}" em $nome?');
+    if (motivo == null || !mounted) return;
+    setState(() => _ocupado = true);
+    try {
+      await _svc.produtoSubcategoria(id: p.id, subcategoriaId: subId, motivo: motivo);
+      _msg('Subcategoria atualizada.');
+      await _carregar();
+    } catch (e) {
+      _msg(erroAdminLojaOnline(e), erro: true);
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
+  Future<void> _subcategoriaAtivo(LojaOnlineSubcategoria sc, bool ativo) async {
+    final motivo = await _pedirMotivo(
+        ativo ? 'Ligar a subcategoria "${sc.nome}"?' : 'Desligar a subcategoria "${sc.nome}"?',
+        explicacao: 'Desligada, some da loja do cliente; os produtos continuam em "Todos".');
+    if (motivo == null || !mounted) return;
+    setState(() => _ocupado = true);
+    try {
+      await _svc.subcategoriaAtivo(id: sc.id, ativo: ativo, motivo: motivo);
+      _msg('Subcategoria atualizada.');
       await _carregar();
     } catch (e) {
       _msg(erroAdminLojaOnline(e), erro: true);
@@ -422,9 +461,10 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
                   subtitle: Text([
                     '${_produtos.where((p) => p.nichoId == n.id && p.ativo).length} '
                         'produto(s) ativo(s)',
-                    n.publico
-                        ? 'aberto a todos'
-                        : 'fechado: só admin e lista de permissão',
+                    if (_n1Instalado)
+                      n.publico
+                          ? 'aberto a todos'
+                          : 'fechado: só admin e lista de permissão',
                     if (!n.ativo) 'nicho desligado',
                     if (semana == n && n.destaqueDesde != null)
                       'nicho da semana desde ${_diaMes(n.destaqueDesde)}',
@@ -433,11 +473,12 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     spacing: 4,
                     children: [
-                      Switch(
-                        key: Key('loja_online_nicho_publico_${n.id}'),
-                        value: n.publico,
-                        onChanged: _ocupado ? null : (v) => _nichoPublico(n, v),
-                      ),
+                      if (_n1Instalado)
+                        Switch(
+                          key: Key('loja_online_nicho_publico_${n.id}'),
+                          value: n.publico,
+                          onChanged: _ocupado ? null : (v) => _nichoPublico(n, v),
+                        ),
                       semana == n
                           ? const Chip(label: Text('Em destaque'))
                           : TextButton(
@@ -449,6 +490,20 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
                     ],
                   ),
                 ),
+              for (final n in _nichos)
+                if (_subcategorias.any((sc) => sc.nichoId == n.id))
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      for (final sc in _subcategorias.where((sc) => sc.nichoId == n.id))
+                        FilterChip(
+                          key: Key('loja_online_subcategoria_ativa_${sc.id}'),
+                          label: Text('${n.nome} › ${sc.nome}'),
+                          selected: sc.ativo,
+                          onSelected: _ocupado ? null : (v) => _subcategoriaAtivo(sc, v),
+                        ),
+                    ],
+                  ),
           ],
         ),
       ),
@@ -561,6 +616,25 @@ class _AdminLojaOnlineScreenState extends State<AdminLojaOnlineScreen> {
                         : (v) => _produtoEstado(p, destaque: v),
                   ),
                 ),
+                if (_subcategorias.any((sc) => sc.nichoId == p.nichoId))
+                  DropdownButton<String?>(
+                    key: Key('loja_online_subcategoria_${p.id}'),
+                    value: _subcategorias.any((sc) => sc.id == p.subcategoriaId)
+                        ? p.subcategoriaId
+                        : null,
+                    hint: const Text('Subcategoria'),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                          value: null, child: Text('sem subcategoria')),
+                      for (final sc in _subcategorias.where((sc) => sc.nichoId == p.nichoId))
+                        DropdownMenuItem<String?>(value: sc.id, child: Text(sc.nome)),
+                    ],
+                    onChanged: _ocupado
+                        ? null
+                        : (v) {
+                            if (v != p.subcategoriaId) _produtoSubcategoria(p, v);
+                          },
+                  ),
                 TextButton(
                   key: Key('loja_online_posicao_${p.id}'),
                   onPressed: _ocupado ? null : () => _produtoPosicao(p),

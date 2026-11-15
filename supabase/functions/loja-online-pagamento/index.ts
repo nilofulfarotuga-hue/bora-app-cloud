@@ -185,7 +185,13 @@ Deno.serve(async (req: Request) => {
     const { data: nichoVisivel, error: nvErr } = await userClient.rpc('loja_online_nicho_visivel', {
       p_nicho_id: produto.nicho_id,
     });
-    if (!nvErr && nichoVisivel !== true) return json({ error: 'produto_indisponivel' }, 404);
+    if (nvErr) {
+      // Juiz 15/11 (3): so a funcao por instalar deixa seguir; outro erro fecha.
+      const emFalta = nvErr.code === 'PGRST202' || nvErr.code === '42883';
+      if (!emFalta) return json({ error: 'erro_servidor' }, 503);
+    } else if (nichoVisivel !== true) {
+      return json({ error: 'produto_indisponivel' }, 404);
+    }
     const totalCents = produto.preco_bora_cents * quantidade;
     if (totalCents < 50) return json({ error: 'abaixo_do_minimo' }, 400);
 

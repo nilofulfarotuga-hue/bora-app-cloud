@@ -100,8 +100,12 @@ class _CheckoutLojaOnlineScreenState extends State<CheckoutLojaOnlineScreen> {
 
   void _usarMorada(ClientAddress a) {
     _moradaEscolhida = a.id;
+    // Juiz 15/11 (8): sem rua guardada, fica a linha só até ao código postal.
+    var base = a.address.trim();
+    final corte = base.indexOf(RegExp(r'[0-9]{4}-?[0-9]{3}'));
+    if (corte > 0) base = base.substring(0, corte).replaceAll(RegExp(r'[,\s]+$'), '');
     final rua = [
-      (a.street ?? '').trim().isNotEmpty ? a.street!.trim() : a.address.trim(),
+      (a.street ?? '').trim().isNotEmpty ? a.street!.trim() : base,
       if ((a.details ?? '').trim().isNotEmpty) a.details!.trim(),
     ].join(', ');
     _morada.text = rua;

@@ -54,6 +54,10 @@ const String kLojaOnlineColunasClienteNichos = '$kLojaOnlineColunasCliente, '
 const String kLojaOnlineTabelaSubcategorias = 'loja_online_subcategorias';
 const String kLojaOnlineRpcNichoPublico = 'admin_loja_online_nicho_publico';
 const String kLojaOnlineRpcProdutoOrdem = 'admin_loja_online_produto_ordem';
+const String kLojaOnlineRpcProdutoSubcategoria =
+    'admin_loja_online_produto_subcategoria';
+const String kLojaOnlineRpcSubcategoriaAtivo =
+    'admin_loja_online_subcategoria_ativo';
 
 /// A mesma frase que `humanizeAdminRpcError` dá a uma função por instalar
 /// (PGRST202); aqui serve também para tabela ou chave em falta.
@@ -349,14 +353,41 @@ class LojaOnlineAdminService {
     });
   }
 
-  Future<List<LojaOnlineSubcategoria>> listarSubcategorias() async {
+  /// null quando a proposta N1 ainda não está no servidor (sem tabela).
+  Future<List<LojaOnlineSubcategoria>?> listarSubcategorias() async {
     try {
       final linhas = await _lerTabela(kLojaOnlineTabelaSubcategorias);
       return linhas.map(LojaOnlineSubcategoria.fromJson).toList(growable: false);
     } catch (e) {
-      if (lojaOnlineServidorEmFalta(e)) return const [];
+      if (lojaOnlineServidorEmFalta(e)) return null;
       rethrow;
     }
+  }
+
+  /// Mudar a subcategoria de um produto (null = sem subcategoria).
+  Future<void> produtoSubcategoria({
+    required String id,
+    required String? subcategoriaId,
+    required String motivo,
+  }) async {
+    await _rpc(kLojaOnlineRpcProdutoSubcategoria, {
+      'p_id': id,
+      'p_subcategoria_id': subcategoriaId,
+      'p_motivo': motivo,
+    });
+  }
+
+  /// Ligar/desligar uma subcategoria (desligada some da montra).
+  Future<void> subcategoriaAtivo({
+    required String id,
+    required bool ativo,
+    required String motivo,
+  }) async {
+    await _rpc(kLojaOnlineRpcSubcategoriaAtivo, {
+      'p_id': id,
+      'p_ativo': ativo,
+      'p_motivo': motivo,
+    });
   }
 
   Future<void> nichoDaSemana({

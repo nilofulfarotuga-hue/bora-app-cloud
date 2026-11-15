@@ -14,6 +14,10 @@
 -- 1. Nichos: interruptor proprio --------------------------------------------------------------------
 alter table public.loja_online_nichos
   add column if not exists publico boolean not null default false;
+-- Juiz 15/11 (4): se a loja ja estiver aberta a todos quando isto for aplicado, o Pets continua aberto.
+-- (SELECT de 15/11 ~20:10: loja_online_ativa=false, por isso hoje nao muda nada.)
+update public.loja_online_nichos set publico = true
+ where slug = 'pets' and public._setting_txt('loja_online_ativa', 'false') = 'true';
 comment on column public.loja_online_nichos.publico is
   'true = o nicho esta aberto a todos os clientes (com loja_online_ativa=true). Nasce false: so admin e lista de permissao o veem ate o Danilo dizer abrir.';
 
@@ -110,6 +114,12 @@ begin
     update public.loja_online_produtos
        set vendas_loja = vendas_loja + greatest(new.quantidade, 0)
      where id = new.produto_id;
+  -- Juiz 15/11 (2): uma venda paga que e cancelada deixa de contar.
+  elsif new.estado = 'cancelada'
+        and old.estado in ('paga', 'encomendada_fornecedor', 'enviada', 'entregue') then
+    update public.loja_online_produtos
+       set vendas_loja = greatest(vendas_loja - greatest(new.quantidade, 0), 0)
+     where id = new.produto_id;
   end if;
   return new;
 end;
@@ -164,6 +174,74 @@ $$;
 revoke all on function public.admin_loja_online_produto_ordem(uuid, integer, text) from public, anon;
 grant execute on function public.admin_loja_online_produto_ordem(uuid, integer, text) to authenticated;
 
+-- Juiz 15/11 (1): o painel muda a subcategoria de um produto (so do mesmo nicho)...
+create or replace function public.admin_loja_online_produto_subcategoria(p_id uuid, p_subcategoria_id uuid, p_motivo text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v_nicho uuid; v_antes uuid;
+begin
+  if not public.is_admin() then raise exception 'admin_required' using errcode = '42501'; end if;
+  if p_motivo is null or length(trim(p_motivo)) < 3 then raise exception 'reason_required' using errcode = '22023'; end if;
+  select nicho_id, subcategoria_id into v_nicho, v_antes from public.loja_online_produtos where id = p_id for update;
+  if not found then raise exception 'produto_nao_encontrado' using errcode = 'P0002'; end if;
+  if p_subcategoria_id is not null and not exists (
+       select 1 from public.loja_online_subcategorias s where s.id = p_subcategoria_id and s.nicho_id = v_nicho) then
+    raise exception 'subcategoria_de_outro_nicho' using errcode = '22023';
+  end if;
+  update public.loja_online_produtos set subcategoria_id = p_subcategoria_id, atualizado_em = now() where id = p_id;
+  perform public.log_admin_action('loja_online_produto_subcategoria'::text, 'loja_online_produto'::text, p_id::text,
+    jsonb_build_object('motivo', trim(p_motivo), 'antes', v_antes, 'depois', p_subcategoria_id));
+  return jsonb_build_object('ok', true, 'id', p_id, 'subcategoria_id', p_subcategoria_id);
+end;
+$$;
+revoke all on function public.admin_loja_online_produto_subcategoria(uuid, uuid, text) from public, anon;
+grant execute on function public.admin_loja_online_produto_subcategoria(uuid, uuid, text) to authenticated;
+
+-- ... e liga/desliga uma subcategoria (desligada some da montra; os produtos ficam em "Todos").
+create or replace function public.admin_loja_online_subcategoria_ativo(p_id uuid, p_ativo boolean, p_motivo text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare v public.loja_online_subcategorias%rowtype;
+begin
+  if not public.is_admin() then raise exception 'admin_required' using errcode = '42501'; end if;
+  if p_motivo is null or length(trim(p_motivo)) < 3 then raise exception 'reason_required' using errcode = '22023'; end if;
+  if p_ativo is null then raise exception 'nada_a_mudar' using errcode = '22023'; end if;
+  update public.loja_online_subcategorias set ativo = p_ativo where id = p_id returning * into v;
+  if not found then raise exception 'subcategoria_nao_encontrada' using errcode = 'P0002'; end if;
+  perform public.log_admin_action('loja_online_subcategoria_ativo'::text, 'loja_online_subcategoria'::text, p_id::text,
+    jsonb_build_object('motivo', trim(p_motivo), 'slug', v.slug, 'ativo', p_ativo));
+  return jsonb_build_object('ok', true, 'id', v.id, 'ativo', v.ativo);
+end;
+$$;
+revoke all on function public.admin_loja_online_subcategoria_ativo(uuid, boolean, text) from public, anon;
+grant execute on function public.admin_loja_online_subcategoria_ativo(uuid, boolean, text) to authenticated;
+
+-- Juiz 15/11 (5): a base recusa um produto com subcategoria de outro nicho.
+create or replace function public._loja_online_sub_do_nicho()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if new.subcategoria_id is not null and not exists (
+       select 1 from public.loja_online_subcategorias s where s.id = new.subcategoria_id and s.nicho_id = new.nicho_id) then
+    raise exception 'subcategoria_de_outro_nicho' using errcode = '22023';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists trg_loja_online_sub_do_nicho on public.loja_online_produtos;
+create trigger trg_loja_online_sub_do_nicho
+  before insert or update of subcategoria_id, nicho_id on public.loja_online_produtos
+  for each row execute function public._loja_online_sub_do_nicho();
+
 -- 6. Pets: 5 subcategorias e os 11 produtos que ja estao no ar -----------------------------------------
 insert into public.loja_online_subcategorias (nicho_id, slug, nome, ordem)
 select n.id, s.slug, s.nome, s.ordem
@@ -191,6 +269,7 @@ update public.loja_online_produtos p
   ) as v(spid, sub, listas)
   join public.loja_online_subcategorias s on s.slug = v.sub
   join public.loja_online_nichos n on n.id = s.nicho_id and n.slug = 'pets'
- where p.shopify_product_id = v.spid;
+ where p.shopify_product_id = v.spid
+   and p.nicho_id = n.id;
 
 -- Prova sugerida (em rollback): ver o bloco de prova no fim do e2e_log (passo N1).

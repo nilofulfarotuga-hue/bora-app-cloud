@@ -119,6 +119,12 @@ class _VitrineState extends State<_Vitrine> {
   /// Subcategoria escolhida por nicho (ausente = "Todos").
   final Map<String, String?> _sub = {};
 
+  /// A escolhida, só se ainda existir neste nicho; senão "Todos" (null).
+  String? _valida(LojaOnlineNichoComProdutos g) {
+    final e = _sub[g.nicho.id];
+    return g.subcategorias.any((s) => s.id == e) ? e : null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final vitrine = widget.vitrine;
@@ -200,6 +206,7 @@ class _VitrineState extends State<_Vitrine> {
             style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
           if (grupo.subcategorias.isNotEmpty) ...[
+            // Juiz 15/11 (7): se a subcategoria escolhida desaparecer, volta a "Todos".
             const SizedBox(height: Spacing.sm),
             SizedBox(
               height: 40,
@@ -211,7 +218,7 @@ class _VitrineState extends State<_Vitrine> {
                     padding: const EdgeInsets.only(right: Spacing.sm),
                     child: ChoiceChip(
                       label: Text('Todos'.tr),
-                      selected: _sub[grupo.nicho.id] == null,
+                      selected: _valida(grupo) == null,
                       onSelected: (_) =>
                           setState(() => _sub.remove(grupo.nicho.id)),
                     ),
@@ -222,7 +229,7 @@ class _VitrineState extends State<_Vitrine> {
                       child: ChoiceChip(
                         key: Key('loja_online_sub_${sc.slug}'),
                         label: Text(sc.nome),
-                        selected: _sub[grupo.nicho.id] == sc.id,
+                        selected: _valida(grupo) == sc.id,
                         onSelected: (_) =>
                             setState(() => _sub[grupo.nicho.id] = sc.id),
                       ),
@@ -233,7 +240,7 @@ class _VitrineState extends State<_Vitrine> {
           ],
           const SizedBox(height: Spacing.md),
           Builder(builder: (context) {
-            final lista = grupo.daSubcategoria(_sub[grupo.nicho.id]);
+            final lista = grupo.daSubcategoria(_valida(grupo));
             return GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),

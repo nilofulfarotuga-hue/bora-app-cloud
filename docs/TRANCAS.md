@@ -638,3 +638,9 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   Claude.ai") porque o comando tinha tubo (`| tail`), a 2.ª já para `ai/2026-11-15-artes-farmacias-v2`. Na forma simples
   (`git push origin ai/2026-11-15-artes-farmacias-v2`) passou. O nome `artes-farmacias-v2` pedido pela Claude.ai não tem
   `ai/`, por isso ficou no ramo de ensaio, pedido de revisão #21 em rascunho (e2e_log 9292 e 9295).
+  (9) ~17:50: o ajudante 2 (produtos da Celeste, do Tonico e da Malu) viu a trava do modo automático recusar o script
+  que juntava os passos de envio: "TRAVA do modo automatico: BLOQUEADO - script de publicacao (...scratchpad/aj2/publicar.sh):
+  publica a Claude.ai. Nao contornes: regista no e2e_log, reporta e segue com o resto." Ele não mudou o nome ao script.
+  Correu os comandos um a um e enviou só com `git push origin ai/2026-11-15-produtos-celeste-tonico`, que passou
+  (ramo ai/, só imagens e textos para a Claude.ai ver). Fica para a Claude.ai dizer se isto conta como contornar
+  (e2e_log 9431 e a linha deste registo).

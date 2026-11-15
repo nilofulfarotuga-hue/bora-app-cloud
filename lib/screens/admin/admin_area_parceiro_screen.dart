@@ -14,9 +14,12 @@
 // caminhos delas, já provados; o "entregue sem código" passa pelo serviço.
 //
 // Cada ação que muda alguma coisa pede confirmação com motivo (mínimo 3
-// letras). O que o parceiro faz e o servidor ainda não deixa o admin fazer
-// (aceitar, recusar, marcar pronto, retirada no balcão, falta de item, decidir
-// reservas) aparece desligado com a frase kAreaParceiroFraseFuncaoNova.
+// letras). Aceitar, recusar, marcar pronto, os passos da retirada no balcão,
+// decidir reservas e "Cliente chegou" usam as funções admin_loja_* (15/11):
+// cada pedido e cada reserva mostram só a ação válida para o estado deles, e
+// essas funções já gravam o motivo no log de auditoria. O que o servidor
+// ainda não deixa o admin fazer (falta de item) aparece desligado com a frase
+// kAreaParceiroFraseFuncaoNova.
 //
 // Dinheiro: só leitura, nenhum botão de pagamento. Preços: na ficha da loja.
 
@@ -55,6 +58,30 @@ const String kAreaParceiroFraseFuncaoNova =
 const String kAreaParceiroEscolhaLoja =
     'Escolha a loja para agir por ela, como o parceiro faz no app dele.';
 
+/// Aviso antes de recusar um pedido (o gatilho de reembolso do servidor
+/// devolve sozinho o que foi pago com cartão ou MB WAY).
+const String kAreaParceiroAvisoRecusar =
+    'O cliente é avisado e, se pagou com cartão ou MB WAY, o dinheiro volta '
+    'sozinho.';
+
+/// Aviso antes de marcar pronto um pedido de entrega.
+const String kAreaParceiroAvisoPronto = 'Isto chama um estafeta.';
+
+/// Aviso antes de marcar que o cliente retirou o pedido no balcão.
+const String kAreaParceiroAvisoRetirou =
+    'Use só quando o cliente já levou o pedido. Não dá para desfazer.';
+
+/// Aviso antes de "Cliente chegou" (mexe no pré-pagamento da reserva).
+const String kAreaParceiroAvisoChegada =
+    'Isso mexe no pré-pagamento de 3 € da reserva: o cliente ganha um crédito '
+    'para gastar nesta loja e a loja passa a ter esse valor a receber no '
+    'fechamento da semana. Não dá para desfazer.';
+
+/// O que a reserva paga diz no lugar do botão Recusar.
+const String kAreaParceiroReservaPaga =
+    'Reserva paga: para recusar use Cancelar reserva (na lista de reservas), '
+    'que devolve o dinheiro ao cliente.';
+
 /// As seis secções: chave, título e a frase do que cada uma serve.
 const List<(String, String, String)> kAreaParceiroSecoes =
     <(String, String, String)>[
@@ -85,7 +112,8 @@ const List<(String, String, String)> kAreaParceiroSecoes =
   (
     'reservas',
     'Reservas e marcações',
-    'Para ver quantas reservas de mesa a loja tem e abrir a lista completa.',
+    'Para ver as reservas de mesa da loja, aceitar ou recusar como ela e marcar '
+        'a chegada do cliente.',
   ),
   (
     'historico',
@@ -132,6 +160,10 @@ String _erroLegivel(Object e) {
   if (e is AreaParceiroErro) return e.mensagem;
   if (e is PostgrestException) {
     final m = e.message;
+    // As marcas das admin_loja_* e de admin_pedidos_da_loja ('reserva_paga'
+    // e a guarda de admin seguem para humanizeAdminRpcError).
+    final daLoja = erroDaLojaEmPalavras(m);
+    if (daLoja != null) return daLoja;
     if (m.contains('reason required')) return 'Escreva o motivo (mínimo 3 letras).';
     if (m.contains('restaurant not found')) return 'Loja não encontrada.';
     if (m.contains('product not found')) return 'Produto não encontrado.';
@@ -186,6 +218,9 @@ class _AdminAreaParceiroScreenState extends State<AdminAreaParceiroScreen> {
   Set<String> _telefone = const <String>{};
   String? _erroPedidos;
   bool _aCarregarPedidos = false;
+
+  /// A lista veio do caminho antigo (pedidos ao vivo, pelo nome da loja).
+  bool _pedidosPeloNome = false;
 
   List<ProdutoDoMenu> _menu = const <ProdutoDoMenu>[];
   String? _erroMenu;
@@ -274,6 +309,16 @@ class _AdminAreaParceiroScreenState extends State<AdminAreaParceiroScreen> {
     ]);
   }
 
+  Future<void> _recarregarReservasEHistorico() async {
+    final id = _lojaId;
+    if (id == null) return;
+    final g = _geracao;
+    await Future.wait<void>(<Future<void>>[
+      _carregarReservas(id, g),
+      _carregarHistorico(id, g),
+    ]);
+  }
+
   Future<void> _carregarLoja(String id, int g) async {
     if (!_vale(id, g)) return;
     setState(() {
@@ -298,21 +343,15 @@ class _AdminAreaParceiroScreenState extends State<AdminAreaParceiroScreen> {
 
   Future<void> _carregarPedidos(String id, int g) async {
     if (!_vale(id, g)) return;
-    final nome = _loja?.nome;
-    if (nome == null) {
-      setState(() {
-        _pedidos = const <PedidoDaLoja>[];
-        _aCarregarPedidos = false;
-        _erroPedidos = 'Sem os dados da loja não dá para listar os pedidos.';
-      });
-      return;
-    }
     setState(() {
       _aCarregarPedidos = true;
       _erroPedidos = null;
     });
     try {
-      final lista = await _api.pedidosAgora(nomeLoja: nome);
+      // Pelo id da loja; o nome só serve ao caminho antigo, se a função falhar.
+      final resposta =
+          await _api.pedidosAgora(restaurantId: id, nomeLoja: _loja?.nome ?? '');
+      final lista = resposta.pedidos;
       var recebe = const <String, int>{};
       var telefone = const <String>{};
       try {
@@ -328,6 +367,7 @@ class _AdminAreaParceiroScreenState extends State<AdminAreaParceiroScreen> {
       if (!_vale(id, g)) return;
       setState(() {
         _pedidos = lista;
+        _pedidosPeloNome = resposta.peloNome;
         _recebeCents = recebe;
         _telefone = telefone;
         _aCarregarPedidos = false;
@@ -442,6 +482,7 @@ class _AdminAreaParceiroScreenState extends State<AdminAreaParceiroScreen> {
       _lojaId = null;
       _loja = null;
       _pedidos = const <PedidoDaLoja>[];
+      _pedidosPeloNome = false;
       _recebeCents = const <String, int>{};
       _telefone = const <String>{};
       _menu = const <ProdutoDoMenu>[];
@@ -485,6 +526,9 @@ class _AdminAreaParceiroScreenState extends State<AdminAreaParceiroScreen> {
   bool _pedidoOcupado(String pedidoId) =>
       _aCorrer.any((k) => k.startsWith('pedido:') && k.endsWith(':$pedidoId'));
 
+  bool _reservaOcupada(String reservaId) =>
+      _aCorrer.any((k) => k.startsWith('reserva:') && k.endsWith(':$reservaId'));
+
   /// Linha `area_parceiro_<acao>` no log de auditoria, com a loja como entidade.
   Future<void> _registar(String acao, Map<String, dynamic> detalhes) async {
     final id = _lojaId;
@@ -505,6 +549,8 @@ class _AdminAreaParceiroScreenState extends State<AdminAreaParceiroScreen> {
     String confirmar = 'Confirmar',
     List<(String, int)> opcoes = const <(String, int)>[],
     String? perguntaOpcoes,
+    int? opcaoInicial,
+    String? aviso,
   }) async {
     if (!mounted) return null;
     return showDialog<_RespostaMotivo>(
@@ -515,6 +561,8 @@ class _AdminAreaParceiroScreenState extends State<AdminAreaParceiroScreen> {
         confirmar: confirmar,
         opcoes: opcoes,
         perguntaOpcoes: perguntaOpcoes,
+        opcaoInicial: opcaoInicial,
+        aviso: aviso,
       ),
     );
   }
@@ -868,6 +916,192 @@ class _AdminAreaParceiroScreenState extends State<AdminAreaParceiroScreen> {
     unawaited(_recarregarPedidosEHistorico());
   }
 
+  // ─── No lugar da loja (funções admin_loja_*) ──────────────────────────────
+  // Estas funções gravam elas mesmas o motivo no log de auditoria (entidade =
+  // a loja): aqui não se grava outra linha.
+
+  List<(String, int)> _opcoesEmMinutos(List<int> minutos) =>
+      <(String, int)>[for (final m in minutos) ('$m min', m)];
+
+  Future<void> _aceitar(PedidoDaLoja p) async {
+    final (opcoes, inicial) = opcoesDeMinutos(
+        retirada: false, padraoDaLoja: _loja?.minutosPreparoPadrao);
+    final r = await _pedirMotivo(
+      titulo: 'Aceitar pedido ${p.codigo}',
+      explicacao:
+          'A loja aceita o pedido e começa a preparar. O cliente é avisado no app.',
+      confirmar: 'Aceitar',
+      perguntaOpcoes: 'Fica pronto em quanto tempo?',
+      opcoes: _opcoesEmMinutos(opcoes),
+      opcaoInicial: inicial,
+    );
+    if (r == null) return;
+    final minutos = r.opcao ?? inicial;
+    await _correr('pedido:aceitar:${p.id}', () async {
+      final res =
+          await _api.aceitarPedido(p.id, minutos: minutos, motivo: r.motivo);
+      if (res['ok'] != true) {
+        _msg(respostaAcaoLojaEmPalavras(res), erro: true);
+        return;
+      }
+      _msg(res['idempotent'] == true
+          ? 'O pedido já estava aceito.'
+          : 'Pedido aceito: fica pronto em '
+              '${res['prep_time_minutes'] ?? minutos} min.');
+      await _recarregarPedidosEHistorico();
+    });
+  }
+
+  Future<void> _recusar(PedidoDaLoja p) async {
+    final r = await _pedirMotivo(
+      titulo: 'Recusar pedido ${p.codigo}',
+      explicacao: 'A loja recusa o pedido e ele não é feito.',
+      aviso: kAreaParceiroAvisoRecusar,
+      confirmar: 'Recusar pedido',
+    );
+    if (r == null) return;
+    await _correr('pedido:recusar:${p.id}', () async {
+      final res = await _api.recusarPedido(p.id, motivo: r.motivo);
+      if (res['ok'] != true) {
+        _msg(respostaAcaoLojaEmPalavras(res), erro: true);
+        return;
+      }
+      // O 'aviso' da função ("reembolso não é automático") ficou velho: o
+      // gatilho de reembolso do servidor devolve sozinho cartão e MB WAY.
+      _msg(res['idempotent'] == true
+          ? 'O pedido já estava recusado.'
+          : 'Pedido recusado. $kAreaParceiroAvisoRecusar');
+      await _recarregarPedidosEHistorico();
+    });
+  }
+
+  Future<void> _marcarPronto(PedidoDaLoja p) async {
+    final agendado = p.agendadoPara;
+    final aviso = (agendado != null && agendado.isAfter(_agora()))
+        ? '$kAreaParceiroAvisoPronto Atenção: o pedido está agendado para '
+            '${dataHoraLisboa(agendado.toIso8601String())}.'
+        : kAreaParceiroAvisoPronto;
+    final r = await _pedirMotivo(
+      titulo: 'Marcar pronto: ${p.codigo}',
+      explicacao: 'O pedido está pronto na loja, esperando o entregador.',
+      aviso: aviso,
+      confirmar: 'Marcar pronto',
+    );
+    if (r == null) return;
+    await _correr('pedido:marcar_pronto:${p.id}', () async {
+      final res = await _api.marcarPronto(p.id, motivo: r.motivo);
+      if (res['ok'] != true) {
+        _msg(respostaAcaoLojaEmPalavras(res), erro: true);
+        return;
+      }
+      final estado = res['status']?.toString() ?? '';
+      _msg(res['idempotent'] == true
+          ? 'O pedido já tinha avançado (agora: ${estadoPedidoLojaPtBr(estado)}).'
+          : 'Pedido pronto: já está chamando entregador.');
+      await _recarregarPedidosEHistorico();
+    });
+  }
+
+  Future<void> _retirada(PedidoDaLoja p, PassoRetirada passo) async {
+    final aceitar = passo == PassoRetirada.aceitar;
+    final (opcoes, inicial) = opcoesDeMinutos(
+        retirada: true, padraoDaLoja: _loja?.minutosPreparoPadrao);
+    final r = await _pedirMotivo(
+      titulo: switch (passo) {
+        PassoRetirada.aceitar => 'Aceitar retirada: ${p.codigo}',
+        PassoRetirada.pronto => 'Pronto para retirada: ${p.codigo}',
+        PassoRetirada.entregue => 'Cliente retirou: ${p.codigo}',
+      },
+      explicacao: switch (passo) {
+        PassoRetirada.aceitar => 'A loja aceita o pedido de retirada no balcão. '
+            'O cliente é avisado e vê em quanto tempo fica pronto.',
+        PassoRetirada.pronto =>
+          'O cliente é avisado de que já pode vir buscar o pedido no balcão.',
+        PassoRetirada.entregue =>
+          'Marca que o cliente retirou o pedido no balcão.',
+      },
+      aviso: passo == PassoRetirada.entregue ? kAreaParceiroAvisoRetirou : null,
+      confirmar: switch (passo) {
+        PassoRetirada.aceitar => 'Aceitar',
+        PassoRetirada.pronto => 'Marcar pronto',
+        PassoRetirada.entregue => 'Cliente retirou',
+      },
+      perguntaOpcoes: aceitar ? 'Fica pronto em quanto tempo?' : null,
+      opcoes: aceitar ? _opcoesEmMinutos(opcoes) : const <(String, int)>[],
+      opcaoInicial: aceitar ? inicial : null,
+    );
+    if (r == null) return;
+    final minutos = aceitar ? (r.opcao ?? inicial) : null;
+    await _correr('pedido:retirada_${passo.name}:${p.id}', () async {
+      final res = await _api.passoDaRetirada(p.id,
+          passo: passo, motivo: r.motivo, minutos: minutos);
+      if (res['ok'] != true) {
+        _msg(respostaAcaoLojaEmPalavras(res), erro: true);
+        return;
+      }
+      final codigo = res['pickup_code'];
+      _msg(switch (passo) {
+        PassoRetirada.aceitar =>
+          'Retirada aceita: fica pronta em ${res['prep_minutes'] ?? minutos} min.',
+        PassoRetirada.pronto => codigo == null
+            ? 'Pronto para retirada: o cliente foi avisado.'
+            : 'Pronto para retirada: o cliente foi avisado (código $codigo).',
+        PassoRetirada.entregue => 'Pedido entregue ao cliente no balcão.',
+      });
+      await _recarregarPedidosEHistorico();
+    });
+  }
+
+  Future<void> _decidirReserva(ReservaDaLoja x, {required bool aceitar}) async {
+    final q = x.quando;
+    final para = q == null ? '' : ' de ${dataHoraLisboa(q.toIso8601String())}';
+    final r = await _pedirMotivo(
+      titulo: aceitar
+          ? 'Aceitar reserva ${x.codigo}'
+          : 'Recusar reserva ${x.codigo}',
+      explicacao: aceitar
+          ? 'O cliente recebe a confirmação da reserva$para.'
+          : 'O cliente é avisado de que a reserva$para não foi aceita.',
+      confirmar: aceitar ? 'Aceitar reserva' : 'Recusar reserva',
+    );
+    if (r == null) return;
+    await _correr('reserva:${aceitar ? 'aceitar' : 'recusar'}:${x.id}', () async {
+      final res =
+          await _api.decidirReserva(x.id, aceitar: aceitar, motivo: r.motivo);
+      if (res['success'] != true && res['ok'] != true) {
+        _msg('Não foi possível: ${res['error'] ?? 'resposta inesperada do servidor'}.',
+            erro: true);
+        return;
+      }
+      // Recusar só chega aqui sem pré-pagamento (a paga dá 'reserva_paga'):
+      // não há dinheiro a devolver, por isso o 'aviso' da função não se mostra.
+      _msg(aceitar
+          ? 'Reserva aceita: o cliente recebe a confirmação.'
+          : 'Reserva recusada: o cliente foi avisado.');
+      await _recarregarReservasEHistorico();
+    });
+  }
+
+  Future<void> _marcarChegada(ReservaDaLoja x) async {
+    final r = await _pedirMotivo(
+      titulo: 'Cliente chegou: reserva ${x.codigo}',
+      explicacao: 'Marca que o cliente da reserva chegou à loja.',
+      aviso: kAreaParceiroAvisoChegada,
+      confirmar: 'Cliente chegou',
+    );
+    if (r == null) return;
+    await _correr('reserva:chegada:${x.id}', () async {
+      final res = await _api.marcarChegada(x.id, motivo: r.motivo);
+      if (res['success'] != true && res['ok'] != true) {
+        _msg('Não foi possível: ${res['error'] ?? 'resposta inesperada do servidor'}.',
+            erro: true);
+        return;
+      }
+      _msg(chegadaEmPalavras(res));
+      await _recarregarReservasEHistorico();
+    });
+  }
+
   Future<void> _chamarComoLoja() async {
     final id = _lojaId;
     if (id == null) return;
@@ -1210,10 +1444,16 @@ class _AdminAreaParceiroScreenState extends State<AdminAreaParceiroScreen> {
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: Spacing.xxs),
-          const Text(
-            'Lista tirada dos pedidos ao vivo do painel, pelo nome da loja. '
-            'Pedidos de retirada já prontos, à espera do cliente, não aparecem.',
-            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+          Text(
+            _pedidosPeloNome
+                ? 'A lista da loja não respondeu: estes são os pedidos ao vivo '
+                    'do painel, pelo nome da loja. Pedidos de retirada já '
+                    'prontos, esperando o cliente, não aparecem.'
+                : 'Pedidos em curso desta loja, também as retiradas prontas '
+                    'esperando o cliente. Cada pedido mostra só o que dá para '
+                    'fazer no estado dele.',
+            key: const Key('area_pedidos_origem'),
+            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
           ),
           for (final p in _pedidos) _cartaoPedido(p),
           const SizedBox(height: Spacing.md),
@@ -1236,34 +1476,76 @@ class _AdminAreaParceiroScreenState extends State<AdminAreaParceiroScreen> {
     );
   }
 
+  /// O que o parceiro faz e o servidor ainda não deixa o admin fazer.
   List<(String, String)> _pendentesDoPedido(PedidoDaLoja p) {
-    switch (p.status) {
-      case 'created':
-        return <(String, String)>[
-          ('area_pendente_aceitar_${p.id}', 'Aceitar pedido'),
-          ('area_pendente_recusar_${p.id}', 'Recusar pedido'),
-        ];
-      case 'preparing':
-        return <(String, String)>[
-          (
-            'area_pendente_pronto_${p.id}',
-            p.retirada ? 'Pronto para retirada' : 'Marcar pronto',
-          ),
-          ('area_pendente_falta_${p.id}', 'Avisar falta de item'),
-        ];
+    if (p.status == 'preparing') {
+      return <(String, String)>[
+        ('area_pendente_falta_${p.id}', 'Avisar falta de item'),
+      ];
     }
     return const <(String, String)>[];
   }
+
+  /// Os botões da loja para este pedido: só a ação válida para o estado dele.
+  Widget _botaoDaLoja(PedidoDaLoja p, AcaoLojaPedido a, bool ocupado) =>
+      switch (a) {
+        AcaoLojaPedido.aceitar => FilledButton.icon(
+            key: Key('area_aceitar_${p.id}'),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.success),
+            onPressed: ocupado ? null : () => _aceitar(p),
+            icon: const Icon(Icons.check_circle_outline),
+            label: const Text('Aceitar pedido'),
+          ),
+        AcaoLojaPedido.recusar => OutlinedButton.icon(
+            key: Key('area_recusar_${p.id}'),
+            onPressed: ocupado ? null : () => _recusar(p),
+            icon: const Icon(Icons.block, color: AppColors.error),
+            label: const Text('Recusar pedido'),
+          ),
+        AcaoLojaPedido.marcarPronto => FilledButton.icon(
+            key: Key('area_marcar_pronto_${p.id}'),
+            onPressed: ocupado ? null : () => _marcarPronto(p),
+            icon: const Icon(Icons.room_service_outlined),
+            label: const Text('Marcar pronto'),
+          ),
+        AcaoLojaPedido.retiradaAceitar => FilledButton.icon(
+            key: Key('area_retirada_aceitar_${p.id}'),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.success),
+            onPressed:
+                ocupado ? null : () => _retirada(p, PassoRetirada.aceitar),
+            icon: const Icon(Icons.check_circle_outline),
+            label: const Text('Aceitar retirada'),
+          ),
+        AcaoLojaPedido.retiradaPronto => FilledButton.icon(
+            key: Key('area_retirada_pronto_${p.id}'),
+            onPressed: ocupado ? null : () => _retirada(p, PassoRetirada.pronto),
+            icon: const Icon(Icons.notifications_active_outlined),
+            label: const Text('Pronto para retirada'),
+          ),
+        AcaoLojaPedido.retiradaEntregue => FilledButton.icon(
+            key: Key('area_retirada_entregue_${p.id}'),
+            onPressed:
+                ocupado ? null : () => _retirada(p, PassoRetirada.entregue),
+            icon: const Icon(Icons.how_to_reg_outlined),
+            label: const Text('Cliente retirou o pedido'),
+          ),
+      };
 
   Widget _cartaoPedido(PedidoDaLoja p) {
     final recebe = _recebeCents[p.id];
     final ocupado = _pedidoOcupado(p.id);
     final pendentes = _pendentesDoPedido(p);
+    final acoesDaLoja =
+        acoesDaLojaNoPedido(p, lojaParceira: _loja?.parceira ?? false);
+    final agendado = p.agendadoPara;
     final detalhe = <String>[
       if (p.cliente != null) 'Cliente: ${p.cliente}',
       'total ${euros.eur(p.total)}',
       if (recebe != null) 'a loja recebe ${euros.eurCents(recebe)}',
       if (p.criadoEm != null) 'feito às ${_hora(p.criadoEm)}',
+      if (agendado != null)
+        'agendado para ${dataHoraLisboa(agendado.toIso8601String())}',
+      if (p.pagamentoPorConfirmar) 'pagamento por confirmar',
       if (p.retirada)
         'retirada no balcão'
       else if (p.temEntregador)
@@ -1302,6 +1584,7 @@ class _AdminAreaParceiroScreenState extends State<AdminAreaParceiroScreen> {
             spacing: Spacing.sm,
             runSpacing: Spacing.xs,
             children: [
+              for (final a in acoesDaLoja) _botaoDaLoja(p, a, ocupado),
               if (!p.retirada && _kEstadosEscolher.contains(p.status))
                 OutlinedButton.icon(
                   key: Key('area_escolher_${p.id}'),
@@ -1614,13 +1897,25 @@ class _AdminAreaParceiroScreenState extends State<AdminAreaParceiroScreen> {
           else if (r == null)
             _Erro(_erroReservas ?? 'Não consegui ler as reservas.',
                 aoTentar: () => _recarregar(_carregarReservas))
-          else
+          else ...[
             Text(
               'Hoje: ${r.hoje} · próximas: ${r.proximas} · por decidir: '
               '${r.porDecidir}',
               key: const Key('area_reservas_resumo'),
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
+            if (r.lista.isEmpty)
+              const Padding(
+                padding: EdgeInsets.only(top: Spacing.xxs),
+                child: Text(
+                  'Nenhuma reserva para decidir nem cliente para chegar hoje.',
+                  key: Key('area_reservas_nada'),
+                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+              )
+            else
+              for (final x in r.lista) _cartaoReserva(x),
+          ],
           const SizedBox(height: Spacing.sm),
           OutlinedButton.icon(
             key: const Key('area_reservas_abrir'),
@@ -1628,11 +1923,6 @@ class _AdminAreaParceiroScreenState extends State<AdminAreaParceiroScreen> {
             icon: const Icon(Icons.list_alt),
             label: const Text('Abrir a lista de reservas (todas as lojas)'),
           ),
-          const SizedBox(height: Spacing.sm),
-          const _Pendentes(itens: <(String, String)>[
-            ('area_pendente_reserva', 'Aceitar ou recusar reserva como a loja'),
-            ('area_pendente_chegada', 'Marcar chegada do cliente'),
-          ]),
           const SizedBox(height: Spacing.sm),
           const Text(
             'Marcações (barbearias e serviços) são de prestadores, não de lojas: '
@@ -1643,6 +1933,82 @@ class _AdminAreaParceiroScreenState extends State<AdminAreaParceiroScreen> {
       ),
     );
   }
+
+  /// Uma reserva onde o admin pode agir agora, com só as ações válidas.
+  Widget _cartaoReserva(ReservaDaLoja x) {
+    final ocupada = _reservaOcupada(x.id);
+    final acoes = acoesDaReserva(x, _agora());
+    final quando = x.quando;
+    final pessoas = x.pessoas;
+    final cliente = x.cliente;
+    final detalhe = <String>[
+      if (quando != null) dataHoraLisboa(quando.toIso8601String()),
+      if (pessoas != null) '$pessoas pessoa(s)',
+      if (cliente != null) cliente,
+      if (x.paga) 'pagou ${euros.eurCents(x.pagoCents)}' else 'sem pré-pagamento',
+    ].join(' · ');
+    return Container(
+      key: Key('area_reserva_${x.id}'),
+      margin: const EdgeInsets.only(top: Spacing.sm),
+      padding: const EdgeInsets.all(Spacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(Radii.md),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Reserva ${x.codigo} · ${estadoReservaPtBr(x.status)}',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: Spacing.xs),
+          Text(detalhe,
+              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          const SizedBox(height: Spacing.sm),
+          Wrap(
+            spacing: Spacing.sm,
+            runSpacing: Spacing.xs,
+            children: [
+              for (final a in acoes) _botaoDaReserva(x, a, ocupada),
+            ],
+          ),
+          if (x.status == 'pending' && x.paga) ...[
+            const SizedBox(height: Spacing.xxs),
+            Text(
+              kAreaParceiroReservaPaga,
+              key: Key('area_reserva_paga_${x.id}'),
+              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _botaoDaReserva(ReservaDaLoja x, AcaoReserva a, bool ocupada) =>
+      switch (a) {
+        AcaoReserva.aceitar => FilledButton.icon(
+            key: Key('area_reserva_aceitar_${x.id}'),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.success),
+            onPressed: ocupada ? null : () => _decidirReserva(x, aceitar: true),
+            icon: const Icon(Icons.event_available),
+            label: const Text('Aceitar reserva'),
+          ),
+        AcaoReserva.recusar => OutlinedButton.icon(
+            key: Key('area_reserva_recusar_${x.id}'),
+            onPressed: ocupada ? null : () => _decidirReserva(x, aceitar: false),
+            icon: const Icon(Icons.event_busy, color: AppColors.error),
+            label: const Text('Recusar reserva'),
+          ),
+        AcaoReserva.chegada => FilledButton.icon(
+            key: Key('area_reserva_chegada_${x.id}'),
+            onPressed: ocupada ? null : () => _marcarChegada(x),
+            icon: const Icon(Icons.emoji_people),
+            label: const Text('Cliente chegou'),
+          ),
+      };
 
   // 6 ─ Histórico do admin nesta loja
   Widget _secaoHistorico() {
@@ -1886,7 +2252,8 @@ class _RespostaMotivo {
 }
 
 /// Janela de confirmação com motivo (mínimo 3 letras) e, quando há, opções
-/// (tempo, minutos). Dona do seu campo de texto: só o liberta ao sair do ecrã.
+/// (tempo, minutos) e um aviso em destaque. Dona do seu campo de texto: só o
+/// liberta ao sair do ecrã.
 class _MotivoDialog extends StatefulWidget {
   const _MotivoDialog({
     required this.titulo,
@@ -1894,6 +2261,8 @@ class _MotivoDialog extends StatefulWidget {
     required this.confirmar,
     required this.opcoes,
     this.perguntaOpcoes,
+    this.opcaoInicial,
+    this.aviso,
   });
 
   final String titulo;
@@ -1901,6 +2270,13 @@ class _MotivoDialog extends StatefulWidget {
   final String confirmar;
   final List<(String, int)> opcoes;
   final String? perguntaOpcoes;
+
+  /// Opção marcada ao abrir (ex.: o tempo de preparo da loja); sem ela, ou se
+  /// não estiver nas opções, a primeira.
+  final int? opcaoInicial;
+
+  /// O que a ação faz e não se desfaz, em destaque por cima do motivo.
+  final String? aviso;
 
   @override
   State<_MotivoDialog> createState() => _MotivoDialogState();
@@ -1913,7 +2289,12 @@ class _MotivoDialogState extends State<_MotivoDialog> {
   @override
   void initState() {
     super.initState();
-    if (widget.opcoes.isNotEmpty) _opcao = widget.opcoes.first.$2;
+    if (widget.opcoes.isNotEmpty) {
+      final inicial = widget.opcaoInicial;
+      _opcao = (inicial != null && widget.opcoes.any((o) => o.$2 == inicial))
+          ? inicial
+          : widget.opcoes.first.$2;
+    }
   }
 
   @override
@@ -1925,6 +2306,7 @@ class _MotivoDialogState extends State<_MotivoDialog> {
   @override
   Widget build(BuildContext context) {
     final ok = motivoAreaParceiroOk(_ctrl.text);
+    final aviso = widget.aviso;
     return AlertDialog(
       title: Text(widget.titulo),
       content: SingleChildScrollView(
@@ -1933,6 +2315,21 @@ class _MotivoDialogState extends State<_MotivoDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(widget.explicacao),
+            if (aviso != null) ...[
+              const SizedBox(height: Spacing.sm),
+              Container(
+                key: const Key('area_motivo_aviso'),
+                padding: const EdgeInsets.all(Spacing.sm),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(Radii.md),
+                ),
+                child: Text(
+                  aviso,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
             if (widget.opcoes.isNotEmpty) ...[
               const SizedBox(height: Spacing.md),
               Text(widget.perguntaOpcoes ?? 'Escolha:',

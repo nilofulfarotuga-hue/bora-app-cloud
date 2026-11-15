@@ -15,10 +15,32 @@
 //   • ligar modo ocupado ... partner_set_busy(p_restaurant_id text, p_extra_minutes int)
 //                            — aceita o admin (mesma guarda)
 //   • desligar modo ocupado  admin_partner_busy_desligar(p_restaurant_id text)
-//   • pedidos agora ........ admin_live_orders(p_include_test_orders boolean),
-//                            filtrado pelo nome da loja (vendor_name). A tabela
-//                            orders não tem regra de leitura para o admin e
-//                            ainda não há função de admin que filtre pela loja.
+//   • pedidos agora ........ admin_pedidos_da_loja(p_restaurant_id text, p_limite int)
+//                            — só leitura; os pedidos em curso da loja, também as
+//                            retiradas prontas esperando o cliente. Só se esta
+//                            função falhar volta-se ao caminho antigo:
+//                            admin_live_orders(p_include_test_orders boolean)
+//                            filtrado pelo nome da loja (vendor_name).
+//   • aceitar pedido ....... admin_loja_aceitar_pedido(p_order_id text,
+//                            p_prep_minutes int, p_motivo text) — 5 a 120 min
+//   • recusar pedido ....... admin_loja_recusar_pedido(p_order_id text, p_motivo text)
+//                            — o gatilho trg_reembolso_cancelado_pelo_sistema
+//                            devolve sozinho o que foi pago com cartão ou MB WAY
+//                            (autorizo do Danilo 15/11 15:15); o 'aviso' que a
+//                            função devolve ("não é automático") ficou velho e
+//                            não se mostra.
+//   • marcar pronto ........ admin_loja_marcar_pronto(p_order_id text, p_motivo text)
+//                            — passa a chamar entregador
+//   • retirada no balcão ... admin_loja_retirada(p_order_id text, p_passo text
+//                            'aceitar'|'pronto'|'entregue', p_motivo text,
+//                            p_prep_minutes int) — aceitar só 3,5,10,15,20,30,45,60
+//   • decidir reserva ...... admin_loja_decidir_reserva(p_reservation_id uuid,
+//                            p_aceitar boolean, p_motivo text) — recusar uma
+//                            reserva PAGA dá 'reserva_paga' (usa-se Cancelar
+//                            reserva, que devolve o dinheiro)
+//   • cliente chegou ....... admin_loja_marcar_chegada(p_reservation_id uuid,
+//                            p_motivo text) — mexe nos 3 € pagos: crédito ao
+//                            cliente nesta loja e valor a receber pela loja
 //   • quanto a loja recebe . partner_loja_recebe(p_order_ids text[]) — só leitura
 //   • encomendas telefone .. encomendas_telefone (leitura; RLS só admin)
 //   • chamar entregador já . admin_chamar_estafeta_ja(p_order_id text)
@@ -42,8 +64,8 @@
 // (`area_parceiro_<acao>`, entidade = a loja, com o motivo) sempre que o
 // registo do servidor não existe, não guarda o motivo escrito aqui ou fica
 // preso só ao pedido — assim "O que o admin já fez nesta loja" mostra tudo.
-// Forçar abrir/fechar e disponível/esgotado não precisam: o servidor já grava
-// o motivo e a loja.
+// Forçar abrir/fechar, disponível/esgotado e todas as admin_loja_* (lidas no
+// servidor a 15/11/2026) não precisam: o servidor já grava o motivo e a loja.
 //
 // Nunca escreve direto em tabelas. Dinheiro: só leitura, nenhum pagamento.
 // Preços, categorias e fotos: na ficha da loja (AdminPartnerDetailScreen).
@@ -51,13 +73,18 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../utils/euros.dart' as euros;
 import '../utils/hora_lisboa.dart';
 
 /// Tempo máximo de cada chamada ao servidor (PADRAO_BORA 3.15, regra 5).
 const Duration kAreaParceiroLimite = Duration(seconds: 20);
 
-/// Motivo mínimo das ações que mudam alguma coisa (letras, sem espaços nas pontas).
+/// Motivo mínimo das ações que mudam alguma coisa, em letras (como o servidor
+/// conta: espaços, números e pontuação não entram).
 const int kAreaParceiroMotivoMinimo = 3;
+
+/// Quantos pedidos em curso a lista da loja traz (admin_pedidos_da_loja).
+const int kAreaParceiroMaxPedidos = 50;
 
 /// Quantos produtos a lista do menu traz de uma vez.
 const int kAreaParceiroMaxProdutos = 200;
@@ -73,7 +100,31 @@ const String kAreaParceiroOrigem = 'painel: área do parceiro';
 
 /// Motivo com pelo menos [kAreaParceiroMotivoMinimo] letras.
 bool motivoAreaParceiroOk(String? motivo) =>
-    (motivo ?? '').trim().length >= kAreaParceiroMotivoMinimo;
+    RegExp(r'\p{L}', unicode: true).allMatches(motivo ?? '').length >=
+    kAreaParceiroMotivoMinimo;
+
+/// Minutos de preparo que o parceiro escolhe ao aceitar uma entrega (app do
+/// parceiro, _kTempoPreparacao). O servidor aceita de 5 a 120.
+const List<int> kMinutosPreparoEntrega = <int>[10, 15, 20, 25, 30, 40, 45, 60];
+
+/// Os únicos minutos que admin_loja_retirada aceita (igual ao app do parceiro).
+const List<int> kMinutosPreparoRetirada = <int>[3, 5, 10, 15, 20, 30, 45, 60];
+
+/// Tempo de preparo quando a loja não tem o seu (o mesmo do app do parceiro).
+const int kMinutosPreparoPadrao = 15;
+
+/// As opções de minutos e a que vem marcada: o tempo padrão da loja
+/// (restaurants.takeaway_default_prep_minutes, que o app do parceiro usa
+/// também nas entregas) ou [kMinutosPreparoPadrao] quando não serve.
+(List<int>, int) opcoesDeMinutos({required bool retirada, int? padraoDaLoja}) {
+  final base = retirada ? kMinutosPreparoRetirada : kMinutosPreparoEntrega;
+  final p = padraoDaLoja;
+  if (p == null) return (base, kMinutosPreparoPadrao);
+  if (base.contains(p)) return (base, p);
+  // Na entrega o servidor aceita 5 a 120 min: o tempo da loja entra na lista.
+  if (!retirada && p >= 5 && p <= 120) return (<int>[...base, p]..sort(), p);
+  return (base, kMinutosPreparoPadrao);
+}
 
 // ─── Leitura tolerante das respostas do servidor ────────────────────────────
 
@@ -159,6 +210,23 @@ String aprovacaoLojaPtBr(String? s) {
   };
 }
 
+/// Estado da reserva de mesa em palavras do painel (PT-BR).
+String estadoReservaPtBr(String status) => switch (status) {
+      'pending' => 'por decidir',
+      'pending_payment' => 'esperando pagamento',
+      'approved' || 'confirmed' || 'accepted' => 'aceita',
+      'arrived' || 'customer_arrived' => 'cliente chegou',
+      'seated' => 'na mesa',
+      'rejected' || 'rejected_refunded' || 'declined' => 'recusada',
+      'no_show' => 'cliente não apareceu',
+      'finished' || 'completed' => 'terminada',
+      _ => status.isEmpty
+          ? '—'
+          : status.startsWith('cancel')
+              ? 'cancelada'
+              : status,
+    };
+
 // ─── Modelos ────────────────────────────────────────────────────────────────
 
 /// A loja agora: como o cliente a vê e o que o admin pode mudar.
@@ -184,6 +252,7 @@ class LojaAgora {
     this.pausadaAte,
     this.retirada = false,
     this.reservas = false,
+    this.minutosPreparoPadrao,
   });
 
   final String id;
@@ -220,6 +289,10 @@ class LojaAgora {
   /// Reservas de mesa ligadas.
   final bool reservas;
 
+  /// Tempo de preparo padrão da loja (takeaway_default_prep_minutes): o app do
+  /// parceiro começa por ele ao aceitar entregas e retiradas.
+  final int? minutosPreparoPadrao;
+
   bool get aprovada => aprovacao == null || aprovacao == 'approved';
 
   bool ocupadaEm(DateTime agora) =>
@@ -252,11 +325,13 @@ class LojaAgora {
       pausadaAte: _data(loja['pausa_ate']),
       retirada: _sim(loja['takeaway_enabled']),
       reservas: _sim(loja['reservations_enabled']),
+      minutosPreparoPadrao: _inteiroOuNull(loja['takeaway_default_prep_minutes']),
     );
   }
 }
 
-/// Um pedido em curso da loja (linha de admin_live_orders).
+/// Um pedido em curso da loja (linha de admin_pedidos_da_loja ou, se essa
+/// função falhar, de admin_live_orders).
 @immutable
 class PedidoDaLoja {
   const PedidoDaLoja({
@@ -269,6 +344,10 @@ class PedidoDaLoja {
     this.criadoEm,
     this.entregadorId,
     this.teste = false,
+    this.lojaParceira,
+    this.pagamento,
+    this.estadoPagamento,
+    this.agendadoPara,
   });
 
   final String id;
@@ -281,9 +360,26 @@ class PedidoDaLoja {
   final String? entregadorId;
   final bool teste;
 
+  /// is_partner_store do pedido; null quando a linha não o traz.
+  final bool? lojaParceira;
+
+  /// payment_method / payment_status (só admin_pedidos_da_loja os traz).
+  final String? pagamento;
+  final String? estadoPagamento;
+
+  /// scheduled_for: pedido agendado para mais tarde.
+  final DateTime? agendadoPara;
+
   bool get temEntregador => entregadorId != null;
   bool get retirada => tipoServico == 'takeaway';
   String get codigo => codigoCurtoPedido(id);
+
+  /// Pago por cartão ou MB WAY e o pagamento ainda não chegou: o servidor não
+  /// deixa marcar pronto (payment_not_confirmed).
+  bool get pagamentoPorConfirmar {
+    final meio = pagamento;
+    return meio != null && meio != 'cash' && estadoPagamento != 'paid';
+  }
 
   /// O mapa que o diálogo de cancelamento do painel (AdminCancelOrderDialog) lê.
   Map<String, dynamic> paraCancelar() => <String, dynamic>{
@@ -307,11 +403,23 @@ class PedidoDaLoja {
       criadoEm: _data(m['created_at']),
       entregadorId: _textoOuNull(m['assigned_driver_id']),
       teste: _sim(m['is_test_order']),
+      lojaParceira: m.containsKey('is_partner_store')
+          ? _sim(m['is_partner_store'])
+          : null,
+      pagamento: _textoOuNull(m['payment_method']),
+      estadoPagamento: _textoOuNull(m['payment_status']),
+      agendadoPara: _data(m['scheduled_for']),
     );
   }
 }
 
+void _maisRecentesPrimeiro(List<PedidoDaLoja> lista) {
+  final zero = DateTime.utc(2000);
+  lista.sort((a, b) => (b.criadoEm ?? zero).compareTo(a.criadoEm ?? zero));
+}
+
 /// Fica só com os pedidos desta loja (pelo nome), mais recentes primeiro.
+/// Caminho antigo: só quando admin_pedidos_da_loja falha.
 List<PedidoDaLoja> pedidosDaLoja(
     Iterable<Map<String, dynamic>> linhas, String nomeLoja) {
   final alvo = nomeLojaNormalizado(nomeLoja);
@@ -322,9 +430,76 @@ List<PedidoDaLoja> pedidosDaLoja(
     final p = PedidoDaLoja.doMapa(l);
     if (p != null) out.add(p);
   }
-  final zero = DateTime.utc(2000);
-  out.sort((a, b) => (b.criadoEm ?? zero).compareTo(a.criadoEm ?? zero));
+  _maisRecentesPrimeiro(out);
   return out;
+}
+
+/// As linhas de admin_pedidos_da_loja (o servidor já filtra pela loja), mais
+/// recentes primeiro.
+List<PedidoDaLoja> pedidosDasLinhas(Iterable<Map<String, dynamic>> linhas) {
+  final out = linhas.map(PedidoDaLoja.doMapa).whereType<PedidoDaLoja>().toList();
+  _maisRecentesPrimeiro(out);
+  return out;
+}
+
+/// Os pedidos em curso da loja e de onde vieram.
+@immutable
+class PedidosAgora {
+  const PedidosAgora(this.pedidos, {this.peloNome = false});
+
+  final List<PedidoDaLoja> pedidos;
+
+  /// true quando admin_pedidos_da_loja falhou e a lista veio dos pedidos ao
+  /// vivo do painel, pelo nome da loja (sem as retiradas prontas).
+  final bool peloNome;
+}
+
+/// O que a loja faz num pedido (as funções admin_loja_*).
+enum AcaoLojaPedido {
+  aceitar,
+  recusar,
+  marcarPronto,
+  retiradaAceitar,
+  retiradaPronto,
+  retiradaEntregue,
+}
+
+/// Passos da retirada no balcão: o nome vai tal e qual em p_passo de
+/// admin_loja_retirada.
+enum PassoRetirada { aceitar, pronto, entregue }
+
+/// Só as ações válidas para o estado do pedido, como no app do parceiro:
+///   • retirada no balcão: novo → aceitar ou recusar; em preparo → pronto;
+///     pronto → o cliente retirou;
+///   • entrega de loja parceira: novo → aceitar ou recusar; em preparo →
+///     marcar pronto (chama entregador).
+/// Pedidos que não passam pela loja (lojas não parceiras) não têm nenhuma.
+/// [lojaParceira] vale quando a linha não diz se o pedido é de loja parceira.
+List<AcaoLojaPedido> acoesDaLojaNoPedido(PedidoDaLoja p,
+    {required bool lojaParceira}) {
+  if (p.retirada) {
+    return switch (p.status) {
+      'created' => const <AcaoLojaPedido>[
+          AcaoLojaPedido.retiradaAceitar,
+          AcaoLojaPedido.recusar,
+        ],
+      'preparing' => const <AcaoLojaPedido>[AcaoLojaPedido.retiradaPronto],
+      'readyForPickup' => const <AcaoLojaPedido>[AcaoLojaPedido.retiradaEntregue],
+      _ => const <AcaoLojaPedido>[],
+    };
+  }
+  final tipo = p.tipoServico;
+  final daLojaParceira = (p.lojaParceira ?? lojaParceira) &&
+      (tipo == null || tipo == 'restaurant');
+  if (!daLojaParceira) return const <AcaoLojaPedido>[];
+  return switch (p.status) {
+    'created' => const <AcaoLojaPedido>[
+        AcaoLojaPedido.aceitar,
+        AcaoLojaPedido.recusar,
+      ],
+    'preparing' => const <AcaoLojaPedido>[AcaoLojaPedido.marcarPronto],
+    _ => const <AcaoLojaPedido>[],
+  };
 }
 
 /// Um produto do menu da loja (linha de admin_list_products_by_partner_v3).
@@ -482,20 +657,106 @@ class DinheiroDaSemana {
   }
 }
 
-/// Contagem das reservas de mesa da loja (de hoje em diante).
+/// Uma reserva de mesa da loja (linha de reservations).
+@immutable
+class ReservaDaLoja {
+  const ReservaDaLoja({
+    required this.id,
+    required this.status,
+    this.quando,
+    this.pessoas,
+    this.cliente,
+    this.pagoCents = 0,
+    this.chegouEm,
+  });
+
+  final String id;
+  final String status;
+  final DateTime? quando;
+  final int? pessoas;
+  final String? cliente;
+
+  /// Pré-pagamento (prepayment_cents): mais de zero quer dizer que já pagou.
+  final int pagoCents;
+
+  /// arrived_at: a chegada do cliente já foi marcada.
+  final DateTime? chegouEm;
+
+  bool get paga => pagoCents > 0;
+  String get codigo => codigoCurtoPedido(id);
+
+  static ReservaDaLoja? doMapa(Map<String, dynamic> m) {
+    final id = _textoOuNull(m['id']);
+    if (id == null) return null;
+    return ReservaDaLoja(
+      id: id,
+      status: _texto(m['status']),
+      quando: _data(m['reserved_for']),
+      pessoas: _inteiroOuNull(m['people']),
+      cliente: _textoOuNull(m['client_name']),
+      pagoCents: _inteiro(m['prepayment_cents']),
+      chegouEm: _data(m['arrived_at']),
+    );
+  }
+}
+
+/// O que a loja faz numa reserva (admin_loja_decidir_reserva e
+/// admin_loja_marcar_chegada).
+enum AcaoReserva { aceitar, recusar, chegada }
+
+bool _eDeHojeEmLisboa(DateTime quando, DateTime agora) {
+  final inicio = inicioDiaLisboaUtc(agora);
+  return !quando.isBefore(inicio) &&
+      quando.isBefore(inicio.add(const Duration(days: 1)));
+}
+
+/// Só as ações válidas para o estado da reserva:
+///   • por decidir → aceitar; recusar só se não pagou (a reserva paga
+///     cancela-se em Cancelar reserva, que devolve o dinheiro);
+///   • aceita, de hoje e sem chegada marcada → o cliente chegou.
+List<AcaoReserva> acoesDaReserva(ReservaDaLoja r, DateTime agora) {
+  if (r.status == 'pending') {
+    return <AcaoReserva>[AcaoReserva.aceitar, if (!r.paga) AcaoReserva.recusar];
+  }
+  final quando = r.quando;
+  if (r.status == 'approved' &&
+      r.chegouEm == null &&
+      quando != null &&
+      _eDeHojeEmLisboa(quando, agora)) {
+    return const <AcaoReserva>[AcaoReserva.chegada];
+  }
+  return const <AcaoReserva>[];
+}
+
+/// Contagem das reservas de mesa da loja (de hoje em diante) e as reservas
+/// em que o admin pode agir agora.
 @immutable
 class ResumoReservas {
-  const ResumoReservas({this.hoje = 0, this.proximas = 0, this.porDecidir = 0});
+  const ResumoReservas({
+    this.hoje = 0,
+    this.proximas = 0,
+    this.porDecidir = 0,
+    this.lista = const <ReservaDaLoja>[],
+  });
 
   final int hoje;
   final int proximas;
   final int porDecidir;
 
+  /// Reservas com alguma ação ([acoesDaReserva]), pela hora da reserva.
+  final List<ReservaDaLoja> lista;
+
   static const Set<String> _terminadas = <String>{
     'cancelled',
     'canceled',
+    'cancelled_refunded',
+    'cancelled_no_refund',
+    'cancelled_by_client',
+    'cancelled_by_partner',
+    'cancelled_by_admin',
     'declined',
     'rejected',
+    'rejected_refunded',
     'no_show',
     'finished',
     'completed',
@@ -509,6 +770,7 @@ class ResumoReservas {
     var hoje = 0;
     var proximas = 0;
     var porDecidir = 0;
+    final lista = <ReservaDaLoja>[];
     for (final l in linhas) {
       final estado = _texto(l['status']);
       if (_terminadas.contains(estado)) continue;
@@ -517,8 +779,15 @@ class ResumoReservas {
       if (!quando.isBefore(inicioHoje) && quando.isBefore(fimHoje)) hoje++;
       if (!quando.isBefore(agora)) proximas++;
       if (estado == 'pending') porDecidir++;
+      final r = ReservaDaLoja.doMapa(l);
+      if (r != null && acoesDaReserva(r, agora).isNotEmpty) lista.add(r);
     }
-    return ResumoReservas(hoje: hoje, proximas: proximas, porDecidir: porDecidir);
+    return ResumoReservas(
+      hoje: hoje,
+      proximas: proximas,
+      porDecidir: porDecidir,
+      lista: lista,
+    );
   }
 }
 
@@ -547,6 +816,8 @@ class AcaoDoAdmin {
   String? get pedidoId =>
       _textoOuNull(detalhes['order_id']) ??
       (tipo == 'order' ? _textoOuNull(entidade) : null);
+
+  String? get reservaId => _textoOuNull(detalhes['reservation_id']);
 
   static AcaoDoAdmin doMapa(Map<String, dynamic> m) => AcaoDoAdmin(
         acao: _textoOuNull(m['action']) ?? 'acao_admin',
@@ -636,6 +907,23 @@ String rotuloAcaoNaLoja(AcaoDoAdmin a) {
     case 'order_preassigned':
     case 'order_reassigned':
       return 'Escolheu o entregador de um pedido';
+    // As funções admin_loja_* (15/11/2026): o admin no lugar da loja.
+    case 'admin_loja_aceitar_pedido':
+      return 'Aceitou um pedido no lugar da loja';
+    case 'admin_loja_recusar_pedido':
+      return 'Recusou um pedido no lugar da loja';
+    case 'admin_loja_marcar_pronto':
+      return 'Marcou um pedido pronto (chamou entregador)';
+    case 'admin_loja_retirada_aceitar':
+      return 'Aceitou um pedido de retirada no balcão';
+    case 'admin_loja_retirada_pronto':
+      return 'Marcou uma retirada como pronta';
+    case 'admin_loja_retirada_entregue':
+      return 'Marcou que o cliente retirou o pedido no balcão';
+    case 'admin_loja_decidir_reserva':
+      return _sim(d['aceitar']) ? 'Aceitou uma reserva' : 'Recusou uma reserva';
+    case 'admin_loja_marcar_chegada':
+      return 'Marcou a chegada do cliente de uma reserva';
   }
   return a.acao;
 }
@@ -643,11 +931,13 @@ String rotuloAcaoNaLoja(AcaoDoAdmin a) {
 /// "15/11 10:00 · admin@bora.pt · motivo: … · pedido #1A2B3C4D"
 String detalheAcaoNaLoja(AcaoDoAdmin a) {
   final pedido = a.pedidoId;
+  final reserva = a.reservaId;
   return <String>[
     dataHoraLisboa(a.quando?.toIso8601String()),
     if (a.quem != null) a.quem!,
     if (a.motivo != null) 'motivo: ${a.motivo}',
     if (pedido != null) 'pedido ${codigoCurtoPedido(pedido)}',
+    if (reserva != null) 'reserva ${codigoCurtoPedido(reserva)}',
   ].join(' · ');
 }
 
@@ -699,6 +989,114 @@ String respostaLojaEmPalavras(Map<String, dynamic> r) {
       '${_textoOuNull(r['error']) ?? 'resposta inesperada do servidor'}.';
 }
 
+/// Respostas {ok:false, error} de admin_loja_aceitar_pedido,
+/// admin_loja_recusar_pedido e admin_loja_marcar_pronto.
+String respostaAcaoLojaEmPalavras(Map<String, dynamic> r) {
+  switch (_texto(r['error'])) {
+    case 'order_not_found':
+      return 'Pedido não encontrado. Atualize a lista.';
+    case 'forbidden':
+      return 'Esta loja não pode agir pelo painel: precisa ser parceira, ativa e '
+          'aprovada.';
+    case 'wrong_order_type':
+      return 'Este pedido não é uma entrega de loja parceira.';
+    case 'invalid_status':
+      return 'O pedido já mudou de estado (agora: '
+          '${estadoPedidoLojaPtBr(_texto(r['status']))}). Atualize a lista.';
+    case 'invalid_prep_minutes':
+      return 'Tempo de preparo inválido (entre 5 e 120 minutos).';
+    case 'payment_not_confirmed':
+      return 'O pagamento do cliente ainda não foi confirmado: não dá para chamar '
+          'entregador.';
+    case 'concurrent_transition':
+      return 'O pedido mudou ao mesmo tempo. Atualize e tente de novo.';
+  }
+  return 'Não foi possível: '
+      '${_textoOuNull(r['error']) ?? 'resposta inesperada do servidor'}.';
+}
+
+/// O que vem depois de "marca: " na mensagem do servidor (ex.: o estado).
+String _depoisDaMarca(String m) {
+  final i = m.indexOf(':');
+  return i < 0 ? '' : m.substring(i + 1).trim();
+}
+
+/// Erros (RAISE EXCEPTION) de admin_loja_retirada, admin_loja_decidir_reserva,
+/// admin_loja_marcar_chegada, admin_pedidos_da_loja e o motivo curto de todas
+/// as admin_loja_*, em palavras do painel. null quando não é nenhum deles
+/// ('reserva_paga' e a guarda de admin ficam com humanizeAdminRpcError).
+String? erroDaLojaEmPalavras(String mensagem) {
+  final m = mensagem.trim();
+  final depois = _depoisDaMarca(m);
+  String agoraPedido() =>
+      depois.isEmpty ? '' : ' (agora: ${estadoPedidoLojaPtBr(depois)})';
+  String agoraReserva() =>
+      depois.isEmpty ? '' : ' (agora: ${estadoReservaPtBr(depois)})';
+  if (m.startsWith('motivo_obrigatorio')) {
+    return 'Escreva o motivo (mínimo 3 letras).';
+  }
+  if (m.startsWith('order_not_found')) {
+    return 'Pedido não encontrado. Atualize a lista.';
+  }
+  if (m.startsWith('not_takeaway_order')) {
+    return 'Este pedido não é de retirada no balcão.';
+  }
+  if (m.startsWith('not_your_order')) return 'A loja deste pedido não foi encontrada.';
+  if (m.startsWith('invalid_prep_minutes')) {
+    return 'Tempo de preparo inválido (só 3, 5, 10, 15, 20, 30, 45 ou 60 minutos).';
+  }
+  if (m.startsWith('order_already_processed')) {
+    return 'O pedido já foi aceito ou mudou de estado${agoraPedido()}. '
+        'Atualize a lista.';
+  }
+  if (m.startsWith('order_not_preparing')) {
+    return 'O pedido não está em preparo${agoraPedido()}. Atualize a lista.';
+  }
+  if (m.startsWith('order_not_ready')) {
+    return 'O pedido ainda não está pronto${agoraPedido()}. Atualize a lista.';
+  }
+  if (m.startsWith('AGE_CHECK_REQUIRED')) {
+    return 'Este pedido tem produtos para maiores de 18: confirme o documento do '
+        'cliente antes de entregar.';
+  }
+  if (m.startsWith('passo_invalido')) {
+    return 'Passo inválido (só aceitar, pronto ou entregue).';
+  }
+  if (m.startsWith('reservation_not_found')) {
+    return 'Reserva não encontrada. Atualize a lista.';
+  }
+  if (m.startsWith('reservation_not_pending')) {
+    return 'Esta reserva já foi decidida${agoraReserva()}. Atualize a lista.';
+  }
+  if (m.startsWith('reservation_not_approved')) {
+    return 'Só dá para marcar a chegada numa reserva aceita${agoraReserva()}.';
+  }
+  if (m.startsWith('already_arrived')) {
+    return 'A chegada deste cliente já estava marcada.';
+  }
+  if (m.startsWith('not_your_restaurant')) {
+    return 'A loja desta reserva não foi encontrada.';
+  }
+  if (m.startsWith('restaurant_not_found')) return 'Loja não encontrada.';
+  return null;
+}
+
+/// Resposta de admin_loja_marcar_chegada em palavras simples.
+String chegadaEmPalavras(Map<String, dynamic> r) {
+  final credito = _inteiroOuNull(r['credit_cents']);
+  final paraLoja = _inteiroOuNull(r['payout_cents']);
+  final partes = <String>[
+    if (credito != null)
+      'o cliente ganhou ${euros.eurCents(credito)} de crédito para gastar nesta '
+          'loja',
+    if (paraLoja != null)
+      'a loja recebe ${euros.eurCents(paraLoja)} no fechamento da semana',
+  ];
+  return partes.isEmpty
+      ? 'Chegada do cliente marcada.'
+      : 'Chegada marcada: ${partes.join(' e ')}.';
+}
+
 // ─── O serviço ──────────────────────────────────────────────────────────────
 
 /// Tudo o que o ecrã da Área do Parceiro pede ao servidor.
@@ -707,7 +1105,11 @@ abstract class AdminAreaParceiroService {
 
   // Leituras
   Future<LojaAgora> lerLoja(String restaurantId);
-  Future<List<PedidoDaLoja>> pedidosAgora({required String nomeLoja});
+
+  /// Pelo id da loja (admin_pedidos_da_loja); [nomeLoja] só serve ao caminho
+  /// antigo, quando essa função falha.
+  Future<PedidosAgora> pedidosAgora(
+      {required String restaurantId, required String nomeLoja});
   Future<Map<String, int>> lojaRecebeCents(List<String> pedidoIds);
   Future<Set<String>> encomendasPorTelefoneAbertas(String restaurantId);
   Future<List<ProdutoDoMenu>> menu(String restaurantId, {String? procurar});
@@ -733,6 +1135,23 @@ abstract class AdminAreaParceiroService {
   Future<Map<String, dynamic>> prometerHoraPronto(String pedidoId, DateTime? hora);
   Future<Map<String, dynamic>> marcarEntregueSemCodigo(String pedidoId, String motivo);
 
+  // Pedidos, no lugar da loja (as admin_loja_* gravam o motivo no log de
+  // auditoria elas mesmas)
+  Future<Map<String, dynamic>> aceitarPedido(String pedidoId,
+      {required int minutos, required String motivo});
+  Future<Map<String, dynamic>> recusarPedido(String pedidoId,
+      {required String motivo});
+  Future<Map<String, dynamic>> marcarPronto(String pedidoId,
+      {required String motivo});
+  Future<Map<String, dynamic>> passoDaRetirada(String pedidoId,
+      {required PassoRetirada passo, required String motivo, int? minutos});
+
+  // Reservas, no lugar da loja (idem)
+  Future<Map<String, dynamic>> decidirReserva(String reservaId,
+      {required bool aceitar, required String motivo});
+  Future<Map<String, dynamic>> marcarChegada(String reservaId,
+      {required String motivo});
+
   /// Grava `acao` no admin_audit_log com a loja como entidade (entity_id_text).
   /// Nunca lança: devolve false se não gravou.
   Future<bool> registarAuditoria({
@@ -742,16 +1161,31 @@ abstract class AdminAreaParceiroService {
   });
 }
 
+/// Uma chamada a uma função do servidor (nome, parâmetros) → resposta.
+typedef ChamadaRpcAreaParceiro = Future<dynamic> Function(
+    String nome, Map<String, dynamic>? params);
+
 /// O serviço de verdade (Supabase). Nenhuma escrita direta em tabelas.
 class SupabaseAdminAreaParceiroService extends AdminAreaParceiroService {
-  SupabaseAdminAreaParceiroService({SupabaseClient? client}) : _cliente = client;
+  /// [rpc] só para testes: troca as funções do servidor por uma falsa, para
+  /// provar o nome e os parâmetros de cada chamada.
+  SupabaseAdminAreaParceiroService(
+      {SupabaseClient? client, ChamadaRpcAreaParceiro? rpc})
+      : _cliente = client,
+        _chamada = rpc;
 
   final SupabaseClient? _cliente;
+  final ChamadaRpcAreaParceiro? _chamada;
 
   SupabaseClient get _db => _cliente ?? Supabase.instance.client;
 
-  Future<dynamic> _rpc(String nome, [Map<String, dynamic>? params]) =>
-      _db.rpc(nome, params: params).timeout(kAreaParceiroLimite);
+  Future<dynamic> _rpc(String nome, [Map<String, dynamic>? params]) {
+    final chamada = _chamada;
+    if (chamada != null) {
+      return chamada(nome, params).timeout(kAreaParceiroLimite);
+    }
+    return _db.rpc(nome, params: params).timeout(kAreaParceiroLimite);
+  }
 
   @override
   Future<LojaAgora> lerLoja(String restaurantId) async {
@@ -759,7 +1193,7 @@ class SupabaseAdminAreaParceiroService extends AdminAreaParceiroService {
         .from('restaurants')
         .select('id, name, is_partner, is_online, approval_status, coming_soon, '
             'busy_extra_minutes, busy_until, pausa_ate, takeaway_enabled, '
-            'reservations_enabled')
+            'reservations_enabled, takeaway_default_prep_minutes')
         .eq('id', restaurantId)
         .maybeSingle()
         .timeout(kAreaParceiroLimite);
@@ -778,10 +1212,23 @@ class SupabaseAdminAreaParceiroService extends AdminAreaParceiroService {
   }
 
   @override
-  Future<List<PedidoDaLoja>> pedidosAgora({required String nomeLoja}) async {
-    final r = await _rpc(
-        'admin_live_orders', <String, dynamic>{'p_include_test_orders': true});
-    return pedidosDaLoja(_lista(r), nomeLoja);
+  Future<PedidosAgora> pedidosAgora(
+      {required String restaurantId, required String nomeLoja}) async {
+    try {
+      final r = await _rpc('admin_pedidos_da_loja', <String, dynamic>{
+        'p_restaurant_id': restaurantId,
+        'p_limite': kAreaParceiroMaxPedidos,
+      });
+      return PedidosAgora(pedidosDasLinhas(_lista(r)));
+    } catch (e) {
+      // Caminho antigo, só quando a função da loja falha: os pedidos ao vivo
+      // do painel, filtrados pelo nome da loja.
+      if (nomeLojaNormalizado(nomeLoja).isEmpty) rethrow;
+      debugPrint('[AreaParceiro] admin_pedidos_da_loja: $e — pelos pedidos ao vivo');
+      final r = await _rpc(
+          'admin_live_orders', <String, dynamic>{'p_include_test_orders': true});
+      return PedidosAgora(pedidosDaLoja(_lista(r), nomeLoja), peloNome: true);
+    }
   }
 
   @override
@@ -868,7 +1315,8 @@ class SupabaseAdminAreaParceiroService extends AdminAreaParceiroService {
       {required DateTime agora}) async {
     final r = await _db
         .from('reservations')
-        .select('id, status, reserved_for')
+        .select('id, status, reserved_for, people, client_name, prepayment_cents, '
+            'arrived_at')
         .eq('restaurant_id', restaurantId)
         .gte('reserved_for', inicioDiaLisboaUtc(agora).toIso8601String())
         .order('reserved_for')
@@ -978,6 +1426,60 @@ class SupabaseAdminAreaParceiroService extends AdminAreaParceiroService {
           String pedidoId, String motivo) async =>
       _mapa(await _rpc('admin_marcar_entregue_sem_codigo', <String, dynamic>{
         'p_pedido': pedidoId,
+        'p_motivo': motivo.trim(),
+      }));
+
+  @override
+  Future<Map<String, dynamic>> aceitarPedido(String pedidoId,
+          {required int minutos, required String motivo}) async =>
+      _mapa(await _rpc('admin_loja_aceitar_pedido', <String, dynamic>{
+        'p_order_id': pedidoId,
+        'p_prep_minutes': minutos,
+        'p_motivo': motivo.trim(),
+      }));
+
+  @override
+  Future<Map<String, dynamic>> recusarPedido(String pedidoId,
+          {required String motivo}) async =>
+      _mapa(await _rpc('admin_loja_recusar_pedido', <String, dynamic>{
+        'p_order_id': pedidoId,
+        'p_motivo': motivo.trim(),
+      }));
+
+  @override
+  Future<Map<String, dynamic>> marcarPronto(String pedidoId,
+          {required String motivo}) async =>
+      _mapa(await _rpc('admin_loja_marcar_pronto', <String, dynamic>{
+        'p_order_id': pedidoId,
+        'p_motivo': motivo.trim(),
+      }));
+
+  @override
+  Future<Map<String, dynamic>> passoDaRetirada(String pedidoId,
+          {required PassoRetirada passo,
+          required String motivo,
+          int? minutos}) async =>
+      _mapa(await _rpc('admin_loja_retirada', <String, dynamic>{
+        'p_order_id': pedidoId,
+        'p_passo': passo.name,
+        'p_motivo': motivo.trim(),
+        'p_prep_minutes': minutos,
+      }));
+
+  @override
+  Future<Map<String, dynamic>> decidirReserva(String reservaId,
+          {required bool aceitar, required String motivo}) async =>
+      _mapa(await _rpc('admin_loja_decidir_reserva', <String, dynamic>{
+        'p_reservation_id': reservaId,
+        'p_aceitar': aceitar,
+        'p_motivo': motivo.trim(),
+      }));
+
+  @override
+  Future<Map<String, dynamic>> marcarChegada(String reservaId,
+          {required String motivo}) async =>
+      _mapa(await _rpc('admin_loja_marcar_chegada', <String, dynamic>{
+        'p_reservation_id': reservaId,
         'p_motivo': motivo.trim(),
       }));
 

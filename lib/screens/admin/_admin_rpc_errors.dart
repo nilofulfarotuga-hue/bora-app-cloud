@@ -20,6 +20,11 @@ String humanizeAdminRpcError(Object error) {
     if (_ehGuardaDeAdmin(msg)) {
       return 'Sem permissão de admin para esta ação.';
     }
+    // [15/11/2026] `admin_loja_decidir_reserva`: recusar uma reserva já paga
+    // não devolve os 3 € — o caminho é Cancelar reserva, que devolve.
+    if (msg.contains('reserva_paga') || code.contains('reserva_paga')) {
+      return kErroReservaPaga;
+    }
     if (msg.startsWith('driver_not_found')) {
       return 'Entregador não encontrado. Atualize a lista.';
     }
@@ -77,6 +82,11 @@ String humanizeAdminRpcError(Object error) {
 }
 
 const String _kSemConexao = 'Sem conexão com a internet. Tente de novo.';
+
+/// [15/11/2026] Marca `reserva_paga` de `admin_loja_decidir_reserva`.
+const String kErroReservaPaga =
+    'Esta reserva já foi paga: para a recusar use Cancelar reserva, que devolve '
+    'o dinheiro ao cliente.';
 
 /// Marcas das guardas de admin nas RPCs (`RAISE EXCEPTION '<marca>'`;
 /// varrimento às funções `admin_*` em produção a 15/11/2026). `not_admin` tem

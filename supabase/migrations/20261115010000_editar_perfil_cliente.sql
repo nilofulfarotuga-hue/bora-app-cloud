@@ -286,8 +286,10 @@ begin
   v_res := public._apply_user_profile_change(p_user_id, p_name, p_phone, auth.uid(), 'admin', null);
 
   if coalesce((v_res->>'ok')::boolean, false) and coalesce((v_res->>'alterado')::boolean, false) then
-    insert into public.admin_audit_log (admin_id, action, target_type, target_id, details)
-    values (auth.uid(), 'update_client_contact', 'user', p_user_id::text,
+    -- 15/11 13:15: a Claude.ai corrigiu ao aplicar (admin_audit_log não tem target_type/target_id;
+    -- tem entity_type/entity_id/entity_id_text). Este texto é igual ao que está no servidor.
+    insert into public.admin_audit_log (admin_id, action, entity_type, entity_id, entity_id_text, details)
+    values (auth.uid(), 'update_client_contact', 'user', p_user_id, p_user_id::text,
             jsonb_build_object('campos', v_res->'campos', 'change_id', v_res->'change_id'));
     perform public._notify_profile_changed(p_user_id, v_res->'campos', 'admin');
   end if;
@@ -336,7 +338,7 @@ begin
       from public.admin_audit_log l
       left join auth.users au on au.id = l.admin_id
      where l.action = 'update_client_contact'
-       and l.target_id = p_user_id::text
+       and l.entity_id = p_user_id
        and not (l.details ? 'change_id')
     union all
     select coalesce(a.executed_at, a.reviewed_at, a.proposed_at), 'robo (feito à mão)'::text,

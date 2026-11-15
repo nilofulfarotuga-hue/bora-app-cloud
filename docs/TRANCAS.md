@@ -619,3 +619,15 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   módulo de configuração passou a ser um objeto de faz-de-conta), que é o que a regra pede: nenhum valor de chave em
   ficheiros. (2) Negou um Bash que acabava a apagar uma pasta temporária com apagar recursivo. Como foi recusado inteiro,
   nada correu. Repeti sem apagar nada, com a cópia de ensaio na pasta de rascunho da sessão.
+
+- **15/11/2026 10:35-11:10, missão `app-15-11` (Claude Code no PC)** — sete recusas, nenhuma contornada.
+  (1) bora-tranca negou `execute_sql` com DELETE + INSERT em `support_knowledge_chunks` ("DELETE em produção"):
+  refeito só com INSERT, que depois parou noutra coisa (CHECK do tipo de trecho). (2) Negou `apply_migration` da
+  `20261115104000_conhecimento_tipos_ajuda` ("migration é publicar"): ficou para a Claude.ai (caixa 25).
+  (3) e (4) Negou duas vezes um `git push` para `ai/2026-11-15-app` porque levava `2>&1 | tail` e, na 2.ª, vinha
+  junto com o commit: erro meu de forma, já descrito na nota de 04:55; refeito sozinho, com dois argumentos.
+  (5) Negou um Bash que começava por apagar recursivamente uma pasta da pasta de rascunho: refeito noutra pasta,
+  sem apagar. (6) Negou um INSERT na `caixa_guardados` cujo conteúdo era o texto de uma migração ("DDL em
+  produção é publicar" — lê o texto dentro da cadeia): entregue por link fixo do GitHub (commit + sha256) nas
+  caixas 25 a 33. (7) O classificador do Claude Code negou `gh --version` ("Undermining Oversight"): não repetido;
+  o pedido de revisão #19 já existia.

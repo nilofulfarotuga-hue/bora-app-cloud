@@ -16,6 +16,28 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 15/11/2026 (fechar-tudo-15-11 — o parceiro rejeita uma reserva paga e a Bora
+  // devolve o pré-pagamento): só se diz ao parceiro o que aconteceu de facto.
+  // À mão; os mesmos pares estão em tool/l10n/traducoes/pt-en-39-reserva-recusa-reembolso.json.
+  'Ao rejeitar, o cliente é avisado e a Bora devolve-lhe os {0} do pré-pagamento.':
+      'If you reject it, the customer is notified and Bora refunds their {0} prepayment.',
+  'Ao rejeitar, o cliente é avisado.': 'If you reject it, the customer is notified.',
+  'Reserva rejeitada. O cliente foi avisado e a devolução de {0} já foi pedida.':
+      'Reservation rejected. The customer was notified and the {0} refund has been requested.',
+  'Reserva rejeitada. A devolução de {0} ao cliente já tinha sido feita.':
+      'Reservation rejected. The {0} refund to the customer had already been made.',
+  'Reserva rejeitada. O cliente foi avisado.':
+      'Reservation rejected. The customer was notified.',
+  'Reserva rejeitada. O cliente foi avisado e a equipa Bora trata da devolução.':
+      'Reservation rejected. The customer was notified and the Bora team will handle the refund.',
+  'Esta parte ainda não está instalada; tenta mais tarde ou fala com a equipa Bora.':
+      'This part is not installed yet; try again later or talk to the Bora team.',
+  'Esta reserva já foi decidida. Atualiza a lista.':
+      'This reservation has already been decided. Refresh the list.',
+  'Não tens acesso a esta reserva.': 'You do not have access to this reservation.',
+  'Reserva não encontrada.': 'Reservation not found.',
+  'Não foi possível concluir. Atualiza a lista e tenta de novo.':
+      'Could not finish. Refresh the list and try again.',
   // 15/11/2026 (fechar-tudo-15-11, ponto E — Loja Online dentro da app, caixa 10):
   // categoria dos produtos da loja Shopify da Bora, enviados pelo correio. À mão.
   'Loja Online': 'Online Store',

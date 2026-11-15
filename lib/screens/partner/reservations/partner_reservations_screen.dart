@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../config/app_colors.dart';
+import '../../../l10n/tr.dart';
 import '../../../models/client_restaurant_profile.dart';
 import '../../../models/reservation_model.dart';
 import '../../../models/restaurant_table.dart';
@@ -116,6 +117,9 @@ class _PartnerReservationsScreenState extends State<PartnerReservationsScreen>
 
   Future<void> _onReject(ReservationModel r) async {
     final reasonCtrl = TextEditingController();
+    // fechar-tudo-15-11: só se promete a devolução que o código faz. Com
+    // pré-pagamento, a rejeição passa pela Edge que devolve o dinheiro; se
+    // ela ainda não estiver instalada, a reserva não é rejeitada.
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -123,9 +127,13 @@ class _PartnerReservationsScreenState extends State<PartnerReservationsScreen>
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'O pré-pagamento de €3 será reembolsado ao cliente.',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            Text(
+              r.prepaymentCents > 0
+                  ? 'Ao rejeitar, o cliente é avisado e a Bora devolve-lhe os {0} do pré-pagamento.'
+                      .trArgs([eurCents(r.prepaymentCents)])
+                  : 'Ao rejeitar, o cliente é avisado.'.tr,
+              style: const TextStyle(
+                  color: AppColors.textSecondary, fontSize: 13),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -154,21 +162,22 @@ class _PartnerReservationsScreenState extends State<PartnerReservationsScreen>
     if (result != true || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await context.read<PartnerReservasStore>().decideReservation(
-            reservationId: r.id,
-            accept: false,
+      final recusa = await context.read<PartnerReservasStore>().rejectReservation(
+            reservation: r,
             reason: reasonCtrl.text.trim().isEmpty ? null : reasonCtrl.text.trim(),
           );
       if (!mounted) return;
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Reserva rejeitada e reembolsada.')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text(recusa.texto)));
       _refreshAll();
     } catch (e) {
       if (!mounted) return;
+      // A parte do servidor ainda por instalar não é erro do parceiro: aviso
+      // calmo, sem vermelho, e a reserva fica como estava.
+      final calmo = e is RecusaReservaFalhou &&
+          e.motivo == MotivoFalhaRecusa.naoInstalada;
       messenger.showSnackBar(SnackBar(
         content: Text(e.toString().replaceFirst('Exception: ', '')),
-        backgroundColor: Colors.red,
+        backgroundColor: calmo ? null : Colors.red,
       ));
     }
   }

@@ -1,5 +1,8 @@
 // supabase/functions/create-mbway-appointment-payment-intent/index.ts — v5
 //
+// v5b (2026-11-15, revisão do Juiz ao 6e4ed0ce): o PI já gravado (deposit_pi) é lido primeiro e
+// devolvido se ainda vivo e do mesmo telefone; outro telefone cancela-o antes (ou 409); a chave
+// da nova tentativa é fixa (`_after_<PI>`), nunca `_r<agora>`. Ver logica.ts (8-11).
 // v5 (2026-11-15, conserto P0 do Juiz da Claude.ai, "Autorizo tudo" do Danilo 15:15): a escrita
 // do deposit_pi passa a ir por um cliente com a chave do servidor SEM o Authorization do
 // cliente; quem chama é identificado por admin.auth.getUser(token); se gravar falhar, o
@@ -95,6 +98,14 @@ Deno.serve(async (req: Request) => {
             return { id: pi.id, status: pi.status, repetido };
           },
           estadoIntent: async (id) => (await stripe.paymentIntents.retrieve(id)).status,
+          async lerIntent(id) {
+            // O telefone MB WAY está no método de pagamento (billing_details.phone).
+            const pi = await stripe.paymentIntents.retrieve(id, { expand: ['payment_method'] });
+            // deno-lint-ignore no-explicit-any
+            const pm = pi.payment_method as any;
+            const telefone = pm && typeof pm === 'object' ? (pm.billing_details?.phone ?? null) : null;
+            return { id: pi.id, status: pi.status, telefone };
+          },
           cancelarIntent: async (id) => {
             await stripe.paymentIntents.cancel(id);
           },

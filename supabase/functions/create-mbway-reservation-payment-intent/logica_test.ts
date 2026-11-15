@@ -8,7 +8,15 @@ const UID = '11111111-1111-4111-8111-111111111111';
 const RSV = '22222222-2222-4222-8222-222222222222';
 const CORPO = { restaurant_id: 'r1', people: 2, reserved_for: '2026-11-20T20:00:00Z', phone: '912345678' };
 
-function falsos(over: Partial<Dependencias> = {}, opts: { cancelaFalha?: boolean; criarFalha?: boolean } = {}) {
+// Erro de recusa como o SDK da Stripe o lança (type StripeCardError, rawType card_error).
+function recusaCartao(): Error {
+  return Object.assign(new Error('card_declined'), { type: 'StripeCardError', rawType: 'card_error' });
+}
+
+function falsos(
+  over: Partial<Dependencias> = {},
+  opts: { cancelaFalha?: boolean; criarFalha?: boolean; erroCriar?: unknown } = {},
+) {
   const reg = {
     inseridas: [] as Record<string, unknown>[],
     criados: [] as { params: Record<string, unknown>; chave: string }[],
@@ -26,7 +34,7 @@ function falsos(over: Partial<Dependencias> = {}, opts: { cancelaFalha?: boolean
         conta: 'pessoal',
         modo: 'live',
         criarIntent: (params, chave) => {
-          if (opts.criarFalha) return Promise.reject(new Error('card_declined'));
+          if (opts.criarFalha) return Promise.reject(opts.erroCriar ?? recusaCartao());
           reg.criados.push({ params, chave });
           return Promise.resolve({ id: 'pi_mb', status: 'requires_action' });
         },
@@ -97,6 +105,37 @@ Deno.test('Stripe recusa ao criar: reserva apagada e 500 payment_intent_failed, 
   assertEquals(r.corpo, { error: 'payment_intent_failed' });
   assert(!JSON.stringify(r.corpo).includes('card_declined'));
   assertEquals(reg.apagadas, [RSV]);
+});
+
+// Revisão do Juiz ao commit 6e4ed0ce (#4).
+Deno.test('JUIZ #4: pedido inválido recusado pela Stripe (invalid_request_error) → reserva apagada', async () => {
+  for (const erro of [
+    Object.assign(new Error('bad phone'), { type: 'StripeInvalidRequestError', rawType: 'invalid_request_error' }),
+    Object.assign(new Error('bad phone'), { raw: { type: 'invalid_request_error' } }),
+  ]) {
+    const { deps, reg } = falsos({}, { criarFalha: true, erroCriar: erro });
+    const r = await tratar('Bearer tok-bom', CORPO, deps);
+    assertEquals(r.status, 500);
+    assertEquals(r.corpo, { error: 'payment_intent_failed' });
+    assertEquals(reg.apagadas, [RSV]);
+  }
+});
+
+Deno.test('JUIZ #4: ligação à Stripe caiu (o PI pode existir) → reserva FICA pending_payment e 500 payment_intent_failed', async () => {
+  for (const erro of [
+    Object.assign(new Error('socket hang up'), { type: 'StripeConnectionError' }),
+    Object.assign(new Error('Internal'), { type: 'StripeAPIError', rawType: 'api_error' }),
+    new Error('timeout'),
+    'falha qualquer',
+  ]) {
+    const { deps, reg } = falsos({}, { criarFalha: true, erroCriar: erro });
+    const r = await tratar('Bearer tok-bom', CORPO, deps);
+    assertEquals(r.status, 500);
+    assertEquals(r.corpo, { error: 'payment_intent_failed' });
+    assertEquals(reg.apagadas.length, 0);
+    assertEquals(reg.gravados.length, 0);
+    assertEquals(reg.inseridas[0].status, 'pending_payment');
+  }
 });
 
 Deno.test('gravar o PI falha: PI cancelado, reserva apagada, 500 (a v6 dizia ok:true)', async () => {

@@ -27,6 +27,12 @@
 // `internal_error`); o detalhe fica no console.error. A chave de idempotência é SEMPRE a do
 // servidor (`mbway_rsv_<id>`); a `idempotency_key` do corpo é ignorada (a app não a manda).
 //
+// Revisão do Juiz ao commit 6e4ed0ce: se a ligação à Stripe cair DEPOIS de o PI ser criado
+// (confirm:true), o pedido MB WAY pode já ter ido para o telemóvel. Por isso a reserva só se apaga
+// quando a Stripe RECUSOU o pedido (StripeCardError / card_error ou invalid_request_error); em
+// qualquer outro erro (ligação, tempo, 5xx da Stripe) a reserva FICA pending_payment (o webhook
+// encontra-a pelo metadata.reservation_id) e a resposta é 500 payment_intent_failed.
+//
 // Sem rede: o index.ts liga isto ao Supabase e à Stripe; o logica_test.ts usa falsos.
 
 import { COMING_SOON_RESERVATION_MSG, comingSoonResponseBody } from '../_shared/coming_soon.ts';
@@ -90,6 +96,19 @@ function mensagem(e: unknown): string {
 }
 
 const ORIGEM = 'create-mbway-reservation-payment-intent';
+
+/**
+ * true só quando a Stripe respondeu a recusar o pedido (cartão/MB WAY recusado ou pedido
+ * inválido). Erros de ligação, tempo ou da própria Stripe (5xx) → false: o PI pode existir.
+ */
+export function recusaDaStripe(e: unknown): boolean {
+  if (!e || typeof e !== 'object') return false;
+  const o = e as { type?: unknown; rawType?: unknown; raw?: { type?: unknown } | null };
+  return [o.type, o.rawType, o.raw?.type].some((t) =>
+    t === 'StripeCardError' || t === 'card_error' ||
+    t === 'StripeInvalidRequestError' || t === 'invalid_request_error'
+  );
+}
 
 async function apagarSemLancar(deps: Dependencias, id: string) {
   try {
@@ -165,9 +184,16 @@ export async function tratar(
       },
     }, chave);
   } catch (stripeErr) {
-    await apagarSemLancar(deps, rsv.id);
     const msg = mensagem(stripeErr);
-    console.error(`[${ORIGEM}] stripe failed:`, msg);
+    if (recusaDaStripe(stripeErr)) {
+      // A Stripe recusou: nenhum pedido MB WAY ficou vivo, a reserva por pagar pode sair.
+      await apagarSemLancar(deps, rsv.id);
+      console.error(`[${ORIGEM}] stripe recusou (reserva apagada):`, msg);
+    } else {
+      // Ligação caída/tempo/5xx: o PI pode ter sido criado e o pedido enviado ao telemóvel.
+      // A reserva fica pending_payment para o webhook a encontrar.
+      console.error(`[${ORIGEM}] stripe failed (reserva ${rsv.id} mantida pending_payment):`, msg);
+    }
     return { status: 500, corpo: { error: 'payment_intent_failed' } };
   }
 

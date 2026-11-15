@@ -26,6 +26,16 @@
 // 400 invalid_charge_amount), metadata kind='appointment', conta Stripe de _shared/stripe_contas.ts,
 // corpo da resposta de sucesso.
 //
+// Revisão do Juiz ao commit 6e4ed0ce (risco de cobrar duas vezes; "Autorizo tudo" do Danilo):
+//  5. Antes de criar, lê-se o PI já gravado na marcação (deposit_pi). Se não está cancelado
+//     (requires_payment_method, requires_action, processing, succeeded...), devolve-se ESSE PI
+//     com o client_secret dele: um PI de cartão à espera da folha de pagamento continua pagável,
+//     por isso criar outro deixava dois PI pagáveis na mesma marcação.
+//  6. A chave da nova tentativa deixa de ter o instante (`_r<agora>` mudava a cada pedido). Agora
+//     é FIXA: `appt_<id>_after_<deposit_pi ou PI repetido>`; se essa também devolver um PI
+//     cancelado, segue para `appt_<id>_after_<esse PI>` (no máximo 5 vezes).
+//  7. Estado errado → 409 com o código fixo `invalid_status` (sem o estado em texto).
+//
 // Sem rede: o index.ts liga isto ao Supabase e à Stripe; o logica_test.ts usa falsos.
 
 import { COMING_SOON_BOOKING_MSG, comingSoonResponseBody } from '../_shared/coming_soon.ts';
@@ -59,6 +69,8 @@ export interface StripePronta {
   conta: string;
   criarIntent(params: Record<string, unknown>, chave: string): Promise<IntentCriado>;
   estadoIntent(id: string): Promise<string>;
+  /** Um PI já existente (id, client_secret, estado). */
+  lerIntent(id: string): Promise<IntentCriado>;
   cancelarIntent(id: string): Promise<void>;
 }
 
@@ -92,6 +104,32 @@ function mensagem(e: unknown): string {
 
 const ORIGEM = 'create-appointment-payment-intent';
 
+/** Estados de um PI de cartão que já não se pode pagar: só estes levam a um PI novo. */
+export const ESTADOS_MORTOS = new Set(['canceled']);
+
+/** Máximo de chaves `_after_` seguidas (cada uma devolveu um PI morto) antes de desistir. */
+export const MAX_CHAVES_APOS = 5;
+
+/**
+ * Cria o PI com a chave base; se a Stripe devolver um PI repetido e morto, tenta a chave FIXA
+ * `<base>_after_<anterior ou PI repetido>` e, se essa também estiver morta, `<base>_after_<esse>`.
+ */
+async function criarSemReaproveitarMorto(
+  stripe: StripePronta,
+  params: Record<string, unknown>,
+  chaveBase: string,
+  anterior: string | null,
+): Promise<IntentCriado> {
+  let intent = await stripe.criarIntent(params, chaveBase);
+  let depois = anterior ?? intent.id;
+  for (let i = 0; intent.repetido && ESTADOS_MORTOS.has(await stripe.estadoIntent(intent.id)); i++) {
+    if (i >= MAX_CHAVES_APOS) throw new Error(`demasiados PI mortos seguidos (ultimo ${intent.id})`);
+    intent = await stripe.criarIntent(params, `${chaveBase}_after_${depois}`);
+    depois = intent.id;
+  }
+  return intent;
+}
+
 export async function tratar(
   cabecalhoAuth: string | null,
   body: CorpoMarcacao,
@@ -107,7 +145,7 @@ export async function tratar(
   if (!appt) return { status: 404, corpo: { error: 'appointment not found' } };
   if (appt.client_user_id !== user.id) return { status: 403, corpo: { error: 'not your appointment' } };
   if (appt.status !== 'pending_payment') {
-    return { status: 409, corpo: { error: 'invalid status: ' + appt.status } };
+    return { status: 409, corpo: { error: 'invalid_status' } };
   }
 
   if (await deps.parceiroEmBreve(appt.provider_id)) {
@@ -145,13 +183,29 @@ export async function tratar(
     },
   };
 
+  const sucesso = (pi: IntentCriado): Resposta => ({
+    status: 200,
+    corpo: {
+      appointment_id: appt.id,
+      paymentIntentId: pi.id,
+      clientSecret: pi.client_secret,
+      amount_cents: cents,
+      ...deps.respostaConta(conta),
+    },
+  });
+
+  const anterior = appt.deposit_pi ?? null;
   let intent: IntentCriado;
   try {
-    intent = await stripe.criarIntent(params, chaveBase);
-    if (intent.repetido && (await stripe.estadoIntent(intent.id)) === 'canceled') {
-      // Tentativa anterior com a mesma chave acabou cancelada: PI novo com chave nova.
-      intent = await stripe.criarIntent(params, `${chaveBase}_r${deps.agora()}`);
+    if (anterior) {
+      // Juiz (6e4ed0ce): o PI já gravado manda. Enquanto não estiver cancelado, é esse que vale.
+      const atual = await stripe.lerIntent(anterior);
+      if (!ESTADOS_MORTOS.has(atual.status ?? '')) {
+        console.log(`[${ORIGEM}] PI anterior ainda vivo, devolvido:`, anterior, `status=${atual.status}`);
+        return sucesso(atual);
+      }
     }
+    intent = await criarSemReaproveitarMorto(stripe, params, chaveBase, anterior);
   } catch (stripeErr) {
     // Revisão do Juiz (15/11 19:27): o texto da Stripe fica só no log; a marcação fica
     // pending_payment e o cliente recebe um código genérico.
@@ -199,14 +253,5 @@ export async function tratar(
     };
   }
 
-  return {
-    status: 200,
-    corpo: {
-      appointment_id: appt.id,
-      paymentIntentId: intent.id,
-      clientSecret: intent.client_secret,
-      amount_cents: cents,
-      ...deps.respostaConta(conta),
-    },
-  };
+  return sucesso(intent);
 }

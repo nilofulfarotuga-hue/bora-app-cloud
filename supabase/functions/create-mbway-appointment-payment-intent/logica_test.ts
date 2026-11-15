@@ -16,6 +16,9 @@ function marcacao(over: Partial<Marcacao> = {}): Marcacao {
 function falsos(over: Partial<Dependencias> = {}, opts: { cancelaFalha?: boolean; criarFalha?: boolean } = {}) {
   const guardadas = new Map<string, { id: string }>();
   const estados = new Map<string, string>();
+  const telefones = new Map<string, string>();
+  // A marcação "na base": o deposit_pi muda quando o servidor o grava.
+  const marc = { deposit_pi: null as string | null };
   let n = 0;
   const reg = {
     chaves: [] as string[],
@@ -26,7 +29,7 @@ function falsos(over: Partial<Dependencias> = {}, opts: { cancelaFalha?: boolean
   };
   const deps: Dependencias = {
     utilizadorDoToken: (t) => Promise.resolve(t === 'tok-bom' ? { id: UID } : null),
-    lerMarcacao: () => Promise.resolve(marcacao()),
+    lerMarcacao: () => Promise.resolve(marcacao({ deposit_pi: marc.deposit_pi })),
     parceiroEmBreve: () => Promise.resolve(false),
     prepararStripe: () =>
       Promise.resolve({
@@ -37,13 +40,16 @@ function falsos(over: Partial<Dependencias> = {}, opts: { cancelaFalha?: boolean
           reg.params.push(params);
           if (opts.criarFalha) return Promise.reject(new Error('phone invalid'));
           const antes = guardadas.get(chave);
-          if (antes) return Promise.resolve({ ...antes, status: 'requires_action', repetido: true });
+          if (antes) return Promise.resolve({ ...antes, status: estados.get(antes.id), repetido: true });
           const pi = { id: `pi_${++n}` };
           guardadas.set(chave, pi);
           estados.set(pi.id, 'requires_action');
+          // deno-lint-ignore no-explicit-any
+          telefones.set(pi.id, (params as any).payment_method_data.billing_details.phone);
           return Promise.resolve({ ...pi, status: 'requires_action', repetido: false });
         },
         estadoIntent: (id) => Promise.resolve(estados.get(id) ?? 'unknown'),
+        lerIntent: (id) => Promise.resolve({ id, status: estados.get(id), telefone: telefones.get(id) ?? null }),
         cancelarIntent: (id) => {
           if (opts.cancelaFalha) return Promise.reject(new Error('stripe em baixo'));
           reg.cancelados.push(id);
@@ -53,6 +59,7 @@ function falsos(over: Partial<Dependencias> = {}, opts: { cancelaFalha?: boolean
       }),
     gravarPi: (a, c, pi, conta) => {
       reg.gravados.push([a, c, pi, conta]);
+      marc.deposit_pi = pi;
       return Promise.resolve(null);
     },
     avisarEquipa: (resumo) => {
@@ -62,7 +69,7 @@ function falsos(over: Partial<Dependencias> = {}, opts: { cancelaFalha?: boolean
     agora: () => 1700000000000,
     ...over,
   };
-  return { deps, reg, estados };
+  return { deps, reg, estados, marc };
 }
 
 const CORPO = { appointment_id: APPT, phone: '912345678' };
@@ -148,7 +155,7 @@ Deno.test('gravar falha e cancelar também: equipa avisada', async () => {
   assertEquals(reg.avisos.length, 1);
 });
 
-Deno.test('nova tentativa depois de um PI cancelado recebe um PI NOVO (não o cancelado)', async () => {
+Deno.test('nova tentativa depois de um PI cancelado recebe um PI NOVO com chave fixa _after_', async () => {
   let falhar = true;
   const { deps, reg } = falsos({
     gravarPi: () => Promise.resolve(falhar ? 'erro' : null),
@@ -160,20 +167,22 @@ Deno.test('nova tentativa depois de um PI cancelado recebe um PI NOVO (não o ca
   const r2 = await tratar('Bearer tok-bom', CORPO, deps);
   assertEquals(r2.status, 200);
   assertEquals(r2.corpo.paymentIntentId, 'pi_2');
-  assertEquals(reg.chaves, [CHAVE, CHAVE, `${CHAVE}_r1700000000000`]);
+  assertEquals(reg.chaves, [CHAVE, CHAVE, `${CHAVE}_after_pi_1`]);
 });
 
-Deno.test('repetição de um PI ainda vivo (resposta perdida) devolve o MESMO PI', async () => {
+Deno.test('repetição com o PI gravado ainda vivo (resposta perdida) devolve o MESMO PI sem criar outro', async () => {
   const { deps, reg } = falsos();
   await tratar('Bearer tok-bom', CORPO, deps);
   const r2 = await tratar('Bearer tok-bom', CORPO, deps);
   assertEquals(r2.status, 200);
   assertEquals(r2.corpo.paymentIntentId, 'pi_1');
-  assertEquals(reg.chaves.length, 2);
+  assertEquals(r2.corpo.status, 'requires_action');
+  assertEquals(reg.chaves.length, 1);
+  assertEquals(reg.cancelados.length, 0);
 });
 
 // Revisão do Juiz da Claude.ai (15/11/2026 19:27).
-Deno.test('PI repetido em requires_payment_method (MB WAY recusado/expirado) = tentativa nova com PI novo', async () => {
+Deno.test('PI gravado em requires_payment_method (MB WAY recusado/expirado) = tentativa nova com PI novo', async () => {
   const { deps, reg, estados } = falsos();
   const r1 = await tratar('Bearer tok-bom', CORPO, deps);
   assertEquals(r1.corpo.paymentIntentId, 'pi_1');
@@ -181,19 +190,109 @@ Deno.test('PI repetido em requires_payment_method (MB WAY recusado/expirado) = t
   const r2 = await tratar('Bearer tok-bom', CORPO, deps);
   assertEquals(r2.status, 200);
   assertEquals(r2.corpo.paymentIntentId, 'pi_2');
-  assertEquals(reg.chaves, [CHAVE, CHAVE, `${CHAVE}_r1700000000000`]);
+  assertEquals(reg.chaves, [CHAVE, CHAVE, `${CHAVE}_after_pi_1`]);
   assertEquals(reg.gravados.map((g) => g[2]), ['pi_1', 'pi_2']);
 });
 
-Deno.test('outro telefone = outra chave = PI novo (o pedido MB WAY vai para o número novo)', async () => {
-  const { deps, reg } = falsos();
+// Revisão do Juiz ao commit 6e4ed0ce: o caso de cobrar duas vezes.
+Deno.test('JUIZ #1: PI1 recusado → PI2 enviado; outro toque devolve o PI2 e NUNCA cria um PI3', async () => {
+  const { deps, reg, estados } = falsos();
+  await tratar('Bearer tok-bom', CORPO, deps); // PI1
+  estados.set('pi_1', 'requires_payment_method');
+  const r2 = await tratar('Bearer tok-bom', CORPO, deps); // PI2 vai para o telemóvel
+  assertEquals(r2.corpo.paymentIntentId, 'pi_2');
+  const r3 = await tratar('Bearer tok-bom', CORPO, deps); // outro toque
+  assertEquals(r3.status, 200);
+  assertEquals(r3.corpo.paymentIntentId, 'pi_2');
+  assertEquals(reg.chaves, [CHAVE, CHAVE, `${CHAVE}_after_pi_1`]);
+  for (const estado of ['processing', 'succeeded']) {
+    estados.set('pi_2', estado);
+    const r = await tratar('Bearer tok-bom', CORPO, deps);
+    assertEquals(r.status, 200);
+    assertEquals(r.corpo.paymentIntentId, 'pi_2');
+    assertEquals(r.corpo.status, estado);
+  }
+  assertEquals(reg.chaves.length, 3);
+  assertEquals(reg.cancelados.length, 0);
+});
+
+Deno.test('JUIZ #1: dois toques que leem o mesmo estado usam a mesma chave fixa e recebem o MESMO PI', async () => {
+  const { deps, reg, estados } = falsos();
+  await tratar('Bearer tok-bom', CORPO, deps); // PI1 gravado
+  estados.set('pi_1', 'requires_payment_method');
+  // Leitura "antiga" nos dois pedidos: nenhum vê o PI que o outro gravou.
+  deps.lerMarcacao = () => Promise.resolve(marcacao({ deposit_pi: 'pi_1' }));
+  const a = await tratar('Bearer tok-bom', CORPO, deps);
+  const b = await tratar('Bearer tok-bom', CORPO, deps);
+  assertEquals(a.corpo.paymentIntentId, 'pi_2');
+  assertEquals(b.corpo.paymentIntentId, 'pi_2');
+  assertEquals(reg.chaves.filter((c) => c === `${CHAVE}_after_pi_1`).length, 2);
+  assert(!reg.chaves.some((c) => c.includes('_r')));
+});
+
+Deno.test('cadeia fixa: PI2 também recusado → chave _after_pi_2 → PI3', async () => {
+  const { deps, reg, estados } = falsos();
+  await tratar('Bearer tok-bom', CORPO, deps);
+  estados.set('pi_1', 'requires_payment_method');
+  await tratar('Bearer tok-bom', CORPO, deps);
+  estados.set('pi_2', 'requires_payment_method');
+  const r = await tratar('Bearer tok-bom', CORPO, deps);
+  assertEquals(r.corpo.paymentIntentId, 'pi_3');
+  assertEquals(reg.chaves, [CHAVE, CHAVE, `${CHAVE}_after_pi_1`, CHAVE, `${CHAVE}_after_pi_2`]);
+});
+
+Deno.test('JUIZ #2: outro telefone com o anterior em requires_action → cancela o anterior e cria o novo', async () => {
+  const { deps, reg, estados } = falsos();
   await tratar('Bearer tok-bom', CORPO, deps);
   const r2 = await tratar('Bearer tok-bom', { ...CORPO, phone: '+351 936 000 111' }, deps);
   assertEquals(r2.status, 200);
   assertEquals(r2.corpo.paymentIntentId, 'pi_2');
+  assertEquals(reg.cancelados, ['pi_1']);
+  assertEquals(estados.get('pi_1'), 'canceled');
   assertEquals(reg.chaves, [CHAVE, `mbway_appt_${APPT}_351936000111`]);
   const p = reg.params[1] as Record<string, any>;
   assertEquals(p.payment_method_data.billing_details.phone, '+351 936 000 111');
+});
+
+Deno.test('JUIZ #2: outro telefone e o cancelamento do anterior falha → 409 payment_in_progress, nada criado', async () => {
+  const { deps, reg } = falsos({}, { cancelaFalha: true });
+  await tratar('Bearer tok-bom', CORPO, deps);
+  const r = await tratar('Bearer tok-bom', { ...CORPO, phone: '936000111' }, deps);
+  assertEquals(r.status, 409);
+  assertEquals(r.corpo.error, 'payment_in_progress');
+  assertEquals(reg.chaves.length, 1);
+  assertEquals(reg.gravados.length, 1);
+});
+
+Deno.test('JUIZ #2: outro telefone com o anterior processing ou succeeded → 409, sem cancelar nem criar', async () => {
+  for (const estado of ['processing', 'succeeded']) {
+    const { deps, reg, estados } = falsos();
+    await tratar('Bearer tok-bom', CORPO, deps);
+    estados.set('pi_1', estado);
+    const r = await tratar('Bearer tok-bom', { ...CORPO, phone: '936000111' }, deps);
+    assertEquals(r.status, 409);
+    assertEquals(r.corpo.error, 'payment_in_progress');
+    assertEquals(reg.cancelados.length, 0);
+    assertEquals(reg.chaves.length, 1);
+  }
+});
+
+Deno.test('ler o PI anterior falha na Stripe: 500 payment_intent_failed e nenhum PI novo', async () => {
+  const { deps, reg } = falsos();
+  await tratar('Bearer tok-bom', CORPO, deps);
+  const base = deps.prepararStripe;
+  deps.prepararStripe = async (b) => ({ ...(await base(b)), lerIntent: () => Promise.reject(new Error('rede')) });
+  const r = await tratar('Bearer tok-bom', CORPO, deps);
+  assertEquals(r.status, 500);
+  assertEquals(r.corpo, { error: 'payment_intent_failed' });
+  assertEquals(reg.chaves.length, 1);
+});
+
+Deno.test('estado errado: 409 com o código fixo invalid_status (sem o estado em texto)', async () => {
+  const { deps } = falsos({ lerMarcacao: () => Promise.resolve(marcacao({ status: 'confirmed' })) });
+  const r = await tratar('Bearer tok-bom', CORPO, deps);
+  assertEquals(r.status, 409);
+  assertEquals(r.corpo, { error: 'invalid_status' });
 });
 
 Deno.test('idempotency_key do cliente é ignorada: a chave é sempre a do servidor', async () => {

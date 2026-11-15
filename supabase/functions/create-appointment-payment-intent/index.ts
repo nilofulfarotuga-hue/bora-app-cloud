@@ -1,5 +1,8 @@
 // supabase/functions/create-appointment-payment-intent/index.ts — v5
 //
+// v5b (2026-11-15, revisão do Juiz ao 6e4ed0ce): o PI já gravado (deposit_pi) é devolvido
+// enquanto não estiver cancelado; a chave da nova tentativa é fixa (`_after_<PI>`), nunca
+// `_r<agora>`. Ver logica.ts (5-7).
 // v5 (2026-11-15, conserto P0 do Juiz da Claude.ai, "Autorizo tudo" do Danilo 15:15): a escrita
 // do deposit_pi passa a ir por um cliente com a chave do servidor SEM o Authorization do
 // cliente; quem chama é identificado por admin.auth.getUser(token); se gravar falhar, o
@@ -86,6 +89,10 @@ Deno.serve(async (req: Request) => {
             return { id: pi.id, client_secret: pi.client_secret, status: pi.status, repetido };
           },
           estadoIntent: async (id) => (await stripe.paymentIntents.retrieve(id)).status,
+          async lerIntent(id) {
+            const pi = await stripe.paymentIntents.retrieve(id);
+            return { id: pi.id, client_secret: pi.client_secret, status: pi.status };
+          },
           cancelarIntent: async (id) => {
             await stripe.paymentIntents.cancel(id);
           },

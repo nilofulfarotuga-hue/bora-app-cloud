@@ -59,7 +59,7 @@ Publicar a função do talão (`ocr-receipt`) e copiar para a VPS os ficheiros `
 
 Aplicar o remendo do ficheiro dos pedidos (`docs/propostas/fechar-app-15-11/bloco2_order_store.patch`). A tranca do PC recusou-o. Sem ele o estafeta já não recarrega a cada posição, mas cada recarga ainda traz a lista inteira, e o botão "Ver entregas mais antigas" só mostra o que já está na memória.
 
-Do revisor ficaram por fazer: o robô do talão ainda deixa lojas diferentes "bater" por uma palavra comum (pizza, sushi, burger) e o painel não mostra porque é que um talão ficou para rever; o ecrã "Acesso negado" manda sair da conta mas não tem botão para isso.
+Do revisor ficaram por fazer: o painel não mostra porque é que um talão ficou para rever; o ecrã "Acesso negado" manda sair da conta mas não tem botão para isso. (O robô do talão já não deixa lojas diferentes "bater" por uma palavra de tipo de comida, como pizza, sushi ou burger: corrigido à 01:50, com teste.)
 
 Publicar nas 3 lojas e provar nas 3, e o pedido de teste a dinheiro do princípio ao fim. Não se fez: depende de tudo o que está em cima.
 

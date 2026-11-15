@@ -273,7 +273,8 @@ class PedidosEstafetaScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final orderStore = context.watch<OrderStore>();
     final feitos = [...orderStore.completedOrders]
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      ..sort((a, b) => (b.deliveredAt ?? b.createdAt)
+          .compareTo(a.deliveredAt ?? a.createdAt));
     return PedidosEstafetaCorpo(
       emCurso: orderStore.myOrders.length,
       ofertas: orderStore.availableOrders.length,

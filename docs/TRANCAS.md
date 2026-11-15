@@ -631,3 +631,6 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   produção é publicar" — lê o texto dentro da cadeia): entregue por link fixo do GitHub (commit + sha256) nas
   caixas 25 a 33. (7) O classificador do Claude Code negou `gh --version` ("Undermining Oversight"): não repetido;
   o pedido de revisão #19 já existia.
+  (8) ~11:25: o classificador do Claude Code negou ler o registo completo do job do build-ios #278 com o token
+  do git do PC ("Unauthorized Access"), apesar de ser o caminho anotado a 29/10 na memória. Não repetido; as
+  duas falhas que encontrei foram achadas lendo o código e os testes.

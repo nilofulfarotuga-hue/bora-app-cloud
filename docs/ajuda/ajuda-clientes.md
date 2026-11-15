@@ -26,7 +26,7 @@ A carteira guarda o teu saldo Bora (por exemplo, de um reembolso). Podes usar es
 Cada loja e restaurante tem o seu horário. A app mostra se está aberto agora; quando está fechado, podes agendar o pedido para quando abrir, se a loja o permitir.
 
 ## Cancelar um pedido
-Podes cancelar na página do pedido. Logo a seguir a pedir, antes de um estafeta aceitar, o cancelamento é grátis. Depois disso pode haver uma taxa de cancelamento, e a app mostra-ta antes de confirmares. Se o estafeta já recolheu o pedido, já não dá para cancelar.
+Podes cancelar na página do pedido. Enquanto nenhum estafeta aceitou o pedido, cancelar é grátis. Depois de um estafeta aceitar, cancelar custa 2,50 €. Depois de o estafeta recolher o pedido, cancelar custa o valor total do pedido (não há reembolso). A app mostra sempre o custo antes de confirmares. Um pedido para ir buscar que já está pronto já não se cancela.
 
 ## Reembolsos: carteira ou meio de pagamento
 Quando há dinheiro a devolver, és tu que escolhes: (a) Carteira Bora, recebes o valor todo como saldo e podes usá-lo logo; ou (b) reembolso para o teu cartão ou MB WAY, o valor todo, que demora 5 a 10 dias úteis a aparecer na tua conta. Os tokens que usaste nesse pedido voltam para ti como tokens.
@@ -53,7 +53,7 @@ Para reservar mesa pagas 3 € adiantados. Quando chegas, o restaurante desconta
 Podes marcar uma limpeza em casa pela app, com preço fixo conforme o tamanho da casa. Os materiais custam 3 € a mais e as limpezas repetidas têm 10 % de desconto. Se cancelares nos primeiros 5 minutos depois de marcar, não pagas nada.
 
 ## Mudar o nome do perfil
-O nome do teu perfil não se muda na app. Para mudar o nome, fala com o Suporte e a equipa trata disso. A foto podes mudar tu em Perfil > Editar perfil. O email é o teu acesso à conta e não se altera.
+O nome do teu perfil não se muda na app. Para mudar o nome, fala com o Suporte e a equipa trata disso. A foto mudas tu no ecrã Perfil, tocando na câmara por cima da foto. O email é o teu acesso à conta e não se altera.
 
 ## Mudar o telemóvel
 Em Perfil > Editar perfil podes mudar o teu número de telemóvel.

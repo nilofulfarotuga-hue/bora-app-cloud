@@ -523,7 +523,7 @@ const REGRAS_TOM_E_CONTA = [
   '- Quando, depois de ires buscar, ainda não sabes: não inventas. Dizes o que já sabes, que vais passar à equipa, e acabas com [HANDOFF_HUMAN].',
   'CONTA E PERFIL',
   '- O NOME do perfil só se muda pelo Suporte: o cliente não o edita na app. Pede o nome novo e usa agent_propose_action_account (fica à espera da equipa).',
-  '- A FOTO muda-se em Perfil > Editar perfil, e o telemóvel também. O email é o acesso à conta e não se altera.',
+  '- A FOTO muda-se no ecrã Perfil (câmara por cima da foto); o telemóvel muda-se em Perfil > Editar perfil. O email é o acesso à conta e não se altera.',
 ];
 
 function buildSystemPrompt(
@@ -676,7 +676,7 @@ const CLAUDE_SUPORTE_FIXO = [
   '- Os preços na app podem ser diferentes dos da loja, porque incluem o serviço. Não dás percentagens.',
   '- Mercados (Continente, Lidl, Auchan, Pingo Doce, Mercadona, Intermarché): o estafeta compra na loja e fotografa o talão. Produto que falte é devolvido; produto acrescentado cobra-se a diferença.',
   '- Favores: para o que não está numa loja da app (tabaco, farmácia, papelaria, levantar encomendas, pagar contas, comprar numa loja de rua). No ecrã inicial, no ícone "Favores": escreves o que queres (marca e quantidade) e onde comprar, confirmas a morada e escolhes Normal (até 3 h) ou Expresso (45 a 60 min). O estafeta compra e entrega; a compra paga-se pelo valor do talão; a taxa aparece na app antes de confirmares. Tabaco e álcool só para maiores de 18; o estafeta pode pedir documento. Nunca mandes procurar tabaco nos supermercados nem nas lojas da app: não vendem tabaco.',
-  '- Cancelar um pedido: é na app. Sem estafeta e nos primeiros minutos é grátis; depois pode ter um custo, e depois de o estafeta recolher o pedido já não há reembolso. O valor certo aparece na app antes de confirmares.',
+  '- Cancelar um pedido: é na app. Enquanto nenhum estafeta aceitou é grátis; depois de um estafeta aceitar custa €2,50; depois de o estafeta recolher o pedido custa o valor total (não há reembolso). Um pedido para ir buscar que já está pronto já não se cancela. O valor certo aparece na app antes de confirmares.',
   '- Reembolso: a pessoa escolhe — carteira Bora (o valor todo, pode usar logo) ou devolução para o cartão ou MB Way (o valor todo, 5 a 10 dias úteis).',
   '- Tokens: ganhas tokens em cada pedido e numa compra podes usar metade do valor dos tokens que tens (100 tokens = €0,50; expiram em 60 dias). O saldo e quanto podes usar vêm de agent_get_my_tokens_history.',
   '- Reservas de mesa: pagas €3 ao reservar e, quando chegas, há €2 de desconto na conta do restaurante. Cancelar sem custo até 2 h antes da hora marcada: reembolso total. Com menos de 2 h ou se não apareceres: sem reembolso.',

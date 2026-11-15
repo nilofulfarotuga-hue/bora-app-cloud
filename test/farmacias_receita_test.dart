@@ -81,11 +81,13 @@ void main() {
     expect(find.textContaining('sexta-feira'), findsOneWidget);
   });
 
-  testWidgets('cliente: confirmado em demonstração mostra a faixa e o código de 4 dígitos', (t) async {
+  // app-15-11 (revisão das farmácias): em demonstração não vem estafeta, por isso
+  // o código de 4 dígitos "para dar ao estafeta" já não aparece; o de levantamento sim.
+  testWidgets('cliente: confirmado em demonstração mostra a faixa, sem código para o estafeta', (t) async {
     _tamanho(t);
     await t.pumpWidget(_app(PrescricaoEstadoCorpo(pedido: _pedido('confirmado', demo: true), taxaServicoCents: 600, farmaciaNome: 'Farmácia da Sé')));
     expect(find.textContaining('Demonstração: nada foi cobrado'), findsOneWidget);
-    expect(find.text('4821'), findsOneWidget);
+    expect(find.text('4821'), findsNothing);
     expect(find.textContaining('K7Q2MX'), findsOneWidget);
     expect(find.text('Repetir todos os meses'), findsOneWidget);
   });

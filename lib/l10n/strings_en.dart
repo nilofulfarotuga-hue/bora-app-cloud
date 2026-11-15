@@ -16,6 +16,9 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 15/11/2026 (app-15-11): frase do Editar perfil da missão manha-15-11 (bloco B2)
+  // que ficou sem inglês e chumbava test/l10n_cobertura_test.dart. À mão.
+  'Para mudar o nome, fala com o suporte': 'To change your name, contact support',
   // 15/11/2026 (fechar-app-15-11, revisão achados 1, 4, 6 e 17): MB WAY que
   // falha no checkout — motivo, carrinho que fica e pedido anterior. À mão.
   'O teu carrinho continua aqui: tenta outra vez ou escolhe outro meio de pagamento. Se o pedido antigo ainda aparecer na app MB WAY, recusa-o lá.':
@@ -2105,8 +2108,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Add your address so we can show restaurants and stores near you.',
   'Adiciona uma foto da encomenda — obrigatório.':
       'Add a photo of the parcel — required.',
-  'Adicionado pelo estafeta · €{0}':
-      'Added by the courier · €{0}',
+  'Adicionado pelo estafeta · {0}':
+      'Added by the courier · {0}',
   'Adicionar':
       'Add',
   'Adicionar ao calendário — em breve.':
@@ -3068,8 +3071,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'There are {0}h to the appointment (more than 24 hours).\n\nRule: FULL refund of {1} of €{2} (5–10 business days on the card).',
   'Faltam {0}h para a marcação (menos de 24 horas).\n\nRegra: {1} de €{2} NÃO é reembolsado.':
       'There are {0}h to the appointment (less than 24 hours).\n\nRule: {1} of €{2} is NOT refunded.',
-  'Faltam {0}h. Reembolso de €{1} em 5–10 dias.':
-      '{0}h to go. Refund of €{1} in 5–10 days.',
+  'Faltam {0}h. Reembolso de {1} em 5–10 dias.':
+      '{0}h to go. Refund of {1} in 5–10 days.',
   'Faltou':
       'Missing',
   'Farmácia':
@@ -3464,8 +3467,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'We cannot send the email at the moment. Try later or get in touch through customer support.',
   'Não disponível':
       'Not available',
-  'Não disponível — €{0} creditados ao saldo':
-      'Not available — €{0} credited to your balance',
+  'Não disponível — {0} creditados ao saldo':
+      'Not available — {0} credited to your balance',
   'Não editável após pagamento confirmado':
       'Not editable once payment is confirmed',
   'Não encontrei essa morada.':
@@ -4342,8 +4345,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Standard',
   'Substituir produto?':
       'Replace product?',
-  'Substituído{0} · €{1}':
-      'Replaced{0} · €{1}',
+  'Substituído{0} · {1}':
+      'Replaced{0} · {1}',
   'Subtotal':
       'Subtotal',
   'Sugestão':

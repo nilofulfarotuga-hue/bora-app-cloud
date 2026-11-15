@@ -729,7 +729,7 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
         children: [
           const Divider(),
           Text(_modeloNovo
-              ? 'Recibos verdes dos estafetas'
+              ? 'Recibos verdes dos entregadores'
               : 'Recibos verdes (o modelo começa a 01/10/2026 — este mês é só referência)',
               style: const TextStyle(fontWeight: FontWeight.w700)),
           for (final r in _recibos)

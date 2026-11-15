@@ -75,9 +75,13 @@ class _ReciboVerdeSecaoState extends State<ReciboVerdeSecao> {
     }
   }
 
-  Future<void> _marcar() async {
-    final ok = await anexarReciboVerde(context, ano: _ano, mes: _mes,
-        nomeMes: (_resumo?['nome_mes'] ?? '').toString());
+  /// Anexa o recibo de [ano]/[mes] (por defeito o mês passado). Quem está
+  /// retido por um mês mais antigo anexa ESSE mês (Juiz 15/11, achado 1).
+  Future<void> _marcar({int? ano, int? mes, String? nome}) async {
+    final ok = await anexarReciboVerde(context,
+        ano: ano ?? _ano,
+        mes: mes ?? _mes,
+        nomeMes: nome ?? (_resumo?['nome_mes'] ?? '').toString());
     if (ok) {
       await _carregar();
       widget.aoMarcar?.call();
@@ -94,9 +98,8 @@ class _ReciboVerdeSecaoState extends State<ReciboVerdeSecao> {
         ? Map<String, dynamic>.from(r['prestador'] as Map)
         : null;
     final retido = t != null && t['retido'] == true;
-    final precisa = p != null &&
-        p['precisa_recibo'] == true &&
-        p['estado'] != 'entregue';
+    final precisa =
+        p != null && p['precisa_recibo'] == true && p['estado'] != 'entregue';
     if (!retido && !precisa) {
       if (p != null && p['estado'] == 'entregue') {
         return Padding(
@@ -106,7 +109,8 @@ class _ReciboVerdeSecaoState extends State<ReciboVerdeSecao> {
             const Icon(Icons.check_circle, color: AppColors.primary, size: 18),
             const SizedBox(width: 6),
             Expanded(
-                child: Text('Recibo de ${r['nome_mes'] ?? 'mês passado'} entregue',
+                child: Text(
+                    'Recibo de ${r['nome_mes'] ?? 'mês passado'} entregue',
                     style: const TextStyle(fontWeight: FontWeight.w700))),
           ]),
         );
@@ -122,15 +126,62 @@ class _ReciboVerdeSecaoState extends State<ReciboVerdeSecao> {
             resumo: r,
             prestador: p,
             onMarcar: _marcar,
-          )
-        else if (retido)
+          ),
+        // Meses em falta que não são o do cartão acima: um botão por mês.
+        if (retido)
+          ReciboMesesEmFaltaBotoes(
+            trava: t,
+            excluirAno: precisa ? _ano : null,
+            excluirMes: precisa ? _mes : null,
+            onAnexar: (a, m, n) => _marcar(ano: a, mes: m, nome: n),
+          ),
+      ],
+    );
+  }
+}
+
+/// Um botão "Anexar o recibo de <mês>" por cada mês em falta que a trava
+/// devolve (`meses_em_falta`), menos o mês que o cartão já mostra.
+class ReciboMesesEmFaltaBotoes extends StatelessWidget {
+  const ReciboMesesEmFaltaBotoes({
+    super.key,
+    required this.trava,
+    required this.onAnexar,
+    this.excluirAno,
+    this.excluirMes,
+  });
+
+  final Map<String, dynamic> trava;
+  final int? excluirAno;
+  final int? excluirMes;
+  final void Function(int ano, int mes, String nome) onAnexar;
+
+  static int? _int(dynamic v) =>
+      v is num ? v.toInt() : int.tryParse('${v ?? ''}');
+
+  @override
+  Widget build(BuildContext context) {
+    final meses = <(int, int, String)>[];
+    for (final m in (trava['meses_em_falta'] as List?) ?? const []) {
+      if (m is! Map) continue;
+      final a = _int(m['ano']);
+      final mm = _int(m['mes']);
+      if (a == null || mm == null) continue;
+      if (a == excluirAno && mm == excluirMes) continue;
+      meses.add((a, mm, '${m['nome'] ?? '$mm/$a'}'));
+    }
+    if (meses.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final (a, mm, nome) in meses)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: FilledButton(
-              key: const Key('recibo_verde_anexar_retido'),
-              onPressed: _marcar,
+              key: Key('recibo_verde_anexar_$a-$mm'),
+              onPressed: () => onAnexar(a, mm, nome),
               style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-              child: const Text('Já passei o recibo'),
+              child: Text('Anexar o recibo de $nome'),
             ),
           ),
       ],
@@ -139,7 +190,8 @@ class _ReciboVerdeSecaoState extends State<ReciboVerdeSecao> {
 }
 
 String _eurCents(dynamic cents) {
-  final n = cents is num ? cents.toDouble() : double.tryParse('${cents ?? ''}') ?? 0;
+  final n =
+      cents is num ? cents.toDouble() : double.tryParse('${cents ?? ''}') ?? 0;
   return '${(n / 100).toStringAsFixed(2).replaceAll('.', ',')} €';
 }
 
@@ -350,7 +402,8 @@ Future<bool> anexarReciboVerde(BuildContext context,
             final f = (r == null || r.files.isEmpty) ? null : r.files.first;
             if (f == null) return;
             if (f.bytes == null) {
-              setD(() => erro = 'Não foi possível ler o ficheiro. Tenta outra vez.');
+              setD(() =>
+                  erro = 'Não foi possível ler o ficheiro. Tenta outra vez.');
               return;
             }
             setD(() {
@@ -359,7 +412,8 @@ Future<bool> anexarReciboVerde(BuildContext context,
               erro = null;
             });
           } catch (_) {
-            setD(() => erro = 'Não foi possível abrir os ficheiros. Tenta outra vez.');
+            setD(() =>
+                erro = 'Não foi possível abrir os ficheiros. Tenta outra vez.');
           }
         }
 
@@ -377,7 +431,8 @@ Future<bool> anexarReciboVerde(BuildContext context,
               erro = null;
             });
           } on PlatformException catch (e) {
-            setD(() => erro = e.code.contains('denied') || e.code.contains('access')
+            setD(() => erro = e.code.contains('denied') ||
+                    e.code.contains('access')
                 ? 'A app não tem acesso à câmara. Permite o acesso nas definições '
                     'do telemóvel, ou escolhe um ficheiro.'
                 : 'Não foi possível abrir a câmara. Tenta outra vez ou escolhe um ficheiro.');
@@ -489,6 +544,8 @@ Future<bool> anexarReciboVerde(BuildContext context,
       },
     ),
   );
+  // Sem dispose: o diálogo ainda anima a sair com o campo montado (como em
+  // marcarReciboPassado).
   if (ok == true && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(nomeMes.isEmpty

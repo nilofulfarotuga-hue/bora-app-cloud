@@ -58,7 +58,8 @@ class ReciboVerdeService {
     if (t.contains('numero_em_falta')) {
       return 'Escreve o número do recibo verde.';
     }
-    if (t.contains('pdf_caminho_invalido') || t.contains('pdf_nao_encontrado')) {
+    if (t.contains('pdf_caminho_invalido') ||
+        t.contains('pdf_nao_encontrado')) {
       return 'O ficheiro do recibo não chegou. Escolhe-o outra vez e volta a enviar.';
     }
     if (t.contains('ficheiro_grande') ||

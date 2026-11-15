@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -13,7 +15,8 @@ import '_admin_rpc_errors.dart';
 /// (`admin_soltar_retido_recibo`). Soltar não paga nada e não muda valores.
 
 /// true quando o erro é a trava do recibo verde (`recibo_verde_em_falta:`).
-bool eErroReciboVerde(Object e) => e.toString().contains('recibo_verde_em_falta');
+bool eErroReciboVerde(Object e) =>
+    e.toString().contains('recibo_verde_em_falta');
 
 /// O motivo legível do erro da trava (sem o prefixo técnico).
 String motivoReciboVerde(Object e) {
@@ -22,6 +25,18 @@ String motivoReciboVerde(Object e) {
   if (i < 0) return 'Falta o recibo verde desta pessoa.';
   final resto = t.substring(i + 'recibo_verde_em_falta:'.length).trim();
   return resto.isEmpty ? 'Falta o recibo verde desta pessoa.' : resto;
+}
+
+/// A semana que o servidor pôs no erro (`details` = JSON com `semana`), para
+/// os ecrãs que marcam várias semanas de uma vez. '' se não vier.
+String semanaDoErroReciboVerde(Object e) {
+  if (e is! PostgrestException) return '';
+  try {
+    final d = jsonDecode(e.details?.toString() ?? '');
+    return d is Map ? adminDataSemana(d['semana']) : '';
+  } catch (_) {
+    return '';
+  }
 }
 
 /// Pede o motivo e solta a semana. true = solta (o "Marcar pago" já passa).
@@ -50,7 +65,8 @@ Future<bool> adminSoltarRetidoRecibo(
           erro = null;
         });
         try {
-          await Supabase.instance.client.rpc('admin_soltar_retido_recibo', params: {
+          await Supabase.instance.client
+              .rpc('admin_soltar_retido_recibo', params: {
             'p_subject_type': subjectType,
             'p_subject_id': subjectId,
             'p_week_start': weekStart,
@@ -115,19 +131,23 @@ Future<bool> adminOferecerSoltarDepoisDoErro(
   required String subjectId,
   required String weekStart,
 }) async {
+  // Sem pessoa ou sem semana não há o que soltar: só se mostra o motivo.
+  final podeSoltar =
+      subjectId.isNotEmpty && subjectId != 'null' && weekStart.isNotEmpty;
   final querSoltar = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
       title: const Text('Pagamento retido'),
-      content: Text('${motivoReciboVerde(erro)}\n\nPeça o recibo à pessoa ou '
-          'solte esta semana com um motivo.'),
+      content: Text('${motivoReciboVerde(erro)}\n\nPeça o recibo à pessoa'
+          '${podeSoltar ? ' ou solte esta semana com um motivo.' : '.'}'),
       actions: [
         TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Fechar')),
-        FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Soltar')),
+        if (podeSoltar)
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Soltar')),
       ],
     ),
   );
@@ -161,7 +181,8 @@ class AdminReciboRetidoLinha extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = linha;
     if (l['retido_erro'] != null) {
-      return Text('Retenção do recibo: não consegui calcular (${l['retido_erro']}).',
+      return Text(
+          'Retenção do recibo: não consegui calcular (${l['retido_erro']}).',
           style: const TextStyle(fontSize: 12, color: Colors.black54));
     }
     if (l['retido_solto'] == true) {
@@ -187,7 +208,8 @@ class AdminReciboRetidoLinha extends StatelessWidget {
           const Icon(Icons.lock_clock, size: 16, color: Colors.deepOrange),
           const SizedBox(width: 6),
           Expanded(
-            child: Text('${l['retido_motivo'] ?? 'Retido — falta o recibo verde'}',
+            child: Text(
+                '${l['retido_motivo'] ?? 'Retido — falta o recibo verde'}',
                 style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,

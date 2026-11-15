@@ -24,6 +24,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/admin/meio_pagamento_acerto.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import 'admin_recibo_retido.dart';
 
 class AdminCleanerSettlementsScreen extends StatefulWidget {
   const AdminCleanerSettlementsScreen({super.key});
@@ -256,6 +257,18 @@ class _AdminCleanerSettlementsScreenState
           AppColors.primary);
       await _load();
     } catch (e) {
+      // Missão 12 (15/11/2026): pagamento retido por falta do recibo verde.
+      if (eErroReciboVerde(e) && mounted) {
+        setState(() => _busy = false);
+        if (await adminOferecerSoltarDepoisDoErro(context, e,
+            subjectType: 'cleaner',
+            subjectId: cid,
+            weekStart: semanaDoErroReciboVerde(e))) {
+          _toast('Semana solta. Pode marcar como pago.', AppColors.primary);
+          await _load();
+        }
+        return;
+      }
       _toast('Erro ao marcar: $e', AppColors.error);
     } finally {
       if (mounted) setState(() => _busy = false);

@@ -6,6 +6,7 @@ import 'package:bora_app/services/recibo_verde_service.dart';
 import 'package:bora_app/widgets/recibo_verde_secao.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
 /// Missão 12 recibos-verdes-15-11 (R2): o recibo verde com PDF nas apps.
 void main() {
@@ -29,7 +30,8 @@ void main() {
   });
 
   group('ReciboVerdeService.enviarEMarcar', () {
-    test('envia o ficheiro primeiro e só depois marca, com o caminho', () async {
+    test('envia o ficheiro primeiro e só depois marca, com o caminho',
+        () async {
       final ordem = <String>[];
       String? caminhoEnviado;
       Map<String, dynamic>? params;
@@ -87,7 +89,12 @@ void main() {
       for (final caso in [
         ('  ', 'r.pdf', 1, 'numero_em_falta'),
         ('FR 1', 'r.docx', 1, 'ficheiro_tipo'),
-        ('FR 1', 'r.pdf', ReciboVerdeService.tamanhoMaximo + 1, 'ficheiro_grande'),
+        (
+          'FR 1',
+          'r.pdf',
+          ReciboVerdeService.tamanhoMaximo + 1,
+          'ficheiro_grande'
+        ),
       ]) {
         await expectLater(
           ReciboVerdeService.enviarEMarcar(
@@ -117,8 +124,8 @@ void main() {
           contains('não chegou'));
       expect(ReciboVerdeService.mensagemDoErro('ficheiro_grande'),
           contains('10 MB'));
-      expect(ReciboVerdeService.mensagemDoErro('sem_sessao'),
-          contains('sessão'));
+      expect(
+          ReciboVerdeService.mensagemDoErro('sem_sessao'), contains('sessão'));
       expect(ReciboVerdeService.mensagemDoErro('outra coisa'),
           contains('tenta outra vez'));
     });
@@ -151,17 +158,19 @@ void main() {
           'estado': estado,
           'precisa_recibo': true,
         };
-    Widget app(Widget w) => MaterialApp(
-        home: Scaffold(body: SingleChildScrollView(child: w)));
+    Widget app(Widget w) =>
+        MaterialApp(home: Scaffold(body: SingleChildScrollView(child: w)));
 
-    testWidgets('total em grande, linhas por serviço e a quem passar', (t) async {
+    testWidgets('total em grande, linhas por serviço e a quem passar',
+        (t) async {
       await t.pumpWidget(app(ReciboVerdeCard(
           resumo: resumo(), prestador: prestador(), onMarcar: () {})));
       expect(find.text('Recibo verde de novembro'), findsOneWidget);
       expect(find.text('63,90 €'), findsOneWidget);
       expect(find.textContaining('Entregas: 5'), findsOneWidget);
       expect(find.textContaining('Limpezas: 2'), findsOneWidget);
-      expect(find.textContaining('Passa o recibo a Empresa Teste, NIF 000000000'),
+      expect(
+          find.textContaining('Passa o recibo a Empresa Teste, NIF 000000000'),
           findsOneWidget);
       expect(find.textContaining('até 10/12/2026'), findsOneWidget);
       expect(find.text('Já passei o recibo'), findsOneWidget);
@@ -191,12 +200,59 @@ void main() {
     });
   });
 
+  group('Retido por um mês mais antigo (Juiz 15/11, achado 1)', () {
+    const trava = {
+      'retido': true,
+      'meses_em_falta': [
+        {'ano': 2026, 'mes': 11, 'nome': 'novembro de 2026'},
+        {'ano': 2026, 'mes': 12, 'nome': 'dezembro de 2026'},
+      ],
+    };
+    Widget app(Widget w) => MaterialApp(home: Scaffold(body: w));
+
+    testWidgets('o botão anexa o mês em falta, não o mês passado', (t) async {
+      final pedidos = <String>[];
+      await t.pumpWidget(app(ReciboMesesEmFaltaBotoes(
+        trava: trava,
+        // o cartão do mês passado (dezembro) já está à vista
+        excluirAno: 2026,
+        excluirMes: 12,
+        onAnexar: (a, m, n) => pedidos.add('$a-$m $n'),
+      )));
+      expect(find.text('Anexar o recibo de novembro de 2026'), findsOneWidget);
+      expect(find.text('Anexar o recibo de dezembro de 2026'), findsNothing);
+      await t.tap(find.text('Anexar o recibo de novembro de 2026'));
+      expect(pedidos, ['2026-11 novembro de 2026']);
+      // e o ficheiro desse mês vai para o caminho de novembro
+      expect(ReciboVerdeService.caminho('u1', 2026, 11, 'r.pdf'),
+          'u1/2026-11.pdf');
+    });
+
+    testWidgets('sem cartão do mês: um botão por mês em falta', (t) async {
+      await t.pumpWidget(
+          app(ReciboMesesEmFaltaBotoes(trava: trava, onAnexar: (a, m, n) {})));
+      expect(find.textContaining('Anexar o recibo de'), findsNWidgets(2));
+    });
+  });
+
   group('Painel: Retido (PT-BR)', () {
     test('o motivo vem do erro do servidor, sem o prefixo', () {
-      const e = 'PostgrestException(message: recibo_verde_em_falta: Retido — falta o recibo verde de novembro de 2026, code: P0001)';
+      const e =
+          'PostgrestException(message: recibo_verde_em_falta: Retido — falta o recibo verde de novembro de 2026, code: P0001)';
       expect(eErroReciboVerde(e), isTrue);
-      expect(motivoReciboVerde(e), startsWith('Retido — falta o recibo verde de novembro'));
+      expect(motivoReciboVerde(e),
+          startsWith('Retido — falta o recibo verde de novembro'));
       expect(eErroReciboVerde('admin_required'), isFalse);
+    });
+
+    test('a semana vem dos details do erro (limpeza marca várias de uma vez)',
+        () {
+      final e = PostgrestException(
+          message: 'recibo_verde_em_falta: Retido',
+          code: 'P0001',
+          details: '{"user_id":"u1","semana":"2026-12-07","cents":100}');
+      expect(semanaDoErroReciboVerde(e), '2026-12-07');
+      expect(semanaDoErroReciboVerde('texto'), '');
     });
 
     test('a semana pedida é o dia de Lisboa', () {
@@ -212,19 +268,27 @@ void main() {
 
     testWidgets('linha retida mostra o motivo e o botão Soltar', (t) async {
       await t.pumpWidget(app(AdminReciboRetidoLinha(
-        linha: const {'retido': true, 'retido_motivo': 'Retido — falta o recibo verde de novembro de 2026'},
+        linha: const {
+          'retido': true,
+          'retido_motivo': 'Retido — falta o recibo verde de novembro de 2026'
+        },
         subjectType: 'driver',
         subjectId: 'd1',
         weekStart: '2026-12-07',
         aoSoltar: () {},
       )));
-      expect(find.textContaining('falta o recibo verde de novembro'), findsOneWidget);
+      expect(find.textContaining('falta o recibo verde de novembro'),
+          findsOneWidget);
       expect(find.text('Soltar'), findsOneWidget);
     });
 
     testWidgets('linha solta ou sem retenção: sem botão', (t) async {
       await t.pumpWidget(app(AdminReciboRetidoLinha(
-        linha: const {'retido': false, 'retido_solto': true, 'retido_solto_motivo': 'chegou por e-mail'},
+        linha: const {
+          'retido': false,
+          'retido_solto': true,
+          'retido_solto_motivo': 'chegou por e-mail'
+        },
         subjectType: 'user',
         subjectId: 'u1',
         weekStart: '2026-12-07',

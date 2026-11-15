@@ -264,7 +264,7 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
         setState(() => _busy = false);
         if (await adminOferecerSoltarDepoisDoErro(context, e,
             subjectType: '${r['type']}',
-            subjectId: '${r['subject_id']}',
+            subjectId: '${r['subject_id'] ?? ''}',
             weekStart: adminDataSemana(r['week_start_at'] ?? _week))) {
           _aviso('${r['name']}: semana solta. Pode marcar como pago.');
           await _load();

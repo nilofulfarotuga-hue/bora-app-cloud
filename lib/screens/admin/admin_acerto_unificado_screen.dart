@@ -139,7 +139,7 @@ class _AdminAcertoUnificadoScreenState
         setState(() => _busy = false);
         if (await adminOferecerSoltarDepoisDoErro(context, e,
             subjectType: 'user',
-            subjectId: '${item['user_id']}',
+            subjectId: '${item['user_id'] ?? ''}',
             weekStart: adminDataSemana(_semana))) {
           await _load();
         }

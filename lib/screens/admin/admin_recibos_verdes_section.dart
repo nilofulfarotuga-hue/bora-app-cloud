@@ -84,9 +84,16 @@ class _AdminRecibosVerdesSectionState extends State<AdminRecibosVerdesSection> {
   }
 
   static (String, Color, IconData) _estado(String? e) => switch (e) {
-        'entregue' => ('Entregue (com PDF)', AppColors.primary, Icons.check_circle),
-        'sem_pdf' => ('Marcado sem PDF (não conta)', Colors.deepOrange,
-            Icons.picture_as_pdf_outlined),
+        'entregue' => (
+            'Entregue (com PDF)',
+            AppColors.primary,
+            Icons.check_circle
+          ),
+        'sem_pdf' => (
+            'Marcado sem PDF (não conta)',
+            Colors.deepOrange,
+            Icons.picture_as_pdf_outlined
+          ),
         'em_falta' => ('Em falta', Colors.orange, Icons.pending_outlined),
         _ => ('Não precisa', Colors.black45, Icons.remove_circle_outline),
       };
@@ -241,8 +248,8 @@ class _AdminRecibosVerdesSectionState extends State<AdminRecibosVerdesSection> {
               style: TextStyle(fontSize: 12, color: Colors.black54)),
           TextField(
               controller: motivoCtrl,
-              decoration:
-                  const InputDecoration(labelText: 'Motivo (5 letras ou mais)')),
+              decoration: const InputDecoration(
+                  labelText: 'Motivo (5 letras ou mais)')),
         ]),
         actions: [
           TextButton(
@@ -265,8 +272,8 @@ class _AdminRecibosVerdesSectionState extends State<AdminRecibosVerdesSection> {
       await _carregar();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(humanizeAdminRpcError(e))));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(humanizeAdminRpcError(e))));
     }
   }
 
@@ -288,7 +295,8 @@ class _AdminRecibosVerdesSectionState extends State<AdminRecibosVerdesSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Divider(),
-        const Text('Recibos verdes dos prestadores (um por pessoa, todos os serviços)',
+        const Text(
+            'Recibos verdes dos prestadores (um por pessoa, todos os serviços)',
             style: TextStyle(fontWeight: FontWeight.w700)),
         Text(
             'Precisam ${tot['precisam'] ?? 0} · entregues ${tot['entregues'] ?? 0} · '
@@ -333,7 +341,8 @@ class _AdminRecibosVerdesSectionState extends State<AdminRecibosVerdesSection> {
             Text('NIF ${p['nif'] ?? 'em falta'} · $linhas',
                 style: const TextStyle(fontSize: 12)),
             if ((rec['numero'] ?? '').toString().isNotEmpty)
-              Text('Recibo n.º ${rec['numero']}'
+              Text(
+                  'Recibo n.º ${rec['numero']}'
                   '${rec['data'] != null ? ' de ${rec['data']}' : ''}',
                   style: const TextStyle(fontSize: 12)),
             if (verif != null)
@@ -343,7 +352,9 @@ class _AdminRecibosVerdesSectionState extends State<AdminRecibosVerdesSection> {
                       : 'Conferência automática (OCR): ${(verif['problemas'] as List?)?.join('; ') ?? 'com problemas'}',
                   style: TextStyle(
                       fontSize: 12,
-                      color: verif['ok'] == true ? AppColors.primary : Colors.red)),
+                      color: verif['ok'] == true
+                          ? AppColors.primary
+                          : Colors.red)),
             if (p['demo'] == true || p['conta_dono'] == true)
               Text(
                   p['demo'] == true

@@ -37,6 +37,7 @@ void main() {
         ano: 2026,
         mes: 11,
         numero: ' FR 12 ',
+        data: DateTime(2026, 12, 3),
         bytes: Uint8List.fromList([1, 2, 3]),
         nomeFicheiro: 'recibo.pdf',
         userId: 'u1',
@@ -57,6 +58,7 @@ void main() {
       expect(params!['p_numero'], 'FR 12');
       expect(params!['p_year'], 2026);
       expect(params!['p_month'], 11);
+      expect(params!['p_data'], '2026-12-03');
       expect(r['tem_pdf'], true);
     });
 

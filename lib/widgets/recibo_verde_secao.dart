@@ -1,11 +1,14 @@
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../config/app_colors.dart';
 import '../services/recibo_verde_service.dart';
+import '../utils/safe_image_picker.dart';
 import 'driver_fiscal_card.dart';
 
 /// Missão 12 recibos-verdes-15-11 (R2): o recibo verde do mês passado, igual
@@ -94,7 +97,22 @@ class _ReciboVerdeSecaoState extends State<ReciboVerdeSecao> {
     final precisa = p != null &&
         p['precisa_recibo'] == true &&
         p['estado'] != 'entregue';
-    if (!retido && !precisa) return const SizedBox.shrink();
+    if (!retido && !precisa) {
+      if (p != null && p['estado'] == 'entregue') {
+        return Padding(
+          key: const Key('recibo_verde_entregue'),
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(children: [
+            const Icon(Icons.check_circle, color: AppColors.primary, size: 18),
+            const SizedBox(width: 6),
+            Expanded(
+                child: Text('Recibo de ${r['nome_mes'] ?? 'mês passado'} entregue',
+                    style: const TextStyle(fontWeight: FontWeight.w700))),
+          ]),
+        );
+      }
+      return const SizedBox.shrink();
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -305,8 +323,8 @@ class ReciboVerdeCard extends StatelessWidget {
   }
 }
 
-/// "Já passei o recibo": número + PDF/foto obrigatórios; envia o ficheiro e
-/// depois marca. true = recibo entregue.
+/// "Já passei o recibo": número, data e PDF/foto (ficheiro ou câmara)
+/// obrigatórios; envia o ficheiro e depois marca. true = recibo entregue.
 Future<bool> anexarReciboVerde(BuildContext context,
     {required int ano, required int mes, String nomeMes = ''}) async {
   final ctrl = TextEditingController();
@@ -314,6 +332,9 @@ Future<bool> anexarReciboVerde(BuildContext context,
   String? nome;
   String? erro;
   bool enviando = false;
+  var data = DateTime.now();
+  String dataTexto(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
   final ok = await showDialog<bool>(
     context: context,
     barrierDismissible: false,
@@ -342,6 +363,40 @@ Future<bool> anexarReciboVerde(BuildContext context,
           }
         }
 
+        Future<void> fotografar() async {
+          try {
+            // imageQuality/maxWidth fazem a câmara devolver JPEG (também no
+            // iPhone, onde grava HEIC).
+            final x = await SafeImagePicker.pickImage(
+                source: ImageSource.camera, maxWidth: 2200, imageQuality: 85);
+            if (x == null) return;
+            final b = await x.readAsBytes();
+            setD(() {
+              bytes = b;
+              nome = 'recibo-foto.jpg';
+              erro = null;
+            });
+          } on PlatformException catch (e) {
+            setD(() => erro = e.code.contains('denied') || e.code.contains('access')
+                ? 'A app não tem acesso à câmara. Permite o acesso nas definições '
+                    'do telemóvel, ou escolhe um ficheiro.'
+                : 'Não foi possível abrir a câmara. Tenta outra vez ou escolhe um ficheiro.');
+          } catch (_) {
+            setD(() => erro = 'Não foi possível ler a foto. Tenta outra vez.');
+          }
+        }
+
+        Future<void> escolherData() async {
+          final hoje = DateTime.now();
+          final d = await showDatePicker(
+            context: ctx,
+            initialDate: data,
+            firstDate: DateTime(ano, mes, 1),
+            lastDate: hoje,
+          );
+          if (d != null) setD(() => data = d);
+        }
+
         Future<void> enviar() async {
           if (enviando) return;
           if (ctrl.text.trim().isEmpty) {
@@ -360,7 +415,12 @@ Future<bool> anexarReciboVerde(BuildContext context,
           });
           try {
             await ReciboVerdeService.enviarEMarcar(
-                ano: ano, mes: mes, numero: ctrl.text, bytes: b, nomeFicheiro: n);
+                ano: ano,
+                mes: mes,
+                numero: ctrl.text,
+                data: data,
+                bytes: b,
+                nomeFicheiro: n);
             if (ctx.mounted) Navigator.pop(ctx, true);
           } catch (e) {
             setD(() {
@@ -382,7 +442,14 @@ Future<bool> anexarReciboVerde(BuildContext context,
                 decoration: const InputDecoration(
                     labelText: 'N.º do recibo verde (ex.: FR ATSIRE01FR/12)'),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
+              TextButton.icon(
+                key: const Key('recibo_verde_data'),
+                onPressed: enviando ? null : escolherData,
+                icon: const Icon(Icons.event, size: 18),
+                label: Text('Data do recibo: ${dataTexto(data)}'),
+              ),
+              const SizedBox(height: 4),
               OutlinedButton.icon(
                 key: const Key('recibo_verde_escolher'),
                 onPressed: enviando ? null : escolher,
@@ -390,6 +457,13 @@ Future<bool> anexarReciboVerde(BuildContext context,
                 label: Text(nome == null ? 'Anexar PDF ou foto' : nome!,
                     overflow: TextOverflow.ellipsis),
               ),
+              if (!kIsWeb)
+                TextButton.icon(
+                  key: const Key('recibo_verde_camara'),
+                  onPressed: enviando ? null : fotografar,
+                  icon: const Icon(Icons.photo_camera_outlined),
+                  label: const Text('Tirar foto ao recibo'),
+                ),
               if (erro != null) ...[
                 const SizedBox(height: 8),
                 Text(erro!, style: const TextStyle(color: Colors.red)),

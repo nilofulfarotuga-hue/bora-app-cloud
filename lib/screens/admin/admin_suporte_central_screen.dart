@@ -108,8 +108,20 @@ class _Erro extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.all(16),
-        child: Text('Não foi possível carregar: $erro', style: const TextStyle(color: AppColors.error)),
+        child: Text(mensagemDoErroCentral(erro), style: const TextStyle(color: AppColors.error)),
       );
+}
+
+/// app-15-11 (diagnóstico das conversas ao vivo): as funções desta central vêm de
+/// uma proposta de 05/11 que nunca foi aplicada no servidor — o ecrã mostrava o
+/// erro técnico. Em PT-BR, como o resto do painel.
+String mensagemDoErroCentral(Object erro) {
+  final t = erro.toString();
+  if (t.contains('PGRST202') || t.contains('Could not find the function')) {
+    return 'Esta parte da central ainda não foi instalada no servidor. '
+        'As conversas do robô estão em "Conversas ao vivo (robôs)".';
+  }
+  return 'Não foi possível carregar. Tente de novo daqui a pouco.';
 }
 
 class _Conversas extends StatefulWidget {

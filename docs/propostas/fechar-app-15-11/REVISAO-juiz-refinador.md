@@ -40,7 +40,9 @@ Zonas proibidas: sem alterações (`pricing_service.dart`, `lib/dispatch`, `orde
 - 7 (vigia): `229d0f7c`. 9 (CarregamentoUnico) e 14 (cursor do catálogo): `19e0444e`.
 - 8 (proposta 8e): refeita com lista fechada; das regras do negócio só passam "20. GDPR" e "23. CHAT". A prova própria da proposta recusa texto sensível numa secção permitida. Prova local: 41 certos, 4 estragos apanhados.
 - 10a (talão, palavras de tipo de comida): `ad491df0`.
-- Por fazer: 10b (o painel mostrar o motivo do talão), 12 (botão de sair no "Acesso negado"), o 2.º teste do catálogo (11) e as notas 13, 15, 16, 18 e 19.
+- Nota 16 (`ferramentas/vps/lembretes_danilo.py`): deixou de deixar de fora os itens com o nome do dono e de recusar enfileirar; 7 testes novos, 5 falham com o código antigo. Na VPS copiar PRIMEIRO `lembretes_lane.py` e só depois este.
+- Nota 19: visto no servidor (só leitura) que `is_admin()` e `_admin_op_guard()` só olham para `app_metadata` e que nenhuma política usa `user_metadata`; o risco fica na casca do painel. Achado à parte: `log_admin_action` está aberta a qualquer conta com sessão (`e2e_log` 9013).
+- Por fazer: 10b (o painel mostrar o motivo do talão), 12 (botão de sair no "Acesso negado"), o 2.º teste do catálogo (11) e as notas 13, 15 e 18.
 
 ## O que o revisor correu
 

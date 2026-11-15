@@ -611,3 +611,11 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   para um ramo `ai/` só passa sozinho, com dois argumentos e sem tubos, como nos quatro envios anteriores desta noite.
   Como o comando foi recusado inteiro, nada correu. Refiz a correção e o commit sem envio e depois enviei na forma
   simples, que a tranca deixa passar. Nada foi para o ramo de produção.
+
+- **15/11/2026 ~04:55, missão `fechar-app-15-11` (testes dos lembretes do dono, nota 16 da revisão)** — duas recusas da
+  bora-tranca, as duas por erro meu de forma. (1) Negou o Write de `ferramentas/vps/test_lembretes_danilo.py` ("segredo no
+  conteúdo novo"): o teste dava um valor de faz-de-conta, em texto claro, à variável da chave do servidor, só para o módulo
+  carregar sem a VPS. Não havia segredo nenhum, mas o padrão é o de um. Reescrevi o teste sem escrever chave nenhuma (o
+  módulo de configuração passou a ser um objeto de faz-de-conta), que é o que a regra pede: nenhum valor de chave em
+  ficheiros. (2) Negou um Bash que acabava a apagar uma pasta temporária com apagar recursivo. Como foi recusado inteiro,
+  nada correu. Repeti sem apagar nada, com a cópia de ensaio na pasta de rascunho da sessão.

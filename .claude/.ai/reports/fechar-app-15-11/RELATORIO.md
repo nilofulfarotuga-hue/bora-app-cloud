@@ -55,7 +55,7 @@ Aplicar no servidor, pela Claude.ai, por esta ordem, antes de juntar o ramo:
 
 A proposta que tira as notas internas do alcance dos robôs (`8e_robos_sem_notas_internas.PROPOSTA.sql`) foi refeita às 04:40. O revisor tinha mostrado que a primeira versão deixava passar 9 trechos com margens, comissão ou senha. Agora é uma lista fechada: de 605 trechos ficam 6 ao alcance dos robôs, nenhum com texto sensível. Antes de a aplicar há uma decisão a tomar, que está em "PARA O DANILO": com a lista fechada os robôs deixam de ter as regras de preços, tokens e cancelamentos, que hoje têm misturadas com margens e, em três pontos, desatualizadas.
 
-Publicar a função do talão (`ocr-receipt`) e copiar para a VPS os ficheiros `lembretes_lane.py` e `vigia_pedidos.py`.
+Publicar a função do talão (`ocr-receipt`) e copiar para a VPS, por esta ordem: `lembretes_lane.py`, depois `lembretes_danilo.py`, e `vigia_pedidos.py`. A ordem dos dois primeiros conta: se o segundo for sem o primeiro, um lembrete com o teu nome volta a cancelar a mensagem inteira.
 
 Aplicar o remendo do ficheiro dos pedidos (`docs/propostas/fechar-app-15-11/bloco2_order_store.patch`). A tranca do PC recusou-o. Sem ele o estafeta já não recarrega a cada posição, mas cada recarga ainda traz a lista inteira, e o botão "Ver entregas mais antigas" só mostra o que já está na memória.
 

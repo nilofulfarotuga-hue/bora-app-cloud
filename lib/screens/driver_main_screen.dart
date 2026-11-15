@@ -329,9 +329,9 @@ class _PedidosEstafetaCorpoState extends State<PedidosEstafetaCorpo> {
   PeriodoEntregas _periodo = PeriodoEntregas.estaSemana;
   bool _aberto = true;
 
-  void _verMais(int noPeriodo) {
+  void _verMais(int noPeriodo, bool podeHaverMaisNoServidor) {
     setState(() => _visiveis += PedidosEstafetaCorpo.porPagina);
-    if (_visiveis > noPeriodo && widget.haMaisNoServidor) {
+    if (_visiveis > noPeriodo && podeHaverMaisNoServidor) {
       widget.aoPedirMaisAntigas?.call();
     }
   }
@@ -351,8 +351,10 @@ class _PedidosEstafetaCorpoState extends State<PedidosEstafetaCorpo> {
     final ofertas = widget.ofertas;
     final aoAbrirInicio = widget.aoAbrirInicio;
     final agora = (widget.agora ?? DateTime.now)();
+    // Conta a hora da entrega; pedidos antigos sem ela usam a hora do pedido.
+    DateTime quando(OrderModel o) => o.deliveredAt ?? o.createdAt;
     final doPeriodo = widget.historico
-        .where((o) => entregaNoPeriodo(o.createdAt, _periodo, agora))
+        .where((o) => entregaNoPeriodo(quando(o), _periodo, agora))
         .toList();
     final ganho = doPeriodo.fold<double>(0, (s, o) => s + o.driverEarnings);
     final historico = doPeriodo.take(_visiveis).toList();
@@ -361,7 +363,7 @@ class _PedidosEstafetaCorpoState extends State<PedidosEstafetaCorpo> {
     // mais do período lá.
     final podeHaverMaisNoServidor = widget.haMaisNoServidor &&
         (widget.historico.isEmpty ||
-            !diaLisboa(widget.historico.last.createdAt)
+            !diaLisboa(quando(widget.historico.last))
                 .isBefore(inicioDoPeriodo(_periodo, agora)));
     final haMais = doPeriodo.length > _visiveis || podeHaverMaisNoServidor;
     const titulo = TextStyle(fontWeight: FontWeight.bold, fontSize: 16);
@@ -499,7 +501,7 @@ class _PedidosEstafetaCorpoState extends State<PedidosEstafetaCorpo> {
                         // Regra do ganho grande: o valor do cliente só em
                         // pequeno e só quando ele pagou em dinheiro.
                         subtitle: Text(
-                          '${dataHoraLisboa(historico[i].createdAt.toIso8601String())}'
+                          '${dataHoraLisboa(quando(historico[i]).toIso8601String())}'
                           ' • ${historico[i].distanceKm.toStringAsFixed(1)} km'
                           '${historico[i].paymentMethod == PaymentMethod.cash ? ' • dinheiro ${eur(historico[i].total)}' : ''}',
                         ),
@@ -528,7 +530,7 @@ class _PedidosEstafetaCorpoState extends State<PedidosEstafetaCorpo> {
                     )
                   : TextButton(
                       key: const Key('pedidos_estafeta_ver_mais'),
-                      onPressed: () => _verMais(n),
+                      onPressed: () => _verMais(n, podeHaverMaisNoServidor),
                       child: const Text('Ver entregas mais antigas'),
                     ),
             ),

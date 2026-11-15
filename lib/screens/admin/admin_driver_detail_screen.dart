@@ -1737,39 +1737,54 @@ class _OrdersTab extends StatefulWidget {
 /// total que o entregador ganhou e o número de entregas feitas no período.
 /// A conta do período é a mesma função do app ([entregaNoPeriodo]).
 class _OrdersTabState extends State<_OrdersTab> {
-  PeriodoEntregas _periodo = PeriodoEntregas.estaSemana;
+  /// `null` = "Últimos 50", de qualquer data (o que o separador já mostrava).
+  PeriodoEntregas? _periodo = PeriodoEntregas.estaSemana;
   late Future<List<Map<String, dynamic>>> _f;
   @override void initState() { super.initState(); _f = _load(); }
 
-  /// Instante (UTC) da meia-noite de Lisboa do dia [dia] (data UTC 00:00).
-  DateTime _meiaNoite(DateTime dia) =>
-      instanteDeLisboa(DateTime(dia.year, dia.month, dia.day));
-
   Future<List<Map<String, dynamic>>> _load() async {
+    final periodo = _periodo;
+    final client = Supabase.instance.client;
+    const colunas = 'id, status, payment_method, final_total, driver_earnings, '
+        'created_at, delivered_at, restaurant_id, restaurants(id, name)';
+    if (periodo == null) {
+      final res = await client
+          .from('orders')
+          .select(colunas)
+          .eq('assigned_driver_id', widget.driverId)
+          .order('created_at', ascending: false)
+          .limit(50);
+      return List<Map<String, dynamic>>.from(res);
+    }
     final agora = DateTime.now();
-    final de = _meiaNoite(inicioDoPeriodo(_periodo, agora));
-    final ateDia = _periodo == PeriodoEntregas.semanaPassada
+    // instanteDeLisboa só lê ano/mês/dia do dia (data UTC): o fuso do
+    // navegador não entra na conta.
+    final de = instanteDeLisboa(inicioDoPeriodo(periodo, agora));
+    final ate = instanteDeLisboa(periodo == PeriodoEntregas.semanaPassada
         ? inicioDoPeriodo(PeriodoEntregas.estaSemana, agora)
-        : diaLisboa(agora).add(const Duration(days: 1));
-    final ate = _meiaNoite(ateDia);
-    final res = await Supabase.instance.client
+        : diaLisboa(agora).add(const Duration(days: 1)));
+    final res = await client
         .from('orders')
-        .select('id, status, payment_method, final_total, driver_earnings, '
-            'created_at, restaurant_id, restaurants(id, name)')
+        .select(colunas)
         .eq('assigned_driver_id', widget.driverId)
-        .gte('created_at', de.toUtc().toIso8601String())
-        .lt('created_at', ate.toUtc().toIso8601String())
+        // Um dia a mais para trás: apanha o pedido feito antes da meia-noite
+        // e entregue já dentro do período (o filtro fino é o de baixo).
+        .gte('created_at',
+            de.subtract(const Duration(days: 1)).toIso8601String())
+        .lt('created_at', ate.toIso8601String())
         .order('created_at', ascending: false)
         .limit(500);
     return List<Map<String, dynamic>>.from(res)
         .where((o) {
-          final at = DateTime.tryParse((o['created_at'] as String?) ?? '');
-          return at != null && entregaNoPeriodo(at, _periodo, agora);
+          // Como no app: conta a hora da entrega; sem ela, a do pedido.
+          final at = DateTime.tryParse(
+              (o['delivered_at'] ?? o['created_at'])?.toString() ?? '');
+          return at != null && entregaNoPeriodo(at, periodo, agora);
         })
         .toList();
   }
 
-  void _escolher(PeriodoEntregas p) {
+  void _escolher(PeriodoEntregas? p) {
     if (p == _periodo) return;
     setState(() {
       _periodo = p;
@@ -1790,6 +1805,12 @@ class _OrdersTabState extends State<_OrdersTab> {
             ),
             const SizedBox(width: 8),
           ],
+          ChoiceChip(
+            key: const ValueKey('admin_estafeta_periodo_todos'),
+            label: const Text('Últimos 50'),
+            selected: _periodo == null,
+            onSelected: (_) => _escolher(null),
+          ),
         ]),
       );
 
@@ -1824,7 +1845,7 @@ class _OrdersTabState extends State<_OrdersTab> {
                       return ListTile(
                         key: const Key('admin_estafeta_total_periodo'),
                         title: Text(
-                          'Ganhou €${ganho.toStringAsFixed(2)} — ${_periodo.rotulo.toLowerCase()}',
+                          'Ganhou €${ganho.toStringAsFixed(2)} — ${_periodo?.rotulo.toLowerCase() ?? 'últimos 50 pedidos'}',
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                         subtitle: Text(

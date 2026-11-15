@@ -13,7 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 final DateTime _agora = DateTime.utc(2026, 11, 15, 11);
 
 OrderModel _entrega(String id, DateTime quando, double ganho,
-        {String pagamento = 'card', double preco = 12}) =>
+        {String pagamento = 'card', double preco = 12, DateTime? entregue}) =>
     OrderModel.fromSupabase({
       'id': id,
       'status': 'delivered',
@@ -23,6 +23,7 @@ OrderModel _entrega(String id, DateTime quando, double ganho,
       'driver_earnings': ganho,
       'items': const [],
       'created_at': quando.toIso8601String(),
+      if (entregue != null) 'delivered_at': entregue.toIso8601String(),
     });
 
 String _ler(String caminho) =>
@@ -172,6 +173,25 @@ void main() {
       expect(find.textContaining('18,40'), findsOneWidget);
       expect(find.textContaining('12,00'), findsNothing,
           reason: 'o pedido pago com cartão não mostra o valor do cliente');
+    });
+
+    testWidgets('conta pela hora da entrega, não pela do pedido', (t) async {
+      // Pedida domingo 8/11 às 23:50, entregue segunda 9/11 às 00:20.
+      await t.pumpWidget(MaterialApp(
+        home: PedidosEstafetaCorpo(
+          emCurso: 0,
+          ofertas: 0,
+          historico: [
+            _entrega('virada', DateTime.utc(2026, 11, 8, 23, 50), 7,
+                entregue: DateTime.utc(2026, 11, 9, 0, 20)),
+          ],
+          aoAbrirInicio: () {},
+          agora: () => _agora,
+        ),
+      ));
+      expect(find.byKey(const ValueKey('pedido_feito_virada')), findsOneWidget,
+          reason: 'é da semana de 9/11');
+      expect(find.textContaining('09/11 00:20'), findsOneWidget);
     });
 
     testWidgets('período sem entregas diz-o', (t) async {

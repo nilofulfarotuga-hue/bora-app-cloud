@@ -309,8 +309,8 @@ void main() {
 
     test('a casa do estafeta tem a barra e o Início é o DriverHomeScreen', () {
       final casa = _ler('lib/screens/driver_main_screen.dart');
-      expect(casa, contains('DriverHomeScreen(
-            dentroDaBarra: true,'));
+      expect(casa, contains('DriverHomeScreen('));
+      expect(casa, contains('dentroDaBarra: true,'));
       // app-15-11: "Ganhos de hoje" salta para o separador, não empilha outro.
       expect(casa, contains('aoAbrirGanhos: () => _mudar(DriverMainScreen.ganhos)'));
       expect(casa, contains('IndexedStack('));

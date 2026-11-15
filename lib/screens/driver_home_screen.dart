@@ -2307,13 +2307,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
             ),
             const SizedBox(height: 6),
             // 25/10/2026 (Danilo): nome do cliente em destaque.
-            ClienteNomeDestaque(nome: order.customerName, telefone: order.clientPhone, compacto: true),
-            // app-15-11: o telefone já aparece no nome em destaque e no botão
-            // "Ligar cliente" — a linha "Telefone do cliente:" repetia-o.
-            if ((order.clientPhone ?? '').isEmpty) ...[
-              const SizedBox(height: 4),
-              const Text('Telefone do cliente: Não disponível'),
-            ],
+            // app-15-11: havia dois botões de ligar (o do nome e o "Ligar
+            // cliente" de baixo). Fica só o de baixo; os números continuam à
+            // vista para SMS/WhatsApp.
+            ClienteNomeDestaque(nome: order.customerName, compacto: true),
+            const SizedBox(height: 4),
+            Text(
+              'Telefone do cliente: '
+              '${(order.clientPhone ?? '').isNotEmpty ? order.clientPhone! : 'Não disponível'}',
+            ),
             const SizedBox(height: 4),
             Row(
               children: [

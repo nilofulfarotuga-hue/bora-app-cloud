@@ -20,7 +20,12 @@
 // Igual à v6: telefone em E.164 (+351 por defeito), guarda "Em breve", valor de
 // platform_settings.reservation_prepayment_cents (300 por defeito, mínimo 50), conta Stripe de
 // _shared/stripe_contas.ts, chave `mbway_rsv_<id>`, erro da Stripe ao criar → apaga a reserva e
-// 500 'stripe_error: ...', corpo da resposta de sucesso.
+// 500, corpo da resposta de sucesso.
+//
+// Revisão do Juiz da Claude.ai (15/11/2026 19:27): o cliente nunca recebe mensagens internas
+// (Stripe ou base de dados), só códigos genéricos (`save_failed`, `payment_intent_failed`,
+// `internal_error`); o detalhe fica no console.error. A chave de idempotência é SEMPRE a do
+// servidor (`mbway_rsv_<id>`); a `idempotency_key` do corpo é ignorada (a app não a manda).
 //
 // Sem rede: o index.ts liga isto ao Supabase e à Stripe; o logica_test.ts usa falsos.
 
@@ -134,10 +139,12 @@ export async function tratar(
     prepayment_cents: cents,
   });
   if ('erro' in rsv) {
-    return { status: 500, corpo: { error: 'failed to create reservation: ' + rsv.erro } };
+    console.error(`[${ORIGEM}] insert reservation failed:`, rsv.erro);
+    return { status: 500, corpo: { error: 'save_failed' } };
   }
 
-  const chave = body.idempotency_key ?? `mbway_rsv_${rsv.id}`;
+  // Sempre a chave do servidor: a idempotency_key do corpo nunca a substitui.
+  const chave = `mbway_rsv_${rsv.id}`;
 
   let intent: IntentCriado;
   try {
@@ -161,7 +168,7 @@ export async function tratar(
     await apagarSemLancar(deps, rsv.id);
     const msg = mensagem(stripeErr);
     console.error(`[${ORIGEM}] stripe failed:`, msg);
-    return { status: 500, corpo: { error: 'stripe_error: ' + msg } };
+    return { status: 500, corpo: { error: 'payment_intent_failed' } };
   }
 
   console.log(`[${ORIGEM}] intent confirmed:`, intent.id, `reservation=${rsv.id}`,

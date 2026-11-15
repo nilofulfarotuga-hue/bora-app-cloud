@@ -90,11 +90,12 @@ Deno.test('caminho feliz: MB WAY confirmado no servidor e PI gravado', async () 
   assertEquals(reg.gravados, [[RSV, 'pi_mb']]);
 });
 
-Deno.test('Stripe recusa ao criar: reserva apagada e 500 stripe_error (como na v6)', async () => {
+Deno.test('Stripe recusa ao criar: reserva apagada e 500 payment_intent_failed, sem o texto da Stripe', async () => {
   const { deps, reg } = falsos({}, { criarFalha: true });
   const r = await tratar('Bearer tok-bom', CORPO, deps);
   assertEquals(r.status, 500);
-  assertEquals(r.corpo.error, 'stripe_error: card_declined');
+  assertEquals(r.corpo, { error: 'payment_intent_failed' });
+  assert(!JSON.stringify(r.corpo).includes('card_declined'));
   assertEquals(reg.apagadas, [RSV]);
 });
 
@@ -119,4 +120,20 @@ Deno.test('gravar falha e cancelar também: reserva fica e a equipa é avisada',
   assertEquals(reg.apagadas.length, 0);
   assertEquals(reg.avisos.length, 1);
   assert(reg.avisos[0].includes('pi_mb'));
+});
+
+// Revisão do Juiz da Claude.ai (15/11/2026 19:27): códigos genéricos e chave sempre do servidor.
+Deno.test('falha a criar a reserva: 500 save_failed sem o erro da base e a Stripe nem é chamada', async () => {
+  const { deps, reg } = falsos({ inserirReserva: () => Promise.resolve({ erro: 'violates reservations_pkey' }) });
+  const r = await tratar('Bearer tok-bom', CORPO, deps);
+  assertEquals(r.status, 500);
+  assertEquals(r.corpo, { error: 'save_failed' });
+  assertEquals(reg.criados.length, 0);
+});
+
+Deno.test('idempotency_key do cliente é ignorada: a chave é sempre mbway_rsv_<id>', async () => {
+  const { deps, reg } = falsos();
+  const r = await tratar('Bearer tok-bom', { ...CORPO, idempotency_key: 'qualquer' }, deps);
+  assertEquals(r.status, 200);
+  assertEquals(reg.criados[0].chave, `mbway_rsv_${RSV}`);
 });

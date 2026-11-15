@@ -147,3 +147,26 @@ Deno.test('repetição de um PI ainda vivo (resposta perdida) devolve o MESMO PI
   assertEquals(r2.corpo.paymentIntentId, 'pi_1');
   assertEquals(reg.chaves.length, 2);
 });
+
+// Revisão do Juiz da Claude.ai (15/11/2026 19:27): erro da Stripe ao criar → código genérico.
+Deno.test('Stripe falha ao criar o PI: 500 payment_intent_failed, sem o texto da Stripe, nada gravado', async () => {
+  let gravou = false;
+  const { deps } = falsos({
+    prepararStripe: () =>
+      Promise.resolve({
+        conta: 'empresa',
+        criarIntent: () => Promise.reject(new Error('Invalid API Key provided: sk_live_SEGREDO')),
+        estadoIntent: () => Promise.resolve('unknown'),
+        cancelarIntent: () => Promise.resolve(),
+      }),
+    gravarPi: () => {
+      gravou = true;
+      return Promise.resolve(null);
+    },
+  });
+  const r = await tratar('Bearer tok-bom', CORPO, deps);
+  assertEquals(r.status, 500);
+  assertEquals(r.corpo, { error: 'payment_intent_failed' });
+  assert(!JSON.stringify(r.corpo).includes('sk_live'));
+  assert(!gravou);
+});

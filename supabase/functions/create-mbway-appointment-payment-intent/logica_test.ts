@@ -62,10 +62,11 @@ function falsos(over: Partial<Dependencias> = {}, opts: { cancelaFalha?: boolean
     agora: () => 1700000000000,
     ...over,
   };
-  return { deps, reg };
+  return { deps, reg, estados };
 }
 
 const CORPO = { appointment_id: APPT, phone: '912345678' };
+const CHAVE = `mbway_appt_${APPT}_351912345678`;
 
 Deno.test('centsValidos e telefoneE164: iguais à v4', () => {
   assertEquals(centsValidos(1500), 1500);
@@ -108,7 +109,7 @@ Deno.test('caminho feliz: MB WAY com kind=appointment e gravado pelo servidor pa
   assertEquals(r.corpo.amount_cents, 1500);
   assertEquals(r.corpo.mode, 'live');
   assertEquals(r.corpo.stripe_account, 'empresa');
-  assertEquals(reg.chaves, [`mbway_appt_${APPT}`]);
+  assertEquals(reg.chaves, [CHAVE]);
   const p = reg.params[0] as Record<string, any>;
   assertEquals(p.payment_method_types, ['mb_way']);
   assertEquals(p.payment_method_data.billing_details.phone, '+351912345678');
@@ -117,11 +118,12 @@ Deno.test('caminho feliz: MB WAY com kind=appointment e gravado pelo servidor pa
   assertEquals(reg.gravados, [[APPT, UID, 'pi_1', 'empresa']]);
 });
 
-Deno.test('erro da Stripe ao criar: 500 stripe_error e nada gravado', async () => {
+Deno.test('erro da Stripe ao criar: 500 payment_intent_failed sem o texto da Stripe e nada gravado', async () => {
   const { deps, reg } = falsos({}, { criarFalha: true });
   const r = await tratar('Bearer tok-bom', CORPO, deps);
   assertEquals(r.status, 500);
-  assertEquals(r.corpo.error, 'stripe_error: phone invalid');
+  assertEquals(r.corpo, { error: 'payment_intent_failed' });
+  assert(!JSON.stringify(r.corpo).includes('phone invalid'));
   assertEquals(reg.gravados.length, 0);
 });
 
@@ -158,7 +160,7 @@ Deno.test('nova tentativa depois de um PI cancelado recebe um PI NOVO (não o ca
   const r2 = await tratar('Bearer tok-bom', CORPO, deps);
   assertEquals(r2.status, 200);
   assertEquals(r2.corpo.paymentIntentId, 'pi_2');
-  assertEquals(reg.chaves, [`mbway_appt_${APPT}`, `mbway_appt_${APPT}`, `mbway_appt_${APPT}_r1700000000000`]);
+  assertEquals(reg.chaves, [CHAVE, CHAVE, `${CHAVE}_r1700000000000`]);
 });
 
 Deno.test('repetição de um PI ainda vivo (resposta perdida) devolve o MESMO PI', async () => {
@@ -168,4 +170,35 @@ Deno.test('repetição de um PI ainda vivo (resposta perdida) devolve o MESMO PI
   assertEquals(r2.status, 200);
   assertEquals(r2.corpo.paymentIntentId, 'pi_1');
   assertEquals(reg.chaves.length, 2);
+});
+
+// Revisão do Juiz da Claude.ai (15/11/2026 19:27).
+Deno.test('PI repetido em requires_payment_method (MB WAY recusado/expirado) = tentativa nova com PI novo', async () => {
+  const { deps, reg, estados } = falsos();
+  const r1 = await tratar('Bearer tok-bom', CORPO, deps);
+  assertEquals(r1.corpo.paymentIntentId, 'pi_1');
+  estados.set('pi_1', 'requires_payment_method'); // o cliente recusou no telemóvel ou expirou
+  const r2 = await tratar('Bearer tok-bom', CORPO, deps);
+  assertEquals(r2.status, 200);
+  assertEquals(r2.corpo.paymentIntentId, 'pi_2');
+  assertEquals(reg.chaves, [CHAVE, CHAVE, `${CHAVE}_r1700000000000`]);
+  assertEquals(reg.gravados.map((g) => g[2]), ['pi_1', 'pi_2']);
+});
+
+Deno.test('outro telefone = outra chave = PI novo (o pedido MB WAY vai para o número novo)', async () => {
+  const { deps, reg } = falsos();
+  await tratar('Bearer tok-bom', CORPO, deps);
+  const r2 = await tratar('Bearer tok-bom', { ...CORPO, phone: '+351 936 000 111' }, deps);
+  assertEquals(r2.status, 200);
+  assertEquals(r2.corpo.paymentIntentId, 'pi_2');
+  assertEquals(reg.chaves, [CHAVE, `mbway_appt_${APPT}_351936000111`]);
+  const p = reg.params[1] as Record<string, any>;
+  assertEquals(p.payment_method_data.billing_details.phone, '+351 936 000 111');
+});
+
+Deno.test('idempotency_key do cliente é ignorada: a chave é sempre a do servidor', async () => {
+  const { deps, reg } = falsos();
+  const r = await tratar('Bearer tok-bom', { ...CORPO, idempotency_key: 'mbway_appt_outra' }, deps);
+  assertEquals(r.status, 200);
+  assertEquals(reg.chaves, [CHAVE]);
 });

@@ -141,3 +141,52 @@ Deno.test('gravar falha e cancelar também: reserva fica, equipa avisada, 500', 
   assertEquals(reg.avisos.length, 1);
   assert(!('clientSecret' in r.corpo));
 });
+
+// Revisão do Juiz da Claude.ai (15/11/2026 19:27): códigos genéricos, Stripe em try/catch,
+// chave de idempotência sempre do servidor.
+Deno.test('falha a criar a reserva: código genérico save_failed, sem o erro da base', async () => {
+  const { deps } = falsos({ inserirReserva: () => Promise.resolve({ erro: 'duplicate key violates reservations_pkey' }) });
+  const r = await tratar('Bearer tok-bom', CORPO, deps);
+  assertEquals(r.status, 500);
+  assertEquals(r.corpo, { error: 'save_failed' });
+  assert(!JSON.stringify(r.corpo).includes('reservations_pkey'));
+});
+
+Deno.test('Stripe falha ao criar o PI: reserva apagada, 500 payment_intent_failed, sem detalhe', async () => {
+  const { deps, reg } = falsos({
+    prepararStripe: () =>
+      Promise.resolve({
+        conta: 'empresa',
+        criarIntent: () => Promise.reject(new Error('No such customer: cus_SEGREDO; sk_live_x')),
+        cancelarIntent: () => Promise.resolve(),
+      }),
+  });
+  const r = await tratar('Bearer tok-bom', CORPO, deps);
+  assertEquals(r.status, 500);
+  assertEquals(r.corpo, { error: 'payment_intent_failed' });
+  assert(!JSON.stringify(r.corpo).includes('cus_SEGREDO'));
+  assertEquals(reg.apagadas, [RSV]);
+  assertEquals(reg.gravados.length, 0);
+});
+
+Deno.test('Stripe falha e apagar a reserva também falha: continua 500 genérico, não lança', async () => {
+  const { deps } = falsos({
+    prepararStripe: () =>
+      Promise.resolve({
+        conta: 'empresa',
+        criarIntent: () => Promise.reject(new Error('stripe')),
+        cancelarIntent: () => Promise.resolve(),
+      }),
+    apagarReserva: () => Promise.reject(new Error('db em baixo')),
+  });
+  const r = await tratar('Bearer tok-bom', CORPO, deps);
+  assertEquals(r.status, 500);
+  assertEquals(r.corpo, { error: 'payment_intent_failed' });
+});
+
+Deno.test('idempotency_key do cliente é ignorada: a chave é sempre rsv_<id>', async () => {
+  const { deps, reg } = falsos();
+  const r = await tratar('Bearer tok-bom', { ...CORPO, idempotency_key: 'rsv_outra-reserva' }, deps);
+  assertEquals(r.status, 200);
+  assertEquals(reg.criados[0].chave, `rsv_${RSV}`);
+});

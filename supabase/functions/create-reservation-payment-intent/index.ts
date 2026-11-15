@@ -100,8 +100,10 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify(r.corpo),
       { status: r.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (err) {
+    // O detalhe fica no log; o cliente só recebe um código genérico (revisão do Juiz 15/11 19:27).
     const msg = err instanceof Error ? err.message : String(err);
-    return new Response(JSON.stringify({ error: msg }),
+    console.error(`[${ORIGEM}] error:`, msg);
+    return new Response(JSON.stringify({ error: 'internal_error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });

@@ -23,6 +23,14 @@
 // platform_settings.reservation_prepayment_cents (300 por defeito, mínimo 50), conta Stripe
 // decidida em _shared/stripe_contas.ts, chave de idempotência `rsv_<id da reserva>`.
 //
+// Revisão do Juiz da Claude.ai (15/11/2026 19:27):
+//  4. O cliente nunca recebe mensagens internas (Stripe ou base de dados): só códigos genéricos
+//     (`save_failed`, `payment_intent_failed`, `internal_error`); o detalhe fica no console.error.
+//  5. Se criar o PaymentIntent falhar, apaga-se a reserva que este pedido acabou de criar e
+//     devolve-se 500 `payment_intent_failed` (igual ao MB WAY).
+//  6. A chave de idempotência é SEMPRE a do servidor (`rsv_<id>`); a `idempotency_key` do corpo é
+//     ignorada (a app não a manda).
+//
 // Sem rede: o index.ts liga isto ao Supabase e à Stripe; o logica_test.ts usa falsos.
 
 import { COMING_SOON_RESERVATION_MSG, comingSoonResponseBody } from '../_shared/coming_soon.ts';
@@ -174,21 +182,34 @@ export async function tratar(
     prepayment_cents: cents,
   });
   if ('erro' in rsv) {
-    return erro(500, { error: 'failed to create reservation: ' + rsv.erro });
+    console.error(`[${origem}] insert reservation failed:`, rsv.erro);
+    return erro(500, { error: 'save_failed' });
   }
 
-  const chave = body.idempotency_key ?? `rsv_${rsv.id}`;
-  const intent = await stripe.criarIntent({
-    amount: cents,
-    currency: 'eur',
-    payment_method_types: ['card'],
-    metadata: {
-      reservation_id: rsv.id,
-      restaurant_id: body.restaurant_id,
-      purpose: PROPOSITO,
-      bora_conta: conta,
-    },
-  }, chave);
+  // Sempre a chave do servidor: a idempotency_key do corpo nunca a substitui.
+  const chave = `rsv_${rsv.id}`;
+  let intent: IntentCriado;
+  try {
+    intent = await stripe.criarIntent({
+      amount: cents,
+      currency: 'eur',
+      payment_method_types: ['card'],
+      metadata: {
+        reservation_id: rsv.id,
+        restaurant_id: body.restaurant_id,
+        purpose: PROPOSITO,
+        bora_conta: conta,
+      },
+    }, chave);
+  } catch (e) {
+    console.error(`[${origem}] stripe create failed:`, mensagem(e));
+    try {
+      await deps.apagarReserva(rsv.id);
+    } catch (e2) {
+      console.error(`[${origem}] apagar reserva ${rsv.id} falhou:`, mensagem(e2));
+    }
+    return erro(500, { error: 'payment_intent_failed' });
+  }
 
   let falha: string | null;
   try {

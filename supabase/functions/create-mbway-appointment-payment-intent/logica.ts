@@ -27,8 +27,17 @@
 //     esse PI já está 'canceled', cria-se um PI novo com a chave `mbway_appt_<id>_r<instante>`.
 // Igual à v4: telefone em E.164 (+351 por defeito), guarda "Em breve", nunca cobrar valor por
 // omissão (deposit_cents inválido/<50 → 400 invalid_charge_amount), metadata kind='appointment',
-// conta Stripe de _shared/stripe_contas.ts, erro da Stripe ao criar → 500 'stripe_error: ...'
-// (a marcação fica pending_payment), corpo da resposta de sucesso.
+// conta Stripe de _shared/stripe_contas.ts, erro da Stripe ao criar → 500 (a marcação fica
+// pending_payment), corpo da resposta de sucesso.
+//
+// Revisão do Juiz da Claude.ai (15/11/2026 19:27):
+//  5. O cliente nunca recebe mensagens internas (Stripe ou base de dados): só códigos genéricos
+//     (`payment_intent_failed`, `internal_error`); o detalhe fica no console.error.
+//  6. Um PI repetido (Idempotent-Replayed) que esteja 'requires_payment_method' (o MB WAY anterior
+//     foi recusado ou expirou) também conta como tentativa nova: PI novo com chave nova.
+//  7. O telefone entra na chave (`mbway_appt_<id>_<dígitos do E.164>`): outro número = tentativa
+//     nova, nunca o PI (e o pedido MB WAY) do número anterior. A `idempotency_key` do corpo é
+//     ignorada (a app não a manda).
 //
 // Sem rede: o index.ts liga isto ao Supabase e à Stripe; o logica_test.ts usa falsos.
 
@@ -101,6 +110,14 @@ function mensagem(e: unknown): string {
 
 const ORIGEM = 'create-mbway-appointment-payment-intent';
 
+/** Estados de um PI repetido que obrigam a uma tentativa nova (chave nova). */
+export const ESTADOS_TENTATIVA_NOVA = new Set(['canceled', 'requires_payment_method']);
+
+/** Chave de idempotência do servidor: marcação + dígitos do telefone em E.164. */
+export function chaveMbway(appointmentId: string, e164: string): string {
+  return `mbway_appt_${appointmentId}_${e164.replace(/\D/g, '')}`;
+}
+
 export async function tratar(
   cabecalhoAuth: string | null,
   body: CorpoMarcacaoMbway,
@@ -143,7 +160,7 @@ export async function tratar(
     };
   }
 
-  const chaveBase = body.idempotency_key ?? `mbway_appt_${appt.id}`;
+  const chaveBase = chaveMbway(appt.id, e164);
   const stripe = await deps.prepararStripe(body);
   const conta = stripe.conta;
   const params = {
@@ -167,15 +184,17 @@ export async function tratar(
   let intent: IntentCriado;
   try {
     intent = await stripe.criarIntent(params, chaveBase);
-    if (intent.repetido && (await stripe.estadoIntent(intent.id)) === 'canceled') {
-      // Tentativa anterior com a mesma chave acabou cancelada: PI novo com chave nova.
+    if (intent.repetido && ESTADOS_TENTATIVA_NOVA.has(await stripe.estadoIntent(intent.id))) {
+      // Tentativa anterior com a mesma chave acabou cancelada, recusada ou expirada: PI novo
+      // com chave nova.
       intent = await stripe.criarIntent(params, `${chaveBase}_r${deps.agora()}`);
     }
   } catch (stripeErr) {
-    // Marcação fica pending_payment — o cliente pode tentar cartão a seguir.
+    // Marcação fica pending_payment — o cliente pode tentar cartão a seguir. O texto da Stripe
+    // fica só no log.
     const msg = mensagem(stripeErr);
     console.error(`[${ORIGEM}] stripe failed:`, msg);
-    return { status: 500, corpo: { error: 'stripe_error: ' + msg } };
+    return { status: 500, corpo: { error: 'payment_intent_failed' } };
   }
 
   console.log(`[${ORIGEM}] intent confirmed:`, intent.id, `appointment=${appt.id}`,

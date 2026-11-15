@@ -128,7 +128,8 @@ export async function tratar(
     };
   }
 
-  const chaveBase = body.idempotency_key ?? `appt_${appt.id}`;
+  // Juiz 19:27: a chave e sempre do servidor; a do cliente nao a substitui.
+  const chaveBase = `appt_${appt.id}`;
   const stripe = await deps.prepararStripe(body);
   const conta = stripe.conta;
   const params = {
@@ -144,10 +145,18 @@ export async function tratar(
     },
   };
 
-  let intent = await stripe.criarIntent(params, chaveBase);
-  if (intent.repetido && (await stripe.estadoIntent(intent.id)) === 'canceled') {
-    // Tentativa anterior com a mesma chave acabou cancelada: PI novo com chave nova.
-    intent = await stripe.criarIntent(params, `${chaveBase}_r${deps.agora()}`);
+  let intent: IntentCriado;
+  try {
+    intent = await stripe.criarIntent(params, chaveBase);
+    if (intent.repetido && (await stripe.estadoIntent(intent.id)) === 'canceled') {
+      // Tentativa anterior com a mesma chave acabou cancelada: PI novo com chave nova.
+      intent = await stripe.criarIntent(params, `${chaveBase}_r${deps.agora()}`);
+    }
+  } catch (stripeErr) {
+    // Revisão do Juiz (15/11 19:27): o texto da Stripe fica só no log; a marcação fica
+    // pending_payment e o cliente recebe um código genérico.
+    console.error(`[${ORIGEM}] stripe failed:`, mensagem(stripeErr));
+    return { status: 500, corpo: { error: 'payment_intent_failed' } };
   }
 
   let falha: string | null;

@@ -107,6 +107,7 @@ Deno.serve(async (req: Request) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[${ORIGEM}] error:`, message);
-    return json({ error: message }, 500);
+    // O detalhe fica no log; o cliente só recebe um código genérico (revisão do Juiz 15/11 19:27).
+    return json({ error: 'internal_error' }, 500);
   }
 });

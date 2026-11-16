@@ -8,6 +8,7 @@ import '../../widgets/admin/admin_fecho_contabilista_section.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_rpc_errors.dart';
 import 'admin_order_detail_screen.dart';
+import 'admin_recibos_verdes_section.dart';
 import 'faturas_bora_semana.dart';
 
 /// Painel admin "Fecho do mês" (PT-BR, só o Danilo) — missão fecho-mensal-2026-09.
@@ -597,25 +598,17 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
             trailing: Text(_eur(e['ganho']),
                 style: const TextStyle(fontWeight: FontWeight.w700)),
           ),
-        if (_recibos.isNotEmpty) ...[
-          const Divider(),
-          Text(_modeloNovo
-              ? 'Recibos verdes dos estafetas'
-              : 'Recibos verdes (o modelo começa a 01/10/2026 — este mês é só referência)',
-              style: const TextStyle(fontWeight: FontWeight.w700)),
-          for (final r in _recibos)
-            ListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(
-                  r['recibo_passado'] == true ? Icons.check_circle : Icons.pending_outlined,
-                  color: r['recibo_passado'] == true ? AppColors.primary : Colors.orange),
-              title: Text('${r['nome'] ?? '?'} — ${_eur(r['total_a_faturar'])}'),
-              subtitle: Text(r['recibo_passado'] == true
-                  ? 'Recibo n.º ${r['recibo_numero']} de ${r['recibo_data']}'
-                  : 'NIF ${r['nif'] ?? 'em falta'} · atividade ${r['atividade_aberta'] == true ? 'confirmada' : 'por confirmar'} · recibo por passar'),
-            ),
-        ],
+        // Missão 12 (15/11/2026): recibos de todos os prestadores, com PDF,
+        // marcar à mão e desmarcar. A lista antiga fica de reserva enquanto o
+        // servidor não tiver prestador_recibo_mensal_resumo.
+        if (_modeloNovo)
+          AdminRecibosVerdesSection(
+            ano: _ano,
+            mes: _mes,
+            antigo: _recibosAntigos(),
+          )
+        else if (_recibos.isNotEmpty)
+          _recibosAntigos(),
       ]),
       _secao('Pedidos no prejuízo', [
         for (final p in _lista(f['pedidos_no_prejuizo']))
@@ -728,6 +721,31 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
       ]),
     ];
   }
+
+  /// Recibos verdes só dos estafetas (`driver_monthly_invoice_summary`): meses
+  /// antigos e reserva enquanto o servidor não tem a função nova.
+  Widget _recibosAntigos() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Divider(),
+          Text(_modeloNovo
+              ? 'Recibos verdes dos entregadores'
+              : 'Recibos verdes (o modelo começa a 01/10/2026 — este mês é só referência)',
+              style: const TextStyle(fontWeight: FontWeight.w700)),
+          for (final r in _recibos)
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                  r['recibo_passado'] == true ? Icons.check_circle : Icons.pending_outlined,
+                  color: r['recibo_passado'] == true ? AppColors.primary : Colors.orange),
+              title: Text('${r['nome'] ?? '?'} — ${_eur(r['total_a_faturar'])}'),
+              subtitle: Text(r['recibo_passado'] == true
+                  ? 'Recibo n.º ${r['recibo_numero']} de ${r['recibo_data']}'
+                  : 'NIF ${r['nif'] ?? 'em falta'} · atividade ${r['atividade_aberta'] == true ? 'confirmada' : 'por confirmar'} · recibo por passar'),
+            ),
+        ],
+      );
 
   Widget _parceiro(Map<String, dynamic> p) {
     final ext = _mapa(p['extrato']);

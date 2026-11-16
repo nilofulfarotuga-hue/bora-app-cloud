@@ -9,6 +9,7 @@ import '../../services/minha_conta.dart';
 import '../../services/minha_conta_service.dart';
 import '../../utils/safe_image_picker.dart';
 import '../../widgets/driver_fiscal_card.dart';
+import '../../widgets/recibo_verde_secao.dart';
 import '../connect/connect_payments_screen.dart';
 import '../shared/comprovativo_atividade_screen.dart';
 
@@ -493,7 +494,7 @@ class _MinhaContaScreenState extends State<MinhaContaScreen> {
                         if (item.chave == 'recibo' && item.emFalta)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 8),
-                            child: DriverReciboSecao(aoMarcar: () {
+                            child: ReciboVerdeSecao(aoMarcar: () {
                               MinhaContaService.versao.value++;
                               _carregar();
                             }),

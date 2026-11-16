@@ -20,6 +20,7 @@ import 'admin_partner_payouts_screen.dart';
 import 'admin_partner_settlements_screen.dart';
 import 'admin_payments_cards_screen.dart';
 import 'admin_receipts_screen.dart';
+import 'admin_recibo_retido.dart';
 import 'admin_settlements_screen.dart';
 
 /// Explicação do campo "MB Way da Bora" (o valor vem do servidor).
@@ -258,6 +259,18 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
           : '${r['name']}: pago. O comprovativo vai a caminho.');
       await _load();
     } catch (e) {
+      // Missão 12 (15/11/2026): pagamento retido por falta do recibo verde.
+      if (eErroReciboVerde(e) && mounted) {
+        setState(() => _busy = false);
+        if (await adminOferecerSoltarDepoisDoErro(context, e,
+            subjectType: '${r['type']}',
+            subjectId: '${r['subject_id'] ?? ''}',
+            weekStart: adminDataSemana(r['week_start_at'] ?? _week))) {
+          _aviso('${r['name']}: semana solta. Pode marcar como pago.');
+          await _load();
+        }
+        return;
+      }
       _aviso(humanizeAdminRpcError(e), erro: true);
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -1056,6 +1069,14 @@ class _AdminAcertosSemanaScreenState extends State<AdminAcertosSemanaScreen> {
                         fontSize: 11, color: AppColors.textSecondary)),
               ),
           ],
+          // Missão 12 (15/11/2026): "Retido" por falta do recibo verde.
+          AdminReciboRetidoLinha(
+            linha: r,
+            subjectType: '${r['type']}',
+            subjectId: '${r['subject_id'] ?? ''}',
+            weekStart: adminDataSemana(r['week_start_at'] ?? _week),
+            aoSoltar: _load,
+          ),
           Row(children: [
             TextButton.icon(
               onPressed: breakdown.isEmpty

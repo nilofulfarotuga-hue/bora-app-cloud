@@ -34,12 +34,25 @@
 //    text/plain do email e é o que o painel /admin/fecho-mensal copia ("Copiar texto para o contabilista").
 //  Se a RPC admin_fecho_contabilista ainda não existir (migração por aplicar), o email sai sem as secções
 //  novas e com um aviso, em vez de falhar.
+//
+// v3 (15/11/2026, missão recibos-verdes-15-11, R1b; base = v11 no ar, igual ao v2 do repo): secções 9-10,
+// RECIBOS VERDES DOS PRESTADORES (um por pessoa, à sociedade, desde novembro/2026), lida da RPC
+// prestador_recibo_mensal_resumo: nome, NIF, valor, número, data e um link assinado de 7 dias para o
+// PDF (bucket recibos-verdes); quem falta aparece a dizer que falta. Como o fecho sai no dia 1 e os
+// prestadores têm até dia 10 para anexar, vai a lista do mês fechado (ainda no prazo) E a lista final
+// do mês anterior. A mesma lista vai no texto simples (painel/WhatsApp) e no registo (sem os links).
+// Em ensaio (dry_run) não se criam links. Se a RPC ainda não existir (SQL R1a por aplicar), a secção
+// diz que a lista não está disponível e o fecho sai na mesma.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { secretKey } from '../_shared/keys.ts'
 import { exigirServidor, respostaAoPing } from '../_shared/chaves.ts'
 import { chamarFuncao } from '../_shared/chamadas.ts'
 import { corsHeaders } from '../_shared/cors.ts'
+import {
+  BUCKET_RECIBOS, caminhosParaAssinar, htmlSecaoRecibos, mesesDeRecibos, secaoParaRegisto, secaoRecibos,
+  textoSecaoRecibos, VALIDADE_LINK_S,
+} from './logica.ts'
 
 const ADMIN_EMAIL = 'boraappbora@gmail.com'
 const EMAIL_FROM = 'Bora App <fecho@boraguarda.com>'
@@ -145,8 +158,30 @@ Deno.serve(async (req) => {
   const { data: completo, error: e4 } = await supabase.rpc('admin_fecho_contabilista', { p_year: ano, p_month: mes })
   const avisoCompleto = e4 ? 'secções novas indisponíveis (' + e4.message.slice(0, 120) + ')' : null
 
+  // v3: recibos verdes dos prestadores — o mês fechado e a lista final do mês anterior (ver logica.ts).
+  // Só leitura; os links assinados (7 dias) só no envio real. Falhar aqui não trava o fecho.
+  const secoesRecibos = []
+  for (const m of mesesDeRecibos(ano, mes)) {
+    const { data: rv, error: rvErr } = await supabase.rpc('prestador_recibo_mensal_resumo', { p_year: m.ano, p_month: m.mes })
+    const links = {}
+    if (!rvErr && !dryRun) {
+      for (const caminho of caminhosParaAssinar(rv)) {
+        try {
+          const { data: assinado, error: aErr } = await supabase.storage.from(BUCKET_RECIBOS)
+            .createSignedUrl(caminho, VALIDADE_LINK_S)
+          if (!aErr && assinado?.signedUrl) links[caminho] = assinado.signedUrl
+          else console.error('[fecho-mensal] link do recibo ' + caminho + ': ' + (aErr?.message ?? 'sem link'))
+        } catch (e) { console.error('[fecho-mensal] link do recibo falhou:', e) }
+      }
+    }
+    secoesRecibos.push(secaoRecibos(m, rvErr ? null : rv, links, rvErr ? rvErr.message : null, dryRun))
+  }
+  const blocoRecibos = secoesRecibos.map((s, i) => htmlSecaoRecibos(s, 9 + i)).join('')
+  const textoRecibos = secoesRecibos.map(textoSecaoRecibos).join('\n\n')
+
   const resumo = montarResumo(ano, mes, fecho, prest, stripeRes, e4 ? null : completo)
-  let html = htmlContabilista(resumo, nomeHugo)
+  resumo.recibos_verdes = secoesRecibos.map(secaoParaRegisto)
+  let html = htmlContabilista(resumo, nomeHugo, blocoRecibos)
 
   // M1 adendo 1 (08/11/2026, Danilo): os talões do mês vão com o fecho — ZIP com todas as fotos e
   // um índice (pedido, loja, valor, NIF usado), link válido 7 dias. Falhar aqui não trava o fecho.
@@ -165,7 +200,8 @@ Deno.serve(async (req) => {
   }
   // O mesmo texto que o painel copia ("Copiar texto para o contabilista") vai como parte de texto simples.
   const texto = typeof completo?.texto === 'string' && !e4 ? completo.texto + (taloes.ok && tz.ok && tz.url
-    ? `\n\nTalões do mês (${tz.fotos ?? 0} fotos, com índice): ${tz.url} (link válido 7 dias)` : '') : null
+    ? `\n\nTalões do mês (${tz.fotos ?? 0} fotos, com índice): ${tz.url} (link válido 7 dias)` : '') +
+    (textoRecibos ? `\n\n${textoRecibos}` : '') : null
   const assunto = `Bora — fecho de ${NOMES[mes]} de ${ano} (receita da Bora, prestadores e Stripe)`
 
   // O texto completo fica também no resumo do log: a tarefa do dia 1 que manda o fecho ao contabilista
@@ -257,7 +293,8 @@ function montarResumo(ano, mes, fecho, prest, stripeRes, completo) {
   }
 }
 
-function htmlContabilista(r, nomeHugo) {
+// v3: `blocoRecibos` = secções 9 e 10 (recibos verdes dos prestadores), antes do rodapé.
+function htmlContabilista(r, nomeHugo, blocoRecibos = '') {
   const td = 'padding:5px 6px;border-bottom:1px solid #f1f1f1'
   const linha = (a, b, forte) => `<tr><td style="${td}">${a}</td><td style="${td};text-align:right${forte ? ';font-weight:700' : ''}">${b}</td></tr>`
   const e = r.entregas; const rb = e.rubricas; const adq = r.adquirente ?? {}
@@ -371,6 +408,7 @@ function htmlContabilista(r, nomeHugo) {
       ? `<h3 style="margin:16px 0 6px">8. Dados em falta de prestadores e lojas (DAC7)</h3>` + (falta.length ? ul(falta) : '<p style="font-size:13px">Nada em falta.</p>')
       : '') +
     (r.nota_admin ? `<p style="background:#F3F4F6;border-radius:8px;padding:10px;font-size:13px"><b>Nota do Danilo:</b> ${esc(r.nota_admin)}</p>` : '') +
+    blocoRecibos +
 
     `<p style="font-size:11px;color:#999;margin-top:16px">Bora App · fecho mensal automático · detalhe no painel /admin/fecho-mensal</p></div></div>`
 }

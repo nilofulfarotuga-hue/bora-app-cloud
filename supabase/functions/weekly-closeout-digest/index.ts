@@ -28,10 +28,20 @@
 // enviar, confirma-se por RPC is_demo_email e lista-se no aviso ao Danilo quem
 // ficou de fora e porque (RPC weekly_closeout_excluidos). Publicada a 14/09 a
 // partir do repo, que ja tinha a v7 por publicar (producao estava na v6).
+// v9 (15/11/2026, missão recibos-verdes-15-11, R1b; base = v17 no ar, igual ao repo): TRAVA DO
+// RECIBO VERDE. Em cada linha em que a Bora paga (estafeta, limpeza, lavagem), pergunta ao servidor
+// se a pessoa está retida (prestador_recibo_trava). Se a linha fica mesmo guardada — a mesma regra
+// da chave "retido" das listas do painel: não foi solta à mão (recibo_retencao_solturas) e não é só
+// acerto de dívida (saldo da semana > 0) — o recibo mantém o valor "A receber da Bora" e diz
+// "O teu pagamento desta semana fica guardado até anexares o recibo verde de [mês] na app, em Ganhos."
+// em vez de "a transferência é feita na segunda-feira", e vai um push à pessoa (notify-admin-message,
+// um por pessoa). NENHUM valor muda. Se a trava ainda não existir no servidor (SQL R1a por aplicar)
+// ou a pergunta falhar, o recibo sai exatamente como antes.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { secretKey } from '../_shared/keys.ts'
 import { exigirServidor, respostaAoPing } from '../_shared/chaves.ts'
+import { blocoReceberHtml, fraseRetido, linhaRetida, podeSerRetida, saldoDaSemanaCents, segundaLisboa } from './logica.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -162,6 +172,40 @@ Deno.serve(async (req) => {
     if (Array.isArray(ex)) excluidos = ex
   } catch (e) { console.error('[weekly-closeout] excluidos falhou:', e) }
 
+  // v9: a trava do recibo verde, linha a linha (só leitura; nunca parte o envio do recibo).
+  const travas = new Map()
+  const retidos = []
+  const pushRetido = new Set()
+  async function retencaoDaLinha(r) {
+    if (!podeSerRetida(r)) return null
+    try {
+      const { data: uid, error: uErr } = await supabase.rpc('settlement_subject_user_id',
+        { p_type: String(r.subject_type), p_subject_id: String(r.subject_id) })
+      if (uErr || !uid) return null
+      const pessoa = String(uid)
+      if (!travas.has(pessoa)) {
+        const { data: t, error: tErr } = await supabase.rpc('prestador_recibo_trava', { p_user_id: pessoa })
+        if (tErr) console.error('[weekly-closeout] prestador_recibo_trava:', tErr.message)
+        travas.set(pessoa, tErr ? null : t)
+      }
+      const trava = travas.get(pessoa)
+      if (!trava?.retido) return null
+      const semana = segundaLisboa(r.week_start_at)
+      const { data: solta } = await supabase.from('recibo_retencao_solturas').select('motivo')
+        .eq('user_id', pessoa).eq('semana', semana).maybeSingle()
+      const [vista, casa] = await Promise.all([
+        supabase.from('v_acerto_semanal_unificado').select('total_cents').eq('user_id', pessoa).eq('semana', semana),
+        supabase.from('casa_acertos_semanais').select('direction,net_payout_cents,status,week_start_at').eq('user_id', pessoa),
+      ])
+      const saldo = vista.error || casa.error ? null : saldoDaSemanaCents(vista.data, casa.data, semana)
+      if (!linhaRetida(r, trava, { solto: !!solta, saldoCents: saldo })) return null
+      return { user_id: pessoa, semana, frase: fraseRetido(trava), motivo: trava.motivo ?? null }
+    } catch (e) {
+      console.error('[weekly-closeout] trava do recibo falhou:', e)
+      return null
+    }
+  }
+
   let sent = 0, queued = 0, skipped = 0, jaEnviados = 0
   // v4: quem ficou de fora, e porque. Vai no aviso ao Danilo la em baixo, em
   // vez de ficar so uma palavra na tabela que ninguem le.
@@ -184,7 +228,13 @@ Deno.serve(async (req) => {
         if (demo === true) { motivoDemo = 'conta de demonstracao (' + to + ') — sem recibo'; to = null }
       } catch (e) { console.error('[weekly-closeout] is_demo_email falhou:', e) }
     }
-    const html = buildReceiptHtml(r, boraMbway)
+    // v9: a linha fica guardada pela trava do recibo verde? (o valor nunca muda, só o texto)
+    const retido = await retencaoDaLinha(r)
+    if (retido) {
+      retidos.push({ name: r.subject_name, type: r.subject_type, amount_cents: r.net_cents,
+                     user_id: retido.user_id, semana: retido.semana, motivo: retido.motivo })
+    }
+    const html = buildReceiptHtml(r, boraMbway, retido?.frase ?? null)
     let status = r.email_status
     let erro = null
     if (motivoDemo) {
@@ -220,6 +270,21 @@ Deno.serve(async (req) => {
       email_html: html, email_to: to, email_status: status, email_error: erro,
       email_sent_at: status === 'sent' ? new Date().toISOString() : null,
     }).eq('id', r.id)
+    // v9: o mesmo aviso no telemóvel (uma vez por pessoa; contas demo nunca). Nunca trava o recibo.
+    if (retido && !motivoDemo && !pushRetido.has(retido.user_id)) {
+      pushRetido.add(retido.user_id)
+      try {
+        const res = await fetch(supabaseUrl + '/functions/v1/notify-admin-message', {
+          method: 'POST',
+          headers: { 'Authorization': authHeader, 'apikey': secretKey(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            targetUserId: retido.user_id, title: 'Falta o teu recibo verde', body: retido.frase,
+            kind: 'recibo_verde', relatedId: 'recibo-retido-' + retido.semana,
+          }),
+        })
+        if (!res.ok) console.error('[weekly-closeout] push do recibo retido: HTTP ' + res.status)
+      } catch (e) { console.error('[weekly-closeout] push do recibo retido falhou:', e) }
+    }
   }
 
   const toPay = (summary.to_pay ?? [])
@@ -270,7 +335,7 @@ Deno.serve(async (req) => {
     ok: true, week_start: ws, week_end: summary.week_end,
     subjects: weekRows.length, emails_sent: sent, emails_ja_enviados_antes: jaEnviados,
     emails_aguarda_dominio: queued, emails_skipped: skipped, force,
-    problemas, excluidos,
+    problemas, excluidos, retidos,
     admin_push: adminPush, admin_email: adminEmail,
     to_pay: toPay.length, to_receive: toReceive.length, zero: zeroCount,
     emails_enabled: emailsEnabled, resend_key_present: !!resendKey, resend_key_origem: resendKeyOrigem,
@@ -300,7 +365,8 @@ async function sendResend(key, to, subject, html) {
   }
 }
 
-function buildReceiptHtml(r, boraMbway) {
+// v9: `fraseTrava` (ou null) = a linha fica guardada pela trava do recibo verde (ver logica.ts).
+function buildReceiptHtml(r, boraMbway, fraseTrava = null) {
   const isOwe = r.direction === 'owes_bora'
   const isPay = r.direction === 'bora_pays'
   const net = eur(r.net_cents)
@@ -318,10 +384,7 @@ function buildReceiptHtml(r, boraMbway) {
       ? '<div style="margin-top:6px;color:#7C2D12">Pague por <b>MB Way</b> para <b>' + escapeHtml(boraMbway) + '</b> · referência: fecho ' + ddmm(r.week_start_at) + '</div>'
       : '<div style="margin-top:6px;color:#7C2D12">Entraremos em contacto para combinar o acerto.</div>') +
     '</div>') : ''
-  const receber = isPay ? (
-    '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:14px;margin-top:16px">' +
-    '<div style="font-weight:700;color:#166534">A receber da Bora: ' + net + '</div>' +
-    '<div style="margin-top:6px;color:#14532D">A transferência é feita na segunda-feira.</div></div>')
+  const receber = isPay ? blocoReceberHtml(net, fraseTrava)
     : '<div style="margin-top:16px;color:#555">Saldo da semana: <b>' + net + '</b></div>'
 
   return META + '<div style="font-family:system-ui,Arial,sans-serif;max-width:560px;margin:auto">' +

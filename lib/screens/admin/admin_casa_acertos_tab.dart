@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import 'admin_casa_comum.dart';
+import 'admin_recibo_retido.dart';
 
 /// Formas de pagamento do acerto (texto livre no servidor).
 const Map<String, String> kCasaFormasAcerto = {
@@ -99,16 +100,29 @@ class _AdminCasaAcertosTabState extends State<AdminCasaAcertosTab> {
     );
     if (r == null || !mounted) return;
     setState(() => _busy = true);
-    await casaExecutar(
-      context,
-      () => _rpc('admin_casa_acerto_marcar', {
+    try {
+      casaVerOk(await _rpc('admin_casa_acerto_marcar', {
         'p_id': a['id'],
         'p_status': status,
         'p_payment_method': r.metodo,
         'p_reference': r.referencia,
-      }),
-      status == 'paid' ? 'Acerto marcado como pago.' : 'Acerto marcado como recebido.',
-    );
+      }));
+      if (mounted) {
+        casaMsg(context,
+            status == 'paid' ? 'Acerto marcado como pago.' : 'Acerto marcado como recebido.');
+      }
+    } catch (e) {
+      // Missão 12 (15/11/2026): pagamento retido por falta do recibo verde.
+      if (eErroReciboVerde(e) && mounted) {
+        setState(() => _busy = false);
+        await adminOferecerSoltarDepoisDoErro(context, e,
+            subjectType: 'casa',
+            subjectId: '${a['id']}',
+            weekStart: _semanaDoAcerto(a));
+      } else if (mounted) {
+        casaMsg(context, casaErroPtBr(e));
+      }
+    }
     if (!mounted) return;
     setState(() => _busy = false);
     await _refresh();
@@ -185,6 +199,10 @@ class _AdminCasaAcertosTabState extends State<AdminCasaAcertosTab> {
     );
   }
 
+  String _semanaDoAcerto(Map<String, dynamic> a) => a['week_start_at'] == null
+      ? casaIsoData(_segunda)
+      : adminDataSemana(a['week_start_at']);
+
   Widget _linha(Map<String, dynamic> a) {
     final acao = casaAcertoAcao(a);
     final status = a['status']?.toString();
@@ -242,6 +260,14 @@ class _AdminCasaAcertosTabState extends State<AdminCasaAcertosTab> {
                   child: Text(acao == 'paid' ? 'Marcar pago' : 'Marcar recebido'),
                 ),
             ]),
+            // Missão 12: "Retido" por falta do recibo verde.
+            AdminReciboRetidoLinha(
+              linha: a,
+              subjectType: 'casa',
+              subjectId: '${a['id'] ?? ''}',
+              weekStart: _semanaDoAcerto(a),
+              aoSoltar: _refresh,
+            ),
           ],
         ),
       ),

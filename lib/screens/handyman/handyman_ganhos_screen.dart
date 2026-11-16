@@ -8,6 +8,7 @@ import '../../models/casa_models.dart';
 import '../../stores/handyman_store.dart';
 import '../../utils/hora_lisboa.dart';
 import '../../widgets/bora/bora.dart';
+import '../../widgets/recibo_verde_secao.dart';
 import 'casa_profissional_ui.dart';
 
 /// CASA — ganhos do profissional (`casa_meus_ganhos`): a semana atual, os
@@ -46,6 +47,8 @@ class _HandymanGanhosScreenState extends State<HandymanGanhosScreen> {
               child: CasaGanhosConteudo(
                 ganhos: store.ganhos,
                 perfil: store.perfil,
+                // Missão 12 (15/11/2026): recibo verde do mês passado.
+                topo: const ReciboVerdeSecao(),
               ),
             ),
     );
@@ -59,11 +62,15 @@ class CasaGanhosConteudo extends StatelessWidget {
     required this.ganhos,
     this.perfil,
     this.agora,
+    this.topo,
   });
 
   final CasaGanhos ganhos;
   final CasaPerfil? perfil;
   final DateTime? agora;
+
+  /// Mostrado antes de tudo (o recibo verde do mês); fora dos testes sem rede.
+  final Widget? topo;
 
   String _data(DateTime? d) =>
       d == null ? '—' : '${casaDiaMes(d)}/${d.year}';
@@ -76,6 +83,7 @@ class CasaGanhosConteudo extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(Spacing.lg, Spacing.lg, Spacing.lg,
           BoraBottomActionBar.folgaInferior(context)),
       children: [
+        if (topo != null) ...[topo!, const SizedBox(height: Spacing.lg)],
         CasaCaixa(
           destaque: true,
           child: Column(

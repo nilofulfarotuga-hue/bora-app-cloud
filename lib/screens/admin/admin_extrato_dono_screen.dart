@@ -18,6 +18,7 @@ import '../../services/admin_export_service.dart';
 import '../../widgets/admin/meio_pagamento_acerto.dart';
 import 'admin_receipts_screen.dart';
 import 'admin_vigia_dinheiro_screen.dart';
+import 'admin_recibo_retido.dart';
 
 class AdminExtratoDonoScreen extends StatefulWidget {
   const AdminExtratoDonoScreen({super.key});
@@ -219,6 +220,22 @@ class _AdminExtratoDonoScreenState extends State<AdminExtratoDonoScreen> {
       await _load();
     } catch (e) {
       if (!mounted) return;
+      // Missão 12 (15/11/2026): pagamento retido por falta do recibo verde.
+      if (eErroReciboVerde(e)) {
+        setState(() => _busy = false);
+        final unificado = rpc.startsWith('admin_marcar_acerto_pago');
+        if (await adminOferecerSoltarDepoisDoErro(context, e,
+            subjectType:
+                unificado ? 'user' : '${accao['p_subject_type'] ?? ''}',
+            subjectId:
+                '${(unificado ? accao['p_user_id'] : accao['p_subject_id']) ?? ''}',
+            weekStart: adminDataSemana(
+                (unificado ? accao['p_semana'] : accao['p_week_start']) ??
+                    semanaDoErroReciboVerde(e)))) {
+          await _load();
+        }
+        return;
+      }
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Erro: $e')));
     } finally {

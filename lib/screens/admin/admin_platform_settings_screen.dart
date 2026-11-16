@@ -56,6 +56,7 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
             rotulosPesoVariavel[s.key] ??
             rotulosFarmacias[s.key] ??
             rotulosFavoresRecibos[s.key] ??
+            rotulosRecibosVerdes[s.key] ??
             kRotulosDepositoVolta[s.key];
         by.putIfAbsent(s.category ?? 'other', () => []).add(rotulo == null
             ? s
@@ -197,6 +198,19 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
             'entrega, mercado e Favor. Desligar não apaga nada.',
   };
 
+  /// Missão 12 recibos-verdes-15-11 (categoria 'fecho'): os 2 interruptores
+  /// do recibo verde. Não mudam nenhum valor: só quem fica com o pagamento
+  /// semanal guardado (retido) até anexar o recibo.
+  static const rotulosRecibosVerdes = <String, String>{
+    'fecho_dono_passa_recibo':
+        'Recibo verde: a conta de entregador do dono também passa recibo (true) a partir de '
+            'novembro/2026 — entra no e-mail, no aviso e na retenção como qualquer prestador. '
+            'false = fica de fora.',
+    'recibos_trava_ativa':
+        'Recibo verde: reter o pagamento semanal de quem não anexou o recibo do mês até o dia 10 '
+            '(true liga / false desliga para todos, emergência). Desligar não paga nada sozinho.',
+  };
+
   /// Validação das chaves do Favor com teto e do recibo. O servidor lê-as com
   /// `::int`, `::numeric` e `::boolean`: um valor do tipo errado partia a
   /// aprovação do Favor. Devolve a mensagem de erro (PT-BR) ou `null`.
@@ -218,6 +232,8 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
         }
         return null;
       case 'recibo_cliente_email_enabled':
+      case 'fecho_dono_passa_recibo':
+      case 'recibos_trava_ativa':
         return valor is bool ? null : 'Use true (liga) ou false (desliga).';
       default:
         return null;
@@ -241,6 +257,8 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     // m1-dinheiro-favores 08/11: Favor com teto + recibo por e-mail (paridade
     // admin). As de dinheiro seguem pelo caminho auditado (_isMoneyKey).
     if (rotulosFavoresRecibos.containsKey(key)) return true;
+    // Recibos verdes (missão 12, 15/11/2026): 2 interruptores, sem valores.
+    if (rotulosRecibosVerdes.containsKey(key)) return true;
     // Farmácias (11/11/2026): receita, prazos, comissão extra e texto da autorização.
     if (rotulosFarmacias.containsKey(key)) return true;
     // Depósito Volta (09/11/2026): valor e interruptor. Os dois vão pelo

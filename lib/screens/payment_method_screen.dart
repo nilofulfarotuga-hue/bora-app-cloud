@@ -524,8 +524,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
     final bool cashBlockedByLimit = !cartStore.isTakeaway &&
         LimiteDinheiroService.passaLimite(
             max(totalCashWithDebt, baseCustomerTotal));
+    // 16/11/2026 (Danilo, caso da Farmácia da Sé): a frase diz o limite REAL
+    // (platform_settings) e o total deste pedido — nunca só "não deixa".
     final String avisoLimiteDinheiro =
-        'Pagamento em dinheiro só até {0}. Este pedido fica em {1} €. Escolhe Cartão ou MBWay.'
+        'Pagamento em dinheiro só até {0}. Este pedido fica em {1} €. Paga com MB Way ou cartão.'
             .trArgs([
       LimiteDinheiroService.maxTexto,
       max(totalCashWithDebt, baseCustomerTotal).toStringAsFixed(2).replaceAll('.', ',')]);
@@ -620,8 +622,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
                               option: option,
                               groupValue: _selectedMethod,
                               disabled: disabled,
-                              disabledTooltip:
-                                  disabled ? avisoLimiteDinheiro : null,
+                              // 16/11: tocar no Dinheiro apagado mostra a
+                              // razão bem visível (antes era uma dica
+                              // pequena que quase ninguém via).
+                              onDisabledTap: disabled
+                                  ? () => _mostrarAvisoLimiteDinheiro(
+                                      avisoLimiteDinheiro)
+                                  : null,
                               onChanged: (value) {
                                 if (value != null) {
                                   setState(() => _selectedMethod = value);
@@ -648,16 +655,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
                   ),
                 ),
                 // 04/10/2026: o bloqueio do dinheiro diz-se por escrito — nunca
-                // só um botão cinzento (o tooltip só aparecia ao tocar).
+                // só um botão cinzento. 16/11/2026: caixa de aviso bem visível
+                // (a cliente de teste da Farmácia da Sé não viu a frase cinzenta).
                 if (cashBlockedByLimit)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      avisoLimiteDinheiro,
-                      style: const TextStyle(
-                          fontSize: 12.5, color: AppColors.textSecondary),
-                    ),
-                  ),
+                  _AvisoLimiteDinheiro(texto: avisoLimiteDinheiro),
                 // Troco (29/10/2026): só acrescenta uma linha à nota do pedido.
                 if (_mostraTroco(cartStore))
                   TrocoCard(
@@ -1222,6 +1223,20 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
 
   /// B1 (2026-06-12): traduz códigos de erro conhecidos da RPC create_order
   /// para PT-PT. Fallback = mensagem genérica existente.
+  /// 16/11/2026: o cliente tocou no Dinheiro apagado — diz-lhe porquê, bem
+  /// visível (a mesma frase da caixa de aviso).
+  void _mostrarAvisoLimiteDinheiro(String texto) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(
+      key: const Key('snack_limite_dinheiro'),
+      content: Text(texto,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 6),
+    ));
+  }
+
   String _createOrderErrorMessage(OrderStore orderStore) {
     // Agendar (30/10/2026): a hora marcada não ficou no servidor e o pedido
     // nem chegou a ser criado.
@@ -1239,7 +1254,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
     }
     // 04/10/2026: nunca o genérico quando se sabe a razão.
     if (err.contains('CASH_LIMIT_EXCEEDED')) {
-      return 'Pagamento em dinheiro só até {0}. Escolhe Cartão ou MBWay.'
+      return 'Pagamento em dinheiro só até {0}. Paga com MB Way ou cartão.'
           .trArgs([LimiteDinheiroService.maxTexto]);
     }
     if (err.contains('STORE_PAUSED')) {
@@ -2029,14 +2044,16 @@ class _PaymentOptionTile extends StatelessWidget {
     required this.groupValue,
     required this.onChanged,
     this.disabled = false,
-    this.disabledTooltip,
+    this.onDisabledTap,
   });
 
   final _PaymentOption option;
   final PaymentMethod groupValue;
   final ValueChanged<PaymentMethod?> onChanged;
   final bool disabled;
-  final String? disabledTooltip;
+
+  /// Toque no botão apagado: mostra a razão (ex.: limite do dinheiro).
+  final VoidCallback? onDisabledTap;
 
   @override
   Widget build(BuildContext context) {
@@ -2060,7 +2077,7 @@ class _PaymentOptionTile extends StatelessWidget {
           child: InkWell(
             key: Key('metodo_${option.method.name}'),
             borderRadius: raio,
-            onTap: disabled ? null : () => onChanged(option.method),
+            onTap: disabled ? onDisabledTap : () => onChanged(option.method),
             child: Container(
               constraints: const BoxConstraints(minHeight: 60),
               padding: const EdgeInsets.symmetric(
@@ -2101,15 +2118,58 @@ class _PaymentOptionTile extends StatelessWidget {
         ),
       ),
     );
-    if (disabled && disabledTooltip != null) {
-      return Tooltip(
-        message: disabledTooltip!,
-        triggerMode: TooltipTriggerMode.tap,
-        showDuration: const Duration(seconds: 6),
-        child: card,
-      );
-    }
     return card;
+  }
+}
+
+/// Aviso do limite do dinheiro (16/11/2026): caixa amarela por baixo dos
+/// botões, com o limite real e o total do pedido. O amarelo é o `warning` do
+/// design (o laranja fica para o botão principal — regra de 1 laranja/ecrã).
+class _AvisoLimiteDinheiro extends StatelessWidget {
+  const _AvisoLimiteDinheiro({required this.texto, this.extra});
+
+  final String texto;
+
+  /// Linha e botão a mais (pagamento dividido, quando estiver ligado).
+  final Widget? extra;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('aviso_limite_dinheiro'),
+      margin: const EdgeInsets.only(top: Spacing.sm),
+      padding: const EdgeInsets.all(Spacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(Radii.md),
+        border: Border.all(color: AppColors.warning, width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_outline,
+                  size: 20, color: AppColors.textPrimary),
+              const SizedBox(width: Spacing.xs),
+              Expanded(
+                child: Text(
+                  texto,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.3,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (extra != null) extra!,
+        ],
+      ),
+    );
   }
 }
 

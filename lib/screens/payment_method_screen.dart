@@ -47,6 +47,7 @@ import '../widgets/unified_checkout_button.dart';
 import '../widgets/valor_com_risco.dart';
 
 import '../l10n/tr.dart';
+import '../widgets/mbway_espera_pedido_dialog.dart';
 import '../utils/euros.dart';
 
 /// Mensagem única do bloqueio de "Em breve" no pagamento (PT-PT).
@@ -2018,7 +2019,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
           context: context,
           barrierDismissible: false,
           builder: (_) =>
-              _MBWayWaitingDialog(orderId: orderId, amount: amount),
+              MbwayEsperaPedidoDialog(orderId: orderId, amount: amount),
         ) ??
         false;
   }
@@ -2269,94 +2270,9 @@ class _ErrandPaymentHint extends StatelessWidget {
   }
 }
 
-class _MBWayWaitingDialog extends StatefulWidget {
-  const _MBWayWaitingDialog({required this.orderId, required this.amount});
-  final String orderId;
-  final double amount;
-
-  @override
-  State<_MBWayWaitingDialog> createState() => _MBWayWaitingDialogState();
-}
-
-class _MBWayWaitingDialogState extends State<_MBWayWaitingDialog> {
-  static const _timeoutSeconds = 120;
-  int _secondsLeft = _timeoutSeconds;
-  bool _done = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _countdown();
-    _poll();
-  }
-
-  void _countdown() async {
-    while (_secondsLeft > 0 && mounted && !_done) {
-      await Future.delayed(const Duration(seconds: 1));
-      if (mounted && !_done) setState(() => _secondsLeft--);
-    }
-    if (mounted && !_done) Navigator.of(context).pop(false);
-  }
-
-  void _poll() async {
-    while (mounted && !_done) {
-      await Future.delayed(const Duration(seconds: 3));
-      if (!mounted || _done) break;
-      try {
-        final row = await Supabase.instance.client
-            .from('orders')
-            .select('payment_status')
-            .eq('id', widget.orderId)
-            .maybeSingle();
-        if (row?['payment_status'] == 'paid' && mounted && !_done) {
-          _done = true;
-          Navigator.of(context).pop(true);
-        }
-      } catch (_) {}
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Row(
-        children: [
-          Icon(Icons.phone_iphone, color: Colors.red.shade700),
-          const SizedBox(width: 8),
-          // Revisão 15/11 (nota 17): "MB WAY", como nas outras frases.
-          Text('Aguarda a confirmação no MB WAY'.tr),
-        ],
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 4),
-          Text(
-            'Enviámos um pedido de {0} € para o teu telemóvel.\nAbre a app MB WAY e confirma.'.trArgs([widget.amount.toStringAsFixed(2).replaceAll('.', ',')]),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          const CircularProgressIndicator(),
-          const SizedBox(height: 12),
-          Text(
-            'A aguardar confirmação... {0} s'.trArgs([_secondsLeft]),
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            _done = true;
-            Navigator.of(context).pop(false);
-          },
-          child: Text('Cancelar'.tr),
-        ),
-      ],
-    );
-  }
-}
+// A janela de espera do MB WAY do pedido passou para
+// lib/widgets/mbway_espera_pedido_dialog.dart (noite-farmacia-17-11, 3.1):
+// 4 minutos em vez de 2 e o botão voltar já não a fecha sem perguntar.
 
 /// "Entregar em: <morada> · Trocar" (melhorias-paridade 26/10, item 5).
 /// A Glovo e a Uber mostram a morada no último ecrã; o Bora não mostrava.

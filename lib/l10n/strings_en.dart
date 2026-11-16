@@ -16,6 +16,13 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 17/11/2026 (noite-farmacia-17-11, 3.1 — janela do MB WAY pergunta antes de cancelar).
+  // À mão; os mesmos pares estão em tool/l10n/traducoes/pt-en-41-mbway-espera.json.
+  'Cancelar o pagamento?': 'Cancel the payment?',
+  'Se já aprovaste na app MB WAY, espera mais um pouco: o pedido confirma sozinho. Se cancelares, o pedido é cancelado e o pagamento no MB WAY deixa de valer.':
+      'If you already approved it in the MB WAY app, wait a little longer: the order confirms by itself. If you cancel, the order is cancelled and the MB WAY payment stops being valid.',
+  'Continuar à espera': 'Keep waiting',
+  'Cancelar pagamento': 'Cancel payment',
   // 16/11/2026 (dinheiro-dividido-16-11 — limite do dinheiro dito com clareza).
   // À mão; os mesmos pares estão em tool/l10n/traducoes/pt-en-40-dinheiro-dividido.json.
   'Pagamento em dinheiro só até {0}. Este pedido fica em {1} €. Paga com MB Way ou cartão.':

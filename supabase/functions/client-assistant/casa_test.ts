@@ -90,3 +90,12 @@ Deno.test('frases de reserva de mesa saem da resposta da Casa; o resto fica', ()
   assertEquals(t, 'Montar um roupeiro fica 80,00 €. O material é teu.');
   assertEquals(semFraseDeMesa('Fica 45,00 €.'), 'Fica 45,00 €.');
 });
+
+Deno.test('reparar, mudança e mato só contam com o objeto da casa (Juiz 16/11)', () => {
+  for (const m of ['quero reparar a torneira', 'reparação da porta', 'fazer uma mudança de casa', 'cortar o mato do quintal']) {
+    assert(eTrabalhoDeCasa(m), m);
+  }
+  for (const m of ['vou reparar que não há pão', 'a mudança da hora', 'o mato verde']) {
+    assert(!eTrabalhoDeCasa(m), m);
+  }
+});

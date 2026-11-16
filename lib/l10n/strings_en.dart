@@ -5614,4 +5614,11 @@ const Map<String, String> kStringsEn = <String, String>{
       'Sent by post',
   'Entregue':
       'Delivered',
+  // 16/11/2026 — ecrã de nova palavra-passe
+  'Ligação já usada':
+      'Link already used',
+  'Esta ligação já foi usada. Se já guardou a palavra-passe, entre com ela.':
+      'This link has already been used. If you already saved your password, sign in with it.',
+  'Essa palavra-passe é muito comum. Escolha outra, com letras e números.':
+      'That password is too common. Choose another one, with letters and numbers.',
 };

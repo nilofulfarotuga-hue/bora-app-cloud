@@ -653,3 +653,8 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   repeti o commit e o envio em comandos separados e passaram.
 
 - **15/11/2026 ~20:40, missao loja-nichos-15-11 (A, produtos Pets)** — o classificador recusou ("Unauthorized Access") apanhar os cabecalhos do pedido de envio da CJ (getOrderLogisticsTrialV4) a partir da propria pagina, para repetir o calculo do envio para Portugal noutros produtos. Nao repeti nem contornei. Segue-se so pelo que a pagina mostra/aceita sem cabecalhos.
+- **11/11/2026 ~13:30, missão `amigo-casa-2026-11-11` ("Conserta o amigo")** — duas recusas da trava do modo automático, não contornadas:
+  (1) ler `.supabase-token.env` para a CLI do Supabase ("ficheiro de segredos: usa só variáveis de ambiente"); a CLI deste PC está sem
+  login (`AccessTokenRequiredError`), por isso não há publicação de Edge pela CLI. (2) `deploy_edge_function` do `client-assistant`
+  pelo MCP ("publica a Claude.ai"). O código está no ramo `ai/2026-11-11-amigo-casa`; a Claude.ai publica a função (9 ficheiros) e
+  corre as provas — instruções na página `entrega-amigo-casa-2026-11-11` do livro.

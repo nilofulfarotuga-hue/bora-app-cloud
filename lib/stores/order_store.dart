@@ -80,6 +80,8 @@ class OrderStore extends ChangeNotifier {
   final supabase = Supabase.instance.client;
 
   StreamSubscription<List<Map<String, dynamic>>>? _ordersSubscription;
+  // Conta para a qual o canal geral está ligado ('isClient|uid').
+  String? _ordersSubKey;
 
   // Driver-specific filtered streams (started only after real driverId is known).
   // Two streams are needed because a driver needs to see:
@@ -175,9 +177,40 @@ class OrderStore extends ChangeNotifier {
     );
   }
 
-  Future<void> loadOrders() async {
-    if (_authStore == null) return;
+  // [16/11/2026 servidor-nao-travar] A app da Isabel pedia a lista de pedidos
+  // 5 vezes por segundo (rajadas de 5 iguais) e comia mais de metade do
+  // servidor Micro: login, painel e estafetas davam 504. Agora as releituras
+  // automáticas (voltar à app, abrir o ecrã) juntam-se à que já está a correr
+  // e não se repetem dentro de 5 s. `force: true` = o cliente puxou para
+  // atualizar ou acabou de fazer uma ação, e aí lê-se sempre do servidor.
+  Future<void>? _loadOrdersInFlight;
+  DateTime? _lastOrdersFetchAt;
 
+  Future<void> loadOrders({bool force = false}) async {
+    if (_authStore == null) return;
+    if (!force) {
+      final emCurso = _loadOrdersInFlight;
+      if (emCurso != null) return emCurso;
+      final ultima = _lastOrdersFetchAt;
+      if (ultima != null &&
+          DateTime.now().difference(ultima) < const Duration(seconds: 5)) {
+        return;
+      }
+    } else if (_loadOrdersInFlight != null) {
+      try {
+        await _loadOrdersInFlight;
+      } catch (_) {}
+    }
+    final leitura = _loadOrdersOnce();
+    _loadOrdersInFlight = leitura;
+    try {
+      await leitura;
+    } finally {
+      if (identical(_loadOrdersInFlight, leitura)) _loadOrdersInFlight = null;
+    }
+  }
+
+  Future<void> _loadOrdersOnce() async {
     _isLoading = true;
     notifyListeners();
     try {
@@ -187,6 +220,7 @@ class OrderStore extends ChangeNotifier {
       // Never fetch without an authenticated Supabase session — avoids
       // unauthenticated requests that return empty via RLS and clear the list.
       if (userId == null) return;
+      _lastOrdersFetchAt = DateTime.now();
 
       final response = await (isClient
               ? supabase.from('orders').select().eq('user_id', userId)
@@ -355,7 +389,7 @@ class OrderStore extends ChangeNotifier {
   Future<void> updateAuthStore(AuthStore authStore) async {
     _authStore = authStore;
     if (_authStore != null) {
-      await loadOrders();
+      await loadOrders(force: true);
       // Restart the general stream now that _authStore is set so the
       // user_id filter and client notify channel are applied correctly.
       // Skip if driver-specific streams are already active.
@@ -1678,7 +1712,7 @@ class OrderStore extends ChangeNotifier {
       }
       debugPrint(
           'OrderStore.acceptOrderById: OK order=$orderId driver=$driverId');
-      await loadOrders();
+      await loadOrders(force: true);
     } catch (e) {
       debugPrint('OrderStore.acceptOrderById: error => $e');
     }
@@ -2433,14 +2467,20 @@ class OrderStore extends ChangeNotifier {
   /// no-op. Callers that intentionally want to replace it must set
   /// `_ordersSubscription = null` (after cancelling) before calling.
   void _subscribeToOrders() {
+    final uid = _authStore?.userId;
+    final isClient = _authStore?.currentClient != null;
+    // [16/11/2026 servidor-nao-travar] Agora é mesmo idempotente: com o canal
+    // já ligado para a mesma conta não se volta a ligar (cada religação era
+    // mais uma leitura de todos os pedidos e mais uma inscrição no tempo real).
+    final chave = '$isClient|${uid ?? ''}';
     if (_ordersSubscription != null) {
+      if (_ordersSubKey == chave) return;
       debugPrint(
           '[OrderStore] cancelling previous general subscription before re-subscribe');
       _ordersSubscription?.cancel();
       _ordersSubscription = null;
     }
-    final uid = _authStore?.userId;
-    final isClient = _authStore?.currentClient != null;
+    _ordersSubKey = chave;
 
     // Cliente sem uid → NÃO subscrever. Sem filtro `user_id`, qualquer tick
     // vazio do RLS varre `_orders` e provoca loading infinito ao reentrar

@@ -157,7 +157,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       body: showInitialLoader
           ? const SkeletonLista(comFoto: false)
           : RefreshIndicator(
-              onRefresh: () => store.loadOrders(),
+              onRefresh: () => store.loadOrders(force: true),
               color: AppColors.primary,
               child: orders.isEmpty
                   ? LayoutBuilder(

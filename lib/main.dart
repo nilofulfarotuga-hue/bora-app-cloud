@@ -1431,9 +1431,31 @@ class _ServerMirrorOnResumeState extends State<_ServerMirrorOnResume>
     super.dispose();
   }
 
+  // [16/11/2026 servidor-nao-travar] Na app da Isabel isto corria de 4 em 4 s
+  // (janelas por cima — microfone, permissões, cortina de notificações — dão
+  // inactive→resumed sem a app sair do ecrã) e cada vez relia pedidos,
+  // corridas, lavagens, limpezas, Casa, reservas e marcações. Só relê quando
+  // a app esteve mesmo em segundo plano, e no máximo uma vez a cada 15 s.
+  bool _esteveEmSegundoPlano = false;
+  DateTime? _ultimaReleitura;
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      _esteveEmSegundoPlano = true;
+      return;
+    }
     if (state != AppLifecycleState.resumed || !mounted) return;
+    if (!_esteveEmSegundoPlano) return;
+    _esteveEmSegundoPlano = false;
+    final agora = DateTime.now();
+    final ultima = _ultimaReleitura;
+    if (ultima != null &&
+        agora.difference(ultima) < const Duration(seconds: 15)) {
+      return;
+    }
+    _ultimaReleitura = agora;
     context.read<OrderStore>().loadOrders();
     // 04/11/2026: o interruptor do Bora Motorista relê-se ao voltar à app.
     unawaited(TvdeVisibilidade.refresh());

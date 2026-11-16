@@ -3137,6 +3137,14 @@ class _ApartmentDeliveryBanner extends StatelessWidget {
   }
 }
 
+/// rolagem-lista-compras-2026-11-15: a folha da lista de compras abre já na
+/// altura máxima (92 % do que sobra entre a barra de cima e o teclado), para a
+/// lista ter espaço e a barra do botão ficar sempre dentro do ecrã.
+double alturaFolhaListaCompras(MediaQueryData mq) {
+  final livre = mq.size.height - mq.viewInsets.bottom - mq.padding.top;
+  return (livre * 0.92).clamp(240.0, double.infinity);
+}
+
 /// Compra guardada (14/11/2026): a folha da lista de compras, só para o teste
 /// de widget "marcar → fechar a app → reabrir → tudo igual".
 @visibleForTesting
@@ -3637,12 +3645,23 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
         20,
         BoraBottomActionBar.folgaInferior(context, base: 24),
       ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
+      // rolagem-lista-compras-2026-11-15 (Danilo no KFC, pedido 3910a6f8): antes
+      // havia uma rolagem dentro de outra — a lista dos produtos rolava sozinha
+      // (até 45 % do ecrã) dentro da folha que também rolava. Com o dedo nos
+      // produtos só a lista de dentro mexia e, no fim dela, a folha não
+      // continuava: para chegar ao "Confirmar compra" eram 3 ou 4 tentativas.
+      // Agora, como na Uber/Glovo: a folha abre já na altura máxima, há UMA só
+      // rolagem (a lista não rola por si) e o botão fica numa barra fixa em
+      // baixo, sempre à vista e carregável sem rolar.
+      child: SizedBox(
+        height: alturaFolhaListaCompras(MediaQuery.of(context)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+              key: const Key('lista_compras_rolagem'),
+              child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -3758,12 +3777,13 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
               const Divider(height: 1),
               const SizedBox(height: 4),
               // ── Item list ──
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.45,
-                ),
+              // rolagem-lista-compras (15/11): sem rolagem própria — rola a
+              // folha toda de uma vez (nada a competir pelo dedo).
+              SizedBox(
                 child: ListView.builder(
                   shrinkWrap: true,
+                  primary: false,
+                  physics: const NeverScrollableScrollPhysics(),
                   itemCount: _items.length,
                   itemBuilder: (_, index) {
                     final item = _items[index];
@@ -4417,7 +4437,14 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                     ),
                   ),
                 ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
+            ],
+          ),
+              ),
+            ),
+            // ── Barra fixa (fora da rolagem): sempre à vista ──
+            const Divider(height: 1),
+            const SizedBox(height: 8),
               if (_talaoNoServidor)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -4444,8 +4471,9 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                     ),
                   ),
                 ),
-              // ── Confirm button ──
+              // ── Confirm button ── (barra fixa)
               SizedBox(
+                key: const Key('lista_compras_confirmar'),
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: allDecided && !_aConfirmar
@@ -4490,8 +4518,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                         ),
                 ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );

@@ -13,6 +13,7 @@ import '../../widgets/admin/admin_user_roles_sheet.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_password_reset_dialog.dart';
 import 'admin_cliente_reservas_screen.dart';
+import '../../services/admin_nome_sync.dart';
 
 class AdminClientsScreen extends StatefulWidget {
   const AdminClientsScreen({super.key});
@@ -618,10 +619,16 @@ class _AdminClientsScreenState extends State<AdminClientsScreen> {
         // Editar perfil (11/11/2026): a RPC só grava o que mudou, guarda o
         // antes/depois e avisa o cliente na app.
         final mudou = m['alterado'] != false;
+        // manha-15-11 B1: o nome também tem de mudar no login (bora_name),
+        // que é o que a app e esta lista mostram.
+        final noLogin = await sincronizarNomeNoLogin(userId: userId);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(mudou
-                ? 'Contato atualizado. O cliente recebeu um aviso na app.'
-                : 'Nada mudou: o nome e o telefone já eram estes.')));
+            content: Text(!noLogin
+                ? 'Contato salvo, mas o nome do login não atualizou. Tente salvar de novo.'
+                : mudou
+                    ? 'Contato atualizado. O cliente recebeu um aviso na app.'
+                    : 'Nada mudou: o nome e o telefone já eram estes.')));
         _load();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(

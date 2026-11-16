@@ -8,6 +8,7 @@ import '../l10n/tr.dart';
 import '../utils/contact_validators.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
+import 'support_screen.dart';
 
 /// Perfil › "Editar perfil" do cliente (missão editar-perfil-2026-11-11).
 ///
@@ -67,8 +68,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   /// "912345678" são o mesmo número, não uma mudança.
   String _telComparavel(String v) => normalizarTelemovelPt(v) ?? v.trim();
 
+  /// O nome não conta (B2, 15/11): só o telemóvel se muda aqui.
   bool get _haMudancas =>
-      limparNome(_nameController.text) != limparNome(_nomeInicial) ||
       _telComparavel(_phoneController.text) != _telComparavel(_telInicial);
 
   String? _validarTelemovel(String? v) {
@@ -89,7 +90,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final authStore = context.read<AuthStore>();
     final telEscrito = _phoneController.text.trim();
     final erro = await authStore.editClientProfile(
-      name: limparNome(_nameController.text),
+      // O nome vai igual ao que já tinha: só o suporte o muda (B2).
+      name: limparNome(_nomeInicial),
       phone: telEscrito.isEmpty
           ? null
           : (normalizarTelemovelPt(telEscrito) ?? telEscrito),
@@ -130,19 +132,34 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // manha-15-11 bloco B2 (ordem do Danilo 15/11/2026): o nome não
+                // se muda sozinho, só pelo suporte (vale por cima da missão
+                // editar-perfil-2026-11-11). A foto continua editável no Perfil.
                 TextFormField(
                   key: const Key('editar_perfil_nome'),
                   controller: _nameController,
-                  enabled: !_aGuardar,
-                  textCapitalization: TextCapitalization.words,
-                  textInputAction: TextInputAction.next,
-                  maxLength: 60,
+                  readOnly: true,
+                  enabled: false,
                   decoration: InputDecoration(
                     labelText: 'Nome'.tr,
                     prefixIcon: const Icon(Icons.person_outline),
-                    counterText: '',
                   ),
-                  validator: (v) => validarNomePerfil(v)?.tr,
+                ),
+                const SizedBox(height: Spacing.xs),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    key: const Key('editar_perfil_nome_suporte'),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      foregroundColor: AppColors.primary,
+                    ),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SupportScreen()),
+                    ),
+                    icon: const Icon(Icons.support_agent_outlined, size: 18),
+                    label: Text('Para mudar o nome, fala com o suporte'.tr),
+                  ),
                 ),
                 const SizedBox(height: Spacing.md),
                 TextFormField(

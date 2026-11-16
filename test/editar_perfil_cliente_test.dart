@@ -197,8 +197,8 @@ void main() {
     });
 
     testWidgets(
-        'Guardar desligado sem mudanças; grava nome e telemóvel sem +351 e '
-        'o "Olá, X!" muda logo', (tester) async {
+        'B2 15/11: o nome não se edita (só pelo suporte); grava o telemóvel '
+        'sem +351 e o nome vai igual', (tester) async {
       final auth = await _clienteNoEditarPerfil(tester);
 
       expect(find.text('O email é o teu acesso e não se altera.'),
@@ -207,14 +207,23 @@ void main() {
       expect(_guardarLigado(tester), isFalse,
           reason: 'sem mudanças o Guardar fica desligado');
 
+      // O nome está só de leitura e há o caminho para o suporte.
+      final nome = tester.widget<TextField>(find.descendant(
+          of: find.byKey(const Key('editar_perfil_nome')),
+          matching: find.byType(TextField)));
+      expect(nome.enabled, isFalse);
+      expect(nome.readOnly, isTrue);
+      expect(find.text('Para mudar o nome, fala com o suporte'),
+          findsOneWidget);
+      expect(find.byKey(const Key('editar_perfil_nome_suporte')),
+          findsOneWidget);
+
       // O mesmo número escrito de outra forma não é uma mudança.
       await tester.enterText(
           find.byKey(const Key('editar_perfil_telemovel')), '+351 912 345 678');
       await tester.pump();
       expect(_guardarLigado(tester), isFalse);
 
-      await tester.enterText(
-          find.byKey(const Key('editar_perfil_nome')), '  Paula   Ferreira ');
       await tester.enterText(
           find.byKey(const Key('editar_perfil_telemovel')), '+351 931 112 222');
       await tester.pump();
@@ -225,26 +234,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(_pedidosRpc, hasLength(1));
-      expect(_pedidosRpc.single['p_name'], 'Paula Ferreira');
+      expect(_pedidosRpc.single['p_name'], 'Ana Antiga',
+          reason: 'o nome não muda por aqui');
       expect(_pedidosRpc.single['p_phone'], '931112222');
       expect(find.byType(EditProfileScreen), findsNothing,
           reason: 'gravou e voltou ao ecrã de onde veio');
-      expect(auth.currentClient?.name, 'Paula Ferreira');
+      expect(auth.currentClient?.name, 'Ana Antiga');
       expect(auth.currentClient?.phone, '931112222');
-      expect(find.text('Olá, Paula!'), findsOneWidget);
-    });
-
-    testWidgets('nome inválido: mostra o erro e não chama o servidor',
-        (tester) async {
-      await _clienteNoEditarPerfil(tester);
-      await tester.enterText(find.byKey(const Key('editar_perfil_nome')), 'A');
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('editar_perfil_guardar')));
-      await tester.pumpAndSettle();
-      expect(find.text('O nome tem de ter entre 2 e 60 caracteres.'),
-          findsOneWidget);
-      expect(_pedidosRpc, isEmpty);
-      expect(find.byType(EditProfileScreen), findsOneWidget);
     });
 
     testWidgets(
@@ -253,7 +249,7 @@ void main() {
       final auth = await _clienteNoEditarPerfil(tester);
       _rpc = _Rpc.semRede;
       await tester.enterText(
-          find.byKey(const Key('editar_perfil_nome')), 'Paula Ferreira');
+          find.byKey(const Key('editar_perfil_telemovel')), '931112222');
       await tester.pump();
       await tester.tap(find.byKey(const Key('editar_perfil_guardar')));
       await _servidorResponde(tester);
@@ -264,7 +260,7 @@ void main() {
           find.text(
               'Não foi possível guardar. Verifica a ligação e tenta de novo.'),
           findsOneWidget);
-      expect(find.text('Paula Ferreira'), findsOneWidget,
+      expect(find.text('931112222'), findsOneWidget,
           reason: 'o texto escrito não se perde');
       expect(find.byType(EditProfileScreen), findsOneWidget);
       expect(auth.currentClient?.name, 'Ana Antiga',

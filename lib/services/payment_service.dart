@@ -283,6 +283,7 @@ class PaymentService {
     required String phone,
   }) async {
     ultimoErroMbway = null;
+    ultimoMbwayJaTratado = false;
     // Web (2026-07-20): MB Way funciona no browser sem alteração nenhuma —
     // este método não usa o SDK do Stripe, só invoca a Edge Function, que
     // confirma o PaymentIntent server-side e faz o Stripe empurrar a
@@ -301,6 +302,8 @@ class PaymentService {
           status: response.status,
           erro: body?['error']?.toString(),
         );
+        ultimoMbwayJaTratado = mbwayJaTratado(
+            status: response.status, erro: body?['error']?.toString());
         return null;
       }
       final piId = body!['paymentIntentId'] as String?;
@@ -320,6 +323,9 @@ class PaymentService {
         status: e.status,
         erro: d is Map ? d['error']?.toString() : d?.toString(),
       );
+      ultimoMbwayJaTratado = mbwayJaTratado(
+          status: e.status,
+          erro: d is Map ? d['error']?.toString() : d?.toString());
       return null;
     } catch (e) {
       debugPrint('[PaymentService] initiateMbwayPayment error: $e');
@@ -332,6 +338,11 @@ class PaymentService {
   /// falhou, já em frase para o cliente (porque falhou e o que fazer). Antes
   /// o motivo ia só para o registo e o cliente via um erro sem explicação.
   String? ultimoErroMbway;
+
+  /// manha-15-11 bloco C2: o último [initiateMbwayPayment] falhou com 409
+  /// ("Order already processed"). O pedido pode já estar pago: quem chama NÃO
+  /// o cancela como falha, vai primeiro ver se o pagamento entrou.
+  bool ultimoMbwayJaTratado = false;
 
   Future<bool> payWithCash(double amount) async {
     await Future.delayed(const Duration(milliseconds: 150));

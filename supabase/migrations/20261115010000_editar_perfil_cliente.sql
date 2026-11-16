@@ -152,11 +152,12 @@ begin
          phone = v_phone
    where id = p_user_id;
 
-  -- A app lê o nome do metadata do login ao abrir; sem isto a mudança feita
-  -- pelo painel ou pelo robô ficava invisível no telemóvel do cliente.
-  update auth.users
-     set raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || v_meta
-   where id = p_user_id;
+  -- manha-15-11 bloco B1 (15/11/2026): nada de SQL no auth. O metadata do
+  -- login (bora_name/bora_phone) atualiza-se FORA daqui: no painel pela Edge
+  -- Function admin-sync-user-name (auth.admin.updateUserById), e na app do
+  -- cliente pela própria sessão (_syncSessionContactMetadata) e pelo
+  -- syncClientContactFromServer ao abrir. v_meta fica só para quem o leia.
+  perform v_meta;
 
   insert into public.user_profile_changes
     (user_id, changed_by, source, pending_action_id, antes, depois)
@@ -251,7 +252,10 @@ begin
       'erro', 'Cria uma conta para poderes guardar os teus dados.');
   end if;
   -- Só a própria conta: o id vem do token, nunca de um parâmetro.
-  return public._apply_user_profile_change(v_uid, p_name, p_phone, v_uid, 'cliente', null);
+  -- manha-15-11 bloco B (ordem do Danilo 15/11/2026): o cliente NÃO muda o
+  -- nome sozinho, só pelo suporte. p_name ignora-se (null = não mexe no nome);
+  -- o parâmetro fica para a app antiga não partir.
+  return public._apply_user_profile_change(v_uid, null, p_phone, v_uid, 'cliente', null);
 end;
 $$;
 

@@ -144,6 +144,7 @@ import 'admin_tvde_subscriptions_screen.dart';
 import 'admin_wallets_screen.dart';
 import 'admin_web_health_screen.dart';
 import 'admin_saude_chaves_screen.dart';
+import 'admin_vigia_servidor_screen.dart';
 import 'admin_whatsapp_screen.dart';
 import 'admin_agentes_email_screen.dart';
 import 'admin_pendencias_operacao_screen.dart';
@@ -363,6 +364,17 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.teal,
       builder: () => const AdminSaudeChavesScreen(),
       keywords: const ['chave', 'chaves', 'saude', 'vigia', 'funcao', 'edge', 'servidor', '401', 'recusada', 'despacho'],
+    ),
+    // [16/11, servidor-nao-travar] Vigia do servidor (5 em 5 min): quanto do
+    // servidor cada consulta gastou e quem tem canais de tempo real a mais.
+    AdminMenuItem(
+      id: 'operacao_vigia_servidor',
+      title: 'Vigia do servidor',
+      subtitle: 'Ver de 5 em 5 minutos quanto do servidor está ocupado, a consulta que mais pesou e as contas com canais de tempo real a mais',
+      icon: Icons.speed,
+      color: Colors.teal,
+      builder: () => const AdminVigiaServidorScreen(),
+      keywords: const ['servidor', 'lento', 'travou', 'travar', 'carga', 'cpu', '504', 'vigia', 'realtime', 'canais', 'consulta'],
     ),
     AdminMenuItem(
       id: 'operacao_edicoes_pedidos',

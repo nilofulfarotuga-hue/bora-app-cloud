@@ -443,7 +443,7 @@ class _CancelOrderButtonState extends State<_CancelOrderButton> {
                 ),
               ),
             );
-            await context.read<OrderStore>().loadOrders();
+            await context.read<OrderStore>().loadOrders(force: true);
           } catch (e) {
             if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
@@ -472,7 +472,7 @@ class _CancelOrderButtonState extends State<_CancelOrderButton> {
             ),
           );
           // Trigger refresh do OrderStore (realtime channel também actualizará)
-          await context.read<OrderStore>().loadOrders();
+          await context.read<OrderStore>().loadOrders(force: true);
         }
       },
       icon: const Icon(Icons.cancel_outlined, color: Colors.red),

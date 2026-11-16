@@ -15,6 +15,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/app_update_service.dart';
 import 'services/floating_bubble_service.dart';
 import 'utils/home_destino.dart' show abrirLojaPorId;
+import 'utils/portao_releitura.dart';
 import 'services/foreground_service.dart';
 import 'services/incoming_job_alert.dart';
 import 'services/notification_service.dart';
@@ -77,6 +78,7 @@ import 'screens/admin/admin_pendencias_operacao_screen.dart';
 import 'screens/admin/admin_web_health_screen.dart';
 import 'screens/admin/admin_orphan_payments_screen.dart';
 import 'screens/admin/admin_saude_chaves_screen.dart';
+import 'screens/admin/admin_vigia_servidor_screen.dart';
 import 'screens/admin/admin_motoristas_documentos_screen.dart';
 import 'screens/admin/admin_comprovativo_atividade_screen.dart';
 import 'screens/admin/admin_revisoes_screen.dart';
@@ -1159,6 +1161,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // não estavam registados — tocar no aviso não abria nada.
           '/admin/orphans': (_) => const AdminOrphanPaymentsScreen(),
           '/admin/system-health': (_) => const AdminSaudeChavesScreen(),
+          // [16/11, servidor-nao-travar] deep link do aviso "SERVIDOR CARREGADO".
+          '/admin/vigia-servidor': (_) => const AdminVigiaServidorScreen(),
           // [Ficha legal · 23/09] deep link do aviso diário de documentos.
           '/admin/motoristas-documentos': (_) =>
               const AdminMotoristasDocumentosScreen(),
@@ -1431,9 +1435,14 @@ class _ServerMirrorOnResumeState extends State<_ServerMirrorOnResume>
     super.dispose();
   }
 
+  // [16/11/2026 servidor-nao-travar] Só relê se a app esteve mesmo em
+  // segundo plano e no máximo de 15 em 15 s (regras em PortaoReleitura).
+  final PortaoReleitura _portao = PortaoReleitura();
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed || !mounted) return;
+    if (!mounted) return;
+    if (!_portao.deveReler(state, DateTime.now())) return;
     context.read<OrderStore>().loadOrders();
     // 04/11/2026: o interruptor do Bora Motorista relê-se ao voltar à app.
     unawaited(TvdeVisibilidade.refresh());

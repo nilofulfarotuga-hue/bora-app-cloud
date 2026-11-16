@@ -126,6 +126,11 @@ class AppUpdateService {
     } catch (_) {/* silêncio */}
   }
 
+  /// Ao voltar à app: conferir a versão no máximo uma vez por hora.
+  static bool deveConferirAoVoltar(DateTime? ultima, DateTime agora) =>
+      ultima == null ||
+      agora.difference(ultima) >= _AppUpdateGateState.intervaloAoVoltar;
+
   /// Verifica e mostra o aviso/bloqueio quando aplicável. Silêncio total em
   /// qualquer falha — NUNCA bloquear por erro de rede.
   static Future<void> checkAndPrompt(BuildContext context) async {
@@ -153,8 +158,10 @@ class AppUpdateService {
             canPop: false,
             child: AlertDialog(
               title: const Text('Atualização necessária'),
-              content: Text(
-                  'Esta versão da app já não é suportada.\n\n$notes'),
+              content: Text('Esta versão da app já não funciona. '
+                  'Para continuar a usar o Bora, toca em "Atualizar agora" '
+                  'e instala a versão nova na loja — demora menos de um '
+                  'minuto.\n\n$notes'),
               actions: [
                 FilledButton.icon(
                   onPressed: _openStore,
@@ -221,6 +228,7 @@ class _AppUpdateGateState extends State<AppUpdateGate>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ultimaConferencia = DateTime.now();
       unawaited(AppUpdateService.checkAndPrompt(context));
     });
   }
@@ -231,11 +239,21 @@ class _AppUpdateGateState extends State<AppUpdateGate>
     super.dispose();
   }
 
+  // [16/11/2026 servidor-nao-travar] Ao voltar à app confere no máximo uma
+  // vez por hora (ao abrir confere sempre). Antes conferia a cada volta: a app
+  // da Isabel fez 190 leituras de definições numa hora.
+  static const Duration intervaloAoVoltar = Duration(hours: 1);
+  DateTime? _ultimaConferencia;
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && mounted) {
-      unawaited(AppUpdateService.checkAndPrompt(context));
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    final agora = DateTime.now();
+    if (!AppUpdateService.deveConferirAoVoltar(_ultimaConferencia, agora)) {
+      return;
     }
+    _ultimaConferencia = agora;
+    unawaited(AppUpdateService.checkAndPrompt(context));
   }
 
   @override

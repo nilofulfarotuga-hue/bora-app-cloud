@@ -272,7 +272,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
       // [Estafeta web 2026-09-16] Aviso da Edge notify-driver-assigned
       // (pedido atribuído/reservado/retirado) → relê os pedidos já.
       NotificationService.driverOrdersReload = (_) {
-        if (mounted) _orderStore?.loadOrders();
+        if (mounted) _orderStore?.loadOrders(force: true);
       };
     });
     // [Estafeta web 2026-09-16] O servidor pôs-nos offline enquanto a página
@@ -2233,7 +2233,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
                             // A verdade está no servidor: uma acção pode
                             // ter-se aplicado e só a resposta ter-se perdido.
                             if (!success) {
-                              unawaited(orderStore.loadOrders());
+                              unawaited(orderStore.loadOrders(force: true));
                             }
                           },
                     child: _processingOrderIds.contains(order.id)

@@ -21,6 +21,7 @@ import '../services/offer_presentation_gate.dart';
 import '../services/offline_status_queue.dart';
 import '../services/payment_service.dart';
 import '../services/pricing_service.dart';
+import '../utils/religar_com_espera.dart';
 import 'driver_store.dart';
 import 'restaurant_store.dart';
 
@@ -80,6 +81,11 @@ class OrderStore extends ChangeNotifier {
   final supabase = Supabase.instance.client;
 
   StreamSubscription<List<Map<String, dynamic>>>? _ordersSubscription;
+  // Conta para a qual o canal geral está ligado ('isClient|uid').
+  String? _ordersSubKey;
+  // [16/11/2026 servidor-nao-travar] Uma religação do canal geral de cada
+  // vez, com espera crescente (5→60 s). Ver ReligarComEspera.
+  final ReligarComEspera _religarGeral = ReligarComEspera();
 
   // Driver-specific filtered streams (started only after real driverId is known).
   // Two streams are needed because a driver needs to see:
@@ -175,9 +181,40 @@ class OrderStore extends ChangeNotifier {
     );
   }
 
-  Future<void> loadOrders() async {
-    if (_authStore == null) return;
+  // [16/11/2026 servidor-nao-travar] A app da Isabel pedia a lista de pedidos
+  // 5 vezes por segundo (rajadas de 5 iguais) e comia mais de metade do
+  // servidor Micro: login, painel e estafetas davam 504. Agora as releituras
+  // automáticas (voltar à app, abrir o ecrã) juntam-se à que já está a correr
+  // e não se repetem dentro de 5 s. `force: true` = o cliente puxou para
+  // atualizar ou acabou de fazer uma ação, e aí lê-se sempre do servidor.
+  Future<void>? _loadOrdersInFlight;
+  DateTime? _lastOrdersFetchAt;
 
+  Future<void> loadOrders({bool force = false}) async {
+    if (_authStore == null) return;
+    if (!force) {
+      final emCurso = _loadOrdersInFlight;
+      if (emCurso != null) return emCurso;
+      final ultima = _lastOrdersFetchAt;
+      if (ultima != null &&
+          DateTime.now().difference(ultima) < const Duration(seconds: 5)) {
+        return;
+      }
+    } else if (_loadOrdersInFlight != null) {
+      try {
+        await _loadOrdersInFlight;
+      } catch (_) {}
+    }
+    final leitura = _loadOrdersOnce();
+    _loadOrdersInFlight = leitura;
+    try {
+      await leitura;
+    } finally {
+      if (identical(_loadOrdersInFlight, leitura)) _loadOrdersInFlight = null;
+    }
+  }
+
+  Future<void> _loadOrdersOnce() async {
     _isLoading = true;
     notifyListeners();
     try {
@@ -187,6 +224,7 @@ class OrderStore extends ChangeNotifier {
       // Never fetch without an authenticated Supabase session — avoids
       // unauthenticated requests that return empty via RLS and clear the list.
       if (userId == null) return;
+      _lastOrdersFetchAt = DateTime.now();
 
       final response = await (isClient
               ? supabase.from('orders').select().eq('user_id', userId)
@@ -355,7 +393,7 @@ class OrderStore extends ChangeNotifier {
   Future<void> updateAuthStore(AuthStore authStore) async {
     _authStore = authStore;
     if (_authStore != null) {
-      await loadOrders();
+      await loadOrders(force: true);
       // Restart the general stream now that _authStore is set so the
       // user_id filter and client notify channel are applied correctly.
       // Skip if driver-specific streams are already active.
@@ -1678,7 +1716,7 @@ class OrderStore extends ChangeNotifier {
       }
       debugPrint(
           'OrderStore.acceptOrderById: OK order=$orderId driver=$driverId');
-      await loadOrders();
+      await loadOrders(force: true);
     } catch (e) {
       debugPrint('OrderStore.acceptOrderById: error => $e');
     }
@@ -2433,14 +2471,20 @@ class OrderStore extends ChangeNotifier {
   /// no-op. Callers that intentionally want to replace it must set
   /// `_ordersSubscription = null` (after cancelling) before calling.
   void _subscribeToOrders() {
+    final uid = _authStore?.userId;
+    final isClient = _authStore?.currentClient != null;
+    // [16/11/2026 servidor-nao-travar] Agora é mesmo idempotente: com o canal
+    // já ligado para a mesma conta não se volta a ligar (cada religação era
+    // mais uma leitura de todos os pedidos e mais uma inscrição no tempo real).
+    final chave = '$isClient|${uid ?? ''}';
     if (_ordersSubscription != null) {
+      if (_ordersSubKey == chave) return;
       debugPrint(
           '[OrderStore] cancelling previous general subscription before re-subscribe');
       _ordersSubscription?.cancel();
       _ordersSubscription = null;
     }
-    final uid = _authStore?.userId;
-    final isClient = _authStore?.currentClient != null;
+    _ordersSubKey = chave;
 
     // Cliente sem uid → NÃO subscrever. Sem filtro `user_id`, qualquer tick
     // vazio do RLS varre `_orders` e provoca loading infinito ao reentrar
@@ -2454,7 +2498,9 @@ class OrderStore extends ChangeNotifier {
         '[OrderStore] general subscription started (isClient=$isClient uid=${uid ?? "n/a"})');
     // 2026-05-21 — A8: ao (re)subscrever stream a rede está OK → drena fila offline.
     unawaited(_drainOfflineStatusQueue());
-    _ordersSubscription = (isClient
+    _religarGeral.cancelar();
+    late final StreamSubscription<List<Map<String, dynamic>>> sub;
+    sub = (isClient
             ? supabase
                 .from('orders')
                 .stream(primaryKey: ['id']).eq('user_id', uid!)
@@ -2464,6 +2510,7 @@ class OrderStore extends ChangeNotifier {
       (rows) {
         debugPrint(
             '[OrderStore] orders received=${rows.length} (general stream)');
+        _religarGeral.correuBem();
         // Empty-fire guards (anti-wipe):
         //  1. JWT ainda não estabelecido → ignorar.
         //  2. Já temos pedidos cacheados → ignorar tick vazio (provável
@@ -2485,17 +2532,15 @@ class OrderStore extends ChangeNotifier {
         notifyListeners();
       },
       onError: (Object e) {
-        debugPrint(
-            '[OrderStore] general stream error: $e — reconnecting in 5s');
-        _ordersSubscription = null;
-        Future.delayed(const Duration(seconds: 5), _subscribeToOrders);
+        debugPrint('[OrderStore] general stream error: $e');
+        _canalGeralFalhou(sub);
       },
       onDone: () {
-        debugPrint('[OrderStore] general stream closed — reconnecting in 5s');
-        _ordersSubscription = null;
-        Future.delayed(const Duration(seconds: 5), _subscribeToOrders);
+        debugPrint('[OrderStore] general stream closed');
+        _canalGeralFalhou(sub);
       },
     );
+    _ordersSubscription = sub;
 
     // Client notify channel — catches UPDATE events missed by .stream().eq()
     // during NULL→value transitions or brief reconnect gaps.
@@ -2523,6 +2568,32 @@ class OrderStore extends ChangeNotifier {
                   notifyListeners();
                 },
               )..subscribe();
+    }
+  }
+
+  /// [16/11/2026 servidor-nao-travar] O canal geral falhou (erro ou fecho).
+  /// Antes punha-se `_ordersSubscription = null` SEM cancelar: o canal velho
+  /// ficava vivo a religar-se sozinho (e a reler todos os pedidos a cada
+  /// religação) e abria-se outro por cima 5 s depois — a cada erro mais um
+  /// canal fantasma, até "Too many channels" no servidor e 27 leituras/s.
+  /// Agora fecha-se o canal que falhou e marca-se UMA religação, com espera
+  /// crescente; se entretanto passou para os canais do estafeta, não religa.
+  void _canalGeralFalhou(StreamSubscription<List<Map<String, dynamic>>> sub) {
+    unawaited(sub.cancel());
+    if (!identical(_ordersSubscription, sub)) return; // canal já substituído
+    _ordersSubscription = null;
+    final marcada = _religarGeral.agendar(() {
+      if (_ordersSubscription != null ||
+          _driverOffersSubscription != null ||
+          _driverActiveSubscription != null) {
+        return;
+      }
+      _subscribeToOrders();
+    });
+    if (marcada) {
+      debugPrint('[OrderStore] general stream: religa em '
+          '${_religarGeral.proximaEspera.inSeconds}s '
+          '(falhas seguidas: ${_religarGeral.falhasSeguidas})');
     }
   }
 
@@ -2554,6 +2625,7 @@ class OrderStore extends ChangeNotifier {
     _driverOfferIds.clear();
     _driverActiveIds.clear();
 
+    _religarGeral.cancelar();
     debugPrint('[OrderStore] driverId=$driverId');
 
     // ── 1. Pending-offer stream ────────────────────────────────────────────
@@ -2799,6 +2871,7 @@ class OrderStore extends ChangeNotifier {
 
   @override
   void dispose() {
+    _religarGeral.cancelar();
     _ordersSubscription?.cancel();
     _driverOffersSubscription?.cancel();
     _driverActiveSubscription?.cancel();

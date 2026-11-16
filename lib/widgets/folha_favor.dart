@@ -136,7 +136,7 @@ class _FolhaFavorAoVivoState extends State<FolhaFavorAoVivo> {
     _releitura?.cancel();
     _releitura = Timer(const Duration(milliseconds: 600), () {
       if (!mounted) return;
-      unawaited(store.loadOrders());
+      unawaited(store.loadOrders(force: true));
     });
   }
 

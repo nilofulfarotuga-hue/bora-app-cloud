@@ -461,7 +461,12 @@ Future<void> main() async {
   // este evento de propósito (não "loga" o utilizador); aqui é onde se
   // abre de facto o ecrã para definir a nova palavra-passe.
   Supabase.instance.client.auth.onAuthStateChange.listen((state) {
-    if (state.event == AuthChangeEvent.passwordRecovery) {
+    // [16/11/2026] Só abre se ainda não houver um ecrã destes. O próprio ecrã
+    // (link da web com `token_hash`) emite este evento ao fazer o verifyOTP;
+    // o segundo ecrã que se empurrava por cima fechava a sessão de
+    // recuperação antes de a palavra-passe ser gravada (Farmácia Teixeira).
+    if (state.event == AuthChangeEvent.passwordRecovery &&
+        !ResetPasswordScreen.estaAberto) {
       NotificationService.navigatorKey.currentState?.push(
         MaterialPageRoute(builder: (_) => const ResetPasswordScreen()),
       );
@@ -801,10 +806,11 @@ Future<void> main() async {
   //
   // Por isso olha-se directamente para o endereço de arranque. Os dois
   // caminhos coexistem de propósito: seja qual for o que dispara primeiro, o
-  // ecrã abre; o `push` repetido é inofensivo porque o segundo encontra o
-  // ecrã já em cima.
+  // ecrã abre. [16/11/2026] O `push` repetido NÃO era inofensivo (dois ecrãs,
+  // um a fechar a sessão do outro): só se empurra quando ainda não há nenhum.
   if (arranqueEmRecuperacao(Uri.base)) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (ResetPasswordScreen.estaAberto) return;
       NotificationService.navigatorKey.currentState?.push(
         MaterialPageRoute(builder: (_) => const ResetPasswordScreen()),
       );

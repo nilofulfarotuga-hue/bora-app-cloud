@@ -720,9 +720,11 @@ class _ErrandFormScreenState extends State<ErrandFormScreen> {
     showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('Compra acima de €40'.tr),
+        // 16/11/2026: o limite vem do servidor (era "€40" escrito à mão).
+        title: Text('Compra acima de {0}'.trArgs([LimiteDinheiroService.maxTexto])),
         content: Text(
-            'Como a compra é mais de €40, eu passo primeiro em tua casa para levantar o dinheiro. Fica mais seguro para os dois 🙂\n\nVais pagar mais €2 pela paragem.'.tr),
+            'Pagamento em dinheiro só até {0}. Como a compra passa esse valor, eu passo primeiro em tua casa para levantar o dinheiro. Fica mais seguro para os dois 🙂\n\nVais pagar mais €2 pela paragem.'
+                .trArgs([LimiteDinheiroService.maxTexto])),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

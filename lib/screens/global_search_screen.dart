@@ -21,6 +21,7 @@ import '../stores/tvde_store.dart';
 import '../utils/cozinhas.dart';
 import '../utils/home_destino.dart';
 import '../utils/pesquisa_atalhos.dart';
+import '../utils/pesquisa_lupa.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora/coming_soon.dart';
 import '../widgets/pesquisa_sem_resultado.dart';
@@ -129,7 +130,9 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
       });
       return;
     }
-    _debounce = Timer(const Duration(milliseconds: 300), () => _procurar(v));
+    // 17/11 (servidor-busca-leve): sai quando a pessoa pára 400 ms; a resposta
+    // da mesma pesquisa nos últimos 5 min vem da memória (HomeFeedService).
+    _debounce = Timer(kEsperaLupa, () => _procurar(v));
   }
 
   /// Regista a pesquisa para o painel "KPIs de pesquisa" (client_search_history

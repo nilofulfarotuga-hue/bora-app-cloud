@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../utils/pesquisa_lupa.dart';
+
 /// Uma faixa da home (`public.home_banners`).
 class HomeBanner {
   const HomeBanner({
@@ -176,15 +178,39 @@ class HomeFeedService {
     }
   }
 
+  /// 17/11 (servidor-busca-leve): a mesma pesquisa nos últimos 5 min vem da
+  /// memória do telemóvel e duas iguais ao mesmo tempo fazem um pedido só.
+  final MemoriaPesquisa<Map<String, List<Map<String, dynamic>>>> _memoriaPesquisa =
+      MemoriaPesquisa<Map<String, List<Map<String, dynamic>>>>();
+
   /// Pesquisa global (`cliente_pesquisar`): {lojas:[...], produtos:[...]}.
   Future<Map<String, List<Map<String, dynamic>>>> pesquisar(String q,
-      {int limit = 30}) async {
+      {int limit = 30}) {
+    return _memoriaPesquisa.obter(
+      '$limit|${chaveDaPesquisa(q)}',
+      () => _pesquisarNoServidor(q, limit),
+    );
+  }
+
+  Future<Map<String, List<Map<String, dynamic>>>> _pesquisarNoServidor(
+      String q, int limit) async {
     final res = await _db
-        .rpc('cliente_pesquisar', params: {'p_q': q, 'p_limit': limit});
+        .rpc('cliente_pesquisar', params: {'p_q': q, 'p_limit': limit})
+        .timeout(const Duration(seconds: 12));
+    // Imutáveis: a mesma resposta fica na memória e pode voltar a ser mostrada.
     List<Map<String, dynamic>> lista(dynamic v) => v is List
-        ? v.map((e) => (e as Map).cast<String, dynamic>()).toList()
-        : <Map<String, dynamic>>[];
-    if (res is! Map) return {'lojas': [], 'produtos': []};
-    return {'lojas': lista(res['lojas']), 'produtos': lista(res['produtos'])};
+        ? List<Map<String, dynamic>>.unmodifiable(
+            v.map((e) => (e as Map).cast<String, dynamic>()))
+        : const <Map<String, dynamic>>[];
+    if (res is! Map) {
+      return const {
+        'lojas': <Map<String, dynamic>>[],
+        'produtos': <Map<String, dynamic>>[],
+      };
+    }
+    return Map<String, List<Map<String, dynamic>>>.unmodifiable({
+      'lojas': lista(res['lojas']),
+      'produtos': lista(res['produtos']),
+    });
   }
 }

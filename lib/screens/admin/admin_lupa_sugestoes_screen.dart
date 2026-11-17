@@ -88,8 +88,8 @@ class _AdminLupaSugestoesScreenState extends State<AdminLupaSugestoesScreen> {
       final m = r is Map ? Map<String, dynamic>.from(r) : <String, dynamic>{};
       if (m['parado'] == true) {
         _aviso('Não recalculou: ${m['motivo'] ?? 'parado'}'
-            '${m['ocupado_pct'] != null ? ' (servidor a ${m['ocupado_pct']}%)' : ''}. '
-            'Tenta de novo em alguns minutos.');
+            '${m['ocupado_pct'] != null ? ' (servidor em ${m['ocupado_pct']}%)' : ''}. '
+            'Tente de novo em alguns minutos.');
       } else {
         _aviso('Recalculado: ${m['total'] ?? '?'} sugestões '
             '(${m['escritas'] ?? '?'} gravadas, ${m['removidas'] ?? '?'} removidas) '
@@ -192,7 +192,7 @@ class _AdminLupaSugestoesScreenState extends State<AdminLupaSugestoesScreen> {
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Sugestões ligadas'),
                   subtitle: const Text(
-                      'Desligado: com 1-2 letras a lupa não mostra nada e espera 3 letras (como antes).'),
+                      'Desligado: com 1-2 letras o app só mostra "Escreve mais letras" e a busca completa começa nas 3 letras.'),
                   value: ligado,
                   onChanged: snap.hasData ? _ligar : null,
                 ),
@@ -205,7 +205,7 @@ class _AdminLupaSugestoesScreenState extends State<AdminLupaSugestoesScreen> {
                     (estado['ultimo_resultado'] as Map)['parado'] == true)
                   Text(
                     'A última tentativa parou: ${(estado['ultimo_resultado'] as Map)['motivo']}'
-                    ' (servidor a ${(estado['ultimo_resultado'] as Map)['ocupado_pct'] ?? '?'}%).',
+                    ' (servidor em ${(estado['ultimo_resultado'] as Map)['ocupado_pct'] ?? '?'}%).',
                     style: const TextStyle(fontSize: 13, color: Colors.red),
                   ),
                 const SizedBox(height: 4),
@@ -228,7 +228,7 @@ class _AdminLupaSugestoesScreenState extends State<AdminLupaSugestoesScreen> {
                 TextField(
                   controller: _busca,
                   decoration: const InputDecoration(
-                    labelText: 'Começa por… (ex.: a, ag, leite)',
+                    labelText: 'Começa com… (ex.: a, ag, leite)',
                     prefixIcon: Icon(Icons.search),
                     isDense: true,
                   ),
@@ -263,7 +263,7 @@ class _AdminLupaSugestoesScreenState extends State<AdminLupaSugestoesScreen> {
                 if (snap.connectionState == ConnectionState.waiting)
                   const Center(child: CircularProgressIndicator())
                 else if (snap.hasError)
-                  Text('Erro a carregar (admin_lupa_sugestoes_listar): ${snap.error}')
+                  Text('Erro ao carregar (admin_lupa_sugestoes_listar): ${snap.error}')
                 else ...[
                   Text('${dados['total'] ?? 0} sugestões com estes filtros '
                       '(mostrando até 200, por peso).',

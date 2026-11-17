@@ -472,6 +472,8 @@ begin
                                    restaurant_id, match_kind, score, ordem)
       join restaurants r on r.id = pp.restaurant_id
       where not (r.id = any (public.lojas_escondidas_para_mim()))
+        -- prémios do check-in só para admin (achado 17/11: antes passavam; hoje há 0 disponíveis)
+        and (pp.id !~~ 'premio-checkin-%' or coalesce(public.is_admin(), false))
   ) y;
   perform set_config('bora.pesquisa_dono', '', true);
 

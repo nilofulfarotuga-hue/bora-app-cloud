@@ -115,7 +115,7 @@ begin
     end if;
   end if;
   if not pg_try_advisory_xact_lock(hashtext('lupa_sugestoes_recalcular')) then
-    return jsonb_build_object('parado', true, 'motivo', 'já está a correr');
+    return jsonb_build_object('parado', true, 'motivo', 'já está rodando');
   end if;
 
   create temp table if not exists _lupa_novas (
@@ -158,6 +158,9 @@ begin
       from public.pesquisa_escolhas e
      where e.criado_em > now() - interval '90 days'
      group by 1, 2
+    -- pesquisa_escolhas aceita escrita sem login: só entra o que 3 pessoas COM conta diferentes
+    -- escolheram (como a regra dos sinónimos), para ninguém pôr texto na lupa de toda a gente.
+    having count(distinct e.user_id) >= 3
   ),
   pal as (
     select pr.restaurant_id, pr.escondida, pr.id as pid, x.w, x.o
@@ -229,13 +232,13 @@ begin
   select upper(left(e.termo, 1)) || substr(e.termo, 2), e.tn, 'palavra', e.restaurant_id, null, e.restaurant_id,
          (6 + 2 * ln(1 + e.n))::real
     from escolhas e
-   where length(e.tn) >= 2 and e.tn not in (select sr.tn from sem_res sr)
+   where length(replace(e.tn, ' ', '')) >= 3 and e.tn not in (select sr.tn from sem_res sr)
      and (e.restaurant_id is null or e.restaurant_id in (select l.id from lojas l))
   union all
   select upper(left(e.termo, 1)) || substr(e.termo, 2), e.tn, 'palavra', null, null, e.restaurant_id,
          (6 + 2 * ln(1 + e.n))::real
     from escolhas e
-   where e.restaurant_id is not null and length(e.tn) >= 2 and e.tn not in (select sr.tn from sem_res sr)
+   where e.restaurant_id is not null and length(replace(e.tn, ' ', '')) >= 3 and e.tn not in (select sr.tn from sem_res sr)
      and e.restaurant_id in (select l.id from lojas l)
   union all
   -- produtos mais pedidos / populares de cada loja (30 por loja)
@@ -385,6 +388,11 @@ begin
      where (s.restaurant_id = new.id or s.loja_origem = new.id) and not s.escondida;
   end if;
   update public.lupa_sugestoes_estado set pendente = true where id = 1;
+  -- loja que passa a escondida: as palavras e secções GERAIS que vieram dela saem já (recálculo à
+  -- força, ~3 s, raro: só quando o admin mexe na lista de permissão).
+  if coalesce(new.so_lista_permissao, false) and not coalesce(old.so_lista_permissao, false) then
+    perform public.lupa_sugestoes_recalcular(true);
+  end if;
   return null;
 end
 $$;

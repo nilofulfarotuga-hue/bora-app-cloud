@@ -27,6 +27,11 @@ Registo de cada passo: `e2e_log`, fluxo `lupa-sugestoes-17-11`.
 
 ## Ordem para aplicar
 
+**Importante:** aplicar as migrações ANTES de juntar este PR. Se a app nova for publicada sem a RPC
+`lupa_sugestoes` (ou com o interruptor desligado), com 1-2 letras as 3 lupas só mostram
+"Escreve mais letras para ver todos os produtos." — deixam de mostrar o filtro local da loja (2 letras),
+as lojas da lupa geral (2 letras) e o menu por baixo. Achado do Refinador, aceite e documentado.
+
 0. Antes: ler o vigia (`select criado_em, ocupado_pct from vigia_servidor_registos order by id desc limit 3`).
    Se estiver acima de 50%, esperar.
 1. Aplicar `20261117140000_lupa_sugestoes.sql` (MCP `apply_migration`, nome `lupa_sugestoes`).
@@ -77,10 +82,20 @@ Registo de cada passo: `e2e_log`, fluxo `lupa-sugestoes-17-11`.
    os vetores gte só funciona para o servidor, nunca na lupa da loja da app (anon/authenticated veem 0
    linhas). A migração mantém isto igual.
 2. Lupa da página inicial (`cliente_pesquisar`): corre como dono e só tira as lojas escondidas no
-   fim. Por isso (a) a A3 empurra outros produtos para fora — sem login "caneta" mostra 3 produtos em
-   vez de 20, "caderno" 17 em vez de 60; (b) os prémios do check-in não são filtrados (hoje há 0
-   disponíveis). Conserto possível: tirar o `bora.pesquisa_dono` de `cliente_pesquisar` (a nova
-   `pesquisa_produtos` já filtra) — muda resultados, por isso não foi feito.
+   fim. Por isso a A3 empurra outros produtos para fora — sem login "caneta" mostra 3 produtos em
+   vez de 20, "caderno" 17 em vez de 60. Conserto possível: tirar o `bora.pesquisa_dono` de
+   `cliente_pesquisar` (a nova `pesquisa_produtos` já filtra) — muda resultados, por isso não foi feito.
+   Os prémios do check-in também não eram filtrados nessa lupa: CORRIGIDO na 20261117140100 (filtro no
+   fim, só admin os vê; hoje há 0 disponíveis, por isso 0 diferenças).
+
+## Correções depois do Refinador (revisor com contexto limpo, 17/11)
+
+- `pesquisa_escolhas` aceita escrita sem login: uma só linha punha qualquer texto na lupa de toda a
+  gente. Agora só entra o que **3 pessoas com conta diferentes** escolheram, e com 3+ letras.
+- Loja que passa a escondida: o gatilho recalcula logo (antes ficava até 1 hora nas sugestões gerais).
+- Menu do restaurante: tocar numa secção faz a pesquisa com o nome da secção (não salta para a secção
+  do menu). Lupa da loja: tocar na secção abre a secção.
+- Textos do painel corrigidos para PT-BR.
 3. `tool/l10n/gerar_dicionario.py` no Windows lê os JSON com a codificação errada e reescreve
    `lib/l10n/strings_en.dart` a perder centenas de traduções. Não usado: a frase nova foi posta à mão
    no `strings_en.dart` e no `tool/l10n/traducoes/pt-en-42-lupa-sugestoes.json`.

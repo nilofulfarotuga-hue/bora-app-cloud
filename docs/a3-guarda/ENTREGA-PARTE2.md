@@ -64,5 +64,9 @@ O envio do ramo foi recusado pela tranca do PC: **a Claude.ai envia o ramo e abr
 - Descrições longas (979 produtos) e fotos extra (1300 produtos têm mais de 1 foto): a tabela
   `products` só tem `photo_url`; ficam no bruto da leitura de 16/11.
 - Cobrança real dos pedidos de impressão: Lista Vermelha (como a receita das farmácias).
+  **Trava antes de a ligar** (achado do Juiz): o número de páginas vem da app e o servidor não o
+  confere com os ficheiros; uma app alterada podia pagar 1 página por 300. Hoje não há dinheiro em
+  risco (tudo é pedido de teste). Antes de cobrar: a loja confirma as páginas ao aceitar (e o preço
+  recalcula-se) ou o servidor conta as páginas do PDF.
 - Ferramenta de cálculo de impressão dentro do robô de WhatsApp (hoje manda para a app).
 - Provas de ecrã e pedidos de teste ponta a ponta: dependem dos passos 1 a 5.

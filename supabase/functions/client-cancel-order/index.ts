@@ -1,4 +1,15 @@
 // ============================================================================
+// client-cancel-order v34 = v33 no ar (duas contas Stripe, deploy v40) + MB WAY pendente cancelado na Stripe antes de cancelar o pedido (manha-15-11 C1; noite-farmacia-17-11 3.1)
+// Missão stripe-empresa-2026-11-01 (autorização do Danilo 01/11/2026 22:03). A tranca do repo
+// não deixa esta sessão escrever em supabase/functions/client-cancel-order/; este ficheiro é a
+// versão completa pronta a copiar para lá e publicar (verify_jwt=true, como hoje).
+// Base: v32 em produção (= repo).
+//
+// O que muda na v33 (e SÓ isto): o reembolso sai pela conta onde o dinheiro ENTROU
+// (orders.stripe_account): retrieve do PI, refunds.create, lerPagoDoPedido e a devolução da
+// gorjeta usam a chave dessa conta (os _shared cobranca_stripe/gorjeta_devolver também já
+// escolhem a conta pela linha). Pedido pago ontem na pessoal é reembolsado na pessoal.
+//
 // client-cancel-order v25.1 (deploy v26) — Bloco 4 (cancelamento estilo Uber)
 // v29 (ronda 04/10 A.2) — o pago lê-se com lerPagoDoPedido (stripe_charge_cents estava
 // sempre a 0 → pedidos pagos a cartão/MB Way cancelavam SEM reembolso) e o reembolso
@@ -24,14 +35,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCancelFees, computeCancelFeeEur } from '../_shared/platform_settings.ts';
 import { corsHeaders } from '../_shared/cors.ts';
 import { lerPagoDoPedido, repartirReembolso, type Pago } from '../_shared/cobranca_stripe.ts'; // v29 (ronda 04/10 A.2)
+import { aplicaCancelarMbway, cancelarMbwayPendente, type StripePiLike } from './mbway_pendente.ts'; // v33 (15/11 C1)
 import { secretKey } from '../_shared/keys.ts'
 import { chamarFuncao } from '../_shared/chamadas.ts'; // v32 (a)
 import { devolverGorjetasDoPedido } from '../_shared/gorjeta_devolver.ts'; // v32 (b) (gorjetas 30/10)
-
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
+import { type ContaStripe, chaveSecreta, stripeDaLinha } from '../_shared/stripe_contas.ts'; // v33
 
 const jsonResponse = (body: any, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -93,16 +101,32 @@ Deno.serve(async (req: Request) => {
 
   const admin = createClient(supabaseUrl, serviceKey);
 
+  // (o tipo do select é longo demais para o parser de tipos do supabase-js: lê-se como registo genérico)
+  // deno-lint-ignore no-explicit-any
   const { data: order, error: orderErr } = await admin
     .from('orders')
-    .select('id, user_id, status, payment_method, payment_intent_id, payment_status, total, estimated_total, final_total, customer_total, refund_amount, stripe_charge_cents, wallet_applied_cents, tokens_applied_value_cents, tokens_applied_count, created_at, assigned_driver_id, service_type, is_purchase_finalized, driver_earnings')
-    .eq('id', orderId).maybeSingle();
+    .select('id, user_id, status, payment_method, payment_intent_id, payment_status, total, estimated_total, final_total, customer_total, refund_amount, stripe_charge_cents, wallet_applied_cents, tokens_applied_value_cents, tokens_applied_count, created_at, assigned_driver_id, service_type, is_purchase_finalized, driver_earnings, stripe_account')
+    .eq('id', orderId).maybeSingle() as { data: Record<string, any> | null; error: { message: string } | null };
   if (orderErr || !order) return jsonResponse({ error: 'order_not_found' }, 404);
   if (order.user_id !== user.id) return jsonResponse({ error: 'not_your_order' }, 403);
 
   if (order.service_type === 'errand' && order.is_purchase_finalized === true) {
     return jsonResponse({ error: 'errand_already_purchased' }, 409);
   }
+
+  // v33 — a Stripe da conta onde este pedido foi pago. Sem chave dessa conta e com PI: pára ANTES
+  // do claim (nada mudou) — melhor "tenta outra vez" do que cancelar sem devolver.
+  let stripe: Stripe | null = null;
+  let conta: ContaStripe = 'pessoal';
+  try {
+    ({ stripe, conta } = stripeDaLinha(order));
+  } catch (e) {
+    if (order.payment_intent_id) {
+      console.error('[client-cancel] sem chave Stripe da conta', order.stripe_account, String(e));
+      return jsonResponse({ error: 'payment_read_failed', retry: true, stripe_account: order.stripe_account ?? 'pessoal' }, 503);
+    }
+  }
+  const chaveConta = chaveSecreta(conta);
 
   const tierBase = baseTier(order.status);
   if (tierBase === 'invalid') return jsonResponse({ error: 'cannot_cancel_at_status', status: order.status }, 409);
@@ -118,12 +142,22 @@ Deno.serve(async (req: Request) => {
   const feeEur = tier === 'grace' ? 0
     : Number(computeCancelFeeEur(tier as any, totalEur, fees).toFixed(2));
 
+  // v33 (15/11/2026, manha-15-11 bloco C1, autorizo do Danilo 15/11 08:50): MB WAY que falhou
+  // ou expirou -> cancela o pagamento pendente na Stripe ANTES de cancelar o pedido, para o
+  // cliente nao o aprovar depois na app do banco (pagar 2x). Se a Stripe ja recebeu, o pedido
+  // NAO se cancela: a app abre o pedido pago. Stripe em baixo: segue como antes (webhook trata).
+  if (aplicaCancelarMbway(reason, order.payment_method, order.payment_intent_id)) {
+    const r = await cancelarMbwayPendente(stripe! as unknown as StripePiLike, order.payment_intent_id);
+    if (r === 'pago') return jsonResponse({ ok: false, error: 'already_paid', order_id: orderId }, 409);
+    if (r === 'falhou') console.error('[client-cancel] PI MB WAY nao cancelado; o webhook fica de rede', orderId);
+  }
+
   // v29 (ronda 04/10 A.2) — o pago por fonte. Se stripe_charge_cents estiver a 0 e houver PI,
   // lerPagoDoPedido lê a Stripe e grava (registar_cobranca_stripe). Se a leitura falhar,
   // pára ANTES do claim (nada mudou) — melhor "tenta outra vez" do que cancelar sem devolver.
   let pago: Pago;
   try {
-    pago = await lerPagoDoPedido(admin, Deno.env.get('STRIPE_SECRET_KEY') ?? '', orderId);
+    pago = await lerPagoDoPedido(admin, chaveConta, orderId); // v33: chave da conta do pedido
   } catch (e) {
     console.error('[client-cancel] lerPagoDoPedido falhou:', e);
     return jsonResponse({ error: 'payment_read_failed', retry: true }, 503);
@@ -197,16 +231,19 @@ Deno.serve(async (req: Request) => {
       const parte = repartirReembolso(Math.round(refundEur * 100), pago);
       if (parte.stripeCents > 0 && pago.piId) {
         let piStatus: string | undefined; let piLatestCharge: string | null | undefined;
-        try {
-          const pi = await stripe.paymentIntents.retrieve(pago.piId);
-          piStatus = pi.status; piLatestCharge = (pi.latest_charge as string | null) ?? null;
-        } catch (e) { console.error('[client-cancel] pi retrieve failed:', e); refundFailed = true; }
+        if (!stripe) { console.error('[client-cancel] sem Stripe da conta', conta); refundFailed = true; }
+        if (!refundFailed) {
+          try {
+            const pi = await stripe!.paymentIntents.retrieve(pago.piId);
+            piStatus = pi.status; piLatestCharge = (pi.latest_charge as string | null) ?? null;
+          } catch (e) { console.error('[client-cancel] pi retrieve failed:', e); refundFailed = true; }
+        }
         if (!refundFailed) {
           if (piStatus !== 'succeeded' || !piLatestCharge) { chargeMissing = true; }
           else {
             try {
               const idempotencyKey = `refund-${pago.piId}-${parte.stripeCents}`;
-              const refund = await stripe.refunds.create({ payment_intent: pago.piId, amount: parte.stripeCents }, { idempotencyKey });
+              const refund = await stripe!.refunds.create({ payment_intent: pago.piId, amount: parte.stripeCents }, { idempotencyKey });
               refundId = refund.id; refundExecuted = true; refundStripeCents = parte.stripeCents;
             } catch (e) { console.error('[client-cancel] stripe refund failed:', e); refundFailed = true; }
           }
@@ -232,7 +269,7 @@ Deno.serve(async (req: Request) => {
   }
 
   if (refundFailed) {
-    await chamarFuncao(admin, 'client-cancel-order', 'notify-admin-urgent', { kind: 'cancel_refund_failed', order_id: orderId, user_id: user.id, refund_cents: Math.round(refundEur * 100), tier }); // v32 (a): falha fica em e2e_log
+    await chamarFuncao(admin, 'client-cancel-order', 'notify-admin-urgent', { kind: 'cancel_refund_failed', order_id: orderId, user_id: user.id, refund_cents: Math.round(refundEur * 100), tier, stripe_account: conta }); // v32 (a): falha fica em e2e_log
   }
 
   const driverShareCents = await getIntSetting(admin, 'cancel_fee_after_accept_driver_cents', 150);
@@ -283,8 +320,9 @@ Deno.serve(async (req: Request) => {
 
   // v32 (b) (gorjetas 30/10): a gorjeta volta INTEIRA, fora da taxa, pelo caminho escolhido. Nunca falha
   // o cancelamento: o que ficar por devolver a conferência de 15 em 15 min volta a tentar.
+  // v33: a chave é a da conta do pedido; cada gorjeta com conta própria escolhe a sua (_shared).
   const gorjeta = await devolverGorjetasDoPedido(
-    admin, Deno.env.get('STRIPE_SECRET_KEY') ?? '', orderId,
+    admin, chaveConta, orderId,
     refundTarget === 'wallet' ? 'carteira' : 'meio', `cancelado pelo cliente (${tier})`, user.id,
   );
   if (gorjeta.erros > 0) console.error('[client-cancel] gorjeta por devolver:', JSON.stringify(gorjeta.itens));
@@ -298,6 +336,7 @@ Deno.serve(async (req: Request) => {
     tokens_devolvidos: tokensDevolvidos,      // v30: voltam como tokens (gatilho do banco)
     gorjeta_devolvida_cents: gorjeta.devolvidaCents, // v32: gorjeta inteira, fora da taxa
     gorjeta_carteira_cents: gorjeta.carteiraCents,   // v32: parte que foi para o saldo
+    stripe_account: conta,                            // v33
     refund_pending: refundFailed,
     refund_id: refundId ?? null, charge_missing: chargeMissing,
     nothing_to_refund: nothingToRefund, cancel_fee_debited: cancelFeeDebited, cancel_fee_debit: cancelFeeDebitResult,

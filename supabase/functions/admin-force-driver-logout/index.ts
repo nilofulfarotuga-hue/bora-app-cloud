@@ -109,16 +109,22 @@ Deno.serve(async (req: Request) => {
   const driverUserId = (driver.user_id ?? driver.id) as string;
 
   // ── 2. Revoke all auth sessions (global scope) ───────────────────────────
+  // 17/11/2026 (noite-farmacia-17-11, 7.2c): auth.admin.signOut(x, 'global') espera o
+  // TOKEN de sessão (JWT), não o id da conta — com o id falhava sempre e as sessões do
+  // estafeta ficavam abertas. Agora fecha-as no banco pela conta (admin_revogar_sessoes:
+  // apaga auth.refresh_tokens e auth.sessions dessa conta; só a service role chama).
   let sessionsRevoked = false;
+  let sessionsClosed = 0;
   try {
-    const { error: signOutErr } = await admin.auth.admin.signOut(driverUserId, 'global');
-    if (signOutErr) {
-      console.error('[force-logout] signOut failed:', signOutErr);
+    const { data: revog, error: revogErr } = await admin.rpc('admin_revogar_sessoes', { p_user_id: driverUserId });
+    if (revogErr) {
+      console.error('[force-logout] admin_revogar_sessoes failed:', revogErr);
     } else {
       sessionsRevoked = true;
+      sessionsClosed = Number((revog as { sessoes?: number } | null)?.sessoes ?? 0);
     }
   } catch (e) {
-    console.error('[force-logout] signOut threw:', e);
+    console.error('[force-logout] admin_revogar_sessoes threw:', e);
   }
 
   // ── 3. Update drivers row ────────────────────────────────────────────────
@@ -151,6 +157,7 @@ Deno.serve(async (req: Request) => {
         driver_email: driver.email,
         had_fcm_token: driver.fcm_token != null,
         sessions_revoked: sessionsRevoked,
+        sessions_closed: sessionsClosed,
         reason: reason || null,
       },
     });
@@ -165,6 +172,7 @@ Deno.serve(async (req: Request) => {
     driver_id: driverId,
     driver_name: driver.name,
     sessions_revoked: sessionsRevoked,
+    sessions_closed: sessionsClosed,
     fcm_cleared: true,
     last_forced_logout_at: new Date().toISOString(),
   });

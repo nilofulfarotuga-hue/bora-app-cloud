@@ -1,5 +1,6 @@
 // "Imprimir documentos" (missão a3-guarda-16-11, parte 2; Bloco 2.1 da caixa 111).
-// O cliente escolhe PDF, JPG ou PNG (um ou vários); a app conta as páginas sozinha e mostra a
+// O cliente tira uma foto, escolhe fotos da galeria ou um ficheiro PDF/JPG/PNG (17/11/2026: pedido
+// do Danilo, "tira foto, puxa o PDF", igual à receita da farmácia); a app conta as páginas sozinha e mostra a
 // primeira página; escolhe tamanho, cor, faces, papel, cópias, páginas e acabamento; vê o preço
 // calculado pelo SERVIDOR antes de enviar; escolhe levantar na loja ou entrega e o pagamento.
 // Grandes formatos (A2/A1/A0) = "Pedir orçamento" pelo WhatsApp.
@@ -8,6 +9,7 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -15,6 +17,7 @@ import '../../config/app_colors.dart';
 import '../../models/pedido_impressao.dart';
 import '../../services/auto_address.dart';
 import '../../services/impressao_service.dart';
+import '../../utils/safe_image_picker.dart';
 import '../../widgets/bora/bora_bottom_action_bar.dart';
 import '../../widgets/bora/bora_primary_button.dart';
 import 'impressao_estado_screen.dart';
@@ -192,12 +195,58 @@ class _ImpressaoEnviarScreenState extends State<ImpressaoEnviarScreen> {
         _fich.add(_Ficheiro(nome: f.name, bytes: bytes, tipo: ext == 'png' ? 'png' : 'jpg', paginas: 1, capa: bytes));
       }
     }
+    _depoisDeJuntar(ignorados);
+  }
+
+  void _depoisDeJuntar(List<String> ignorados) {
     if (!mounted) return;
     setState(() => _aLer = false);
     if (ignorados.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Não entraram: ${ignorados.join('; ')}')));
     }
     _recotar();
+  }
+
+  /// "Tirar foto" (câmara) ou "Fotos da galeria" (várias de uma vez). Cada foto conta 1 página.
+  /// No iPhone o image_picker devolve JPEG mesmo quando a foto da galeria é HEIC (há qualidade definida).
+  Future<void> _juntarFotos(ImageSource fonte) async {
+    final max = _loja?.maxFicheiros ?? 10;
+    final vagas = max - _fich.length;
+    if (vagas <= 0) return _aviso('Já tem $max ficheiros, que é o máximo.');
+    List<XFile> fotos;
+    try {
+      if (fonte == ImageSource.camera) {
+        final x = await SafeImagePicker.pickImage(
+            source: ImageSource.camera, maxWidth: 3000, maxHeight: 3000, imageQuality: 90);
+        fotos = x == null ? const <XFile>[] : <XFile>[x];
+      } else {
+        fotos = await SafeImagePicker.pickMultiImage(maxWidth: 3000, maxHeight: 3000, imageQuality: 90, limit: vagas);
+      }
+    } catch (_) {
+      return _aviso(fonte == ImageSource.camera
+          ? 'Não foi possível abrir a câmara. Tente pela galeria.'
+          : 'Não foi possível abrir a galeria. Tente outra vez.');
+    }
+    if (fotos.isEmpty || !mounted) return;
+    setState(() => _aLer = true);
+    final ignorados = <String>[];
+    var n = 0;
+    for (final x in fotos) {
+      n++;
+      final nome = x.name.trim().isEmpty ? 'foto-$n.jpg' : x.name;
+      if (_fich.length >= max) {
+        ignorados.add('$nome (máximo $max ficheiros)');
+        continue;
+      }
+      final bytes = await x.readAsBytes();
+      if (bytes.length > 25 * 1024 * 1024) {
+        ignorados.add('$nome (maior que 25 MB)');
+        continue;
+      }
+      final png = nome.toLowerCase().endsWith('.png');
+      _fich.add(_Ficheiro(nome: nome, bytes: bytes, tipo: png ? 'png' : 'jpg', paginas: 1, capa: bytes));
+    }
+    _depoisDeJuntar(ignorados);
   }
 
   Future<void> _moradaAuto() async {
@@ -341,8 +390,38 @@ class _ImpressaoEnviarScreenState extends State<ImpressaoEnviarScreen> {
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 24), children: [
         Text('Envie os seus ficheiros e a ${widget.lojaNome} imprime. Vê o preço antes de enviar.',
             style: const TextStyle(color: AppColors.textSecondary)),
-        _titulo('1. Ficheiros (PDF, JPG ou PNG)'),
+        _titulo('1. O que quer imprimir'),
         for (var i = 0; i < _fich.length; i++) _cartaoFicheiro(i),
+        Row(children: [
+          Expanded(
+            child: FilledButton.icon(
+              key: const ValueKey('impressao_tirar_foto'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: _aLer ? null : () => _juntarFotos(ImageSource.camera),
+              icon: const Icon(Icons.photo_camera_outlined),
+              label: const Text('Tirar foto'),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: FilledButton.icon(
+              key: const ValueKey('impressao_fotos_galeria'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: _aLer ? null : () => _juntarFotos(ImageSource.gallery),
+              icon: const Icon(Icons.photo_library_outlined),
+              label: const Text('Fotos da galeria'),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 10),
         OutlinedButton.icon(
           key: const ValueKey('impressao_escolher_ficheiros'),
           style: OutlinedButton.styleFrom(
@@ -355,7 +434,7 @@ class _ImpressaoEnviarScreenState extends State<ImpressaoEnviarScreen> {
           icon: _aLer
               ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
               : const Icon(Icons.upload_file),
-          label: Text(_aLer ? 'A contar as páginas…' : (_fich.isEmpty ? 'Escolher ficheiros' : 'Juntar mais ficheiros')),
+          label: Text(_aLer ? 'A contar as páginas…' : 'Ficheiro PDF (ou imagem)'),
         ),
         if (_fich.isNotEmpty)
           Padding(

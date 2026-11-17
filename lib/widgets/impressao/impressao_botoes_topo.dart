@@ -66,7 +66,7 @@ class _ImpressaoBotoesTopoState extends State<ImpressaoBotoesTopo> {
             key: const ValueKey('impressao_imprimir_documentos'),
             icone: Icons.print,
             titulo: 'Imprimir documentos',
-            sub: 'Envie PDF ou fotos e veja o preço',
+            sub: 'Tire uma foto ou envie o PDF e veja o preço',
             ecra: ImpressaoEnviarScreen(restaurantId: widget.restaurantId, lojaNome: widget.storeName),
           ),
         if (l.personalizados) const SizedBox(width: 10),

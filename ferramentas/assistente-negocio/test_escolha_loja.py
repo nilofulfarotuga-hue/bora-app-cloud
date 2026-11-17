@@ -87,8 +87,14 @@ class EscolhaDeLoja(unittest.TestCase):
         self.assertFalse(A.abre_loja(A3, "a3 tem agendas"))  # sem saudação: não muda de loja
         self.assertFalse(A.abre_loja(BOOM, "Olá Boomerang"))
 
-    def test_blocklist_manda(self):
+    def test_blocklist_so_vale_para_a_sua_loja(self):
         self.tenants = [dict(BOOM, blocklist=[NUM]), A3]
+        t, porque = A.tenant_para("s", NUM, "quero canetas")
+        self.assertEqual(t["slug"], "a3-guarda")
+        self.assertEqual(porque, "allowlist")
+
+    def test_blocklist_em_todas_cala(self):
+        self.tenants = [dict(BOOM, blocklist=[NUM]), dict(A3, blocklist=[NUM])]
         t, porque = A.tenant_para("s", NUM, "Olá A3")
         self.assertEqual(porque, "blocklist")
 

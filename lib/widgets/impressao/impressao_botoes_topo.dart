@@ -34,7 +34,8 @@ class _ImpressaoBotoesTopoState extends State<ImpressaoBotoesTopo> {
   @override
   Widget build(BuildContext context) {
     final l = _loja;
-    if (l == null || (!l.ligado && !l.personalizados)) return const SizedBox.shrink();
+    // o servidor (impressao_criar) exige o serviço ligado também para os personalizados
+    if (l == null || !l.ligado) return const SizedBox.shrink();
     Widget cartao({required Key key, required IconData icone, required String titulo, required String sub, required Widget ecra}) =>
         Expanded(
           child: Material(
@@ -61,15 +62,14 @@ class _ImpressaoBotoesTopoState extends State<ImpressaoBotoesTopo> {
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
       child: Row(children: [
-        if (l.ligado)
-          cartao(
+        cartao(
             key: const ValueKey('impressao_imprimir_documentos'),
             icone: Icons.print,
             titulo: 'Imprimir documentos',
             sub: 'Envie PDF ou fotos e veja o preço',
             ecra: ImpressaoEnviarScreen(restaurantId: widget.restaurantId, lojaNome: widget.storeName),
           ),
-        if (l.ligado && l.personalizados) const SizedBox(width: 10),
+        if (l.personalizados) const SizedBox(width: 10),
         if (l.personalizados)
           cartao(
             key: const ValueKey('impressao_personalizados'),

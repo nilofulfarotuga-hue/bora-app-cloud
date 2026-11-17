@@ -11,29 +11,44 @@
 
 begin;
 
+-- Desde 17/11 a a3-guarda tem dono (a conta de teste a3teste). Para o teste continuar a provar o caso
+-- "loja escondida SEM dono", tira-se o dono SÓ dentro desta transação (o rollback do fim repõe-no).
+-- Correr sempre o ficheiro inteiro, com o begin e o rollback.
+update public.restaurants set user_id = null, user_ = null where id = 'a3-guarda';
+
 create temp table _caso (caso text, loja text, escondida boolean, esperado boolean) on commit drop;
 
 do $$
 declare
   v_dono_se uuid := (select user_id from public.restaurants where id = 'farmacia-se-guarda');
   v_dono_tx uuid := (select user_id from public.restaurants where id = 'farmacia-teixeira-guarda');
-  v_lista_a3 uuid := (select l.user_id from public.loja_lista_permissao l
-                       join auth.users u on u.id = l.user_id
-                      where l.restaurant_id = 'a3-guarda'
-                        and coalesce(u.raw_app_meta_data->>'role', '') <> 'admin'
-                        and u.email not in ('nilofulfarotuga@gmail.com', 'nilofulfaro@gmail.com')
-                      limit 1);
-  v_admin uuid := (select id from auth.users where email = 'nilofulfarotuga@gmail.com');
+  -- sem emails no ficheiro (o repositório é público): quem é admin descobre-se pela própria is_admin()
+  v_lista_a3 uuid;
+  v_admin uuid;
   v_estranho uuid := gen_random_uuid(); -- cliente com sessão, fora de todas as listas
-  -- a conta da lista da A3 (do Danilo) também está na lista das farmácias: vê as que a incluem
-  v_farm_lista text[] := array(select restaurant_id from public.loja_lista_permissao
-                                where user_id = v_lista_a3 and restaurant_id like 'farmacia-%');
-  v_farm_fora text[] := array(select id from public.restaurants
-                               where so_lista_permissao and id like 'farmacia-%' and id <> all(v_farm_lista));
+  v_farm_lista text[];
+  v_farm_fora text[];
+  v_u uuid;
+  v_eadmin boolean;
   v_loja text;
   v_esc text[];
   r record;
 begin
+  for v_u in select distinct l.user_id from public.loja_lista_permissao l where l.restaurant_id = 'a3-guarda' loop
+    perform set_config('request.jwt.claims', json_build_object('sub', v_u, 'role', 'authenticated')::text, true);
+    perform set_config('request.jwt.claim.sub', v_u::text, true);
+    v_eadmin := coalesce(public.is_admin(), false);
+    if v_eadmin and v_admin is null then v_admin := v_u; end if;
+    if not v_eadmin and v_lista_a3 is null
+       and not exists (select 1 from public.restaurants x where x.id = 'a3-guarda' and v_u in (x.user_id, x.user_)) then
+      v_lista_a3 := v_u;
+    end if;
+  end loop;
+  -- uma conta da lista da A3 pode estar também na lista das farmácias: vê as que a incluem
+  v_farm_lista := array(select restaurant_id from public.loja_lista_permissao
+                         where user_id = v_lista_a3 and restaurant_id like 'farmacia-%');
+  v_farm_fora := array(select id from public.restaurants
+                        where so_lista_permissao and id like 'farmacia-%' and id <> all(v_farm_lista));
   for r in
     select * from (values
       ('anónimo (sem sessão)',            null::uuid, array['a3-guarda','farmacia-se-guarda','farmacia-teixeira-guarda'], array[]::text[]),

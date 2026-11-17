@@ -79,18 +79,20 @@ def tenants_da_sessao(sessao):
 
 def candidatos(sessao, numero):
     """Todos os assistentes desta sessao que atendem este numero, do mais antigo para o mais novo.
-    Devolve ([(tenant, motivo)], tenant_da_blocklist_ou_None)."""
+    Devolve ([(tenant, motivo)], tenant_da_blocklist_ou_None). A blocklist de uma loja so vale para essa
+    loja: o numero continua a ser atendido nas outras; so fica calado se nenhuma o atender."""
     numero = so_digitos(numero)
-    out = []
+    out, bloqueado = [], None
     for t in sorted(tenants_da_sessao(sessao), key=lambda x: str(x.get("created_at") or "")):
         if numero in {so_digitos(x) for x in (t.get("blocklist") or [])}:
-            return [], t
+            bloqueado = bloqueado or t
+            continue
         if t["mode"] == "teste":
             if numero in {so_digitos(x) for x in (t.get("allowlist") or [])}:
                 out.append((t, "allowlist"))
         elif t["mode"] == "ligado":
             out.append((t, "ligado"))
-    return out, None
+    return out, (None if out else bloqueado)
 
 
 # Missao a3-guarda-16-11 (17/11): o mesmo numero pode estar em teste em duas lojas (ex.: o Danilo na

@@ -34,7 +34,8 @@ const LISTA_URL = 'https://a3guarda.com/loja/index.php?id_category=2&controller=
 const UA = 'Mozilla/5.0 (compatible; BoraGuardaBot/1.0; +https://boraguarda.com)'
 const ORCAMENTO_MS = 95_000 // a Edge tem 150 s
 const PAUSA_MS = 250 // educado com o site da A3
-const COBERTURA_MIN = 0.8
+const COBERTURA_MIN = 0.8 // abaixo disto não muda nada
+const COBERTURA_SUMIU = 0.98 // abaixo disto não tira de venda o que faltar na leitura
 const MAX_NOVOS = 60 // mais do que isto de uma vez = algo mudou na loja online; avisa e não insere
 const BUCKET_PROD = 'product-images'
 const BUCKET_LOJA = 'restaurant-assets'
@@ -180,31 +181,49 @@ async function passo(sb: SupabaseClient, c: any, t0: number) {
       return { abortada: true, cobertura }
     }
     const agora = new Date().toISOString()
-    const contas = { mudou_preco: 0, esgotou: 0, voltou: 0, desapareceu: 0, mao: 0, suspeitos: 0 }
-    const exemplos: Record<string, unknown>[] = []
-    const novosEstados: Estado[] = []
+    // Tirar de venda o que "desapareceu" só com a leitura quase completa (uma lista cortada a 85%
+    // não pode esconder 270 produtos de uma vez). Entre 80% e 98% muda preço e esgotado, mais nada.
+    const leituraCompleta = cobertura >= COBERTURA_SUMIU
+    // Contagens: as de mudanças somam entre chamadas (a corrida pode ir em várias); mão e suspeitos recontam-se.
+    const contas = {
+      mudou_preco: c.mudou_preco ?? 0, esgotou: c.esgotou ?? 0, voltou: c.voltou ?? 0, desapareceu: c.desapareceu ?? 0,
+      mao: 0, suspeitos: 0,
+    }
+    const exemplos: Record<string, unknown>[] = Array.isArray(c.exemplos) ? c.exemplos : []
+    const semMudanca: Estado[] = []
+    const comMudanca: { p: Produto & { category: string }; d: ReturnType<typeof decidir> }[] = []
     for (const p of nossos) {
       const l = lidos[p.id.slice(PREFIXO.length)] ?? null
-      const d = decidir(p, estMap.get(p.id), l, true, fator, agora)
-      novosEstados.push({ ...d.estado, loja: LOJA } as Estado)
+      const d = decidir(p, estMap.get(p.id), l, leituraCompleta, fator, agora)
       if (d.maoPreco || d.maoDisp) contas.mao++
       if (d.suspeito) {
         contas.suspeitos++
         if (exemplos.length < 30) exemplos.push({ id: p.id, nome: p.name, suspeito: true, balcao: p.partner_shelf_price, a3: l?.preco })
       }
-      if (!Object.keys(d.upd).length) continue
+      if (Object.keys(d.upd).length) comMudanca.push({ p, d })
+      else semMudanca.push({ ...d.estado, loja: LOJA } as Estado)
+    }
+    // estado dos que não mudam (é o mesmo valor da base: não cria "mão humana" falsa)
+    for (let i = 0; i < semMudanca.length; i += 500) {
+      const { error } = await sb.from('robo_a3_estado').upsert(semMudanca.slice(i, i + 500), { onConflict: 'product_id' })
+      if (error) throw new Error('gravar estado: ' + error.message)
+    }
+    // cada mudança grava logo o seu estado: se a chamada morrer a meio, a seguinte recomeça
+    // da base e não confunde o que o robô já mudou com uma mudança à mão
+    let acabou = true
+    for (const { p, d } of comMudanca) {
+      if (Date.now() - t0 > ORCAMENTO_MS) { acabou = false; break }
       const { error } = await sb.from('products').update({ ...d.upd, last_updated: agora.slice(0, 10) }).eq('id', p.id)
       if (error) throw new Error(`atualizar ${p.id}: ${error.message}`)
+      const { error: e2 } = await sb.from('robo_a3_estado').upsert({ ...d.estado, loja: LOJA }, { onConflict: 'product_id' })
+      if (e2) throw new Error(`gravar estado ${p.id}: ${e2.message}`)
       if (d.conta === 'preco') contas.mudou_preco++
       else if (d.conta) contas[d.conta]++
       if (exemplos.length < 30) exemplos.push({ id: p.id, nome: p.name, ...d.upd })
     }
-    for (let i = 0; i < novosEstados.length; i += 500) {
-      const { error } = await sb.from('robo_a3_estado').upsert(novosEstados.slice(i, i + 500), { onConflict: 'product_id' })
-      if (error) throw new Error('gravar estado: ' + error.message)
-    }
-    prog.aplicado = true
+    prog.aplicado = acabou
     await gravar(sb, c.id, { progresso: prog, cobertura, conhecidos: conhecidos.length, ...contas, exemplos })
+    if (!acabou) return { continua: 'aplicar', ...contas }
     if (contas.suspeitos) await avisar(sb, `Robô da A3 Guarda: ${contas.suspeitos} preço(s) com salto acima de 50% não foram aplicados. Ver no painel (Lojas › Robô A3).`)
   }
 

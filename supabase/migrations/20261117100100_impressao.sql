@@ -371,7 +371,7 @@ begin
   select * into v from public.pedidos_impressao where id = p_id for update;
   if not found or v.user_id is distinct from auth.uid() then raise exception 'NAO_ENCONTRADO: Pedido não encontrado.' using errcode = 'P0002'; end if;
   if v.estado <> 'orcamentado' then raise exception 'NAO_CONFIRMAVEL: Este pedido já não pode ser confirmado.' using errcode = 'P0001'; end if;
-  if p_metodo not in ('card', 'mbway', 'cash') then raise exception 'METODO_INVALIDO: Escolha cartão, MB Way ou dinheiro.' using errcode = 'P0001'; end if;
+  if p_metodo is null or p_metodo not in ('card', 'mbway', 'cash') then raise exception 'METODO_INVALIDO: Escolha cartão, MB Way ou dinheiro.' using errcode = 'P0001'; end if;
   v_t := public._impressao_taxas(v.restaurant_id, v.artigo_cents, v.modo, v.lat, v.lng);
   update public.pedidos_impressao set estado = 'aceite', metodo_pagamento = p_metodo,
     taxa_servico_cents = (v_t->>'taxa_servico_cents')::int, taxa_entrega_cents = (v_t->>'taxa_entrega_cents')::int,
@@ -465,7 +465,12 @@ declare k text; val jsonb;
 begin
   if not public._impressao_e_dono(p_restaurant_id) then raise exception 'SEM_PERMISSAO: Sem permissão.' using errcode = '42501'; end if;
   for k, val in select * from jsonb_each(coalesce(p_precos, '{}'::jsonb)) loop
-    if (val #>> '{}')::int < 0 then raise exception 'VALOR: Os preços não podem ser negativos.' using errcode = 'P0001'; end if;
+    if k = 'a3_fator_pct' and (val #>> '{}')::int not between 100 and 1000 then
+      raise exception 'VALOR: O A3 tem de custar entre 100%% e 1000%% do A4.' using errcode = 'P0001';
+    end if;
+    if (val #>> '{}')::int not between 0 and 100000 then
+      raise exception 'VALOR: Cada preço tem de estar entre 0 e 1000 €.' using errcode = 'P0001';
+    end if;
     insert into public.impressao_precos (restaurant_id, chave, valor, provisorio, atualizado_em, atualizado_por)
     values (p_restaurant_id, k, (val #>> '{}')::int, false, now(), auth.uid())
     on conflict (restaurant_id, chave) do update set valor = excluded.valor, provisorio = false,
@@ -540,6 +545,34 @@ begin
 end $$;
 revoke all on function public.impressao_marcar_dados_apagados(uuid[]) from public, anon, authenticated;
 grant execute on function public.impressao_marcar_dados_apagados(uuid[]) to service_role;
+
+-- Pedidos parados não guardam ficheiros para sempre: sem resposta da loja ou do cliente há 14 dias,
+-- ou pronto e nunca levantado há 30 dias = expirado (e 30 dias depois a limpeza apaga os ficheiros).
+create or replace function public.impressao_expirar()
+returns int language plpgsql security definer set search_path to 'public', 'pg_temp' as $$
+declare n int;
+begin
+  update public.pedidos_impressao set estado = 'expirado', updated_at = now()
+   where (estado in ('enviado', 'orcamentado') and updated_at < now() - interval '14 days')
+      or (estado in ('aceite', 'pronto') and updated_at < now() - interval '30 days');
+  get diagnostics n = row_count;
+  return n;
+end $$;
+revoke all on function public.impressao_expirar() from public, anon, authenticated;
+grant execute on function public.impressao_expirar() to service_role;
+
+-- Ficheiros que nenhum pedido usa (o pedido falhou depois do envio, ou o cliente desistiu) com mais de 1 dia.
+create or replace function public.impressao_orfaos(p_limite int default 500)
+returns setof text language sql stable security definer set search_path to 'public', 'storage', 'pg_temp' as $$
+  select o.name from storage.objects o
+   where o.bucket_id = 'impressoes' and o.created_at < now() - interval '1 day'
+     and not exists (select 1 from public.pedidos_impressao pi
+                      where pi.foto_path = o.name
+                         or pi.ficheiros @> jsonb_build_array(jsonb_build_object('path', o.name)))
+   limit greatest(1, least(coalesce(p_limite, 500), 1000));
+$$;
+revoke all on function public.impressao_orfaos(int) from public, anon, authenticated;
+grant execute on function public.impressao_orfaos(int) to service_role;
 
 select cron.schedule('impressoes-limpeza', '50 3 * * *', $c$
   select net.http_post(

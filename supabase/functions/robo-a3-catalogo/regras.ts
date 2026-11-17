@@ -144,8 +144,8 @@ export function decidir(
       }
     }
     if (!d.maoDisp) {
-      const balcaoFinal = d.upd.partner_shelf_price !== undefined ? novo : balcaoBase
-      const deveVender = !l.esgotado && !!balcaoFinal && balcaoFinal > 0
+      // sem preço na loja online = fora de venda (nunca pelo preço antigo nem a 0 €)
+      const deveVender = !l.esgotado && novo !== null && novo > 0
       if (deveVender !== p.is_available) {
         d.upd.is_available = deveVender
         est.ultimo_disp_robo = deveVender

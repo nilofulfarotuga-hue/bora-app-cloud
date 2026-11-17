@@ -20,6 +20,24 @@ Deno.serve(async (req) => {
   let pedidos = 0
   let ficheiros = 0
   let falhas = 0
+
+  // pedidos parados há muito passam a expirado (para a limpeza os apanhar 30 dias depois)
+  const { data: expirados, error: eExp } = await sb.rpc('impressao_expirar')
+  if (eExp) return json({ ok: false, error: 'expirar' }, 500)
+
+  // ficheiros enviados que nenhum pedido usa (o pedido falhou ou o cliente desistiu), com mais de 1 dia
+  let orfaos = 0
+  for (let volta = 0; volta < 5; volta++) {
+    const { data, error } = await sb.rpc('impressao_orfaos', { p_limite: 500 })
+    if (error) return json({ ok: false, error: 'orfaos' }, 500)
+    const nomes = ((data ?? []) as unknown[]).map((x) => String(x)).filter((x) => x.length > 0)
+    if (nomes.length === 0) break
+    const { error: e } = await sb.storage.from('impressoes').remove(nomes)
+    if (e) { falhas++; break }
+    orfaos += nomes.length
+    if (nomes.length < 500) break
+  }
+
   for (let volta = 0; volta < 10; volta++) {
     const { data, error } = await sb.rpc('impressao_para_limpar', { p_limite: 200 })
     if (error) return json({ ok: false, error: 'listar', pedidos, ficheiros }, 500)
@@ -43,6 +61,6 @@ Deno.serve(async (req) => {
     }
     if (linhas.length < 200) break
   }
-  console.log(`[impressoes-limpeza] pedidos=${pedidos} ficheiros=${ficheiros} falhas=${falhas}`)
-  return json({ ok: true, pedidos, ficheiros, falhas })
+  console.log(`[impressoes-limpeza] expirados=${expirados} orfaos=${orfaos} pedidos=${pedidos} ficheiros=${ficheiros} falhas=${falhas}`)
+  return json({ ok: true, expirados, orfaos, pedidos, ficheiros, falhas })
 })

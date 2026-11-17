@@ -79,6 +79,12 @@ Deno.test('sem preço na A3 → nunca à venda a 0 €', () => {
   assertEquals(d.upd, {})
 })
 
+Deno.test('perdeu o preço na A3 → sai de venda (não fica pelo preço antigo)', () => {
+  const d = decidir(base, est(), lido({ preco: null }), true, 1.15, AGORA)
+  assertEquals(d.upd, { is_available: false })
+  assertEquals(d.conta, 'esgotou')
+})
+
 Deno.test('sumiu da loja online: só tira de venda com leitura completa', () => {
   assertEquals(decidir(base, est(), null, false, 1.15, AGORA).upd, {})
   const d = decidir(base, est(), null, true, 1.15, AGORA)

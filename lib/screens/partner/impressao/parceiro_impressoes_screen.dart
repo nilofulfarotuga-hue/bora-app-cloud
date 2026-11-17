@@ -64,6 +64,7 @@ class _ImpressaoPedidosCartaoState extends State<ImpressaoPedidosCartao> {
   StreamSubscription<List<PedidoImpressao>>? _sub;
   List<PedidoImpressao> _lista = const [];
   final Set<String> _avisados = {};
+  final Set<String> _vistos = {};
   bool _ligado = false;
   bool _aTocar = false;
 
@@ -83,7 +84,8 @@ class _ImpressaoPedidosCartaoState extends State<ImpressaoPedidosCartao> {
   void _aoMudar(List<PedidoImpressao> l) {
     if (!mounted) return;
     setState(() => _lista = l);
-    final aEspera = l.where(_aEsperaDaLoja).toList();
+    // Os que o parceiro já viu (abriu a lista) não voltam a tocar; um pedido NOVO volta a tocar.
+    final aEspera = l.where(_aEsperaDaLoja).where((p) => !_vistos.contains(p.id)).toList();
     if (aEspera.isNotEmpty && !_aTocar) {
       _aTocar = true;
       unawaited(_som.playLoop());
@@ -113,6 +115,7 @@ class _ImpressaoPedidosCartaoState extends State<ImpressaoPedidosCartao> {
   }
 
   Future<void> _abrir() async {
+    _vistos.addAll(_lista.where(_aEsperaDaLoja).map((p) => p.id));
     if (_aTocar) {
       _aTocar = false;
       unawaited(_som.stop());

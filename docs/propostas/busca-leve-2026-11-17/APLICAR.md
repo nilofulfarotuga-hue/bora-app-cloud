@@ -51,6 +51,18 @@ A trava do modo automático não deixa o executor aplicar migrações em produç
 8. Registo: a migração `20261117065156_busca_minimo_3_letras_produtos.sql` já está aplicada (foi a de
    hoje às 06:51); o ficheiro só passa a existir no repo.
 
+## Vigia em português de gente (B4, independente das outras)
+
+- `20261117100400_vigia_servidor_portugues.sql`: funções `vigia_quem` / `vigia_o_que`, colunas
+  `quem` e `o_que` em `vigia_servidor_registos`, tabela `vigia_servidor_avisos` (um aviso por causa +
+  quem + o quê de 30 em 30 min; o seguinte diz quantas vezes se repetiu) e `_cron_vigia_servidor`
+  com o aviso novo. Antes: depois de um aviso, QUALQUER outro ficava calado 30 min.
+- Prova: `select public.vigia_quem('anon'), public.vigia_o_que(query) from extensions.pg_stat_statements where query like '%search_products%' limit 1;`
+  → "pessoas sem login (…)" e "a lupa dentro das lojas (search_products)". Testado só com leituras
+  a 17/11 que a extração acerta nas consultas reais (search_products, orders, meu_ganho_ao_vivo…).
+- O ecrã "Vigia do servidor" do painel já mostra "Quem" e "O quê" (PR #33); nas medições antigas
+  traduz a partir do papel e do SQL.
+
 ## Voltar atrás
 
 - Pesquisa: recriar `pesquisa_produtos` a partir da cópia (antes da PARTE 3):

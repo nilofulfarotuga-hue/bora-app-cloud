@@ -679,3 +679,10 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   (2) bora-tranca: `git commit … && git push -u origin ai/…` ("git push é publicar") — o envio só passa sozinho,
   `git push origin ai/AAAA-MM-DD-nome`; repeti assim e passou. (3) bora-tranca: `rm -rf` numa pasta do temporário da sessão
   ("apagar recursivo fora de build/") — usei uma pasta nova em vez de apagar.
+
+- **17/11/2026 — painel: encomendas por telefone a aguardar (missão painel-chamar-estafeta-topo-2026-11-17).**
+  (1) Trava do modo automático recusou `apply_migration` da função só-leitura `admin_encomendas_telefone_a_aguardar`
+  (ficheiro `supabase/migrations/20261117210000_painel_encomendas_telefone_a_aguardar.sql`, aplicar pela Claude.ai).
+  (2) `git push origin ai/2026-11-17-painel-chamar-estafeta-topo` falhou 2x (Bash e PowerShell): cofre wincredman
+  inacessível, sem terminal. (3) Trava recusou ssh à VPS (chave em ficheiro). Commit 60ecd801 fica só no PC, no worktree
+  `C:\BoraLocal\projetosflutter\wt-chamar-ja`. A missão pedia push para produção; a trava ganha. e2e_log 10652-10655.

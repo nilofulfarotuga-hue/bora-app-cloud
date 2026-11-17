@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../widgets/admin/encomendas_telefone_aguardar_card.dart';
 import 'admin_acertos_semana_screen.dart';
 import 'admin_appointments_screen.dart';
 import 'admin_carwash_screen.dart';
@@ -72,15 +73,19 @@ class AdminDashboardContent extends StatelessWidget {
       _buildChart(context, dailyOrders),
       Text('Gestão', style: Theme.of(context).textTheme.titleMedium),
       const SizedBox(height: 10),
-      AdminMenuAccordion(
-        sections: adminMenuSections(),
-        favoritos: favoritos,
-        onToggleFavorito: onToggleFavorito,
-        onOpen: onOpenMenuItem,
-        badges: {
-          'skills': pendingSuggestionsCount,
-          'acertos': _toInt(alertas['acertos_pendentes']),
-        },
+      ValueListenableBuilder<int>(
+        valueListenable: EncomendasTelefoneAguardarCard.aguardar,
+        builder: (_, aguardar, __) => AdminMenuAccordion(
+          sections: adminMenuSections(),
+          favoritos: favoritos,
+          onToggleFavorito: onToggleFavorito,
+          onOpen: onOpenMenuItem,
+          badges: {
+            'skills': pendingSuggestionsCount,
+            'acertos': _toInt(alertas['acertos_pendentes']),
+            'encomendas_telefone': aguardar,
+          },
+        ),
       ),
       const SizedBox(height: 12),
       _ferramentasDoPainel(demoVisivel),

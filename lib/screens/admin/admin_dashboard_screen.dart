@@ -10,6 +10,7 @@ import '../../stores/session_store.dart';
 import '../../services/admin_push_service.dart';
 import '../../services/auth_admin_service.dart';
 import '../../widgets/admin/alerta_livro_reclamacoes_card.dart';
+import '../../widgets/admin/encomendas_telefone_aguardar_card.dart';
 import '../../widgets/admin_closed_partners_card.dart';
 import '../../widgets/admin_realtime_metrics_card.dart';
 import '../../widgets/bora/bora_primary_button.dart';
@@ -250,6 +251,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               return ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  const EncomendasTelefoneAguardarCard(),
                   const SizedBox(height: 40),
                   const Icon(Icons.error_outline,
                       size: 48, color: AppColors.error),
@@ -271,11 +273,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   Text('Gestão',
                       style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 10),
-                  AdminMenuAccordion(
-                    sections: adminMenuSections(),
-                    favoritos: _favoritos,
-                    onToggleFavorito: _toggleFavorito,
-                    badges: {'skills': _pendingSuggestionsCount},
+                  ValueListenableBuilder<int>(
+                    valueListenable: EncomendasTelefoneAguardarCard.aguardar,
+                    builder: (_, aguardar, __) => AdminMenuAccordion(
+                      sections: adminMenuSections(),
+                      favoritos: _favoritos,
+                      onToggleFavorito: _toggleFavorito,
+                      badges: {
+                        'skills': _pendingSuggestionsCount,
+                        'encomendas_telefone': aguardar,
+                      },
+                    ),
                   ),
                 ],
               );
@@ -284,6 +292,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                // 17/11: encomendas por telefone à espera — acima de tudo.
+                const EncomendasTelefoneAguardarCard(),
                 // [fechar-tudo-2026-11-10 · E2e] prazo de 15 dias úteis.
                 const AlertaLivroReclamacoesCard(),
                 const AdminRealtimeMetricsCard(),

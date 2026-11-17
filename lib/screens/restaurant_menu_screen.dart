@@ -1,5 +1,4 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'dart:async';
 
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
@@ -24,8 +23,11 @@ import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/cart_feedback.dart';
+import '../utils/lupa_sugestoes.dart';
+import '../utils/pesquisa_lupa.dart';
 import '../utils/pesquisa_resultados.dart';
 import '../widgets/aviso_da_loja.dart';
+import '../widgets/lupa_sugestoes_painel.dart';
 import '../widgets/pesquisa_sem_resultado.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/bora/maior_18.dart';
@@ -131,7 +133,16 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
   final TextEditingController _searchController = TextEditingController();
   // B2 (20/10): o que se procura no menu também conta no painel "KPIs de pesquisa".
   final RegistoPesquisa _registo = RegistoPesquisa();
-  Timer? _rpcDebounce;
+  // 17/11 (servidor-busca-leve): o menu só mostra produtos, por isso só
+  // pergunta ao servidor a partir de 3 letras; espera 400 ms, só conta a
+  // última resposta e a mesma pesquisa nos últimos 5 min vem da memória.
+  static final MemoriaPesquisa<List<Map<String, dynamic>>> _memoriaPesquisa =
+      MemoriaPesquisa<List<Map<String, dynamic>>>();
+  late final LupaAgendada<List<Map<String, dynamic>>> _lupa =
+      LupaAgendada<List<Map<String, dynamic>>>(
+    buscar: _pedirAoServidor,
+    memoria: _memoriaPesquisa,
+  );
   List<Map<String, dynamic>> _rpcRows = const [];
   bool _rpcLoading = false;
   // m11 (09/11): última pesquisa respondida pelo servidor + carrinho que ensina.
@@ -188,7 +199,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
   void dispose() {
     _cart?.removeListener(_aoMudarCarrinho);
     PesquisaAprendizagem.instance.sairDoEcra();
-    _rpcDebounce?.cancel();
+    _lupa.dispose();
     _registo.dispose();
     _searchController.dispose();
     _menuScroll.dispose();
@@ -196,10 +207,12 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
     super.dispose();
   }
 
-  void _scheduleRpcSearch(String query) {
-    _rpcDebounce?.cancel();
+  void _scheduleRpcSearch(String query, {bool ja = false}) {
     final q = query.trim();
-    if (q.length < 2) {
+    // Menos de 3 letras: sugestões do menu (LupaSugestoesPainel, 17/11); a
+    // pesquisa completa só a partir de 3.
+    if (letrasDaPesquisa(q) < kLetrasProdutos) {
+      _lupa.parar();
       if (_rpcRows.isNotEmpty || _rpcLoading) {
         setState(() {
           _rpcRows = const [];
@@ -208,42 +221,26 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
       }
       return;
     }
-    _rpcDebounce = Timer(const Duration(milliseconds: 350), () {
-      _runRpcSearch(q);
-    });
-  }
+    void aoComecar() {
+      if (mounted) setState(() => _rpcLoading = true);
+    }
 
-  Future<void> _runRpcSearch(String query) async {
-    if (!mounted) return;
-    setState(() => _rpcLoading = true);
-    try {
-      final rows = await Supabase.instance.client.rpc(
-        'search_products',
-        params: {
-          'query_text': query,
-          'p_restaurant_id': widget.restaurantId,
-          'max_results': 50,
-        },
-      );
+    void aoChegar(List<Map<String, dynamic>> produtos) {
       if (!mounted) return;
-      final linhas = rows is List
-          ? List<Map<String, dynamic>>.from(
-              rows.whereType<Map<String, dynamic>>())
-          : const <Map<String, dynamic>>[];
-      // m11 (09/11): sempre pela ordem do servidor (exato > começa > … ).
-      final produtos = separarResultadosPesquisa(linhas).produtos;
       setState(() {
         _rpcRows = produtos;
         _rpcLoading = false;
-        _rpcQuery = query;
+        _rpcQuery = q;
       });
       if (produtos.isEmpty) {
         PesquisaAprendizagem.instance
-            .semResultado(query, restaurantId: widget.restaurantId);
+            .semResultado(q, restaurantId: widget.restaurantId);
       } else {
         PesquisaAprendizagem.instance.comResultado();
       }
-    } catch (e) {
+    }
+
+    void aoFalhar(Object _) {
       if (!mounted) return;
       setState(() {
         _rpcRows = const [];
@@ -251,6 +248,47 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
         _rpcQuery = null;
       });
     }
+
+    final chave = chaveDaPesquisa(q, loja: widget.restaurantId);
+    if (ja) {
+      _lupa.agora(q, chave,
+          aoComecar: aoComecar, aoChegar: aoChegar, aoFalhar: aoFalhar);
+      return;
+    }
+    _lupa.escrever(q, chave,
+        aoComecar: aoComecar, aoChegar: aoChegar, aoFalhar: aoFalhar);
+  }
+
+  /// Tocou numa sugestão (1-2 letras): pesquisa completa com esse texto, já.
+  void _escolherSugestao(SugestaoLupa s) {
+    final t = s.texto;
+    _searchController.value = TextEditingValue(
+      text: t,
+      selection: TextSelection.collapsed(offset: t.length),
+    );
+    setState(() => _searchQuery = t);
+    _registo.registarJa(t);
+    _scheduleRpcSearch(t, ja: true);
+  }
+
+  /// Só os produtos, pela ordem do servidor (m11, 09/11: exato > começa > …).
+  /// Tempo limite: sem resposta em 12 s a lupa chama o aoFalhar.
+  Future<List<Map<String, dynamic>>> _pedirAoServidor(String query) async {
+    final rows = await Supabase.instance.client.rpc(
+      'search_products',
+      params: {
+        'query_text': query,
+        'p_restaurant_id': widget.restaurantId,
+        'max_results': 50,
+      },
+    ).timeout(const Duration(seconds: 12));
+    final linhas = rows is List
+        ? List<Map<String, dynamic>>.from(
+            rows.whereType<Map<String, dynamic>>())
+        : const <Map<String, dynamic>>[];
+    // Imutável: a mesma lista fica na memória e pode voltar a ser mostrada.
+    return List<Map<String, dynamic>>.unmodifiable(
+        separarResultadosPesquisa(linhas).produtos);
   }
 
   PartnerProduct _resolveProduct(Map<String, dynamic> row) {
@@ -513,6 +551,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
                         icon: const Icon(Icons.clear),
                         onPressed: () {
                           _searchController.clear();
+                          _lupa.parar();
                           setState(() {
                             _searchQuery = '';
                             _rpcRows = const [];
@@ -532,7 +571,7 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
             ),
           ),
 
-          if (_searchQuery.trim().length >= 2) ...[
+          if (letrasDaPesquisa(_searchQuery) >= kLetrasProdutos) ...[
             // ── Search mode: RPC results ────────────────────────────────
             Expanded(
               child: _rpcLoading && _rpcRows.isEmpty
@@ -612,6 +651,15 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
                             );
                           },
                         ),
+            ),
+          ] else if (modoDaLupa(_searchQuery) == ModoLupa.sugestoes) ...[
+            // ── 1-2 letras: sugestões do menu (lupa-sugestoes 17/11) ────
+            Expanded(
+              child: LupaSugestoesPainel(
+                texto: _searchQuery,
+                restaurantId: widget.restaurantId,
+                aoEscolher: _escolherSugestao,
+              ),
             ),
           ] else ...[
             // ── Browse mode: reservar mesa + normal menu ────────────────

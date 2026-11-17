@@ -79,6 +79,7 @@ import 'screens/admin/admin_web_health_screen.dart';
 import 'screens/admin/admin_orphan_payments_screen.dart';
 import 'screens/admin/admin_saude_chaves_screen.dart';
 import 'screens/admin/admin_vigia_servidor_screen.dart';
+import 'screens/admin/admin_lupa_sugestoes_screen.dart';
 import 'screens/admin/admin_motoristas_documentos_screen.dart';
 import 'screens/admin/admin_comprovativo_atividade_screen.dart';
 import 'screens/admin/admin_revisoes_screen.dart';
@@ -1163,6 +1164,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/system-health': (_) => const AdminSaudeChavesScreen(),
           // [16/11, servidor-nao-travar] deep link do aviso "SERVIDOR CARREGADO".
           '/admin/vigia-servidor': (_) => const AdminVigiaServidorScreen(),
+          // [17/11 · lupa-sugestoes] o que a lupa sugere com 1-2 letras.
+          '/admin/lupa-sugestoes': (_) => const AdminLupaSugestoesScreen(),
           // [Ficha legal · 23/09] deep link do aviso diário de documentos.
           '/admin/motoristas-documentos': (_) =>
               const AdminMotoristasDocumentosScreen(),

@@ -30,6 +30,7 @@ class AdminDashboardContent extends StatelessWidget {
     required this.onToggleFavorito,
     required this.onOpen,
     this.pendingSuggestionsCount = 0,
+    this.telefoneAguardarCount = 0,
     this.demoBusy = false,
     this.onSetDemoVisivel,
     this.onOpenMenuItem,
@@ -42,6 +43,9 @@ class AdminDashboardContent extends StatelessWidget {
   /// Abre um ecrã (o screen faz `Navigator.push`).
   final void Function(Widget screen) onOpen;
   final int pendingSuggestionsCount;
+
+  /// Encomendas por telefone à espera do estafeta (alerta no menu).
+  final int telefoneAguardarCount;
   final bool demoBusy;
   final ValueChanged<bool>? onSetDemoVisivel;
 
@@ -80,6 +84,7 @@ class AdminDashboardContent extends StatelessWidget {
         badges: {
           'skills': pendingSuggestionsCount,
           'acertos': _toInt(alertas['acertos_pendentes']),
+          'telefone': telefoneAguardarCount,
         },
       ),
       const SizedBox(height: 12),

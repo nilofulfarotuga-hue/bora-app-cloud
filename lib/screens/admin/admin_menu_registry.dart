@@ -324,6 +324,8 @@ List<AdminMenuSection> adminMenuSections() => [
       subtitle: 'Lojas sem app: ligar para a loja, marcar "Encomendado à loja", histórico e ajustes por loja',
       icon: Icons.phone_in_talk_outlined,
       color: AppColors.accent,
+      // 17/11/2026: contador de encomendas à espera do estafeta.
+      badge: 'telefone',
       builder: () => const AdminEncomendasTelefoneScreen(),
       keywords: const ['telefone', 'ligar', 'encomenda', 'encomendado', 'loja', 'por do sol', 'balcao', 'nao parceira'],
     ),

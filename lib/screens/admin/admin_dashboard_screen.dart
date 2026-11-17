@@ -9,12 +9,14 @@ import '../../main.dart' show routeObserver;
 import '../../stores/session_store.dart';
 import '../../services/admin_push_service.dart';
 import '../../services/auth_admin_service.dart';
+import '../../widgets/admin/admin_telefone_aguardar_card.dart';
 import '../../widgets/admin/alerta_livro_reclamacoes_card.dart';
 import '../../widgets/admin_closed_partners_card.dart';
 import '../../widgets/admin_realtime_metrics_card.dart';
 import '../../widgets/bora/bora_primary_button.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import 'admin_dashboard_content.dart';
+import 'admin_encomendas_telefone_screen.dart';
 import 'admin_global_search_screen.dart';
 import 'admin_menu_accordion.dart';
 import 'admin_menu_registry.dart';
@@ -209,6 +211,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       appBar: BoraScreenAppBar(
         title: 'Painel Admin',
         actions: [
+          // 17/11/2026: alerta persistente enquanto houver encomendas por
+          // telefone à espera do estafeta (o bloco fixo está por baixo).
+          ValueListenableBuilder<int>(
+            valueListenable: AdminTelefoneAguardarCard.contagem,
+            builder: (context, n, _) => n == 0
+                ? const SizedBox.shrink()
+                : Badge(
+                    label: Text('$n'),
+                    backgroundColor: AppColors.accent,
+                    child: IconButton(
+                      icon: const Icon(Icons.phone_in_talk,
+                          color: AppColors.accent),
+                      tooltip: '$n encomenda(s) por telefone a aguardar',
+                      onPressed: () =>
+                          _abrir(const AdminEncomendasTelefoneScreen()),
+                    ),
+                  ),
+          ),
           IconButton(
             icon: const Icon(Icons.search),
             tooltip: 'Buscar (clientes, entregadores, parceiros, pedidos)',
@@ -231,7 +251,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           ),
         ],
       ),
-      body: RefreshIndicator(
+      // 17/11/2026: o bloco "Encomendas por telefone a aguardar" fica FIXO no
+      // topo, por cima de tudo (não rola, aparece mesmo a carregar ou com erro)
+      // e some quando não há pedidos.
+      body: Column(children: [
+        const AdminTelefoneAguardarCard(),
+        Expanded(child: RefreshIndicator(
         onRefresh: _refresh,
         child: FutureBuilder<Map<String, dynamic>>(
           future: _metricsFuture,
@@ -275,7 +300,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     sections: adminMenuSections(),
                     favoritos: _favoritos,
                     onToggleFavorito: _toggleFavorito,
-                    badges: {'skills': _pendingSuggestionsCount},
+                    badges: {
+                      'skills': _pendingSuggestionsCount,
+                      'telefone': AdminTelefoneAguardarCard.contagem.value,
+                    },
                   ),
                 ],
               );
@@ -289,20 +317,25 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 const AdminRealtimeMetricsCard(),
                 const AdminClosedPartnersCard(),
                 const SizedBox(height: 8),
-                AdminDashboardContent(
-                  metrics: snapshot.data ?? const <String, dynamic>{},
-                  favoritos: _favoritos,
-                  onToggleFavorito: _toggleFavorito,
-                  onOpen: _abrir,
-                  pendingSuggestionsCount: _pendingSuggestionsCount,
-                  demoBusy: _demoBusy,
-                  onSetDemoVisivel: _setDemoVisivel,
+                ValueListenableBuilder<int>(
+                  valueListenable: AdminTelefoneAguardarCard.contagem,
+                  builder: (context, telefoneN, _) => AdminDashboardContent(
+                    metrics: snapshot.data ?? const <String, dynamic>{},
+                    favoritos: _favoritos,
+                    onToggleFavorito: _toggleFavorito,
+                    onOpen: _abrir,
+                    pendingSuggestionsCount: _pendingSuggestionsCount,
+                    telefoneAguardarCount: telefoneN,
+                    demoBusy: _demoBusy,
+                    onSetDemoVisivel: _setDemoVisivel,
+                  ),
                 ),
               ],
             );
           },
         ),
-      ),
+      )),
+      ]),
     );
   }
 }

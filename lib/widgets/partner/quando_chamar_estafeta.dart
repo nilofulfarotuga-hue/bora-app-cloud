@@ -84,19 +84,16 @@ DateTime? primeiroInstanteAberto(RestaurantModel loja, DateTime desde) {
 }
 
 /// O que uma opção rápida dá, vista em [agora]:
-/// * menos de 1 h → minutos (a loja está a trabalhar agora);
-/// * 1 h e 2 h dentro do horário → minutos, como hoje;
-/// * fora do horário (ex.: "2 dias" num domingo fechado) → a primeira hora em
-///   que a loja abre, para o estafeta nunca chegar a uma porta fechada;
+/// * até 2 h e dentro do horário → minutos, como hoje;
+/// * fora do horário (ex.: "30 min" que cai na pausa do almoço, "2 dias" num
+///   domingo fechado) → a primeira hora em que a loja abre, para o estafeta
+///   nunca chegar a uma porta fechada (a folha mostra essa hora no botão);
 /// * 3 h ou mais → o instante.
 EscolhaChamada escolhaDaOpcao(
   Duration duracao, {
   required DateTime agora,
   required RestaurantModel loja,
 }) {
-  if (duracao < const Duration(hours: 1)) {
-    return EscolhaChamada.minutos(duracao.inMinutes);
-  }
   final alvo = agora.add(duracao);
   final aberto = primeiroInstanteAberto(loja, alvo) ?? alvo;
   if (identical(aberto, alvo) && duracao <= const Duration(minutes: 120)) {
@@ -130,7 +127,7 @@ String _horarioDoDia(DayHours d) {
   if (instante.isBefore(agora.add(kMinimoChamada))) {
     return (
       instante: null,
-      erro: 'Escolha uma hora daqui a mais de ${kMinimoChamada.inMinutes} minutos.'
+      erro: 'Escolhe uma hora daqui a mais de ${kMinimoChamada.inMinutes} minutos.'
     );
   }
   if (instante.isAfter(agora.add(const Duration(days: kDiasMaxChamada + 1)))) {
@@ -343,7 +340,7 @@ class _FolhaQuandoChamarState extends State<FolhaQuandoChamar> {
                     _ChipOpcao(
                       key: Key('opcao_chamada_$rotulo'),
                       rotulo: rotulo,
-                      longa: duracao >= const Duration(hours: 1),
+                      duracao: duracao,
                       escolha:
                           escolhaDaOpcao(duracao, agora: agora, loja: widget.loja),
                       agora: agora,
@@ -378,21 +375,26 @@ class _ChipOpcao extends StatelessWidget {
   const _ChipOpcao({
     super.key,
     required this.rotulo,
-    required this.longa,
+    required this.duracao,
     required this.escolha,
     required this.agora,
   });
 
   final String rotulo;
-  final bool longa;
+  final Duration duracao;
   final EscolhaChamada escolha;
   final DateTime agora;
+
+  /// Mostra o dia e a hora por baixo nas opções longas e sempre que a hora
+  /// mudou por a loja estar fechada nesse momento.
+  bool get _mostraHora =>
+      duracao >= const Duration(hours: 1) || escolha.instante != null;
 
   @override
   Widget build(BuildContext context) {
     return ActionChip(
       onPressed: () => Navigator.of(context).pop(escolha),
-      label: longa
+      label: _mostraHora
           ? Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -400,7 +402,7 @@ class _ChipOpcao extends StatelessWidget {
                 Text(
                   textoDiaHoraLisboa(escolha.prontoEm(agora), agora),
                   style: const TextStyle(
-                      fontSize: 11, color: AppColors.textSecondary),
+                      fontSize: 12, color: AppColors.textSecondary),
                 ),
               ],
             )

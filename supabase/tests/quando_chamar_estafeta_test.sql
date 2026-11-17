@@ -79,6 +79,20 @@ begin
   v_out := v_out || jsonb_build_object('caso', '3 16 dias recusado', 'res', v_res,
     'ok', v_res->>'error' = 'invalid_pronto_em' and v_estado = 'created');
 
+  -- ── 3b. Segundo toque em "Aceitar" não apaga a hora já marcada ────────────
+  select ready_at_promised into v_ready from public.orders where id = v_o1;
+  v_res := public.partner_aceitar_pedido(v_o1, null, now() + interval '5 days');
+  v_out := v_out || jsonb_build_object('caso', '3b segundo aceitar nao muda a hora', 'res', v_res,
+    'ok', (v_res->>'ok')::boolean
+          and (select o.ready_at_promised from public.orders o where o.id = v_o1) = v_ready);
+
+  -- ── 3c. Interruptor do painel desligado: recusa p_pronto_em ───────────────
+  update public.platform_settings set value = 'false'::jsonb where key = 'parceiro_quando_chamar_ligado';
+  v_res := public.partner_aceitar_pedido(v_o4, null, now() + interval '2 days');
+  v_out := v_out || jsonb_build_object('caso', '3c interruptor desligado', 'res', v_res,
+    'ok', v_res->>'error' = 'funcao_desligada');
+  update public.platform_settings set value = 'true'::jsonb where key = 'parceiro_quando_chamar_ligado';
+
   -- ── 4. O despacho NÃO chama já (fica dias em preparação) ──────────────────
   perform public.partner_auto_dispatch_ready_orders();
   select count(*) into v_n from public.orders where id in (v_o1, v_o2) and status::text = 'preparing';

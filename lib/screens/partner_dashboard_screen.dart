@@ -37,6 +37,7 @@ import '../widgets/partner/cartao_modo_ocupado.dart';
 import '../widgets/partner/quando_chamar_estafeta.dart';
 import '../utils/fica_pronto.dart';
 import '../services/quando_chamar_service.dart';
+import '../services/interruptores_app.dart';
 import '../widgets/partner/aviso_pagamento_estafeta.dart';
 import '../services/modo_ocupado_service.dart';
 import '../utils/nota_do_pedido.dart';
@@ -926,10 +927,22 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
     );
     if (escolha == null || !mounted) return;
     final instante = escolha.instante;
-    final accepted = instante == null
-        ? await orderStore.restaurantAcceptOrder(order,
-            prepMinutes: escolha.minutos)
-        : (await aceitarPedidoProntoEm(order.id, instante)).ok;
+    var accepted = false;
+    String? erro;
+    if (instante == null) {
+      accepted = await orderStore.restaurantAcceptOrder(order,
+          prepMinutes: escolha.minutos);
+    } else {
+      final r = await aceitarPedidoProntoEm(order.id, instante);
+      accepted = r.ok;
+      erro = r.erro;
+      if (accepted) {
+        // Como o OrderStore faz depois de aceitar: o cartão deixa logo de
+        // mostrar "Aceitar" (e de tocar); a hora chega pelo tempo real.
+        order.status = OrderStatus.preparing;
+        orderStore.refresh();
+      }
+    }
     cancelPartnerOrderNotification(order.id);
     if (!mounted) return;
     final shortId = order.id.length >= 6
@@ -940,7 +953,8 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
       content: Text(accepted
           ? 'Pedido aceite — #$shortId. '
               '${textoFicaPronto(escolha.prontoEm(agora), agora)}.'
-          : 'Não foi possível aceitar o pedido — #$shortId.'),
+          : 'Não foi possível aceitar o pedido — #$shortId.'
+              '${motivoAceitarComHora(erro)}'),
     ));
   }
 
@@ -1250,7 +1264,12 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                     // chamamos o estafeta?" — de 10 min a 14 dias. Substitui
                     // o aceitar das festas (festas_accept exigia a categoria
                     // PRINCIPAL festas e falhava na A3, que é loja + festas).
-                    if (currentRestaurant.lojaNaoComida) {
+                    // Interruptor do painel admin "parceiro_quando_chamar_ligado"
+                    // (desligado: estas lojas usam os minutos dos restaurantes).
+                    if (currentRestaurant.lojaNaoComida &&
+                        await InterruptoresApp.instance
+                            .ligado(InterruptoresApp.quandoChamarParceiro)) {
+                      if (!context.mounted) return;
                       await _aceitarLojaNaoComida(order, currentRestaurant);
                       return;
                     }

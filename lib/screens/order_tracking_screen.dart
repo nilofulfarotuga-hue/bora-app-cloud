@@ -891,7 +891,7 @@ class _BottomCardState extends State<_BottomCard> {
                         ),
                         const SizedBox(height: 2),
                         const Text(
-                          'Chamamos o estafeta perto dessa hora. Se a loja mudar a hora, avisamos.',
+                          'Hora marcada pela loja.',
                           style: TextStyle(
                               fontSize: 12.5, color: Color(0xFF166534)),
                         ),
@@ -924,7 +924,10 @@ class _BottomCardState extends State<_BottomCard> {
                 // Festas "na hora" aceite com tempo: mostrar o prazo anunciado.
                 if (order.scheduledFor == null &&
                     order.status == OrderStatus.preparing &&
-                    order.prepTimeMinutes != null) ...[
+                    order.prepTimeMinutes != null &&
+                    // 17/11/2026: a loja mudou para uma hora marcada → vale
+                    // o "Fica pronto…" de cima, não os minutos do aceite.
+                    order.readyAtPromised == null) ...[
                   const SizedBox(height: 8),
                   // [Bloco 6 · 04/10] padrão Glovo/Uber: hora prevista, não
                   // só minutos (vale também para as lojas por telefone).

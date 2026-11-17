@@ -1,7 +1,10 @@
 -- ════════════════════════════════════════════════════════════════════════════
 -- "QUANDO CHAMAMOS O ESTAFETA?" — lojas que não são de comida (17/11/2026)
 -- Missão a3-parte2-quando-chamar-17-11 (caixa_guardados 115), pedido do Danilo 17/11 05:06,
--- ordem trazida pela Claude.ai ("autorizo e publica", 17/11 04:51).
+-- ordem trazida pela Claude.ai ("autorizo e publica", 17/11 04:51). A mudança no despacho
+-- (zona protegida) é a ordem explícita do item 2.2 dessa missão: "o despacho só chama o
+-- estafeta perto dessa hora (mesma antecedência de hoje)".
+-- Todos os corpos de função abaixo partem do pg_get_functiondef VIVO de 17/11 (não do repo).
 -- ════════════════════════════════════════════════════════════════════════════
 --
 -- PORQUÊ: a A3 (papelaria) tem trabalhos rápidos e trabalhos demorados (impressões,
@@ -48,8 +51,10 @@
 --      union all select definicao from public.bkp_fn__cron_check_orphan_orders_20261117
 --      union all select definicao from public.bkp_fn_mover_pedidos_demo_20261117
 --     loop execute r.definicao; end loop; end $$;
+--   revoke all on function public.partner_aceitar_pedido(text, integer) from public, anon;
 --   grant execute on function public.partner_aceitar_pedido(text, integer) to authenticated, service_role;
---   (as funções novas _loja_nao_comida, _texto_dia_hora_lisboa, _pedido_avisar_cliente e
+--   (o interruptor parceiro_quando_chamar_ligado pode ficar ou sair da platform_settings;
+--    as funções novas _loja_nao_comida, _texto_dia_hora_lisboa, _pedido_avisar_cliente e
 --    _pedido_loja_avisar_chamada podem ficar: sem uso não fazem nada.)
 --
 -- PROVA: supabase/tests/quando_chamar_estafeta_test.sql (transação desfeita, corre com esta
@@ -77,6 +82,26 @@ alter table public.bkp_fn_partner_set_ready_at_20261117 enable row level securit
 alter table public.bkp_fn_partner_auto_dispatch_ready_orders_20261117 enable row level security;
 alter table public.bkp_fn__cron_check_orphan_orders_20261117 enable row level security;
 alter table public.bkp_fn_mover_pedidos_demo_20261117 enable row level security;
+revoke all on table public.bkp_fn_partner_aceitar_pedido_20261117,
+                    public.bkp_fn_partner_set_ready_at_20261117,
+                    public.bkp_fn_partner_auto_dispatch_ready_orders_20261117,
+                    public.bkp_fn__cron_check_orphan_orders_20261117,
+                    public.bkp_fn_mover_pedidos_demo_20261117
+  from public, anon, authenticated;
+
+-- ── Interruptor do painel admin (paridade): nasce LIGADO, pedido do Danilo ──
+-- Desligado: a app volta aos minutos dos restaurantes e o servidor recusa p_pronto_em.
+-- NÃO trava o despacho: os pedidos já marcados continuam a ser chamados à hora certa
+-- (se o despacho o seguisse, desligar chamava todos os pedidos marcados de uma vez).
+insert into public.platform_settings (key, value, description, category, is_secret)
+values (
+  'parceiro_quando_chamar_ligado',
+  'true'::jsonb,
+  'Lojas que não são de comida (loja, festas, farmácia, supermercado, beleza): ao aceitar um pedido, a loja escolhe quando fica pronto, de 10 minutos até 14 dias (amanhã, 2 dias, dia e hora), e o entregador é chamado 8 minutos antes. Desligado: essas lojas voltam aos 10 a 60 minutos dos restaurantes (os pedidos já marcados continuam à hora marcada). Não mexe em nenhum valor cobrado ou pago.',
+  'partners',
+  false
+)
+on conflict (key) do nothing;
 
 -- ── A) Que lojas podem marcar dias (categoria PRINCIPAL; a da app é a mesma) ──
 create or replace function public._loja_nao_comida(p_restaurant_id text)
@@ -182,6 +207,10 @@ BEGIN
 
   -- 17/11/2026: lojas que não são de comida podem marcar um instante (até 14 dias).
   IF p_pronto_em IS NOT NULL THEN
+    IF COALESCE((SELECT s.value #>> '{}' FROM public.platform_settings s
+                  WHERE s.key = 'parceiro_quando_chamar_ligado'), 'true') = 'false' THEN
+      RETURN jsonb_build_object('ok', false, 'error', 'funcao_desligada');
+    END IF;
     SELECT restaurant_id INTO v_rest FROM public.orders WHERE id = p_order_id;
     IF v_rest IS NULL OR NOT public._loja_nao_comida(v_rest) THEN
       RETURN jsonb_build_object('ok', false, 'error', 'so_lojas_nao_comida');
@@ -190,7 +219,9 @@ BEGIN
       RETURN jsonb_build_object('ok', false, 'error', 'invalid_pronto_em');
     END IF;
     v_res := public.partner_accept_order(p_order_id);
-    IF COALESCE((v_res->>'ok')::boolean, false) THEN
+    -- Um segundo toque em "Aceitar" (pedido já aceite) NÃO apaga a hora já marcada:
+    -- para mudar a hora há o "Mudar quando fica pronto" (que avisa o cliente).
+    IF COALESCE((v_res->>'ok')::boolean, false) AND v_res->>'idempotent' IS NULL THEN
       UPDATE public.orders
          SET ready_at_promised = p_pronto_em,
              prep_time_minutes = NULL
@@ -362,7 +393,11 @@ set search_path to 'public'
 as $fn$
 begin
   begin
+    -- Só quando foi a hora prometida pela loja a mandar chamar (a mesma condição do
+    -- ramo novo do despacho): a farmácia com "chega às" (scheduled_for = ready_at_promised)
+    -- não recebe este aviso.
     if new.ready_at_promised is not null
+       and (new.scheduled_for is null or new.ready_at_promised > new.scheduled_for)
        and coalesce(new.is_partner_store, false)
        and new.service_type = 'restaurant'
        and public._loja_nao_comida(new.restaurant_id) then

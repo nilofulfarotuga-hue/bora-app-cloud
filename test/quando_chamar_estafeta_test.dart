@@ -3,6 +3,7 @@ import 'package:bora_app/models/restaurant_model.dart';
 import 'package:bora_app/services/interruptores_app.dart';
 import 'package:bora_app/services/modo_ocupado_service.dart';
 import 'package:bora_app/services/order_eta_service.dart';
+import 'package:bora_app/services/quando_chamar_service.dart';
 import 'package:bora_app/utils/fica_pronto.dart';
 import 'package:bora_app/widgets/partner/cartao_modo_ocupado.dart';
 import 'package:bora_app/widgets/partner/quando_chamar_estafeta.dart';
@@ -145,6 +146,21 @@ void main() {
       expect(opcao('30 min', agora), const EscolhaChamada.minutos(30));
       expect(opcao('1 h', agora), const EscolhaChamada.minutos(60));
       expect(opcao('2 h', agora), const EscolhaChamada.minutos(120));
+    });
+
+    test('30 min às 12:45 cai na pausa: passa para as 15:00 (porta aberta)', () {
+      final meioDia = DateTime.utc(2026, 11, 17, 12, 45);
+      expect(opcao('30 min', meioDia),
+          EscolhaChamada.instante(DateTime.utc(2026, 11, 17, 15, 0)));
+      // 10 min às 12:45 ainda cabe antes da pausa: minutos, como hoje
+      expect(opcao('10 min', meioDia), const EscolhaChamada.minutos(10));
+    });
+
+    test('a razão da recusa do servidor, em palavras da loja', () {
+      expect(motivoAceitarComHora('funcao_desligada'), contains('desligada'));
+      expect(motivoAceitarComHora('invalid_pronto_em'), contains('14 dias'));
+      expect(motivoAceitarComHora('outra_coisa'), '');
+      expect(motivoAceitarComHora(null), '');
     });
 
     test('3 h cai na pausa 13:00-15:00: fica pronto às 15:00', () {

@@ -32,3 +32,14 @@ Future<({bool ok, String? erro})> aceitarPedidoProntoEm(
     return (ok: false, erro: e.toString());
   }
 }
+
+/// A razão, em palavras da loja, de o servidor recusar o aceitar com hora
+/// (" Motivo." com espaço à frente, ou vazio se não se sabe).
+String motivoAceitarComHora(String? erro) => switch (erro) {
+      'invalid_pronto_em' => ' A hora tem de ser daqui a pouco e no máximo a 14 dias.',
+      'so_lojas_nao_comida' => ' Esta loja só pode escolher minutos.',
+      'funcao_desligada' => ' Esta opção está desligada. Escolhe minutos.',
+      'invalid_status' || 'concurrent_transition' =>
+        ' O pedido já mudou de estado. Atualiza a lista.',
+      _ => '',
+    };

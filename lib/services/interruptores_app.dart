@@ -39,6 +39,11 @@ class InterruptoresApp {
   // DESLIGADO: sem resposta do servidor a app comporta-se como se não existisse.
   static const modoOcupadoParceiro = 'partner_busy_mode_enabled';
 
+  // 17/11/2026: "Quando chamamos o estafeta?" nas lojas que não são de comida
+  // (até 14 dias). Nasce LIGADO (pedido do Danilo); desligado, essas lojas
+  // voltam aos minutos dos restaurantes.
+  static const quandoChamarParceiro = 'parceiro_quando_chamar_ligado';
+
   /// Valor de recurso quando o servidor não responde.
   static const Map<String, Object> _recurso = <String, Object>{
     talheres: true,
@@ -58,6 +63,7 @@ class InterruptoresApp {
     ofertaGanhoVisivel: true,
     mapaProcuraEstafeta: true,
     modoOcupadoParceiro: false,
+    quandoChamarParceiro: true,
   };
 
   final Map<String, Object?> _cache = <String, Object?>{};

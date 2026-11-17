@@ -22,8 +22,12 @@ dias e horas em que a loja está aberta). Restaurantes de comida ficam como esta
   recebe aviso da hora nova.
 - Cliente: "Fica pronto sexta, 20/11, às 15:00" no acompanhamento e na barra do pedido
   (em vez de "Chega em ~2900 min"); aviso quando a hora muda e quando o estafeta é chamado.
-- Painel admin (PT-BR): linha "Pronto em" nos pedidos, coluna `pronto_em` no CSV e filtro
-  "Agendados pela loja".
+- Painel admin (PT-BR): linha "Pronto em" nos pedidos com botão "Mudar hora", coluna
+  `pronto_em` no CSV, filtro "Agendados pela loja" e o interruptor
+  `parceiro_quando_chamar_ligado` em Definições (nasce ligado; desligado, as lojas voltam aos
+  minutos e o servidor recusa marcar dias, mas os pedidos já marcados continuam à hora).
+- Se uma opção curta cair na pausa ou depois de fechar (ex.: "30 min" às 12:45 na A3), passa
+  para a hora em que a loja abre, e o botão mostra essa hora.
 - Corrigido pelo caminho: a A3 não conseguia aceitar pedidos (tem festas como categoria
   extra e o painel mandava-a para `festas_accept`, que exige festas como principal).
 
@@ -33,7 +37,10 @@ dias e horas em que a loja está aberta). Restaurantes de comida ficam como esta
    `orders`, mesmo em transação desfeita). Numa só chamada:
    `begin;` + `supabase/migrations/20261117130000_quando_chamar_estafeta.sql` +
    `supabase/tests/quando_chamar_estafeta_test.sql`. Tem de acabar em
-   `ERROR: RESULT {"falhas": 0, "casos": 20, ...}` (o erro desfaz tudo).
+   `ERROR: RESULT {"falhas": 0, "casos": 22, ...}` (o erro desfaz tudo). Correr numa hora
+   calma: a prova corre também as varreduras gerais (despacho, órfãos, demo) e prende essas
+   linhas uns segundos. Pressupõe `a3cliente@bora.app` fora das contas demo (confirmado a
+   17/11) e `partner_auto_dispatch_after_minutes` > 0 (está 5).
 2. **Aplicar a migração** (`apply_migration`, nome `quando_chamar_estafeta`). Faz backup das
    5 funções em `bkp_fn_*_20261117`; o cabeçalho diz como desfazer.
 3. **Só depois juntar o ramo** e deixar o CI publicar (Play, Apple, web). Se a app sair antes
@@ -57,6 +64,14 @@ dias e horas em que a loja está aberta). Restaurantes de comida ficam como esta
 - Restaurantes: o botão "Fica pronto às…" (modo ocupado) promete "o estafeta é chamado a
   tempo" mas o despacho ignora essa hora nos restaurantes. Não mexido (zona protegida;
   proposta C6 de 29/10 em `docs/propostas/missao-geral-2026-10-28/C6_modo_ocupado/`).
+
+## Notas do revisor (contexto limpo) que ficaram por fazer
+
+- Os textos novos do cliente ("Fica pronto…", "Hora marcada pela loja.") não passam pelo
+  `.tr`: quem usa a app em inglês vê-os em português.
+- O servidor não confere o horário da loja para `p_pronto_em` (só a app o faz).
+- Um restaurante com o modo ocupado e "fica pronto às" a mais de 1 h passa a ver o dia e a
+  hora no cliente; o despacho dos restaurantes continua a ignorar essa hora (proposta C6).
 
 ## Testes
 

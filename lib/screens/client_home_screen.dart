@@ -40,6 +40,7 @@ import 'carry_groceries_screen.dart';
 import 'client/carwash/carwash_service_screen.dart';
 import 'client/loja_online/loja_online_screen.dart';
 import '../services/loja_online_service.dart';
+import '../utils/selos_novo.dart';
 import 'client/casa/casa_categoria_screen.dart';
 import 'client/cleaning/cleaning_bookings_screen.dart';
 import 'client/services/services_category_screen.dart';
@@ -96,6 +97,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       context.read<CarwashStore>().refreshSettings();
       // Casa (31/10): o mesmo para a Casa e manutenção (casa_config().visivel).
       context.read<CasaStore>().refreshSettings();
+      // 17/11/2026: selo "Novo" no canto dos atalhos (definição selos_novo).
+      _carregarSelosNovo();
       // Bora Motorista so para quem tem acesso (regra 30/09, caso Beatriz 06/10).
       context.read<TvdeStore>().refreshAccess();
       _detectLocation();
@@ -115,6 +118,22 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
   }
 
   Timer? _perguntaPromocoes;
+
+  /// Selo "Novo" por atalho (17/11/2026): chave do atalho → último dia.
+  /// Vazio enquanto não chega ou se a leitura falhar (só o selo não aparece).
+  Map<String, String> _selosNovo = const {};
+
+  Future<void> _carregarSelosNovo() async {
+    try {
+      final v = await Supabase.instance.client
+          .rpc('get_setting', params: {'p_key': kSelosNovoChave})
+          .timeout(const Duration(seconds: 10));
+      if (!mounted) return;
+      setState(() => _selosNovo = lerSelosNovo(v));
+    } catch (e) {
+      debugPrint('ClientHome._carregarSelosNovo => $e');
+    }
+  }
 
   @override
   void dispose() {
@@ -818,7 +837,12 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
             imageAsset: t.imageAsset!,
             onTap: t.onTap,
             compacto: true,
-            selo: t.selo,
+            // 17/11/2026: além do selo próprio (Casa), o selo "Novo" ligado no
+            // painel para este atalho (selos_novo).
+            selo: t.selo ??
+                (seloNovoNoAtalho(_selosNovo, t.label, DateTime.now())
+                    ? 'Novo'.tr
+                    : null),
           );
         } else {
           // Fallback legacy (ainda sem PNG da categoria) — ver TODO no tile.

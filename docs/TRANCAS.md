@@ -686,3 +686,10 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   (2) `git push origin ai/2026-11-17-painel-chamar-estafeta-topo` falhou 2x (Bash e PowerShell): cofre wincredman
   inacessível, sem terminal. (3) Trava recusou ssh à VPS (chave em ficheiro). Commit 60ecd801 fica só no PC, no worktree
   `C:\BoraLocal\projetosflutter\wt-chamar-ja`. A missão pedia push para produção; a trava ganha. e2e_log 10652-10655.
+
+- 17/11 noite, tentativa 4 do painel chamar estafeta: tentei enviar por outro caminho, com a chave SSH do PC, e a trava
+  do modo automatico bloqueou ("ficheiro de segredos"). Nao contornei. O envio do ramo `ai/2026-11-17-painel-chamar-estafeta-topo`
+  e a migracao `20261117210000` ficam para quem tem credencial (Claude.ai). e2e_log 10666.
+- 17/11 noite, tentativa 5 (ultima): nao repeti envio nem migracao (2 falhas iguais = mudar de caminho; ja houve 4).
+  SELECT 17/11: funcao nova 0, admin_chamar_estafeta_ja 1, 0 encomendas a aguardar. Falta so: Claude.ai (ou sessao com
+  credencial) enviar o ramo `ai/2026-11-17-painel-chamar-estafeta-topo` e aplicar `20261117210000_painel_encomendas_telefone_a_aguardar.sql`.

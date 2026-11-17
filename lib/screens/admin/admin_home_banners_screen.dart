@@ -17,6 +17,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../utils/hora_lisboa.dart';
 import '../../utils/safe_image_picker.dart';
+import '../../utils/selos_novo.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import 'admin_opcoes_produto_screen.dart' show AdminEscolherLoja;
 
@@ -545,6 +546,8 @@ class _AdminHomeBannersScreenState extends State<AdminHomeBannersScreen> {
                   padding: const EdgeInsets.only(bottom: 96),
                   header: Column(children: [
                     _cabecalho(),
+                    // 17/11/2026: selo "Novo" no canto dos atalhos da home.
+                    const SelosNovoAtalhosCard(),
                     if (_faixas.isEmpty)
                       const Padding(
                         padding: EdgeInsets.all(32),
@@ -1135,6 +1138,175 @@ class _EditorFaixaScreenState extends State<_EditorFaixaScreen> {
           label: const Text('Salvar faixa'),
         ),
         const SizedBox(height: 24),
+      ]),
+    );
+  }
+}
+
+/// Selo "Novo" no canto dos atalhos da tela inicial (17/11/2026, pedido do
+/// Danilo: "pôr as novidades nos cantinhos que coloca novidade"). Liga,
+/// desliga e muda a data de cada atalho. Grava `selos_novo` em
+/// platform_settings por `admin_update_setting` (fica no histórico). O selo da
+/// Casa e Manutenção continua em Casa > Configurações (`casa_novo_ate`).
+class SelosNovoAtalhosCard extends StatefulWidget {
+  const SelosNovoAtalhosCard({super.key});
+
+  @override
+  State<SelosNovoAtalhosCard> createState() => _SelosNovoAtalhosCardState();
+}
+
+class _SelosNovoAtalhosCardState extends State<SelosNovoAtalhosCard> {
+  final _sb = Supabase.instance.client;
+  Map<String, String> _selos = const {};
+  bool _carregado = false;
+  bool _existe = true;
+  bool _gravando = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregar();
+  }
+
+  Future<void> _carregar() async {
+    try {
+      final v =
+          await _sb.rpc('get_setting', params: {'p_key': kSelosNovoChave});
+      if (!mounted) return;
+      setState(() {
+        _selos = lerSelosNovo(v);
+        _existe = v != null;
+        _carregado = true;
+      });
+    } catch (e) {
+      debugPrint('SelosNovoAtalhosCard._carregar => $e');
+      if (mounted) setState(() => _carregado = true);
+    }
+  }
+
+  static String _iso(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  static String _br(String iso) {
+    final p = iso.split('-');
+    return p.length == 3 ? '${p[2]}/${p[1]}/${p[0]}' : iso;
+  }
+
+  DateTime get _hoje {
+    final l = paredeLisboa(DateTime.now());
+    return DateTime(l.year, l.month, l.day);
+  }
+
+  Future<void> _gravar(Map<String, String> novo, String aviso) async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _gravando = true);
+    try {
+      await _sb.rpc('admin_update_setting',
+          params: {'p_key': kSelosNovoChave, 'p_value': novo});
+      if (!mounted) return;
+      setState(() => _selos = novo);
+      messenger.showSnackBar(SnackBar(content: Text(aviso)));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Não salvou: $e')));
+    } finally {
+      if (mounted) setState(() => _gravando = false);
+    }
+  }
+
+  Future<void> _ligar(String chave, String nome, bool ligar) async {
+    final novo = Map<String, String>.of(_selos);
+    if (ligar) {
+      novo[chave] = _iso(_hoje.add(const Duration(days: kSelosNovoDias)));
+    } else {
+      novo.remove(chave);
+    }
+    await _gravar(
+        novo,
+        ligar
+            ? 'Selo "Novo" em $nome até ${_br(novo[chave]!)}.'
+            : 'Selo "Novo" de $nome desligado.');
+  }
+
+  Future<void> _escolherData(String chave, String nome) async {
+    final hoje = _hoje;
+    final atual = DateTime.tryParse(_selos[chave] ?? '');
+    final inicial = atual == null || atual.isBefore(hoje)
+        ? hoje.add(const Duration(days: kSelosNovoDias))
+        : atual;
+    final d = await showDatePicker(
+      context: context,
+      initialDate: inicial,
+      firstDate: hoje,
+      lastDate: hoje.add(const Duration(days: 120)),
+      helpText: 'Selo "Novo" em $nome até (inclusive)',
+    );
+    if (d == null || !mounted) return;
+    final novo = Map<String, String>.of(_selos)..[chave] = _iso(d);
+    await _gravar(novo, 'Selo "Novo" em $nome até ${_br(_iso(d))}.');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final agora = DateTime.now();
+    final ligados = [
+      for (final e in kAtalhosHome.entries)
+        if (seloNovoNoAtalho(_selos, e.key, agora)) e.value,
+    ];
+    final String resumo;
+    if (!_carregado) {
+      resumo = 'Carregando…';
+    } else if (!_existe) {
+      resumo = 'A configuração $kSelosNovoChave ainda não existe no servidor.';
+    } else if (ligados.isEmpty) {
+      resumo = 'Nenhum atalho com selo agora.';
+    } else {
+      resumo = 'Com selo agora: ${ligados.join(', ')}.';
+    }
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: ExpansionTile(
+        key: const ValueKey('selos-novo-atalhos'),
+        leading: const Icon(Icons.new_releases_outlined),
+        title: const Text('Selo "Novo" nos atalhos da tela inicial',
+            style: TextStyle(fontWeight: FontWeight.w800)),
+        subtitle: Text(resumo, key: const ValueKey('selos-novo-resumo')),
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text(
+              'O selo aparece no canto do botão da categoria até o fim do dia '
+              'escolhido (hora de Lisboa). Ligando sem escolher data, fica '
+              '$kSelosNovoDias dias. O selo da Casa e Manutenção fica em '
+              'Casa > Configurações.',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            ),
+          ),
+          for (final e in kAtalhosHome.entries) _linha(e.key, e.value, agora),
+        ],
+      ),
+    );
+  }
+
+  Widget _linha(String chave, String nome, DateTime agora) {
+    final ativo = seloNovoNoAtalho(_selos, chave, agora);
+    final ate = _selos[chave];
+    final podeMexer = _carregado && _existe && !_gravando;
+    return ListTile(
+      key: ValueKey('selo-novo-$chave'),
+      title: Text(nome),
+      subtitle: Text(ativo
+          ? 'Até ${_br(ate!)}'
+          : (ate != null ? 'Terminou em ${_br(ate)}' : 'Sem selo')),
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        IconButton(
+          tooltip: 'Escolher a data',
+          icon: const Icon(Icons.event_outlined),
+          onPressed: podeMexer ? () => _escolherData(chave, nome) : null,
+        ),
+        Switch(
+          value: ativo,
+          onChanged: podeMexer ? (v) => _ligar(chave, nome, v) : null,
+        ),
       ]),
     );
   }

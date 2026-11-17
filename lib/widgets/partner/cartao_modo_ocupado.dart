@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../config/app_colors.dart';
+import '../../models/restaurant_model.dart';
 import '../../services/modo_ocupado_service.dart';
+import '../../utils/fica_pronto.dart';
 import '../../utils/hora_lisboa.dart';
 import '../modo_ocupado_ligado.dart';
+import 'quando_chamar_estafeta.dart';
 
 /// "Modo ocupado" no painel do parceiro (C6 · 29/10/2026) — como o "busy mode" da
 /// Uber Eats / Glovo / iFood. Botões +10 / +20 / +30 min e "Desligar".
@@ -186,17 +189,28 @@ Future<TimeOfDay?> _relogio24h(BuildContext context, TimeOfDay inicial) {
   );
 }
 
+Future<EscolhaChamada?> _folhaQuandoChamar(
+        BuildContext context, RestaurantModel loja, String titulo) =>
+    escolherQuandoChamarEstafeta(context, loja: loja, titulo: titulo);
+
 /// "Fica pronto às…" num pedido de entrega JÁ ACEITE (C6 · 29/10/2026). A loja
 /// escolhe a hora e o servidor guarda-a em `orders.ready_at_promised`; o cliente vê
 /// o tempo recalculado. Só aparece com o interruptor do modo ocupado ligado.
+///
+/// 17/11/2026: numa loja que NÃO é de comida ([RestaurantModel.lojaNaoComida],
+/// ex.: A3) é "Mudar quando fica pronto": aparece sempre, abre as mesmas opções
+/// do aceitar (10 min a 14 dias) e não tem "Tirar" (sem hora o despacho
+/// chamava o estafeta logo; o servidor também recusa).
 class BotaoFicaProntoAs extends StatefulWidget {
   const BotaoFicaProntoAs({
     super.key,
     required this.orderId,
     this.atual,
+    this.loja,
     this.api,
     this.agora,
     this.escolherHora,
+    this.escolherChamada,
   });
 
   final String orderId;
@@ -204,10 +218,15 @@ class BotaoFicaProntoAs extends StatefulWidget {
   /// A hora já prometida neste pedido (null = nenhuma).
   final DateTime? atual;
 
+  /// A loja do pedido. Com uma loja que não é de comida o botão passa a
+  /// "Mudar quando fica pronto" (até 14 dias).
+  final RestaurantModel? loja;
+
   /// Só para testes.
   final ModoOcupadoApi? api;
   final DateTime Function()? agora;
   final EscolherHora? escolherHora;
+  final EscolherChamada? escolherChamada;
 
   @override
   State<BotaoFicaProntoAs> createState() => _BotaoFicaProntoAsState();
@@ -260,12 +279,46 @@ class _BotaoFicaProntoAsState extends State<BotaoFicaProntoAs> {
           ? 'Não foi possível guardar a hora. Tenta de novo.'
           : instante == null
               ? 'Hora retirada.'
-              : 'Combinado: fica pronto às ${hhmmLisboa(instante)}. O estafeta é chamado a tempo.'),
+              : _longo
+                  ? 'Combinado: ${textoFicaPronto(instante, _agora()).toLowerCase()}. '
+                      'O cliente foi avisado e o estafeta é chamado a tempo.'
+                  : 'Combinado: fica pronto às ${hhmmLisboa(instante)}. O estafeta é chamado a tempo.'),
     ));
+  }
+
+  bool get _longo => widget.loja?.lojaNaoComida ?? false;
+
+  /// "Mudar quando fica pronto" (lojas que não são de comida): as opções do
+  /// aceitar; os minutos contam a partir de agora.
+  Future<void> _mudarLongo() async {
+    if (_aMudar) return;
+    final loja = widget.loja;
+    if (loja == null) return;
+    final escolha = await (widget.escolherChamada ?? _folhaQuandoChamar)(
+        context, loja, 'Mudar quando fica pronto');
+    if (escolha == null || !mounted) return;
+    await _gravar(escolha.prontoEm(_agora()), ScaffoldMessenger.maybeOf(context));
+  }
+
+  Widget _botaoLongo() {
+    final hora = _hora;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: TextButton.icon(
+        key: const Key('btn_mudar_quando_pronto'),
+        style: TextButton.styleFrom(minimumSize: const Size(0, 48)),
+        onPressed: _aMudar ? null : _mudarLongo,
+        icon: const Icon(Icons.edit_calendar_outlined),
+        label: Text(hora == null
+            ? 'Mudar quando fica pronto'
+            : '${textoFicaPronto(hora, _agora())} · mudar'),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_longo) return _botaoLongo();
     return ModoOcupadoLigado(
       builder: (context, ligado) {
         if (!ligado) return const SizedBox.shrink();

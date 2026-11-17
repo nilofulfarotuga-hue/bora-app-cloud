@@ -34,6 +34,9 @@ import '../widgets/web_push_card.dart';
 import '../widgets/partner/painel_avaliacoes_e_funil.dart';
 import '../widgets/partner/partner_agendados_atalho.dart';
 import '../widgets/partner/cartao_modo_ocupado.dart';
+import '../widgets/partner/quando_chamar_estafeta.dart';
+import '../utils/fica_pronto.dart';
+import '../services/quando_chamar_service.dart';
 import '../widgets/partner/aviso_pagamento_estafeta.dart';
 import '../services/modo_ocupado_service.dart';
 import '../utils/nota_do_pedido.dart';
@@ -907,142 +910,38 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
     return count == 1 ? '1 pedido entregue' : '$count pedidos entregues';
   }
 
-  // ── Festas (2026-08-25) — aceitar com tempo ───────────────────────────────
+  // ── Lojas que não são de comida (17/11/2026) — "Quando chamamos o estafeta?"
 
-  /// Chips do "Fica pronto em quanto tempo?" (ordem do Danilo:
-  /// 15·20·30·40·50 min·1h·1h20·1h30 + campo livre).
-  static const List<int> _kFestasTempoOptions = [15, 20, 30, 40, 50, 60, 80, 90];
-
-  String _festasTempoLabel(int m) {
-    if (m < 60) return '$m min';
-    final h = m ~/ 60;
-    final resto = m % 60;
-    return resto == 0 ? '${h}h' : '${h}h${resto.toString().padLeft(2, '0')}';
-  }
-
-  /// Aceite das lojas de festas: abre a folha do tempo, chama a RPC
-  /// `festas_accept` (status → preparing + prep_time_minutes) e avisa o
-  /// cliente. Vale para entrega E recolha (na recolha a RPC também escreve
-  /// takeaway_prep_minutes, para o countdown existente do cliente).
-  Future<void> _festasAceitarComTempo(OrderModel order) async {
-    final controller = TextEditingController();
-    final minutos = await showModalBottomSheet<int>(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetCtx) => SafeArea(
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 16,
-            bottom: 16 + MediaQuery.of(sheetCtx).viewInsets.bottom,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Fica pronto em quanto tempo?',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'O cliente vê este tempo na encomenda.',
-                style: TextStyle(fontSize: 12.5, color: Colors.grey),
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _kFestasTempoOptions
-                    .map((m) => ActionChip(
-                          label: Text(_festasTempoLabel(m)),
-                          onPressed: () => Navigator.of(sheetCtx).pop(m),
-                        ))
-                    .toList(),
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: controller,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        hintText: 'Outro tempo (minutos)',
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  ElevatedButton(
-                    onPressed: () {
-                      final v = int.tryParse(controller.text.trim());
-                      if (v != null && v >= 5 && v <= 480) {
-                        Navigator.of(sheetCtx).pop(v);
-                      }
-                    },
-                    child: const Text('OK'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
+  /// Aceita um pedido de entrega de uma loja que não é de comida: a loja diz
+  /// quando fica pronto (10 min a 14 dias) e o servidor chama o estafeta 8 min
+  /// antes dessa hora (`partner_aceitar_pedido` com `p_prep_minutes` ou
+  /// `p_pronto_em`). Fechar a folha sem escolher não aceita o pedido.
+  Future<void> _aceitarLojaNaoComida(
+      OrderModel order, RestaurantModel loja) async {
+    final orderStore = context.read<OrderStore>();
+    final escolha = await escolherQuandoChamarEstafeta(
+      context,
+      loja: loja,
+      pedidoPara: order.scheduledFor,
     );
-    controller.dispose();
-    if (minutos == null || !mounted) return;
-
-    _stopSoundAndVibration();
-    try {
-      await Supabase.instance.client.rpc(
-        'festas_accept',
-        params: {'p_order_id': order.id, 'p_prep_minutes': minutos},
-      );
-      cancelPartnerOrderNotification(order.id);
-      // Aviso ao cliente pelos MESMOS canais do delivery (notify-client).
-      // 31/10/2026: pelo id do cliente (o telefone nunca foi lido pelo servidor).
-      final clienteId = order.userId;
-      if (clienteId != null && clienteId.isNotEmpty) {
-        final agendado = order.scheduledFor;
-        final corpo = agendado != null
-            ? 'A tua encomenda para o dia '
-                '${agendado.day.toString().padLeft(2, '0')}/'
-                '${agendado.month.toString().padLeft(2, '0')} às '
-                '${agendado.hour.toString().padLeft(2, '0')}:'
-                '${agendado.minute.toString().padLeft(2, '0')} foi aceite — '
-                'fica pronta em ${_festasTempoLabel(minutos)}.'
-            : 'Pedido aceite — fica pronto em ${_festasTempoLabel(minutos)}.';
-        NotificationService.instance
-            .notifyClient(
-              clientId: clienteId,
-              orderId: order.id,
-              title: 'Encomenda aceite 🎉',
-              body: corpo,
-            )
-            .ignore();
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content:
-                Text('Aceite — fica pronto em ${_festasTempoLabel(minutos)}'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_semDetalhe(e, 'Não foi possível aceitar o pedido. Tente outra vez.')),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-      }
-    }
+    if (escolha == null || !mounted) return;
+    final instante = escolha.instante;
+    final accepted = instante == null
+        ? await orderStore.restaurantAcceptOrder(order,
+            prepMinutes: escolha.minutos)
+        : (await aceitarPedidoProntoEm(order.id, instante)).ok;
+    cancelPartnerOrderNotification(order.id);
+    if (!mounted) return;
+    final shortId = order.id.length >= 6
+        ? order.id.substring(0, 6).toUpperCase()
+        : order.id.toUpperCase();
+    final agora = DateTime.now();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(accepted
+          ? 'Pedido aceite — #$shortId. '
+              '${textoFicaPronto(escolha.prontoEm(agora), agora)}.'
+          : 'Não foi possível aceitar o pedido — #$shortId.'),
+    ));
   }
 
   @override
@@ -1339,17 +1238,20 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                   ),
                 _OrdersSection(
                   orders: activePartnerOrders,
+                  loja: currentRestaurant,
                   farmacia: eFarmacia(currentRestaurant),
                   recebe: _recebe,
                   fatura: (o) => _fatura.de(o.id),
                   onPedidoEditado: _refrescarPedido,
                   origem: (o) => _origemPorPedido[o.id],
                   onAccept: (order) async {
-                    // Festas: aceitar abre "Fica pronto em quanto tempo?"
-                    // (RPC festas_accept + aviso ao cliente).
-                    if (currentRestaurant
-                        .belongsTo(BusinessCategory.festas)) {
-                      await _festasAceitarComTempo(order);
+                    // 17/11/2026: lojas que não são de comida (A3, festas,
+                    // farmácias, supermercados, beleza) escolhem "Quando
+                    // chamamos o estafeta?" — de 10 min a 14 dias. Substitui
+                    // o aceitar das festas (festas_accept exigia a categoria
+                    // PRINCIPAL festas e falhava na A3, que é loja + festas).
+                    if (currentRestaurant.lojaNaoComida) {
+                      await _aceitarLojaNaoComida(order, currentRestaurant);
                       return;
                     }
                     // A5 (04/10/2026): ao aceitar, a loja diz quanto tempo
@@ -1792,6 +1694,7 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
 class _OrdersSection extends StatelessWidget {
   const _OrdersSection({
     required this.orders,
+    this.loja,
     this.farmacia = false,
     required this.recebe,
     required this.fatura,
@@ -1803,6 +1706,9 @@ class _OrdersSection extends StatelessWidget {
   });
 
   final List<OrderModel> orders;
+
+  /// 17/11/2026: a loja (lojas que não são de comida mudam a hora até 14 dias).
+  final RestaurantModel? loja;
 
   /// 14/11/2026: a loja é uma farmácia (WhatsApp do cliente e "chega mais tarde").
   final bool farmacia;
@@ -1846,6 +1752,7 @@ class _OrdersSection extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 16),
               child: _PartnerOrderCard(
                 order: order,
+                loja: loja,
                 farmacia: farmacia,
                 recebe: recebe(order),
                 fatura: fatura(order),
@@ -1866,6 +1773,7 @@ class _OrdersSection extends StatelessWidget {
 class _PartnerOrderCard extends StatefulWidget {
   const _PartnerOrderCard({
     required this.order,
+    this.loja,
     this.farmacia = false,
     required this.recebe,
     required this.fatura,
@@ -1878,6 +1786,9 @@ class _PartnerOrderCard extends StatefulWidget {
   });
 
   final OrderModel order;
+
+  /// 17/11/2026: a loja do pedido ("Mudar quando fica pronto" até 14 dias).
+  final RestaurantModel? loja;
 
   /// 14/11/2026: pedido de uma farmácia (WhatsApp do cliente e "chega mais tarde").
   final bool farmacia;
@@ -2306,9 +2217,14 @@ class _PartnerOrderCardState extends State<_PartnerOrderCard>
             order: order,
           ),
         // C6 (29/10/2026): "Fica pronto às…" num pedido de entrega já aceite. Só se
-        // desenha com o interruptor do modo ocupado ligado.
+        // desenha com o interruptor do modo ocupado ligado. 17/11/2026: nas lojas
+        // que não são de comida é "Mudar quando fica pronto" (até 14 dias), sempre.
         if (order.status == OrderStatus.preparing && !order.isTakeaway)
-          BotaoFicaProntoAs(orderId: order.id, atual: order.readyAtPromised),
+          BotaoFicaProntoAs(
+            orderId: order.id,
+            atual: order.readyAtPromised,
+            loja: widget.loja,
+          ),
       ],
     );
   }

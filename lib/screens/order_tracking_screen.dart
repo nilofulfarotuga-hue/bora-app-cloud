@@ -864,6 +864,41 @@ class _BottomCardState extends State<_BottomCard> {
                     ),
                   ),
                 ],
+                // ── 17/11/2026: a loja marcou quando fica pronto (horas ou
+                // dias à frente) — "Fica pronto sexta, 21/11, às 15:00".
+                if (OrderEtaService.textoProntoLonge(order) != null) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    key: const Key('aviso_fica_pronto'),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFBBF7D0)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '📅 ${OrderEtaService.textoProntoLonge(order)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: Color(0xFF166534),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Chamamos o estafeta perto dessa hora. Se a loja mudar a hora, avisamos.',
+                          style: TextStyle(
+                              fontSize: 12.5, color: Color(0xFF166534)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 // ── ETA badge ────────────────────────────────────────────
                 // Encomenda agendada: o ETA por distância não faz sentido
                 // (o pedido sai na data marcada) — esconder o badge.

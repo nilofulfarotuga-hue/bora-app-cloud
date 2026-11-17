@@ -51,6 +51,19 @@ A trava do modo automático não deixa o executor aplicar migrações em produç
 8. Registo: a migração `20261117065156_busca_minimo_3_letras_produtos.sql` já está aplicada (foi a de
    hoje às 06:51); o ficheiro só passa a existir no repo.
 
+## Teste de carga (B3) — correr DEPOIS de aplicar
+
+- Feito a 17/11 08:23 UTC com o servidor de HOJE (sem B1): 10 pessoas sem login a usar a app nova
+  (400 ms, memória) puseram o servidor a ~64% e 3 pesquisas foram cortadas aos 3 s (limite da conta
+  sem login) → erro 500; o travão parou aos 98 s. p95 das pesquisas 2,3 s. Resultado em
+  `carga_10_pessoas_servidor_de_hoje.json`. As 100 pessoas NÃO corri (só derrubava o servidor).
+- Depois dos passos 0-5: `BORA_ANON=<chave pública anon> node scripts/carga/busca_leve_carga.mjs 10 180 carga_10.json`
+  e, se ficar abaixo de 30% e p95 < 500 ms, `... 100 180 carga_100.json`. O script pára sozinho se o
+  p95 passar 4 s ou mais de 5% falharem; confirmar o ocupado no `vigia_servidor_registos`.
+- Conta: o B1 corta ~55% de cada pesquisa → 10 pessoas ~30%. 100 pessoas a pesquisar sem parar
+  seriam ~300% de um Micro: precisa de memória partilhada no servidor para pesquisas repetidas (o
+  mesmo "leite" de 100 pessoas calculado uma vez) ou de um plano maior (decisão do Danilo).
+
 ## Vigia em português de gente (B4, independente das outras)
 
 - `20261117100400_vigia_servidor_portugues.sql`: funções `vigia_quem` / `vigia_o_que`, colunas

@@ -665,6 +665,12 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   login (`AccessTokenRequiredError`), por isso não há publicação de Edge pela CLI. (2) `deploy_edge_function` do `client-assistant`
   pelo MCP ("publica a Claude.ai"). O código está no ramo `ai/2026-11-11-amigo-casa`; a Claude.ai publica a função (9 ficheiros) e
   corre as provas — instruções na página `entrega-amigo-casa-2026-11-11` do livro.
+- **17/11/2026, missão `a3-guarda-16-11` parte 2 (ordem trazida pela Claude.ai, caixa 114)** — duas recusas, não contornadas:
+  (1) a bora-tranca recusou `create function pg_temp.…` dentro de uma prova em produção ("DDL em produção é publicar"); a prova
+  da correção de `lojas_escondidas_para_mim` fez-se com a mesma consulta da migração, sem criar nada (18/18 casos).
+  (2) o classificador recusou ("Undermining Oversight") `pip install vtracer resvg-py` para passar o logótipo da A3 (120×81) a
+  vetor. Higgsfield com 0 créditos e Gemini grátis sem quota (429, volta em ~6 h): logótipo grande e capa ficam para a Claude.ai.
+
 
 - **16/11/2026 ~19:30-20:30, missão `noite-farmacia-17-11`** — recusas dos ganchos, nenhuma contornada:
   (1) `deploy_edge_function` (sonda do robô Glovo) pela trava do modo automático ("publica a Claude.ai"): o robô, a migração

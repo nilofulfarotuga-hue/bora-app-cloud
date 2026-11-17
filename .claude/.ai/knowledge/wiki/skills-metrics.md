@@ -113,3 +113,4 @@ confianca: auto
 | ceo-ai | 2026-11-14 | missão sistema-conteudo-14-11: v3 (§0-ter entrevista, §2.3 motor, §3 estado vivo, §6 fluxo real) | 1 | sucesso |
 | ceo-ai | 2026-11-14 | compra-guardada-2026-11-14 + adenda 1 fila (PC, Opus 5.5) | rascunho da compra + fila do estafeta + painel + aviso ao cliente; 48 provas SQL (PGlite) e 26 testes app; migração e envio bloqueados pela tranca (Claude.ai publica) | parcial |
 | ceo-ai | 2026-11-15 | Missão 13 checkup-geral-15-11 (PC, Opus 5.5) | B0-B8 + prioridade Loja Online + 2 Juízes; #22, caixas 73-87; VPS/Chrome pesado travados (trava/RAM) | parcial |
+| ceo-ai | 2026-11-17 | a3-guarda-parte2, caixa 114 (PC, Opus 5.5, modo leve) | contas de teste + tenant WhatsApp na base; robo A3, impressao/personalizados, correcao lojas escondidas e escolha de loja no ramo; Juiz aprovado com correcoes (9/10 feitas); envio, migracoes e Edges bloqueados pela tranca (Claude.ai publica); sem logo grande/capa (sem quota) | parcial |

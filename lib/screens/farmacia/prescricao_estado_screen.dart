@@ -2,16 +2,26 @@
 // Acompanha em tempo real: a resposta da farmácia aparece em segundos.
 // Aceite → valores + pagamento (cartão, MB Way, dinheiro) + confirmar.
 // Recusado/expirado → motivo e "não foi cobrado nada". Confirmado → códigos.
+// 17/11/2026 (receita-cartao-mbway-17-11): cartão e MB Way pagam pelo caminho do Favor
+// (PrescricaoPagamentoService); dinheiro e demonstração continuam em prescricao_confirmar.
+// Confirmado com pedido real → "Acompanhar a entrega" abre o acompanhamento normal.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../auth/auth_store.dart';
 import '../../config/app_colors.dart';
+import '../../models/order_model.dart';
 import '../../models/pedido_prescricao.dart';
+import '../../services/prescricao_pagamento_service.dart';
 import '../../services/prescricao_service.dart';
 import '../../widgets/bora/bora_primary_button.dart';
 import '../../widgets/bora_foto_ecra_inteiro.dart';
 import '../../widgets/farmacia/lembrete_mensal_sheet.dart';
+import '../../widgets/mbway_espera_pedido_dialog.dart';
+import '../order_tracking_screen.dart';
 import 'prescricao_enviar_screen.dart';
 
 class PrescricaoEstadoScreen extends StatefulWidget {
@@ -120,6 +130,7 @@ class PrescricaoEstadoCorpo extends StatefulWidget {
     required this.taxaServicoCents,
     required this.farmaciaNome,
     this.service,
+    this.pagamento,
     this.agora,
   });
 
@@ -127,6 +138,9 @@ class PrescricaoEstadoCorpo extends StatefulWidget {
   final int taxaServicoCents;
   final String farmaciaNome;
   final PrescricaoService? service;
+
+  /// Cartão / MB Way (para testes; por defeito o real).
+  final PrescricaoPagamentoService? pagamento;
   final DateTime Function()? agora;
 
   @override
@@ -147,7 +161,18 @@ class _PrescricaoEstadoCorpoState extends State<PrescricaoEstadoCorpo> {
   Timer? _relogio;
 
   PrescricaoService get _svc => widget.service ?? PrescricaoService();
+  late final PrescricaoPagamentoService _pag = widget.pagamento ?? PrescricaoPagamentoService(prescricoes: widget.service);
   PedidoPrescricao get p => widget.pedido;
+
+  /// Número do MB Way (pré-preenchido com o da conta).
+  final _telefoneMbway = TextEditingController();
+  bool _telefonePreenchido = false;
+
+  /// O pagamento entrou e espera-se que o servidor ligue a receita ao pedido (segundos).
+  bool _aguardaLigacao = false;
+  bool _ligacaoDemorou = false;
+  Timer? _relogioLigacao;
+  bool _aAbrirPedido = false;
 
   @override
   void initState() {
@@ -158,28 +183,200 @@ class _PrescricaoEstadoCorpoState extends State<PrescricaoEstadoCorpo> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_telefonePreenchido) return;
+    _telefonePreenchido = true;
+    try {
+      final tel = Provider.of<AuthStore>(context, listen: false).currentClient?.phone ?? '';
+      final digitos = tel.replaceAll(RegExp(r'\D'), '');
+      _telefoneMbway.text = digitos.length > 9 ? digitos.substring(digitos.length - 9) : digitos;
+    } catch (_) {
+      // Sem AuthStore (testes): o cliente escreve o número.
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant PrescricaoEstadoCorpo old) {
+    super.didUpdateWidget(old);
+    // O servidor ligou a receita ao pedido: acabou a espera.
+    if (_aguardaLigacao && !p.estado.aEsperaDoCliente) {
+      _relogioLigacao?.cancel();
+      _aguardaLigacao = false;
+      _ligacaoDemorou = false;
+    }
+  }
+
+  @override
   void dispose() {
     _relogio?.cancel();
+    _relogioLigacao?.cancel();
+    _telefoneMbway.dispose();
     super.dispose();
   }
 
+  void _mostrar(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  void _esperarLigacao() {
+    if (!mounted) return;
+    setState(() {
+      _aguardaLigacao = true;
+      _ligacaoDemorou = false;
+    });
+    _relogioLigacao?.cancel();
+    _relogioLigacao = Timer(const Duration(seconds: 40), () {
+      if (mounted && _aguardaLigacao) setState(() => _ligacaoDemorou = true);
+    });
+  }
+
   Future<void> _confirmar({required bool soDisponiveis}) async {
-    if (_aConfirmar) return;
+    if (_aConfirmar || _aguardaLigacao) return;
+    // Dinheiro e loja de demonstração: como antes (prescricao_confirmar).
+    if (_metodo == 'cash' || p.isDemo) {
+      setState(() => _aConfirmar = true);
+      try {
+        await _svc.confirmar(p.id, metodo: _metodo, soDisponiveis: soDisponiveis);
+        if (mounted) setState(() => _recusaConfirmar = null);
+      } catch (e) {
+        _tratarErro(e);
+      } finally {
+        if (mounted) setState(() => _aConfirmar = false);
+      }
+      return;
+    }
+    if (_metodo == 'mbway') {
+      await _pagarMbway(soDisponiveis: soDisponiveis);
+    } else {
+      await _pagarCartao(soDisponiveis: soDisponiveis);
+    }
+  }
+
+  void _tratarErro(Object e) {
+    final msg = PrescricaoService.mensagemDe(e);
+    if (!mounted) return;
+    // O PrescricaoErro já vem sem o código no texto: lê-se do campo `codigo`.
+    if (PrescricaoService.codigoDe(e) == 'RECEITA_REAL_POR_LIGAR') {
+      setState(() => _recusaConfirmar = msg);
+    } else {
+      _mostrar(msg);
+    }
+  }
+
+  Future<void> _pagarCartao({required bool soDisponiveis}) async {
     setState(() => _aConfirmar = true);
     try {
-      await _svc.confirmar(p.id, metodo: _metodo, soDisponiveis: soDisponiveis);
-      if (mounted) setState(() => _recusaConfirmar = null);
+      final r = await _pag.pagarComCartao(p.id, soDisponiveis: soDisponiveis);
+      if (r == ResultadoCartaoReceita.cancelado) {
+        _mostrar('Pagamento cancelado. Não foi cobrado nada.');
+      } else {
+        _mostrar('Pagamento aceite. A chamar o estafeta…');
+        _esperarLigacao();
+      }
     } catch (e) {
-      final msg = PrescricaoService.mensagemDe(e);
-      if (mounted) {
-        if (e.toString().contains('RECEITA_REAL_POR_LIGAR')) {
-          setState(() => _recusaConfirmar = msg);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      _tratarErro(e);
+    } finally {
+      if (mounted) setState(() => _aConfirmar = false);
+    }
+  }
+
+  Future<void> _pagarMbway({required bool soDisponiveis}) async {
+    final tel = _telefoneMbway.text.replaceAll(RegExp(r'\D'), '');
+    if (tel.length != 9) {
+      _mostrar('Escreva o número do MB Way (9 algarismos).');
+      return;
+    }
+    setState(() => _aConfirmar = true);
+    try {
+      final prep = await _pag.prepararMbway(p.id, soDisponiveis: soDisponiveis);
+      if (prep.jaPago) {
+        _esperarLigacao();
+        return;
+      }
+      final pedido = await _pag.pedirMbway(prep.orderId, tel);
+      if (!mounted) return;
+      var pago = false;
+      if (pedido.erro != null && !pedido.jaTratado) {
+        // Não chegou ao MB WAY: o pedido fica cancelado sem custo e pode tentar outra vez.
+        final c = await _pag.cancelarMbwayNaoPago(prep.orderId);
+        if (c != CancelarMbway.jaPago) {
+          _mostrar(c == CancelarMbway.falhou
+              ? '${pedido.erro!}\nNão conseguimos cancelar por falta de rede: volte a este ecrã daqui a pouco.'
+              : pedido.erro!);
+          return;
         }
+        pago = true;
+      }
+      if (!pago) {
+        if (!mounted) return;
+        pago = await showDialog<bool>(
+              context: context,
+              barrierDismissible: false,
+              builder: (_) => MbwayEsperaPedidoDialog(orderId: prep.orderId, amount: prep.cobrarCents / 100.0),
+            ) ??
+            false;
+      }
+      var cancelou = CancelarMbway.cancelado;
+      if (!pago) {
+        // O servidor recusa cancelar se o dinheiro entrou entretanto: aí segue como pago.
+        cancelou = await _pag.cancelarMbwayNaoPago(prep.orderId);
+        pago = cancelou == CancelarMbway.jaPago;
+      }
+      if (pago) {
+        _mostrar('Pagamento MB WAY confirmado. A chamar o estafeta…');
+        _esperarLigacao();
+      } else if (cancelou == CancelarMbway.falhou) {
+        _mostrar('O MB WAY não foi confirmado e não conseguimos cancelar por falta de rede. '
+            'Não aprove o MB WAY se já não quiser; volte a este ecrã daqui a pouco.');
+      } else {
+        _mostrar('O MB WAY não foi confirmado. Não foi cobrado nada; pode tentar outra vez.');
+      }
+    } catch (e) {
+      _tratarErro(e);
+    } finally {
+      if (mounted) setState(() => _aConfirmar = false);
+    }
+  }
+
+  Future<void> _cancelarMbwayPendente() async {
+    final id = p.pagamentoOrderId;
+    if (id == null || _aConfirmar) return;
+    setState(() => _aConfirmar = true);
+    try {
+      final c = await _pag.cancelarMbwayNaoPago(id);
+      if (c == CancelarMbway.jaPago) {
+        _mostrar('O pagamento MB WAY já tinha entrado. A chamar o estafeta…');
+        _esperarLigacao();
+      } else if (c == CancelarMbway.falhou) {
+        _mostrar('Não conseguimos cancelar por falta de rede. Tente outra vez daqui a pouco.');
+      } else {
+        _mostrar('MB WAY cancelado. Não foi cobrado nada.');
       }
     } finally {
       if (mounted) setState(() => _aConfirmar = false);
+    }
+  }
+
+  /// Abre o acompanhamento normal do pedido (mapa, estafeta, chat).
+  Future<void> _acompanharEntrega(String orderId) async {
+    if (_aAbrirPedido) return;
+    setState(() => _aAbrirPedido = true);
+    try {
+      final row = await Supabase.instance.client.from('orders').select().eq('id', orderId).maybeSingle();
+      if (!mounted) return;
+      if (row == null) {
+        _mostrar('Ainda não conseguimos abrir o pedido. Veja em "Pedidos".');
+        return;
+      }
+      await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => OrderTrackingScreen(order: OrderModel.fromSupabase(row)),
+      ));
+    } catch (_) {
+      _mostrar('Sem ligação. Tente outra vez daqui a pouco.');
+    } finally {
+      if (mounted) setState(() => _aAbrirPedido = false);
     }
   }
 
@@ -293,7 +490,36 @@ class _PrescricaoEstadoCorpoState extends State<PrescricaoEstadoCorpo> {
         const Text('Como quer pagar?', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         op('card', Icons.credit_card, 'Cartão'),
         op('mbway', Icons.phone_iphone, 'MB Way'),
+        if (_metodo == 'mbway')
+          Padding(
+            padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
+            child: TextField(
+              key: const Key('prescricao_mbway_telefone'),
+              controller: _telefoneMbway,
+              keyboardType: TextInputType.phone,
+              maxLength: 9,
+              decoration: const InputDecoration(
+                labelText: 'Número do MB Way',
+                prefixText: '+351 ',
+                counterText: '',
+              ),
+            ),
+          ),
         op('cash', Icons.payments_outlined, 'Dinheiro na entrega'),
+        // Igual a qualquer Favor com compra: cartão/MB Way cobram payment_buffer_total (margem
+        // errand_buffer_multiplier). 17/11: a devolução automática da margem está DESLIGADA no
+        // servidor (trg_excedente_preautorizacao), por isso o texto não promete devolver.
+        if (!p.isDemo && _metodo != 'cash')
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              _metodo == 'card'
+                  ? 'O cartão é cobrado com a margem do Favor, um pouco acima do total. Vê o valor exato antes de pagar.'
+                  : 'O MB Way pede o valor com a margem do Favor, um pouco acima do total. Vê o valor exato na app MB WAY antes de aprovar.',
+              key: const Key('prescricao_nota_margem'),
+              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.35),
+            ),
+          ),
       ]),
     );
   }
@@ -412,6 +638,47 @@ class _PrescricaoEstadoCorpoState extends State<PrescricaoEstadoCorpo> {
           botoes.add(TextButton(onPressed: _aCancelar ? null : _cancelar, child: const Text('Cancelar pedido')));
           break;
         }
+        if (_aguardaLigacao) {
+          filhos.add(_cartao(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                _ligacaoDemorou
+                    ? 'O pagamento entrou mas o pedido ainda não apareceu. Veja em "Pedidos" daqui a pouco; se não aparecer, fale connosco no chat de ajuda.'
+                    : 'Pagamento recebido. A chamar o estafeta…',
+                key: const Key('prescricao_aguarda_ligacao'),
+                style: const TextStyle(fontSize: 15, height: 1.4),
+              ),
+              if (!_ligacaoDemorou) ...[
+                const SizedBox(height: 10),
+                const LinearProgressIndicator(minHeight: 6),
+              ],
+            ]),
+          ));
+          break;
+        }
+        if (p.mbwayPorConcluir) {
+          // Voltou ao ecrã com um MB Way por aprovar: o mesmo pedido, nunca outro.
+          filhos.add(_cartao(
+            child: Text(
+              'Tem um pagamento MB WAY por aprovar. Abra a app MB WAY e aprove, ou peça outra vez.',
+              key: const Key('prescricao_mbway_pendente'),
+              style: const TextStyle(fontSize: 15, height: 1.4),
+            ),
+          ));
+          _metodo = 'mbway';
+          filhos.add(_pagamento());
+          botoes.add(BoraPrimaryButton(
+            label: 'Pedir o MB WAY outra vez',
+            icon: Icons.phone_iphone,
+            loading: _aConfirmar,
+            onPressed: _aConfirmar ? null : () => _confirmar(soDisponiveis: p.soDisponiveis ?? true),
+          ));
+          botoes.add(TextButton(
+            onPressed: _aConfirmar ? null : _cancelarMbwayPendente,
+            child: const Text('Cancelar este MB WAY'),
+          ));
+          break;
+        }
         filhos.add(_pagamento());
         botoes.add(BoraPrimaryButton(
           label: parcial ? 'Quero só o que há' : 'Confirmar e pagar',
@@ -462,6 +729,16 @@ class _PrescricaoEstadoCorpoState extends State<PrescricaoEstadoCorpo> {
           ));
         }
         filhos.add(_valores());
+        final pedidoReal = p.orderId;
+        if (!entregue && !p.isDemo && pedidoReal != null && pedidoReal.isNotEmpty) {
+          botoes.add(BoraPrimaryButton(
+            key: const Key('prescricao_acompanhar_entrega'),
+            label: 'Acompanhar a entrega',
+            icon: Icons.delivery_dining,
+            loading: _aAbrirPedido,
+            onPressed: _aAbrirPedido ? null : () => _acompanharEntrega(pedidoReal),
+          ));
+        }
         botoes.add(OutlinedButton.icon(
           onPressed: () => LembreteMensalSheet.abrir(context,
               restaurantId: p.restaurantId, farmaciaNome: widget.farmaciaNome, prescricaoId: p.id),

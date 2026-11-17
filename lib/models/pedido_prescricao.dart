@@ -130,6 +130,10 @@ class PedidoPrescricao {
   final DateTime? entregueEm;
   final DateTime? dadosApagadosEm;
 
+  // Pagamento com cartão / MB Way a decorrer (17/11/2026, migração receita_cartao_mbway).
+  final String? pagamentoMetodo;
+  final String? pagamentoOrderId;
+
   const PedidoPrescricao({
     required this.id,
     required this.createdAt,
@@ -172,6 +176,8 @@ class PedidoPrescricao {
     this.canceladoEm,
     this.entregueEm,
     this.dadosApagadosEm,
+    this.pagamentoMetodo,
+    this.pagamentoOrderId,
   });
 
   static DateTime? _dt(dynamic v) =>
@@ -224,8 +230,16 @@ class PedidoPrescricao {
       canceladoEm: _dt(m['cancelado_em']),
       entregueEm: _dt(m['entregue_em']),
       dadosApagadosEm: _dt(m['dados_apagados_em']),
+      pagamentoMetodo: m['pagamento_metodo'] as String?,
+      pagamentoOrderId: m['pagamento_order_id'] as String?,
     );
   }
+
+  /// Há um MB Way criado à espera de ser aprovado na app MB WAY.
+  bool get mbwayPorConcluir =>
+      aEsperaDoClienteAinda && pagamentoMetodo == 'mbway' && (pagamentoOrderId ?? '').isNotEmpty;
+
+  bool get aEsperaDoClienteAinda => estado.aEsperaDoCliente;
 
   bool get eReceita => tipo == PrescricaoTipo.receita;
 

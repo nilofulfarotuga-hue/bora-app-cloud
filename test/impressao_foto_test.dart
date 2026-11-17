@@ -2,6 +2,8 @@
 // farmácia. O ecrã tem de mostrar logo os três caminhos: câmara, galeria e ficheiro PDF.
 import 'package:bora_app/screens/impressao/impressao_enviar_screen.dart';
 import 'package:bora_app/services/impressao_service.dart';
+import 'dart:io';
+
 import 'package:bora_app/widgets/impressao/impressao_botoes_topo.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -60,5 +62,16 @@ void main() {
     await tester.pump();
 
     expect(find.text('Imprimir documentos'), findsNothing);
+  });
+
+  test('a entrada das lojas grandes (A3) mostra os cartões de imprimir antes da pesquisa', () {
+    // A A3 é categoria store: abre o MarketStoreTab, não o StoreProductsScreen.
+    final s = File('lib/widgets/market/market_store_tab.dart').readAsStringSync();
+    final cartoes = s.indexOf('ImpressaoBotoesTopo(');
+    final pesquisa = s.indexOf('child: _SearchBar(');
+    final categorias = s.indexOf('child: _CategoryGrid(');
+    expect(cartoes, isNonNegative);
+    expect(cartoes, lessThan(pesquisa));
+    expect(cartoes, lessThan(categorias));
   });
 }

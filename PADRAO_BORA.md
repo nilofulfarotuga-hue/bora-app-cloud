@@ -651,6 +651,27 @@ número, lê-se a ficha — e regista-se o que se encontrou, não o que veio esc
 > a ordem mandou e a lista de dúvidas foi para a dona; mas sem abrir o handle o site
 > teria saído com um link para uma conta que não existe.
 
+### 2.9 Serviço por ficheiro (impressão) e comissão que começa depois de N meses
+
+**Impressão pela app** (A3 Guarda, 17/11): é um motor genérico, ligado loja a loja
+(`impressao_lojas`). O cliente envia o ficheiro para um balde PRIVADO, na pasta dele; a loja só
+lê os ficheiros dos pedidos dela (link assinado); os ficheiros apagam-se 30 dias depois de o
+pedido acabar (`impressoes-limpeza`). O preço é SEMPRE calculado no servidor a partir da tabela
+da loja (preço de balcão, editável pela loja e pelo admin) × o fator da loja, mais as taxas da
+`pricing_calculate` — nunca o que a app manda. Valores provisórios ficam marcados como tal no
+painel do parceiro até a loja mandar os dela. Enquanto a cobrança real não estiver ligada, só
+há pedidos de TESTE em loja escondida (o mesmo que a receita das farmácias).
+
+**Comissão com início adiado**: `restaurants.partner_extra_commission_pct` com
+`partner_extra_commission_starts_at = NULL` enquanto a loja está escondida; no dia em que abre,
+põe-se a data de abertura + N meses (A3: 2 meses; farmácias: 3). Esquecer de pôr a data = a loja
+nunca paga; pôr a data de hoje = cobra os meses oferecidos.
+
+> **Cicatriz (16–17/11, A3):** uma loja escondida SEM dono (`user_id` nulo) aparecia a qualquer
+> cliente com sessão, porque `r.user_id = auth.uid()` com nulo dá NULL e o `not (...)` deixava a
+> loja de fora da lista das escondidas. Loja escondida nasce sempre com dono (ou conta de teste
+> como dono), e a função leva `coalesce(..., false)` (migração 20261117000300).
+
 
 ## 3. REGRAS DE PROVA — isto é lei, não é conselho
 

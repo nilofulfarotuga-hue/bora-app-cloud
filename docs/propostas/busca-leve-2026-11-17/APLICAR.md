@@ -1,5 +1,11 @@
 # Busca leve — como aplicar em produção (para a Claude.ai)
 
+> **Estado a 17/11 08:40 (lido em `supabase_migrations`):** passos 0, 1, 2 e 4 aplicados pela
+> Claude.ai (08:22-08:26). Provas pós-aplicação feitas pelo Claude Code: 60/60 iguais (postgres),
+> 20/20 iguais (anon), secções 0/0, DEPOIS ~2x mais rápido. **Falta:** passo 6 (índice duplicado),
+> o vigia (20261117100400), a PARTE 3 depois de 24 h, e o teste de 100 pessoas, que espera pelo
+> achado RLS (ver RELATORIO.md: sem login, as regras de `products` impedem o índice de trigramas).
+
 Missão `servidor-busca-leve-2026-11-17`. Preparado pelo Claude Code no ramo `ai/2026-11-17-busca-leve`.
 A trava do modo automático não deixa o executor aplicar migrações em produção (`apply_migration`,
 `CREATE`, `DROP`), por isso fica tudo pronto aqui. Registo de cada passo: `e2e_log`, fluxo

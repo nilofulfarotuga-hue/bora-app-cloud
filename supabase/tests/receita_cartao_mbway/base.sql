@@ -1,5 +1,5 @@
 -- Esquema de ensaio (PGlite) para provar 20261117120000_receita_cartao_mbway.sql.
--- Tabelas com as colunas que as funÃ§Ãµes usam; funÃ§Ãµes auxiliares de produÃ§Ã£o copiadas
+-- Tabelas com as colunas que as funções usam; funções auxiliares de produção copiadas
 -- (_prescricao_codigo, _setting_*, _prescricao_morada_coords, _prescricao_distancia_km,
 -- farmacia_botoes_visiveis) e duplos simples para create_order, is_partner_open, avisos.
 -- gen_random_uuid já vem no Postgres
@@ -23,7 +23,8 @@ create table public.orders (id text primary key default gen_random_uuid()::text,
   payment_method text, service_type text, price numeric, delivery_fee numeric, distance_km numeric,
   errand_description text, errand_location_lat double precision, errand_location_lng double precision,
   errand_estimated_purchase_cents integer, dropoff_address text, dropoff_lat double precision, dropoff_lng double precision,
-  driver_id uuid, payment_buffer_total numeric, created_at timestamptz default now());
+  driver_id uuid, payment_buffer_total numeric, errand_has_purchase boolean, errand_home_stop boolean, errand_speed text,
+  created_at timestamptz default now());
 create table public.payment_drafts (id uuid primary key default gen_random_uuid(), user_id uuid, payload jsonb,
   used_at timestamptz, order_id text, created_at timestamptz default now());
 create table public.avisos (quem text, titulo text, id uuid);
@@ -62,7 +63,7 @@ create function public.notify_admin_urgent_push(p_event_type text, p_summary tex
   returns void language sql as $$ insert into public.admin_push values (p_event_type, p_summary) $$;
 
 -- Duplo do create_order: grava o Favor como o servidor (taxa fixa 6,00 + 0,50/km acima de 2 km),
--- MB Way desligado, duplicado em 60 s, pago na criaÃ§Ã£o quando payment_already_confirmed.
+-- MB Way desligado, duplicado em 60 s, pago na criação quando payment_already_confirmed.
 create function public.create_order(p_input jsonb) returns jsonb language plpgsql as $$
 declare v_id text := gen_random_uuid()::text; v_fee numeric; v_user uuid := coalesce(auth.uid(), (p_input->>'user_id')::uuid);
 begin
@@ -73,22 +74,28 @@ begin
              and o.dropoff_address = p_input->>'dropoff_address' and o.created_at > now() - interval '60 seconds'
              and o.price is not distinct from (6.00 + greatest(0, (p_input->>'distance_km')::numeric - 2) * 0.5 + (p_input->>'errand_estimated_purchase_cents')::numeric / 100)
              and o.status not in ('cancelled','rejected') and auth.uid() is not null) then
-    raise exception 'duplicate_errand: jÃ¡ hÃ¡ um pedido igual';
+    raise exception 'duplicate_errand: já há um pedido igual';
   end if;
   v_fee := 6.00 + greatest(0, (p_input->>'distance_km')::numeric - 2) * 0.5;
+  -- Um só INSERT com tudo (como o _create_order_core): os gatilhos AFTER INSERT veem as colunas.
+  -- Sem compra, o preço é só a taxa (o valor estimado fica gravado na mesma), como em produção.
   insert into public.orders (id, user_id, status, payment_status, payment_method, service_type, price, delivery_fee, distance_km,
-    errand_description, errand_location_lat, errand_location_lng, errand_estimated_purchase_cents, dropoff_address, dropoff_lat, dropoff_lng)
+    errand_description, errand_location_lat, errand_location_lng, errand_estimated_purchase_cents, dropoff_address, dropoff_lat, dropoff_lng,
+    payment_buffer_total, errand_has_purchase, errand_home_stop, errand_speed)
   values (v_id, v_user, 'created', case when coalesce((p_input->>'payment_already_confirmed')::boolean, false) then 'paid' else 'pending' end,
     p_input->>'payment_method', p_input->>'service_type',
-    v_fee + (p_input->>'errand_estimated_purchase_cents')::numeric / 100, v_fee, (p_input->>'distance_km')::numeric,
+    v_fee + case when coalesce((p_input->>'errand_has_purchase')::boolean, false)
+                 then (p_input->>'errand_estimated_purchase_cents')::numeric / 100 else 0 end,
+    v_fee, (p_input->>'distance_km')::numeric,
     p_input->>'errand_description', (p_input->>'errand_location_lat')::float8, (p_input->>'errand_location_lng')::float8,
-    (p_input->>'errand_estimated_purchase_cents')::int, p_input->>'dropoff_address', (p_input->>'dropoff_lat')::float8, (p_input->>'dropoff_lng')::float8);
-  update public.orders set payment_buffer_total = v_fee + (p_input->>'errand_estimated_purchase_cents')::numeric / 100 * 1.2 where id = v_id;
+    (p_input->>'errand_estimated_purchase_cents')::int, p_input->>'dropoff_address', (p_input->>'dropoff_lat')::float8, (p_input->>'dropoff_lng')::float8,
+    v_fee + (p_input->>'errand_estimated_purchase_cents')::numeric / 100 * 1.2,
+    (p_input->>'errand_has_purchase')::boolean, (p_input->>'errand_home_stop')::boolean, p_input->>'errand_speed');
   return jsonb_build_object('order_id', v_id, 'price', v_fee + (p_input->>'errand_estimated_purchase_cents')::numeric / 100,
                             'fees_total', v_fee, 'payment_status', (select payment_status from public.orders where id = v_id));
 end $$;
 
--- CÃ³pias de produÃ§Ã£o (17/11 08:10, sem mudanÃ§a)
+-- Cópias de produção (17/11 08:10, sem mudança)
 CREATE OR REPLACE FUNCTION public._prescricao_morada_coords(p_user uuid, p_morada text, p_lat double precision, p_lng double precision, OUT lat double precision, OUT lng double precision)
  RETURNS record LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO 'public', 'pg_temp'
 AS $function$

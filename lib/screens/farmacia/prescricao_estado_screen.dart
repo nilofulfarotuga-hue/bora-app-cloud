@@ -257,7 +257,8 @@ class _PrescricaoEstadoCorpoState extends State<PrescricaoEstadoCorpo> {
   void _tratarErro(Object e) {
     final msg = PrescricaoService.mensagemDe(e);
     if (!mounted) return;
-    if (e.toString().contains('RECEITA_REAL_POR_LIGAR')) {
+    // O PrescricaoErro já vem sem o código no texto: lê-se do campo `codigo`.
+    if (PrescricaoService.codigoDe(e) == 'RECEITA_REAL_POR_LIGAR') {
       setState(() => _recusaConfirmar = msg);
     } else {
       _mostrar(msg);
@@ -299,13 +300,17 @@ class _PrescricaoEstadoCorpoState extends State<PrescricaoEstadoCorpo> {
       var pago = false;
       if (pedido.erro != null && !pedido.jaTratado) {
         // Não chegou ao MB WAY: o pedido fica cancelado sem custo e pode tentar outra vez.
-        pago = await _pag.cancelarMbwayNaoPago(prep.orderId);
-        if (!pago) {
-          _mostrar(pedido.erro!);
+        final c = await _pag.cancelarMbwayNaoPago(prep.orderId);
+        if (c != CancelarMbway.jaPago) {
+          _mostrar(c == CancelarMbway.falhou
+              ? '${pedido.erro!}\nNão conseguimos cancelar por falta de rede: volte a este ecrã daqui a pouco.'
+              : pedido.erro!);
           return;
         }
+        pago = true;
       }
       if (!pago) {
+        if (!mounted) return;
         pago = await showDialog<bool>(
               context: context,
               barrierDismissible: false,
@@ -313,13 +318,18 @@ class _PrescricaoEstadoCorpoState extends State<PrescricaoEstadoCorpo> {
             ) ??
             false;
       }
+      var cancelou = CancelarMbway.cancelado;
       if (!pago) {
         // O servidor recusa cancelar se o dinheiro entrou entretanto: aí segue como pago.
-        pago = await _pag.cancelarMbwayNaoPago(prep.orderId);
+        cancelou = await _pag.cancelarMbwayNaoPago(prep.orderId);
+        pago = cancelou == CancelarMbway.jaPago;
       }
       if (pago) {
         _mostrar('Pagamento MB WAY confirmado. A chamar o estafeta…');
         _esperarLigacao();
+      } else if (cancelou == CancelarMbway.falhou) {
+        _mostrar('O MB WAY não foi confirmado e não conseguimos cancelar por falta de rede. '
+            'Não aprove o MB WAY se já não quiser; volte a este ecrã daqui a pouco.');
       } else {
         _mostrar('O MB WAY não foi confirmado. Não foi cobrado nada; pode tentar outra vez.');
       }
@@ -335,10 +345,12 @@ class _PrescricaoEstadoCorpoState extends State<PrescricaoEstadoCorpo> {
     if (id == null || _aConfirmar) return;
     setState(() => _aConfirmar = true);
     try {
-      final pago = await _pag.cancelarMbwayNaoPago(id);
-      if (pago) {
+      final c = await _pag.cancelarMbwayNaoPago(id);
+      if (c == CancelarMbway.jaPago) {
         _mostrar('O pagamento MB WAY já tinha entrado. A chamar o estafeta…');
         _esperarLigacao();
+      } else if (c == CancelarMbway.falhou) {
+        _mostrar('Não conseguimos cancelar por falta de rede. Tente outra vez daqui a pouco.');
       } else {
         _mostrar('MB WAY cancelado. Não foi cobrado nada.');
       }
@@ -494,15 +506,16 @@ class _PrescricaoEstadoCorpoState extends State<PrescricaoEstadoCorpo> {
             ),
           ),
         op('cash', Icons.payments_outlined, 'Dinheiro na entrega'),
-        // Igual a qualquer Favor com compra: cartão/MB Way levam uma margem até ao talão
-        // da farmácia; o que sobra volta na entrega (fn_excedente_preautorizacao no servidor).
+        // Igual a qualquer Favor com compra: cartão/MB Way cobram payment_buffer_total (margem
+        // errand_buffer_multiplier). 17/11: a devolução automática da margem está DESLIGADA no
+        // servidor (trg_excedente_preautorizacao), por isso o texto não promete devolver.
         if (!p.isDemo && _metodo != 'cash')
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
               _metodo == 'card'
-                  ? 'No cartão pode ficar cativo um pouco mais (margem até ao talão da farmácia). O que sobrar volta para o cartão quando o estafeta entregar.'
-                  : 'O MB Way pode pedir um pouco mais (margem até ao talão da farmácia). O que sobrar volta para a sua Carteira Bora quando o estafeta entregar.',
+                  ? 'O cartão é cobrado com a margem do Favor, um pouco acima do total. Vê o valor exato antes de pagar.'
+                  : 'O MB Way pede o valor com a margem do Favor, um pouco acima do total. Vê o valor exato na app MB WAY antes de aprovar.',
               key: const Key('prescricao_nota_margem'),
               style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, height: 1.35),
             ),

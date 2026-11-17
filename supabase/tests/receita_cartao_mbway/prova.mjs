@@ -51,7 +51,7 @@ const ref1 = (await um(`select pagamento_ref from pedidos_prescricao where id=$1
 ok('cartão: código de levantamento reservado e na descrição', ref1 && c1.cart_input.errand_description.includes(`Código de levantamento: ${ref1}.`));
 const c1b = (await um(`select prescricao_preparar_pedido($1,'card') j`, [r1])).j;
 ok('cartão: toque duplo mantém o mesmo código', c1b.codigo_levantamento === ref1);
-ok('cartão: a farmácia NÃO é avisada antes do pagamento', (await um(`select count(*)::int c from avisos where id=$1`, [r1])).c === 0);
+ok('cart�o: a farm�cia N�O � avisada antes do pagamento', (await um(`select count(*)::int c from avisos where id=$1`, [r1])).c === 0);
 // O que o finalize-order-from-intent faz: create_order como serviço (sem sessão) com o rascunho + pago.
 await como(null);
 const fin = (await um(`select create_order($1::jsonb || jsonb_build_object('payment_already_confirmed', true, 'user_id', $2::text)) j`, [c1.cart_input, A])).j;
@@ -70,7 +70,7 @@ const c2 = (await um(`select prescricao_preparar_pedido($1,'card') j`, [r2])).j;
 await como(null);
 await db.query(`select create_order($1::jsonb || jsonb_build_object('payment_already_confirmed', true, 'user_id', $2::text, 'errand_estimated_purchase_cents', 100))`, [c2.cart_input, A]);
 pp = await um(`select * from pedidos_prescricao where id=$1`, [r2]);
-ok('adulterado: receita NÃO fica confirmada', pp.estado === 'aceite' && pp.order_id === null);
+ok('adulterado: receita N�O fica confirmada', pp.estado === 'aceite' && pp.order_id === null);
 ok('adulterado: alerta gravado e aviso urgente ao admin', (pp.pagamento_alerta || '').includes('valor da compra diferente')
    && (await um(`select count(*)::int c from admin_push where tipo='prescricao_pagamento_alerta'`)).c === 1, pp.pagamento_alerta);
 // distância encolhida
@@ -137,6 +137,32 @@ await como(null);
 await db.query(`select create_order($1::jsonb || jsonb_build_object('payment_already_confirmed', true, 'user_id', $2::text))`, [c5.cart_input, A]);
 pp = await um(`select * from pedidos_prescricao where id=$1`, [r5]);
 ok('pago depois de cancelada: não liga e avisa o admin', pp.order_id === null && (pp.pagamento_alerta || '').includes('cancelado'), pp.pagamento_alerta);
+
+// ---------- correções da revisão (17/11)
+await como(A);
+const r9 = await novaReceita(A, 'farmacia-se-guarda', 1600);
+const c9 = (await um(`select prescricao_preparar_pedido($1,'card') j`, [r9])).j;
+await como(null);
+await db.query(`select create_order($1::jsonb || jsonb_build_object('payment_already_confirmed', true, 'user_id', $2::text, 'errand_has_purchase', false))`, [c9.cart_input, A]);
+pp = await um(`select * from pedidos_prescricao where id=$1`, [r9]);
+ok('revis�o 1: Favor sem compra (paga s� a taxa) N�O liga', pp.estado === 'aceite' && (pp.pagamento_alerta || '').includes('sem compra'), pp.pagamento_alerta);
+await como(A);
+ok('revisão 5: método nulo recusado', (await erro(`select prescricao_preparar_pedido($1,null)`, [r9]))?.startsWith('METODO_INVALIDO'));
+const r10 = await novaReceita(A, 'farmacia-se-guarda', 1700);
+const c10 = (await um(`select prescricao_preparar_pedido($1,'card') j`, [r10])).j;
+await db.query(`insert into payment_drafts (user_id, payload) values ($1,$2)`, [A, c10.cart_input]);
+ok('revisão 3: cartão em curso trava o MB Way por cima', (await erro(`select prescricao_preparar_pedido($1,'mbway')`, [r10]))?.startsWith('PAGAMENTO_EM_CURSO'));
+await db.query(`select prescricao_pagamento_desistir($1)`, [r10]);
+ok('revisão 3: depois de desistir do cartão, cancelar passa logo', (await erro(`update pedidos_prescricao set estado='cancelado' where id=$1`, [r10])) === null);
+const r11 = await novaReceita(A, 'farmacia-se-guarda', 1800);
+const c11 = (await um(`select prescricao_preparar_pedido($1,'card') j`, [r11])).j;
+await db.query(`insert into payment_drafts (user_id, payload) values ($1,$2)`, [A, c11.cart_input]);
+await db.query(`select prescricao_pagamento_desistir($1)`, [r11]);
+const m11 = (await um(`select prescricao_preparar_pedido($1,'mbway') j`, [r11])).j;
+ok('revisão 3: depois de desistir do cartão, MB Way passa', !!m11.order_id);
+await como(B);
+await db.query(`select prescricao_pagamento_desistir($1)`, [r11]);
+ok('desistir de receita alheia não mexe', (await um(`select count(*)::int c from pedidos_prescricao where id=$1 and pagamento_desistiu_em is not null`, [r11])).c === 1);
 
 // ---------- outros casos
 await como(A);

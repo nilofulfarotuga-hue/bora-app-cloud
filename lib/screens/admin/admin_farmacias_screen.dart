@@ -420,8 +420,8 @@ class _AbaFarmaciasState extends State<_AbaFarmacias> {
             titulo: 'Ligar os pedidos reais de receita?',
             pontos: const [
               'Vale para TODAS as farmácias abertas ao público (e sem "Em breve").',
-              'A receita confirmada passa a criar um Favor de verdade: estafeta chamado, cobrança no '
-                  'cartão ou MB Way (ou dinheiro na entrega), e o estafeta paga os remédios na farmácia.',
+              'A receita confirmada passa a criar um Favor de verdade: entregador chamado, cobrança no '
+                  'cartão ou MB Way (ou dinheiro na entrega), e o entregador paga os remédios na farmácia.',
               'Só ligue com o "vai" do Danilo.',
             ],
             palavra: 'LIGAR',
@@ -561,10 +561,10 @@ class AdminReceitasReaisCartao extends StatelessWidget {
                   // 17/11/2026: o servidor já lê esta definição (receita_real_se).
                   : l
                       ? 'LIGADO (farmácia aberta ao público e sem "Em breve": a receita confirmada vira um '
-                          'Favor com estafeta, pago com cartão, MB Way ou dinheiro; o estafeta paga os '
+                          'Favor com entregador, pago com cartão, MB Way ou dinheiro; o entregador paga os '
                           'remédios na farmácia). Farmácia escondida continua só demonstração.'
                       : 'DESLIGADO (o botão "Tenho receita" some nas farmácias abertas ao público; '
-                          'nas escondidas continua só demonstração, sem estafeta nem cobrança).',
+                          'nas escondidas continua só demonstração, sem entregador nem cobrança).',
         ),
       ),
     );
@@ -791,6 +791,19 @@ String rotuloMetodoReceita(dynamic m) => switch (m?.toString()) {
       _ => '—',
     };
 
+/// Estado do pedido (pedido) em PT-BR para o painel.
+String rotuloEstadoPedidoReceita(dynamic s) => switch (s?.toString()) {
+      'created' => 'criado',
+      'preparing' => 'preparando',
+      'callingDriver' => 'chamando entregador',
+      'driverAccepted' => 'entregador a caminho',
+      'pickedUp' || 'onTheWay' => 'em entrega',
+      'delivered' => 'entregue',
+      'cancelled' => 'cancelado',
+      'rejected' => 'recusado',
+      final x => x ?? '—',
+    };
+
 class AdminPedidosReceitaAba extends StatefulWidget {
   const AdminPedidosReceitaAba({super.key});
   @override
@@ -894,7 +907,7 @@ class _AdminPedidosReceitaAbaState extends State<AdminPedidosReceitaAba> {
                   ('metodo_pagamento', 'Método'),
                   ('order_id', 'Pedido'),
                   ('pedido_estado', 'Estado do pedido'),
-                  ('estafeta_nome', 'Estafeta'),
+                  ('estafeta_nome', 'Entregador'),
                   ('pagamento_alerta', 'Alerta de pagamento'),
                   ('demo_txt', 'Demonstração'),
                   ('foto_txt', 'Tem foto'),
@@ -944,8 +957,8 @@ class _AdminPedidosReceitaAbaState extends State<AdminPedidosReceitaAba> {
                                       'pagamento em curso (${rotuloMetodoReceita(r['pagamento_metodo'])})',
                                     if (pedido != null)
                                       'pedido #${pedido.length > 8 ? pedido.substring(0, 8) : pedido}'
-                                          '${r['pedido_estado'] != null ? ' (${r['pedido_estado']})' : ''}',
-                                    if (r['estafeta_nome'] != null) 'estafeta ${r['estafeta_nome']}',
+                                          '${r['pedido_estado'] != null ? ' (${rotuloEstadoPedidoReceita(r['pedido_estado'])})' : ''}',
+                                    if (r['estafeta_nome'] != null) 'entregador ${r['estafeta_nome']}',
                                     if (alerta != null && alerta.isNotEmpty) 'ALERTA: $alerta',
                                     'foto: ${r['tem_foto'] == true ? 'sim' : 'não'}',
                                   ].join(' · ')),

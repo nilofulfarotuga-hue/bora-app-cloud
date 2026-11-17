@@ -44,7 +44,9 @@ void main() {
     await t.tap(find.text('MB Way'));
     await t.pump();
     expect(find.byKey(const Key('prescricao_mbway_telefone')), findsOneWidget);
-    expect(find.textContaining('Carteira Bora'), findsOneWidget);
+    expect(find.textContaining('app MB WAY antes de aprovar'), findsOneWidget);
+    // A devolução automática da margem está desligada no servidor: o ecrã não a promete.
+    expect(find.textContaining('volta'), findsNothing);
     await t.tap(find.text('Dinheiro na entrega'));
     await t.pump();
     expect(find.byKey(const Key('prescricao_nota_margem')), findsNothing);

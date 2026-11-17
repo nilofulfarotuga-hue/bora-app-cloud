@@ -17,8 +17,9 @@
 --   2. Gatilho _prescricao_liga_pedido_pago (orders, quando fica pago): encontra a receita pelo
 --      código reservado (está na descrição do Favor) e confere o pedido contra o que o servidor
 --      montou: mesmo cliente, valor da compra = valor_medicamentos, farmácia, morada, distância
---      e meio de pagamento. Bate certo → receita 'confirmado' com order_id, PIN de entrega e aviso
---      à farmácia (igual ao dinheiro). Não bate certo → pagamento_alerta + aviso urgente ao admin.
+--      meio de pagamento, Favor com compra e valor pago >= remédios + taxa. Confere → receita
+--      'confirmado' com order_id, PIN de entrega e aviso à farmácia (igual ao dinheiro). Não confere
+--      → pagamento_alerta + aviso urgente ao admin (o pedido pago segue: quem decide é o admin).
 --   3. Gatilho _prescricao_pagamento_cancelado: pedido MB Way cancelado (não pagou) → a receita
 --      volta a poder ser paga (por qualquer meio).
 --   4. Guarda _prescricao_guarda_pagamento: não deixa confirmar em dinheiro nem cancelar a receita
@@ -35,7 +36,8 @@ alter table public.pedidos_prescricao
   add column if not exists pagamento_conferir jsonb,
   add column if not exists pagamento_order_id text,
   add column if not exists pagamento_iniciado_em timestamptz,
-  add column if not exists pagamento_alerta text;
+  add column if not exists pagamento_alerta text,
+  add column if not exists pagamento_desistiu_em timestamptz;
 
 do $$ begin
   alter table public.pedidos_prescricao add constraint pedidos_prescricao_pagamento_metodo_check
@@ -49,7 +51,24 @@ comment on column public.pedidos_prescricao.pagamento_conferir is
 comment on column public.pedidos_prescricao.pagamento_order_id is
   'MB Way: pedido criado à espera do pagamento (limpa-se se for cancelado sem pagar).';
 comment on column public.pedidos_prescricao.pagamento_alerta is
-  'Pedido pago que não bateu certo com a receita (o admin vê e resolve).';
+  'Pedido pago que não confere com a receita (o admin vê e resolve).';
+comment on column public.pedidos_prescricao.pagamento_desistiu_em is
+  'O cliente fechou a folha do cartão sem pagar (ou foi recusado): os rascunhos de cartão anteriores deixam de travar o dinheiro e o cancelar.';
+
+-- Rascunho de cartão desta receita começado há pouco e ainda por usar (depois da última desistência).
+create or replace function public._prescricao_cartao_em_curso(p_user uuid, p_ref text, p_desde timestamptz)
+ returns boolean
+ language sql
+ stable security definer
+ set search_path to 'public', 'pg_temp'
+as $function$
+  select p_ref is not null and exists (
+    select 1 from public.payment_drafts d
+     where d.user_id = p_user and d.used_at is null
+       and d.created_at > greatest(now() - interval '10 minutes', coalesce(p_desde, '-infinity'::timestamptz))
+       and position('Código de levantamento: ' || p_ref || '.' in coalesce(d.payload->>'errand_description', '')) > 0)
+$function$;
+revoke all on function public._prescricao_cartao_em_curso(uuid, text, timestamptz) from public, anon, authenticated;
 
 create index if not exists pedidos_prescricao_pagamento_order_idx
   on public.pedidos_prescricao (pagamento_order_id) where pagamento_order_id is not null;
@@ -92,7 +111,7 @@ begin
   if v.estado not in ('aceite', 'aceite_parcial') then
     raise exception 'NAO_CONFIRMAVEL: Este pedido já não pode ser confirmado.' using errcode = 'P0001';
   end if;
-  if p_metodo not in ('card', 'mbway') then
+  if p_metodo is null or p_metodo not in ('card', 'mbway') then
     raise exception 'METODO_INVALIDO: Escolha cartão ou MB Way (o dinheiro confirma-se direto).' using errcode = 'P0001';
   end if;
   if coalesce(v.escondida, false) then
@@ -117,6 +136,11 @@ begin
       raise exception 'PAGAMENTO_EM_CURSO: Tem um pagamento MB Way por concluir neste pedido. Aprove-o na app MB WAY ou espere que seja cancelado.'
         using errcode = 'P0001';
     end if;
+  end if;
+  -- Cartão começado há pouco (folha aberta, 3D Secure): o MB Way não cobra por cima.
+  if p_metodo = 'mbway' and public._prescricao_cartao_em_curso(v.user_id, v.pagamento_ref, v.pagamento_desistiu_em) then
+    raise exception 'PAGAMENTO_EM_CURSO: Começou a pagar com cartão há pouco. Termine esse pagamento ou espere alguns minutos e tente outra vez.'
+      using errcode = 'P0001';
   end if;
 
   select id, name, address, lat, lng, coming_soon into r from public.restaurants where id = v.restaurant_id;
@@ -166,6 +190,7 @@ begin
     pagamento_ref = v_lev,
     pagamento_conferir = jsonb_build_object(
       'metodo', p_metodo, 'distance_km', v_dist, 'compra_cents', v.valor_medicamentos_cents,
+      'taxa_cents', v.taxa_servico_cents,
       'farmacia_lat', r.lat, 'farmacia_lng', r.lng, 'dropoff_lat', v_lat, 'dropoff_lng', v_lng),
     pagamento_iniciado_em = now(),
     so_disponiveis = coalesce(p_so_disponiveis, true)
@@ -197,8 +222,9 @@ begin
   v_order := v_res->>'order_id';
   update public.pedidos_prescricao set pagamento_order_id = v_order where id = p_id;
   select price, payment_buffer_total, payment_status into o from public.orders where id = v_order;
-  -- cobrar_cents = o que o MB Way pede (com a margem do Favor até ao talão; o que sobrar volta
-  -- na entrega pelo fn_excedente_preautorizacao, como em qualquer Favor).
+  -- cobrar_cents = o que o MB Way pede (payment_buffer_total, com a margem errand_buffer_multiplier
+  -- do Favor). ATENÇÃO 17/11: trg_excedente_preautorizacao está DESLIGADO (decisão de 05/10), por
+  -- isso a margem não volta sozinha. Decisão do Danilo pendente (e2e_log precisa-claude-ai).
   return jsonb_build_object('metodo', 'mbway', 'order_id', v_order,
                             'payment_status', coalesce(o.payment_status, 'pending'),
                             'total_cents', round(coalesce(o.price, 0) * 100)::integer,
@@ -248,6 +274,13 @@ begin
       when v.order_id is not null then 'a receita já estava ligada ao pedido ' || v.order_id
       when new.payment_method is distinct from c->>'metodo' then 'meio de pagamento diferente (' || coalesce(new.payment_method, '-') || ')'
       when new.errand_estimated_purchase_cents is distinct from v.valor_medicamentos_cents then 'valor da compra diferente'
+      -- Sem compra (ou com paragem em casa / outra rapidez) o preço do Favor muda: não liga.
+      when new.errand_has_purchase is distinct from true then 'Favor sem compra'
+      when coalesce(new.errand_home_stop, false) then 'Favor com paragem em casa'
+      when coalesce(new.errand_speed, 'normal') <> 'normal' then 'rapidez diferente'
+      -- O que o cliente pagou nunca pode ficar abaixo de remédios + taxa do Favor desta receita.
+      when round(coalesce(new.price, 0) * 100) + 1
+           < v.valor_medicamentos_cents + coalesce((c->>'taxa_cents')::integer, v.taxa_servico_cents, 0) then 'valor pago abaixo do previsto'
       when abs(coalesce(new.errand_location_lat, 0) - coalesce((c->>'farmacia_lat')::float8, 999)) > 0.00001
         or abs(coalesce(new.errand_location_lng, 0) - coalesce((c->>'farmacia_lng')::float8, 999)) > 0.00001 then 'farmácia diferente'
       when abs(coalesce(new.dropoff_lat, 0) - coalesce((c->>'dropoff_lat')::float8, 999)) > 0.00001
@@ -262,7 +295,7 @@ begin
        where id = v.id;
       perform public.notify_admin_urgent_push(
         'prescricao_pagamento_alerta',
-        'RECEITA: pedido pago que não bate certo com a receita (' || v_motivo || '). Ver e decidir reembolso.',
+        'RECEITA: pedido pago que não confere com a receita (' || v_motivo || '). Ver e decidir reembolso.',
         'order', new.id::text,
         jsonb_build_object('order_id', new.id, 'prescricao_id', v.id, 'motivo', v_motivo),
         '/admin/orders/' || new.id);
@@ -344,16 +377,28 @@ begin
     raise exception 'PAGAMENTO_EM_CURSO: Tem um pagamento MB Way por concluir neste pedido. Aprove-o na app MB WAY ou espere que seja cancelado.'
       using errcode = 'P0001';
   end if;
-  if old.pagamento_ref is not null and exists (
-       select 1 from public.payment_drafts d
-        where d.user_id = old.user_id and d.used_at is null
-          and d.created_at > now() - interval '10 minutes'
-          and position('Código de levantamento: ' || old.pagamento_ref || '.' in coalesce(d.payload->>'errand_description', '')) > 0) then
-    raise exception 'PAGAMENTO_EM_CURSO: Começou a pagar com cartão há pouco. Se o pagamento não passou, espere 10 minutos ou pague com cartão.'
+  -- Cartão começado há pouco: a app marca a desistência quando a folha fecha sem pagar
+  -- (prescricao_pagamento_desistir), e aí o dinheiro e o cancelar passam logo.
+  if public._prescricao_cartao_em_curso(old.user_id, old.pagamento_ref, old.pagamento_desistiu_em) then
+    raise exception 'PAGAMENTO_EM_CURSO: Começou a pagar com cartão há pouco. Termine esse pagamento ou espere alguns minutos e tente outra vez.'
       using errcode = 'P0001';
   end if;
   return new;
 end $function$;
+
+-- O cliente fechou a folha do cartão sem pagar (ou o cartão foi recusado).
+create or replace function public.prescricao_pagamento_desistir(p_id uuid)
+ returns void
+ language plpgsql
+ security definer
+ set search_path to 'public', 'pg_temp'
+as $function$
+begin
+  update public.pedidos_prescricao set pagamento_desistiu_em = now()
+   where id = p_id and user_id = auth.uid() and estado in ('aceite', 'aceite_parcial');
+end $function$;
+revoke all on function public.prescricao_pagamento_desistir(uuid) from public, anon;
+grant execute on function public.prescricao_pagamento_desistir(uuid) to authenticated;
 
 drop trigger if exists trg_prescricao_guarda_pagamento on public.pedidos_prescricao;
 create trigger trg_prescricao_guarda_pagamento

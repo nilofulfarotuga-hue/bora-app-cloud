@@ -82,7 +82,10 @@ class PrescricaoEntrega {
 /// Erro com mensagem já em português para mostrar ao utilizador.
 class PrescricaoErro implements Exception {
   final String mensagem;
-  PrescricaoErro(this.mensagem);
+
+  /// Código do servidor ("RECEITA_REAL_POR_LIGAR", "PAGAMENTO_EM_CURSO"…), quando veio.
+  final String? codigo;
+  PrescricaoErro(this.mensagem, {this.codigo});
   @override
   String toString() => mensagem;
 }
@@ -109,12 +112,21 @@ class PrescricaoService {
     return m;
   }
 
+  /// "CODIGO: texto" → "CODIGO" (null se a mensagem não traz código).
+  static String? codigoDe(Object e) {
+    if (e is PrescricaoErro) return e.codigo;
+    final m = e is PostgrestException ? e.message : e.toString();
+    final i = m.indexOf(':');
+    if (i > 0 && i < 40 && m.substring(0, i).toUpperCase() == m.substring(0, i)) return m.substring(0, i).trim();
+    return null;
+  }
+
   Future<T> _rpc<T>(String nome, Map<String, dynamic> params) async {
     try {
       final r = await _sb.rpc(nome, params: params);
       return r as T;
     } catch (e) {
-      throw PrescricaoErro(mensagemDe(e));
+      throw PrescricaoErro(mensagemDe(e), codigo: codigoDe(e));
     }
   }
 
@@ -238,10 +250,18 @@ class PrescricaoService {
       if (e.code == 'PGRST202' || e.message.contains('Could not find the function')) {
         throw PrescricaoErro('Por agora, nesta farmácia, pague em dinheiro ao estafeta. Escolha "Dinheiro na entrega".');
       }
-      throw PrescricaoErro(mensagemDe(e));
+      throw PrescricaoErro(mensagemDe(e), codigo: codigoDe(e));
     } catch (e) {
-      throw PrescricaoErro(mensagemDe(e));
+      throw PrescricaoErro(mensagemDe(e), codigo: codigoDe(e));
     }
+  }
+
+  /// O cliente fechou a folha do cartão sem pagar: o dinheiro e o cancelar deixam de esperar
+  /// pelo cartão. Sem a função no servidor não faz nada.
+  Future<void> desistirDoCartao(String id) async {
+    try {
+      await _sb.rpc('prescricao_pagamento_desistir', params: {'p_id': id});
+    } catch (_) {}
   }
 
   Future<void> cancelar(String id) => _rpc<dynamic>('prescricao_cancelar', {'p_id': id});

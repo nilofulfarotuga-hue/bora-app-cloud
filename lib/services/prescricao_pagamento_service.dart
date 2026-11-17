@@ -82,11 +82,14 @@ class PrescricaoPagamentoService {
         publishableKey: StripeContas.chaveDaResposta(rascunho),
       );
     } on StripeException catch (e) {
-      // Sem pedido para limpar: o rascunho expira sozinho (payment-first).
+      // Sem pedido para limpar: o rascunho expira sozinho (payment-first). Marca-se a desistência
+      // para o dinheiro e o cancelar não ficarem à espera deste cartão.
+      await _prescricoes.desistirDoCartao(prescricaoId);
       if (e.error.code == FailureCode.Canceled) return ResultadoCartaoReceita.cancelado;
       throw PrescricaoErro(e.error.localizedMessage ?? 'Pagamento recusado. Tente outra vez ou escolha MB Way.');
     } catch (e) {
       debugPrint('[receita-pagar] folha do cartão: $e');
+      await _prescricoes.desistirDoCartao(prescricaoId);
       throw PrescricaoErro('Pagamento com cartão indisponível. Tente MB Way ou dinheiro.');
     }
     return ResultadoCartaoReceita.pago;
@@ -124,20 +127,23 @@ class PrescricaoPagamentoService {
   }
 
   /// MB Way que não entrou: cancela o pedido sem custo (o mesmo caminho do checkout).
-  /// Devolve true quando o servidor recusou cancelar porque o pagamento JÁ entrou.
-  Future<bool> cancelarMbwayNaoPago(String orderId) async {
+  /// [CancelarMbway.jaPago] = o servidor recusou cancelar porque o pagamento JÁ entrou;
+  /// [CancelarMbway.falhou] = sem rede/erro: o pedido pode continuar à espera do MB Way.
+  Future<CancelarMbway> cancelarMbwayNaoPago(String orderId) async {
     try {
       await _sb.functions.invoke('client-cancel-order', body: {'order_id': orderId, 'reason': 'payment_failed'});
-      return false;
+      return CancelarMbway.cancelado;
     } on FunctionException catch (e) {
       final d = e.details;
       final erro = d is Map ? d['error']?.toString() : d?.toString();
-      if (cancelamentoRecusadoPorPagamento(e.status, erro)) return true;
+      if (cancelamentoRecusadoPorPagamento(e.status, erro)) return CancelarMbway.jaPago;
       debugPrint('[receita-pagar] cancelar MB Way: $e');
-      return false;
+      return CancelarMbway.falhou;
     } catch (e) {
       debugPrint('[receita-pagar] cancelar MB Way: $e');
-      return false;
+      return CancelarMbway.falhou;
     }
   }
 }
+
+enum CancelarMbway { cancelado, jaPago, falhou }

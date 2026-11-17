@@ -124,6 +124,12 @@ create policy pedidos_impressao_ler on public.pedidos_impressao for select to au
          or exists (select 1 from public.restaurants r where r.id = restaurant_id
                      and (r.user_id = auth.uid() or r.user_ = auth.uid())));
 
+-- tempo real para o painel do parceiro e o ecrã do pedido do cliente (a RLS acima filtra)
+do $$ begin
+  alter publication supabase_realtime add table public.pedidos_impressao;
+exception when duplicate_object then null;
+end $$;
+
 -- 5. Bucket privado ------------------------------------------------------------
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('impressoes', 'impressoes', false, 26214400, array['application/pdf', 'image/jpeg', 'image/png'])
@@ -202,8 +208,9 @@ returns jsonb language plpgsql stable security definer set search_path to 'publi
 declare r record; v_km numeric := 0; v_pc record;
 begin
   select lat, lng into r from public.restaurants where id = p_restaurant_id;
-  if p_modo = 'entrega' then
-    if p_lat is null or p_lng is null then raise exception 'SEM_MORADA: Indique a morada de entrega.' using errcode = 'P0001'; end if;
+  -- PADRAO_BORA 1.2: a morada nunca trava o pedido. Sem coordenadas (morada escrita à mão),
+  -- conta como dentro do escalão base de distância.
+  if p_modo = 'entrega' and p_lat is not null and p_lng is not null and r.lat is not null then
     v_km := round(public._haversine_km(r.lat::double precision, r.lng::double precision, p_lat, p_lng)::numeric, 2);
   end if;
   select * into v_pc from public.pricing_calculate('restaurant', p_artigo_cents / 100.0, v_km, true, false, false, 0);
@@ -291,6 +298,9 @@ begin
   end if;
   if v_modo = 'levantar' and not v_loja.permite_levantar then raise exception 'MODO: Esta loja não tem levantamento.' using errcode = 'P0001'; end if;
   if v_modo = 'entrega' and not v_loja.permite_entrega then raise exception 'MODO: Esta loja não faz entregas de impressões.' using errcode = 'P0001'; end if;
+  if v_modo = 'entrega' and nullif(trim(p_dados->>'morada'), '') is null then
+    raise exception 'SEM_MORADA: Indique a morada de entrega.' using errcode = 'P0001';
+  end if;
   if v_metodo is not null and v_metodo not in ('card', 'mbway', 'cash') then
     raise exception 'METODO_INVALIDO: Escolha cartão, MB Way ou dinheiro.' using errcode = 'P0001';
   end if;

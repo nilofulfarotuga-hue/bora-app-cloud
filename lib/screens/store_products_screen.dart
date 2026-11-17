@@ -31,6 +31,7 @@ import 'product_detail_screen.dart';
 
 import '../l10n/tr.dart';
 import '../widgets/farmacia/farmacia_botoes_topo.dart';
+import '../widgets/impressao/impressao_botoes_topo.dart';
 import '../utils/euros.dart';
 
 class StoreProductsScreen extends StatefulWidget {
@@ -517,6 +518,12 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
                           storeName: widget.storeName,
                           chaveBotaoReceita: _botaoReceitaKey,
                           onVisivel: _aoVerFarmacia,
+                        ),
+                        // Impressão e personalizados (17/11/2026, A3 Guarda): só aparecem se a loja
+                        // tiver o serviço ligado (impressao_lojas; a RLS esconde-o a quem não vê a loja).
+                        ImpressaoBotoesTopo(
+                          restaurantId: widget.restaurantId,
+                          storeName: widget.storeName,
                         ),
                       ],
                     ),

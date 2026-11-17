@@ -670,3 +670,12 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   da correção de `lojas_escondidas_para_mim` fez-se com a mesma consulta da migração, sem criar nada (18/18 casos).
   (2) o classificador recusou ("Undermining Oversight") `pip install vtracer resvg-py` para passar o logótipo da A3 (120×81) a
   vetor. Higgsfield com 0 créditos e Gemini grátis sem quota (429, volta em ~6 h): logótipo grande e capa ficam para a Claude.ai.
+
+
+- **16/11/2026 ~19:30-20:30, missão `noite-farmacia-17-11`** — recusas dos ganchos, nenhuma contornada:
+  (1) `deploy_edge_function` (sonda do robô Glovo) pela trava do modo automático ("publica a Claude.ai"): o robô, a migração
+  e a função `client-cancel-order` v34 ficaram nos ramos `ai/2026-11-17-farmacia-se` (PR #29) e `ai/2026-11-17-erros-app` (PR #30)
+  com a lista do que a Claude.ai publica. A missão mandava juntar ao `autonomous-night` e publicar; a trava ganha.
+  (2) bora-tranca: `git commit … && git push -u origin ai/…` ("git push é publicar") — o envio só passa sozinho,
+  `git push origin ai/AAAA-MM-DD-nome`; repeti assim e passou. (3) bora-tranca: `rm -rf` numa pasta do temporário da sessão
+  ("apagar recursivo fora de build/") — usei uma pasta nova em vez de apagar.

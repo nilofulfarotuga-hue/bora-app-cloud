@@ -10,6 +10,7 @@ import 'admin_filas_estafetas_screen.dart';
 import 'admin_favor_diferencas_screen.dart';
 import 'admin_farmacias_screen.dart';
 import 'admin_impressao_screen.dart';
+import 'admin_robo_glovo_screen.dart';
 import 'admin_porteiro_screen.dart';
 import 'admin_caixa_guardados_screen.dart';
 import 'admin_pedidos_agendados_screen.dart';
@@ -1233,6 +1234,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.green,
       builder: () => const AdminFarmaciasScreen(abaInicial: 2),
       keywords: const ['extrato', 'farmacia', 'farmácia', 'acerto', 'semana', 'csv', 'comissao extra'],
+    ),
+    // 17/11/2026 (noite-farmacia-17-11, 1.1): robô que copia preço e esgotado da Glovo.
+    AdminMenuItem(
+      id: 'farmacias_robo_glovo',
+      title: 'Robô Glovo das farmácias',
+      subtitle: 'Ligar ou desligar a cópia de preço e esgotado da Glovo (07:30 e 14:00), ver a última leitura e atualizar agora',
+      icon: Icons.sync,
+      color: Colors.green,
+      builder: () => const AdminRoboGlovoScreen(),
+      keywords: const ['robo', 'robô', 'glovo', 'farmacia', 'farmácia', 'preco', 'preço', 'esgotado', 'stock', 'atualizar', 'sé', 'teixeira'],
     ),
     AdminMenuItem(
       id: 'pedidos_receita',

@@ -571,6 +571,14 @@ class AdminReceitasReaisCartao extends StatelessWidget {
 
 /// Cartão de uma farmácia (testável sem rede: tudo o que fala com o servidor vem por callbacks,
 /// e o formulário "Dados da empresa" vem já construído em [dadosEmpresa]).
+/// Estado público da farmácia para o selo do cartão (17/11, noite-farmacia 1.5):
+/// escondida (só a lista de permissão) · "Em breve" (todos veem, não aceita pedidos) · aberta.
+String estadoPublicoFarmacia(Map<String, dynamic> f) {
+  if (f['so_lista_permissao'] == true) return 'Escondida (só a lista)';
+  if (f['coming_soon'] == true) return 'Em breve (todos veem, sem pedidos)';
+  return 'Aberta ao público';
+}
+
 class AdminFarmaciaCartao extends StatelessWidget {
   const AdminFarmaciaCartao({
     super.key,
@@ -623,8 +631,8 @@ class AdminFarmaciaCartao extends StatelessWidget {
           Row(children: [
             Expanded(child: Text('${f['name']}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800))),
             Chip(
-              label: Text(escondida ? 'Escondida (só a lista)' : 'Aberta ao público'),
-              backgroundColor: escondida ? const Color(0xFFFFF7ED) : AppColors.primaryWash,
+              label: Text(estadoPublicoFarmacia(f)),
+              backgroundColor: escondida || f['coming_soon'] == true ? const Color(0xFFFFF7ED) : AppColors.primaryWash,
             ),
           ]),
           Text('${f['id']} · ${f['produtos'] ?? 0} produtos '

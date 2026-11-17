@@ -16,6 +16,22 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 17/11/2026 (noite-farmacia-17-11, 3.1 — janela do MB WAY pergunta antes de cancelar).
+  // À mão; os mesmos pares estão em tool/l10n/traducoes/pt-en-41-mbway-espera.json.
+  'Cancelar o pagamento?': 'Cancel the payment?',
+  'Se já aprovaste na app MB WAY, espera mais um pouco: o pedido confirma sozinho. Se cancelares, o pedido é cancelado e o pagamento no MB WAY deixa de valer.':
+      'If you already approved it in the MB WAY app, wait a little longer: the order confirms by itself. If you cancel, the order is cancelled and the MB WAY payment stops being valid.',
+  'Continuar à espera': 'Keep waiting',
+  'Cancelar pagamento': 'Cancel payment',
+  // 16/11/2026 (dinheiro-dividido-16-11 — limite do dinheiro dito com clareza).
+  // À mão; os mesmos pares estão em tool/l10n/traducoes/pt-en-40-dinheiro-dividido.json.
+  'Pagamento em dinheiro só até {0}. Este pedido fica em {1} €. Paga com MB Way ou cartão.':
+      'Cash payment only up to {0}. This order comes to {1} €. Pay with MB Way or card.',
+  'Pagamento em dinheiro só até {0}. Paga com MB Way ou cartão.':
+      'Cash payment only up to {0}. Pay with MB Way or card.',
+  'Compra acima de {0}': 'Purchase over {0}',
+  'Pagamento em dinheiro só até {0}. Como a compra passa esse valor, eu passo primeiro em tua casa para levantar o dinheiro. Fica mais seguro para os dois 🙂\n\nVais pagar mais €2 pela paragem.':
+      'Cash payment only up to {0}. As the purchase goes over that amount, I will stop by your home first to pick up the cash. It is safer for both of us 🙂\n\nYou will pay €2 more for the stop.',
   // 15/11/2026 (fechar-tudo-15-11 — o parceiro rejeita uma reserva paga e a Bora
   // devolve o pré-pagamento): só se diz ao parceiro o que aconteceu de facto.
   // À mão; os mesmos pares estão em tool/l10n/traducoes/pt-en-39-reserva-recusa-reembolso.json.

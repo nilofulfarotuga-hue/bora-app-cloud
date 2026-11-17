@@ -665,3 +665,11 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   login (`AccessTokenRequiredError`), por isso não há publicação de Edge pela CLI. (2) `deploy_edge_function` do `client-assistant`
   pelo MCP ("publica a Claude.ai"). O código está no ramo `ai/2026-11-11-amigo-casa`; a Claude.ai publica a função (9 ficheiros) e
   corre as provas — instruções na página `entrega-amigo-casa-2026-11-11` do livro.
+
+- **16/11/2026 ~19:30-20:30, missão `noite-farmacia-17-11`** — recusas dos ganchos, nenhuma contornada:
+  (1) `deploy_edge_function` (sonda do robô Glovo) pela trava do modo automático ("publica a Claude.ai"): o robô, a migração
+  e a função `client-cancel-order` v34 ficaram nos ramos `ai/2026-11-17-farmacia-se` (PR #29) e `ai/2026-11-17-erros-app` (PR #30)
+  com a lista do que a Claude.ai publica. A missão mandava juntar ao `autonomous-night` e publicar; a trava ganha.
+  (2) bora-tranca: `git commit … && git push -u origin ai/…` ("git push é publicar") — o envio só passa sozinho,
+  `git push origin ai/AAAA-MM-DD-nome`; repeti assim e passou. (3) bora-tranca: `rm -rf` numa pasta do temporário da sessão
+  ("apagar recursivo fora de build/") — usei uma pasta nova em vez de apagar.

@@ -13,11 +13,70 @@ class PrescricaoConsentimento {
   final String versao;
   final String texto;
   final int taxaServicoCents;
+
+  /// 17/11/2026: a farmácia está aberta agora? (sem a migração receita_cartao_mbway o
+  /// servidor não manda e fica true — o pedido continua a ser recusado no fim, como antes).
+  final bool aberta;
+
+  /// "09:00" quando está fechada (hora de Lisboa) e [abreDia] ("hoje", "amanhã"…).
+  final String? abreAs;
+  final String? abreDia;
   const PrescricaoConsentimento({
     required this.versao,
     required this.texto,
     required this.taxaServicoCents,
+    this.aberta = true,
+    this.abreAs,
+    this.abreDia,
   });
+
+  /// "A farmácia está fechada. Abre às 09:00." (ou null se aberta).
+  String? get avisoFechada {
+    if (aberta) return null;
+    final quando = abreAs == null
+        ? ''
+        : (abreDia == null || abreDia == 'hoje')
+            ? ' Abre às $abreAs.'
+            : ' Abre $abreDia às $abreAs.';
+    return 'A farmácia está fechada neste momento.$quando Pode enviar quando abrir.';
+  }
+}
+
+/// Entrega de um pedido à farmácia ligado a um pedido real (estado e estafeta).
+class PrescricaoEntrega {
+  final String prescricaoId;
+  final String orderId;
+  final String? estadoPedido;
+  final String? estafetaNome;
+  const PrescricaoEntrega({
+    required this.prescricaoId,
+    required this.orderId,
+    this.estadoPedido,
+    this.estafetaNome,
+  });
+
+  /// Frase curta para a farmácia (PT-PT).
+  String get rotulo {
+    final quem = (estafetaNome ?? '').isEmpty ? 'O estafeta' : estafetaNome!;
+    switch (estadoPedido) {
+      case 'created':
+      case 'preparing':
+      case 'callingDriver':
+        return 'À procura de estafeta';
+      case 'driverAccepted':
+        return '$quem vem a caminho da farmácia';
+      case 'pickedUp':
+      case 'onTheWay':
+        return '$quem já levantou e está a entregar';
+      case 'delivered':
+        return 'Entregue ao cliente';
+      case 'cancelled':
+      case 'rejected':
+        return 'Pedido cancelado';
+      default:
+        return 'Pedido criado';
+    }
+  }
 }
 
 /// Erro com mensagem já em português para mostrar ao utilizador.
@@ -78,6 +137,9 @@ class PrescricaoService {
       versao: (m['versao'] ?? '').toString(),
       texto: (m['texto'] ?? '').toString(),
       taxaServicoCents: (m['taxa_servico_cents'] as num?)?.toInt() ?? 0,
+      aberta: m['aberta'] != false,
+      abreAs: m['abre_as']?.toString(),
+      abreDia: m['abre_dia']?.toString(),
     );
   }
 
@@ -161,6 +223,27 @@ class PrescricaoService {
     return r == null ? <String, dynamic>{} : Map<String, dynamic>.from(r as Map);
   }
 
+  /// Cartão / MB Way em loja real (17/11/2026): o servidor monta o Favor e devolve
+  /// `cart_input` (cartão) ou `order_id` (MB Way). Ver prescricao_pagamento_service.dart.
+  Future<Map<String, dynamic>> prepararPagamento(String id, {required String metodo, bool soDisponiveis = true}) async {
+    try {
+      final r = await _sb.rpc('prescricao_preparar_pedido', params: {
+        'p_id': id,
+        'p_metodo': metodo,
+        'p_so_disponiveis': soDisponiveis,
+      });
+      return r == null ? <String, dynamic>{} : Map<String, dynamic>.from(r as Map);
+    } on PostgrestException catch (e) {
+      // Servidor ainda sem a função (migração por aplicar): frase clara, sem erro técnico.
+      if (e.code == 'PGRST202' || e.message.contains('Could not find the function')) {
+        throw PrescricaoErro('Por agora, nesta farmácia, pague em dinheiro ao estafeta. Escolha "Dinheiro na entrega".');
+      }
+      throw PrescricaoErro(mensagemDe(e));
+    } catch (e) {
+      throw PrescricaoErro(mensagemDe(e));
+    }
+  }
+
   Future<void> cancelar(String id) => _rpc<dynamic>('prescricao_cancelar', {'p_id': id});
 
   Future<PedidoPrescricao?> obter(String id) async {
@@ -175,6 +258,33 @@ class PrescricaoService {
         .stream(primaryKey: ['id'])
         .eq('id', id)
         .map((linhas) => linhas.isEmpty ? null : PedidoPrescricao.fromMap(linhas.first));
+  }
+
+  /// Moradas guardadas na conta com coordenadas (as mesmas do checkout), a principal primeiro.
+  Future<List<({String morada, double lat, double lng})>> moradasGuardadas({int limite = 5}) async {
+    final uid = _uid;
+    if (uid == null) return const [];
+    try {
+      final r = await _sb
+          .from('client_addresses')
+          .select('address, lat, lng, is_default')
+          .eq('user_id', uid)
+          .not('lat', 'is', null)
+          .not('lng', 'is', null)
+          .order('is_default', ascending: false)
+          .limit(limite);
+      return (r as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .where((m) => (m['address'] ?? '').toString().trim().isNotEmpty)
+          .map((m) => (
+                morada: m['address'].toString().trim(),
+                lat: (m['lat'] as num).toDouble(),
+                lng: (m['lng'] as num).toDouble(),
+              ))
+          .toList();
+    } catch (_) {
+      return const [];
+    }
   }
 
   /// Pedidos do cliente atual (mais recentes primeiro), opcionalmente de uma loja.
@@ -226,6 +336,26 @@ class PrescricaoService {
         .eq('restaurant_id', restaurantId)
         .order('created_at', ascending: false)
         .map((linhas) => linhas.map(PedidoPrescricao.fromMap).toList());
+  }
+
+  /// Estado da entrega e 1.º nome do estafeta dos pedidos ligados (só a farmácia dona e o
+  /// admin recebem linhas). Sem a função no servidor devolve lista vazia.
+  Future<List<PrescricaoEntrega>> entregas(List<String> prescricaoIds) async {
+    if (prescricaoIds.isEmpty) return const [];
+    try {
+      final r = await _sb.rpc('farmacia_prescricoes_entrega', params: {'p_ids': prescricaoIds});
+      return (r as List? ?? const [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .map((m) => PrescricaoEntrega(
+                prescricaoId: m['prescricao_id'].toString(),
+                orderId: (m['order_id'] ?? '').toString(),
+                estadoPedido: m['estado_pedido'] as String?,
+                estafetaNome: m['estafeta_nome'] as String?,
+              ))
+          .toList();
+    } catch (_) {
+      return const [];
+    }
   }
 
   Future<void> responder(

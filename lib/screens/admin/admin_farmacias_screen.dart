@@ -19,6 +19,7 @@ import '../../widgets/admin/admin_csv_button.dart';
 import '_admin_password_reset_dialog.dart';
 import 'admin_farmacia_ficha.dart';
 import 'admin_farmacias_extrato_aba.dart';
+import 'admin_order_detail_screen.dart';
 import 'admin_partner_detail_screen.dart';
 
 class AdminFarmaciasScreen extends StatelessWidget {
@@ -418,11 +419,10 @@ class _AbaFarmaciasState extends State<_AbaFarmacias> {
         ? await _confirmarForte(
             titulo: 'Ligar os pedidos reais de receita?',
             pontos: const [
-              'Vale para TODAS as farmácias abertas ao público.',
-              'ATENÇÃO (15/11): o servidor ainda NÃO lê este interruptor. Ligado ou desligado, a receita '
-                  'confirmada numa farmácia aberta não cria pedido nem cobrança: o cliente é mandado levantar '
-                  'na farmácia. Ligar hoje só fica registado.',
-              'Só ligue depois de testado de ponta a ponta e com o "vai" do Danilo.',
+              'Vale para TODAS as farmácias abertas ao público (e sem "Em breve").',
+              'A receita confirmada passa a criar um Favor de verdade: estafeta chamado, cobrança no '
+                  'cartão ou MB Way (ou dinheiro na entrega), e o estafeta paga os remédios na farmácia.',
+              'Só ligue com o "vai" do Danilo.',
             ],
             palavra: 'LIGAR',
             botao: 'Ligar pedidos reais',
@@ -558,11 +558,13 @@ class AdminReceitasReaisCartao extends StatelessWidget {
               ? 'Não consegui ler o estado. Puxe para baixo para tentar de novo.'
               : l == null
                   ? 'A ler o estado…'
-                  // app-15-11: o servidor (prescricao_confirmar) ainda não lê
-                  // esta definição — o texto diz a verdade em vez de prometer.
-                  : '${l ? 'LIGADO' : 'DESLIGADO'} — ainda sem efeito: a entrega de receitas não está ligada '
-                      'no servidor. Em farmácia aberta ao público o cliente é mandado levantar na farmácia; '
-                      'em farmácia escondida é só demonstração.',
+                  // 17/11/2026: o servidor já lê esta definição (receita_real_se).
+                  : l
+                      ? 'LIGADO (farmácia aberta ao público e sem "Em breve": a receita confirmada vira um '
+                          'Favor com estafeta, pago com cartão, MB Way ou dinheiro; o estafeta paga os '
+                          'remédios na farmácia). Farmácia escondida continua só demonstração.'
+                      : 'DESLIGADO (o botão "Tenho receita" some nas farmácias abertas ao público; '
+                          'nas escondidas continua só demonstração, sem estafeta nem cobrança).',
         ),
       ),
     );
@@ -718,7 +720,11 @@ class AdminFarmaciaCartao extends StatelessWidget {
             onSelectionChanged: (s) => aoMudarModo(s.first),
           ),
           const SizedBox(height: 4),
-          const Text('"Só a lista" = só as contas da lista de permissão, o admin e o dono veem os botões e enviam receitas.',
+          const Text(
+              'Desligado (ninguém vê "Tenho receita" nesta farmácia) · '
+              'Só a lista (só as contas da lista de permissão, o admin e o dono veem os botões e enviam receitas) · '
+              'Público (todos os clientes veem; numa farmácia aberta precisa também do interruptor '
+              '"Pedidos reais de receita" ligado).',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
           const Divider(height: 24),
           Row(children: [
@@ -776,6 +782,14 @@ const kEstadosReceita = <String, String>{
   'confirmado': 'Confirmado',
   'entregue': 'Entregue',
 };
+
+/// Meio de pagamento em PT-BR para o painel.
+String rotuloMetodoReceita(dynamic m) => switch (m?.toString()) {
+      'card' => 'cartão',
+      'mbway' => 'MB Way',
+      'cash' => 'dinheiro',
+      _ => '—',
+    };
 
 class AdminPedidosReceitaAba extends StatefulWidget {
   const AdminPedidosReceitaAba({super.key});
@@ -878,6 +892,10 @@ class _AdminPedidosReceitaAbaState extends State<AdminPedidosReceitaAba> {
                   ('taxa_txt', 'Taxa'),
                   ('total_txt', 'Total'),
                   ('metodo_pagamento', 'Método'),
+                  ('order_id', 'Pedido'),
+                  ('pedido_estado', 'Estado do pedido'),
+                  ('estafeta_nome', 'Estafeta'),
+                  ('pagamento_alerta', 'Alerta de pagamento'),
                   ('demo_txt', 'Demonstração'),
                   ('foto_txt', 'Tem foto'),
                 ],
@@ -908,6 +926,8 @@ class _AdminPedidosReceitaAbaState extends State<AdminPedidosReceitaAba> {
                             itemCount: linhas.length,
                             itemBuilder: (context, i) {
                               final r = linhas[i];
+                              final pedido = (r['order_id'] ?? r['pagamento_order_id'])?.toString();
+                              final alerta = r['pagamento_alerta']?.toString();
                               return Card(
                                 child: ListTile(
                                   title: Text('${r['loja']} · ${kEstadosReceita[r['estado']] ?? r['estado']}'
@@ -918,8 +938,23 @@ class _AdminPedidosReceitaAbaState extends State<AdminPedidosReceitaAba> {
                                     '${r['cliente_email'] ?? ''}',
                                     if (r['respondido_em'] != null) 'respondido ${_dt(r['respondido_em'])} por ${r['respondido_por_email'] ?? '—'}',
                                     if (r['total_cents'] != null) 'total ${eurosDeCents((r['total_cents'] as num).toInt())}',
+                                    // 17/11/2026: pedido ligado, estafeta e pagamento.
+                                    if (r['metodo_pagamento'] != null) 'pago com ${rotuloMetodoReceita(r['metodo_pagamento'])}',
+                                    if (r['order_id'] == null && r['pagamento_metodo'] != null)
+                                      'pagamento em curso (${rotuloMetodoReceita(r['pagamento_metodo'])})',
+                                    if (pedido != null)
+                                      'pedido #${pedido.length > 8 ? pedido.substring(0, 8) : pedido}'
+                                          '${r['pedido_estado'] != null ? ' (${r['pedido_estado']})' : ''}',
+                                    if (r['estafeta_nome'] != null) 'estafeta ${r['estafeta_nome']}',
+                                    if (alerta != null && alerta.isNotEmpty) 'ALERTA: $alerta',
                                     'foto: ${r['tem_foto'] == true ? 'sim' : 'não'}',
                                   ].join(' · ')),
+                                  // Toque abre o detalhe do pedido (pedido) ligado, quando há.
+                                  onTap: pedido == null
+                                      ? null
+                                      : () => Navigator.of(context).push(MaterialPageRoute<void>(
+                                            builder: (_) => AdminOrderDetailScreen(orderId: pedido),
+                                          )),
                                   trailing: PopupMenuButton<String>(
                                     onSelected: (v) => _forcar(r, cancelar: v == 'cancelar'),
                                     itemBuilder: (_) => const [

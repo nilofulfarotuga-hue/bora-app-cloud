@@ -302,6 +302,31 @@ class _ParceiroPrescricaoCorpoState extends State<ParceiroPrescricaoCorpo> {
   bool _aResponder = false;
   bool _aFechar = false;
 
+  /// 17/11/2026: estado da entrega e nome do estafeta (pedido real ligado).
+  PrescricaoEntrega? _entrega;
+  Timer? _relogioEntrega;
+
+  @override
+  void initState() {
+    super.initState();
+    _lerEntrega();
+    _relogioEntrega = Timer.periodic(const Duration(seconds: 20), (_) => _lerEntrega());
+  }
+
+  @override
+  void dispose() {
+    _relogioEntrega?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _lerEntrega() async {
+    final temPedido = (p.orderId ?? '').isNotEmpty && !p.isDemo;
+    if (!temPedido || p.estado == PrescricaoEstado.entregue || widget.semImagens) return;
+    final r = await _svc.entregas([p.id]);
+    if (!mounted || r.isEmpty) return;
+    setState(() => _entrega = r.first);
+  }
+
   /// app-15-11: a farmácia fecha um pedido de demonstração ("levantado").
   Future<void> _fecharDemo() async {
     if (_aFechar) return;
@@ -460,9 +485,41 @@ class _ParceiroPrescricaoCorpoState extends State<ParceiroPrescricaoCorpo> {
                 ),
                 const SizedBox(height: 6),
                 // app-15-11: em demonstração nada foi cobrado; não se diz "cartão".
-                Text(p.isDemo
-                    ? 'Total ${eurosDeCents(p.totalCents)} · demonstração, nada cobrado'
-                    : 'Total ${eurosDeCents(p.totalCents)} · ${p.metodoPagamento == 'cash' ? 'dinheiro' : p.metodoPagamento == 'mbway' ? 'MB Way' : 'cartão'}'),
+                // 17/11/2026: a farmácia só vê o que o estafeta lhe paga (os medicamentos).
+                // O "Total" incluía a taxa da Bora e a farmácia podia cobrar a mais ao estafeta.
+                if (p.isDemo)
+                  Text('Valor ${eurosDeCents(p.valorMedicamentosCents)} · demonstração, nada cobrado')
+                else ...[
+                  Container(
+                    key: const Key('farmacia_estafeta_paga'),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(children: [
+                      const Text('O estafeta paga na farmácia', textAlign: TextAlign.center, style: TextStyle(fontSize: 16)),
+                      FittedBox(
+                        child: Text(eurosDeCents(p.valorMedicamentosCents),
+                            style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w900, color: AppColors.primaryDark)),
+                      ),
+                      const Text('Entregue o talão ao estafeta.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary)),
+                    ]),
+                  ),
+                  if (_entrega != null) ...[
+                    const SizedBox(height: 10),
+                    Row(children: [
+                      const Icon(Icons.delivery_dining, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(_entrega!.rotulo,
+                            key: const Key('farmacia_estado_entrega'),
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                      ),
+                    ]),
+                  ],
+                ],
                 if (p.isDemo && p.estado == PrescricaoEstado.confirmado) ...[
                   const SizedBox(height: 12),
                   OutlinedButton.icon(

@@ -12,6 +12,7 @@ import '../../models/pedido_prescricao.dart';
 import '../../services/auto_address.dart';
 import '../../services/prescricao_service.dart';
 import '../../utils/safe_image_picker.dart';
+import '../../widgets/address_autocomplete_field.dart';
 import '../../widgets/bora/bora_bottom_action_bar.dart';
 import '../../widgets/bora/bora_primary_button.dart';
 import '../../widgets/farmacia/assinatura_dedo.dart';
@@ -79,6 +80,9 @@ class _PrescricaoEnviarScreenState extends State<PrescricaoEnviarScreen> {
   String? _erro;
   PrescricaoConsentimento? _cons;
 
+  /// 17/11/2026: moradas guardadas da conta (com coordenadas), como no checkout.
+  List<({String morada, double lat, double lng})> _guardadas = const [];
+
   bool get _eReceita => widget.tipo == PrescricaoTipo.receita;
 
   @override
@@ -95,6 +99,22 @@ class _PrescricaoEnviarScreenState extends State<PrescricaoEnviarScreen> {
     }
     _carregarMorada();
     _carregarConsentimento();
+    _carregarGuardadas();
+  }
+
+  Future<void> _carregarGuardadas() async {
+    final g = await _svc.moradasGuardadas();
+    if (mounted && g.isNotEmpty) setState(() => _guardadas = g);
+  }
+
+  void _usarMorada(String morada, double? lat, double? lng) {
+    setState(() {
+      _morada.text = morada;
+      _lat = lat;
+      _lng = lng;
+      _moradaTocada = true;
+      _erro = null;
+    });
   }
 
   /// app-15-11: se falhar, volta a tentar quando a pessoa carrega em Enviar
@@ -185,6 +205,16 @@ class _PrescricaoEnviarScreenState extends State<PrescricaoEnviarScreen> {
     }
     if (_morada.text.trim().isEmpty) {
       return _mostrarErro('Falta a morada de entrega.', _kMorada);
+    }
+    // 17/11/2026: sem coordenadas o servidor recusa no fim (FALTA_LOCALIZACAO), depois da
+    // foto e da assinatura. Diz-se já, no campo da morada.
+    if (_lat == null || _lng == null) {
+      return _mostrarErro('Escolha a morada numa das sugestões (ou uma morada guardada) para o estafeta a encontrar no mapa.', _kMorada);
+    }
+    // Farmácia fechada: o servidor recusa; avisa-se antes de subir fotos.
+    final fechada = _cons?.avisoFechada;
+    if (fechada != null) {
+      return _mostrarErro(fechada, null);
     }
     if (_eReceita) {
       if (_cons == null) {
@@ -356,6 +386,26 @@ class _PrescricaoEnviarScreenState extends State<PrescricaoEnviarScreen> {
         controller: _scroll,
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
+          // 17/11/2026: farmácia fechada diz-se logo à entrada, não no fim.
+          if (_cons?.avisoFechada != null)
+            Container(
+              key: const Key('prescricao_farmacia_fechada'),
+              padding: const EdgeInsets.all(14),
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.warning),
+              ),
+              child: Row(children: [
+                const Icon(Icons.schedule, color: AppColors.warning),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(_cons!.avisoFechada!,
+                      style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary, height: 1.35)),
+                ),
+              ]),
+            ),
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(color: AppColors.primaryWash, borderRadius: BorderRadius.circular(12)),
@@ -423,16 +473,44 @@ class _PrescricaoEnviarScreenState extends State<PrescricaoEnviarScreen> {
           _titulo('Onde entregamos'),
           KeyedSubtree(
             key: _kMorada,
-            child: TextField(
-              controller: _morada,
-              onChanged: (_) {
-                _moradaTocada = true;
-                _lat = null;
-                _lng = null;
-              },
-              textCapitalization: TextCapitalization.sentences,
-              decoration: _deco('Morada', ajuda: 'Preenchida sozinha quando possível. Pode mudar.'),
-            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              // 17/11/2026: o mesmo campo de moradas dos Favores (sugestões com coordenadas;
+              // a morada escrita procura-se no mapa ao sair do campo). Antes era texto livre e,
+              // ao escrever, perdia as coordenadas → o servidor recusava com FALTA_LOCALIZACAO.
+              AddressAutocompleteField(
+                key: const Key('prescricao_morada'),
+                controller: _morada,
+                exigirCoordenadas: true,
+                labelText: 'Morada',
+                prefixIcon: const Icon(Icons.location_on_outlined),
+                helperText: _lat == null
+                    ? 'Escolha uma sugestão para o estafeta a encontrar no mapa.'
+                    : 'Preenchida sozinha quando possível. Pode mudar.',
+                onChanged: (_) {
+                  _moradaTocada = true;
+                  if (_lat != null || _lng != null) {
+                    setState(() {
+                      _lat = null;
+                      _lng = null;
+                    });
+                  }
+                },
+                onSelected: (m, c) => _usarMorada(m, c?.latitude, c?.longitude),
+              ),
+              if (_guardadas.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                const Text('Moradas guardadas', style: TextStyle(color: AppColors.textSecondary)),
+                const SizedBox(height: 4),
+                Wrap(spacing: 8, runSpacing: 6, children: [
+                  for (final g in _guardadas)
+                    ActionChip(
+                      avatar: const Icon(Icons.home_outlined, size: 18),
+                      label: Text(g.morada.length > 38 ? '${g.morada.substring(0, 38)}…' : g.morada),
+                      onPressed: () => _usarMorada(g.morada, g.lat, g.lng),
+                    ),
+                ]),
+              ],
+            ]),
           ),
           const SizedBox(height: 10),
           TextField(

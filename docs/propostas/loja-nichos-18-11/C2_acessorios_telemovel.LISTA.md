@@ -21,10 +21,10 @@ Legenda: [CE] carrega ou tem bateria: entra DESLIGADO e só se liga com a marca 
 - Estação de carregamento sem fios 3 em 1 — 38,88 € (custo 19,44 €; CJ 13,29 USD + envio ~8,07 USD; 232 g; Lists 80; armazém Alemanha, 36 em stock; SKU CJSD284148601AZ) [UE] [CE]
 - Power bank 10 000 mAh com 2 portas USB — 33,82 € (custo 16,91 €; CJ 11,05 USD + envio ~7,53 USD; 192 g; Lists 57; armazém Alemanha, 294 em stock; SKU CJCD284159801AZ) [UE] [CE]
 - Carregador de parede 4 portas, 55 W no total (2 USB-C + 2 USB-A) — 27,02 € (custo 13,51 €; CJ 9,00 USD + envio ~5,85 USD; 66 g; Lists 10; armazém Alemanha, 274 em stock; SKU CJSJ325121001AZ) [UE] [CE]
-- Cabo de carregamento com suporte embutido (65 W) — 20,28 € (custo 10,14 €; CJ 2,11 USD + envio ~5,73 USD; 57 g; Lists 1859; armazém China, 93 875 em stock; SKU CJYD263139012LO) [CE] [DESTAQUE]
+- Cabo de carregamento com suporte embutido (240 W) — 20,28 € (custo 10,14 €; CJ 2,11 USD + envio ~5,73 USD; 57 g; Lists 1859; armazém China, 93 875 em stock; SKU CJYD263139002BY) [CE] [DESTAQUE]
 - Cabo de carregamento 3 em 1 extensível — 18,58 € (custo 9,29 €; CJ 1,06 USD + envio ~5,85 USD; 66 g; Lists 1271; armazém China, 199 631 em stock; SKU CJSJ127149602BY) [CE]
 - Cabo USB-C para USB-C entrançado 100 W (1 m) — 24,72 € (custo 12,36 €; CJ 4,70 USD + envio ~5,58 USD; 46 g; Lists 60; armazém China, 35 357 em stock; SKU CJYD266050503CX) [CE]
-- Carregador de isqueiro para o carro 36 W (USB-C e USB-A) — 27,62 € (custo 13,81 €; CJ 5,97 USD + envio ~5,90 USD; 70 g; Lists 46; armazém China, 24 351 em stock; SKU CJSJ166169602BY) [CE]
+- Cabo USB-A para USB-C entrançado (1 m) — 19,62 € (custo 9,81 €; CJ 1,55 USD + envio ~5,93 USD; 72 g; Lists 36; armazém China, 119 104 em stock; SKU CJCD170034907GT) [CE]
 
 ## Suportes para o carro
 
@@ -74,7 +74,7 @@ Legenda: [CE] carrega ou tem bateria: entra DESLIGADO e só se liga com a marca 
 - Um suporte de carro cujas fotos dizem "carregamento sem fios automático" e o texto diz "placa magnética" (não se sabe o que vem).
 - Um segundo cabo 3 em 1, um segundo porta-cartões e um segundo cabo USB-C de 100 W a 1 USD, pouco credível (repetidos).
 - Uma carteira magnética com a marca MOFT gravada, uma capa com porta-cartões só até ao iPhone 15 (e fotos de outra cor) e um carregador "120 W" cujas fotos mostram 7 portas de 15 W.
-- Um "carregador de carro" cujas fotos mostram um cabo, e um cordão com placa cujas fotos mostram o logótipo da Apple.
+- Um carregador de isqueiro com a marca KUULAA gravada no corpo, um "carregador de carro" cujas fotos mostram um cabo, e um cordão com placa cujas fotos mostram o logótipo da Apple.
 - Telemóveis, auriculares, tradutores, esterilizadores UV e ecrãs de substituição (fora da ordem).
 - Tudo o que está só em armazém dos EUA, Reino Unido ou Austrália (caro e com direitos).
 

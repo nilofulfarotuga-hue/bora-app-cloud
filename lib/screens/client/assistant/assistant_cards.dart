@@ -914,6 +914,9 @@ class AssistantAcoesChips extends StatelessWidget {
         return Icons.directions_run;
       case 'marcar_limpeza':
         return Icons.cleaning_services_outlined;
+      // 18/11/2026: pedido especial à farmácia parceira.
+      case 'pedir_farmacia':
+        return Icons.local_pharmacy_outlined;
     }
     return Icons.arrow_forward;
   }

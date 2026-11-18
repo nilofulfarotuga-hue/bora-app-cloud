@@ -19,6 +19,23 @@ import '../../../widgets/bora_foto_ecra_inteiro.dart';
 
 String _hora(DateTime d) => '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
+/// 18/11/2026 (adendos 1 e 2): aceite (tudo ou parte) há menos de 6 horas e o
+/// cliente ainda não confirmou. Os mais velhos (o aceite não expira) vão para
+/// "Respondidos" e não contam no cartão — a mesma janela do lembrete ao cliente.
+bool aEsperaDoClienteAgora(PedidoPrescricao p, DateTime agora) {
+  if (!p.estado.aEsperaDoCliente) return false;
+  final desde = p.respondidoEm ?? p.updatedAt ?? p.createdAt;
+  return agora.difference(desde) < const Duration(hours: 6);
+}
+
+/// "7 min", "1 h 5 min".
+String _duracao(int minutos) {
+  if (minutos < 60) return '$minutos min';
+  final h = minutos ~/ 60;
+  final m = minutos % 60;
+  return m == 0 ? '$h h' : '$h h $m min';
+}
+
 String _rotuloEstadoParceiro(PrescricaoEstado e) {
   switch (e) {
     case PrescricaoEstado.enviado:
@@ -52,16 +69,19 @@ int? centsDeTexto(String s) {
 // ───────────────────────────────────────────────────────────────── cartão + alarme
 
 class FarmaciaReceitasCartao extends StatefulWidget {
-  const FarmaciaReceitasCartao({super.key, required this.restaurant});
+  const FarmaciaReceitasCartao({super.key, required this.restaurant, this.pedidos});
   final RestaurantModel restaurant;
+
+  /// Só para testes: troca o tempo real do servidor.
+  final Stream<List<PedidoPrescricao>>? pedidos;
 
   @override
   State<FarmaciaReceitasCartao> createState() => _FarmaciaReceitasCartaoState();
 }
 
 class _FarmaciaReceitasCartaoState extends State<FarmaciaReceitasCartao> {
-  final _svc = PrescricaoService();
-  final _som = SoundService();
+  late final _svc = PrescricaoService();
+  late final _som = SoundService();
   StreamSubscription<List<PedidoPrescricao>>? _sub;
   List<PedidoPrescricao> _lista = const [];
   final Set<String> _avisados = {};
@@ -73,7 +93,7 @@ class _FarmaciaReceitasCartaoState extends State<FarmaciaReceitasCartao> {
   void initState() {
     super.initState();
     if (_eFarmacia) {
-      _sub = _svc.daLoja(widget.restaurant.id).listen(_aoMudar, onError: (_) {});
+      _sub = (widget.pedidos ?? _svc.daLoja(widget.restaurant.id)).listen(_aoMudar, onError: (_) {});
     }
   }
 
@@ -123,7 +143,15 @@ class _FarmaciaReceitasCartaoState extends State<FarmaciaReceitasCartao> {
   Widget build(BuildContext context) {
     if (!_eFarmacia) return const SizedBox.shrink();
     final n = _lista.where((p) => p.estado.aEsperaDaFarmacia).length;
+    // 18/11/2026 (adendo 2): os aceites à espera do cliente também contam no
+    // cartão (sem tocar o som — o som é só para o que a farmácia tem de responder).
+    final agora = DateTime.now();
+    final c = _lista.where((p) => aEsperaDoClienteAgora(p, agora)).length;
     final destaque = n > 0;
+    final linhas = <String>[
+      if (n > 0) '$n à espera de resposta — toque para responder',
+      if (c > 0) '$c à espera do cliente confirmar',
+    ];
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
@@ -144,8 +172,14 @@ class _FarmaciaReceitasCartaoState extends State<FarmaciaReceitasCartao> {
                       style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: destaque ? Colors.white : AppColors.textPrimary)),
                   const SizedBox(height: 2),
                   Text(
-                    destaque ? '$n à espera de resposta — toque para responder' : 'Sem pedidos à espera',
-                    style: TextStyle(color: destaque ? Colors.white : AppColors.textSecondary),
+                    linhas.isEmpty ? 'Sem pedidos à espera' : linhas.join('\n'),
+                    key: const ValueKey('farmacia_receitas_cartao_texto'),
+                    style: TextStyle(
+                      color: destaque
+                          ? Colors.white
+                          : (c > 0 ? AppColors.primaryDark : AppColors.textSecondary),
+                      fontWeight: c > 0 && !destaque ? FontWeight.w700 : null,
+                    ),
                   ),
                 ]),
               ),
@@ -200,9 +234,14 @@ class ParceiroPrescricoesLista extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final aEspera = pedidos.where((p) => p.estado.aEsperaDaFarmacia).toList();
-    final confirmados = pedidos.where((p) => p.estado == PrescricaoEstado.confirmado || p.estado == PrescricaoEstado.entregue).toList();
-    final outros = pedidos.where((p) => !aEspera.contains(p) && !confirmados.contains(p)).toList();
+    // 18/11/2026 (adendo 1, caso da Farmácia da Sé): o aceite já não "desaparece"
+    // para "Respondidos" lá em baixo — fica logo a seguir, à espera do cliente.
     final agoraDt = (agora ?? DateTime.now)();
+    final aEsperaCliente = pedidos.where((p) => aEsperaDoClienteAgora(p, agoraDt)).toList();
+    final confirmados = pedidos.where((p) => p.estado == PrescricaoEstado.confirmado || p.estado == PrescricaoEstado.entregue).toList();
+    final outros = pedidos
+        .where((p) => !aEspera.contains(p) && !aEsperaCliente.contains(p) && !confirmados.contains(p))
+        .toList();
 
     Widget seccao(String t, List<PedidoPrescricao> l, {bool forte = false}) => Padding(
           padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),
@@ -214,6 +253,10 @@ class ParceiroPrescricoesLista extends StatelessWidget {
       final falta = p.expiraEm?.difference(agoraDt);
       final min = falta == null ? null : (falta.inSeconds / 60).ceil();
       final espera = p.estado.aEsperaDaFarmacia;
+      final esperaCliente = aEsperaCliente.contains(p);
+      final desde = p.respondidoEm ?? p.updatedAt;
+      final ha = desde == null ? null : agoraDt.difference(desde).inMinutes;
+      final valor = p.totalCents ?? p.valorMedicamentosCents;
       return Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: Material(
@@ -228,7 +271,9 @@ class ParceiroPrescricoesLista extends StatelessWidget {
               if (p.morada != null) p.morada!,
               _rotuloEstadoParceiro(p.estado),
               if (espera && min != null) (min > 0 ? 'Responda em $min min' : 'A expirar'),
-            ].join(' · '), maxLines: 3, overflow: TextOverflow.ellipsis),
+              if (esperaCliente && valor != null) 'Valor ${eurosDeCents(valor)}',
+              if (esperaCliente && ha != null) (ha < 1 ? 'À espera há menos de 1 min' : 'À espera há ${_duracao(ha)}'),
+            ].join(' · '), maxLines: esperaCliente ? 4 : 3, overflow: TextOverflow.ellipsis),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => ParceiroPrescricaoDetalheScreen(prescricaoId: p.id)),
@@ -251,6 +296,10 @@ class ParceiroPrescricoesLista extends StatelessWidget {
       children: [
         seccao('À espera de resposta', aEspera, forte: true),
         ...aEspera.map(cartao),
+        if (aEsperaCliente.isNotEmpty) ...[
+          seccao('À espera do cliente confirmar', aEsperaCliente, forte: true),
+          ...aEsperaCliente.map(cartao),
+        ],
         if (confirmados.isNotEmpty) ...[seccao('Confirmados pelo cliente', confirmados), ...confirmados.map(cartao)],
         if (outros.isNotEmpty) ...[seccao('Respondidos', outros), ...outros.map(cartao)],
       ],

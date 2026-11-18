@@ -25,6 +25,7 @@ class PrescricaoEnviarScreen extends StatefulWidget {
     this.tipo = PrescricaoTipo.receita,
     this.repetirDe,
     this.service,
+    this.descricaoInicial,
   });
 
   final String restaurantId;
@@ -33,21 +34,35 @@ class PrescricaoEnviarScreen extends StatefulWidget {
   final PedidoPrescricao? repetirDe;
   final PrescricaoService? service;
 
+  /// 18/11/2026 (farmacia-peca-aqui): o "O que procura?" já escrito — vem da
+  /// pesquisa sem resultado na loja ou do Amigo (ação pedir_farmacia).
+  final String? descricaoInicial;
+
   @override
   State<PrescricaoEnviarScreen> createState() => _PrescricaoEnviarScreenState();
 }
 
 /// "Não encontra o produto? Peça aqui".
 class PedidoLivreScreen extends StatelessWidget {
-  const PedidoLivreScreen({super.key, required this.restaurantId, required this.farmaciaNome});
+  const PedidoLivreScreen({
+    super.key,
+    required this.restaurantId,
+    required this.farmaciaNome,
+    this.descricaoInicial,
+    this.service,
+  });
   final String restaurantId;
   final String farmaciaNome;
+  final String? descricaoInicial;
+  final PrescricaoService? service;
 
   @override
   Widget build(BuildContext context) => PrescricaoEnviarScreen(
         restaurantId: restaurantId,
         farmaciaNome: farmaciaNome,
         tipo: PrescricaoTipo.pedidoLivre,
+        descricaoInicial: descricaoInicial,
+        service: service,
       );
 }
 
@@ -92,6 +107,10 @@ class _PrescricaoEnviarScreenState extends State<PrescricaoEnviarScreen> {
       _nota.text = r.nota ?? '';
       _descricao.text = r.descricao ?? '';
       _moradaTocada = _morada.text.isNotEmpty;
+    }
+    final inicial = widget.descricaoInicial?.trim() ?? '';
+    if (inicial.isNotEmpty && _descricao.text.trim().isEmpty) {
+      _descricao.text = inicial;
     }
     _carregarMorada();
     _carregarConsentimento();

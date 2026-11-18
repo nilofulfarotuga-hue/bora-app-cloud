@@ -1254,6 +1254,16 @@ List<AdminMenuSection> adminMenuSections() => [
       builder: () => const AdminFarmaciasScreen(abaInicial: 1),
       keywords: const ['receita', 'prescricao', 'prescrição', 'farmacia', 'farmácia', 'medicamento', 'tenho receita', 'pedido especial', 'csv'],
     ),
+    // 18/11/2026 (farmacia-peca-aqui): o que os clientes pediram às farmácias fora do catálogo.
+    AdminMenuItem(
+      id: 'farmacias_pedidos_especiais',
+      title: 'Pedidos especiais das farmácias',
+      subtitle: 'Ver o que os clientes pediram fora do catálogo ("Não encontra o produto? Peça aqui"), o estado, a resposta da farmácia e quanto tempo demorou a responder',
+      icon: Icons.manage_search,
+      color: Colors.green,
+      builder: () => const AdminFarmaciasScreen(abaInicial: 3),
+      keywords: const ['pedido livre', 'pedido especial', 'peça aqui', 'peca aqui', 'farmacia', 'farmácia', 'nao encontra', 'não encontra', 'tempo de resposta'],
+    ),
     AdminMenuItem(
       id: 'parceiros_alergenos',
       title: 'Alergênicos',

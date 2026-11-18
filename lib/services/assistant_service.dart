@@ -481,8 +481,13 @@ Map<String, dynamic> montarCorpoAssistente({
     'dropoff_lat': dropoffLat,
     'dropoff_lng': dropoffLng,
     'apartment_delivery': apartmentDelivery,
+    // 18/11/2026: ações novas que esta versão sabe abrir (as antigas recebem abrir_loja).
+    'acoes_suportadas': kAssistantAcoesSuportadas,
   };
 }
+
+/// Ações do Amigo que só as versões novas da app sabem abrir.
+const List<String> kAssistantAcoesSuportadas = ['pedir_farmacia'];
 
 /// Chip de acção que o assistente sugere.
 class AssistantAcao {

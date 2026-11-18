@@ -10,9 +10,12 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../l10n/tr.dart';
 import '../../../services/assistant_service.dart';
+import '../../../stores/restaurant_store.dart';
+import '../../farmacia/prescricao_enviar_screen.dart';
 import '../../../services/tvde_visibilidade.dart';
 import '../../../utils/home_destino.dart';
 import '../../../widgets/bora_support_sheet.dart';
@@ -23,6 +26,14 @@ import '../cleaning/cleaning_wizard_screen.dart';
 import '../tvde/tvde_entrada_screen.dart';
 import 'assistant_cards.dart';
 import 'assistant_encher_carrinho.dart';
+
+/// Destino da ação `pedir_farmacia` do Amigo: "restaurant_id|produto".
+({String restaurantId, String termo})? lerDestinoPedirFarmacia(String destino) {
+  final i = destino.indexOf('|');
+  final id = (i < 0 ? destino : destino.substring(0, i)).trim();
+  if (id.isEmpty) return null;
+  return (restaurantId: id, termo: i < 0 ? '' : destino.substring(i + 1).trim());
+}
 
 mixin AssistantAcoesMixin<T extends StatefulWidget> on State<T> {
   /// A proposta a ser posta no carrinho agora (mostra o "a carregar").
@@ -160,6 +171,25 @@ mixin AssistantAcoesMixin<T extends StatefulWidget> on State<T> {
         if (d.isNotEmpty) await enviarAoAssistente(d);
       case 'abrir_loja':
         if (d.isNotEmpty) await abrirLojaPorId(context, d);
+      // 18/11/2026 (farmacia-peca-aqui): "Pedir à farmácia" — abre a loja da
+      // farmácia parceira e, por cima, o pedido especial já com o produto.
+      case 'pedir_farmacia':
+        final pf = lerDestinoPedirFarmacia(d);
+        if (pf == null) return;
+        final nome = context.read<RestaurantStore>().restaurantById(pf.restaurantId)?.name ??
+            a.rotulo.replaceFirst(RegExp(r'^Pedir à\s*'), '').trim();
+        await abrirLojaPorId(context, pf.restaurantId);
+        if (!mounted) return;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PedidoLivreScreen(
+              restaurantId: pf.restaurantId,
+              farmaciaNome: nome.isEmpty ? 'farmácia' : nome,
+              descricaoInicial: pf.termo,
+            ),
+          ),
+        );
       default:
         if (d.isNotEmpty) await enviarAoAssistente(d);
     }
@@ -196,9 +226,14 @@ class AssistantCartoesDaResposta extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = reply;
     final lista = r.listaExtraida;
+    // 18/11/2026 (parceiro primeiro): o pedido à farmácia parceira aparece
+    // ANTES dos carrinhos (ex.: a Wells, não-parceira, fica por baixo).
+    final farmacia = [for (final a in r.acoes) if (a.tipo == 'pedir_farmacia') a];
+    final outras = [for (final a in r.acoes) if (a.tipo != 'pedir_farmacia') a];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (farmacia.isNotEmpty) AssistantAcoesChips(acoes: farmacia, onTap: onAcao),
         if (r.comparacao != null) AssistantComparacaoCard(comparacao: r.comparacao!),
         if (lista != null && lista.isNotEmpty)
           AssistantListaExtraidaCard(itens: lista, onConfirmar: onConfirmarLista),
@@ -220,7 +255,7 @@ class AssistantCartoesDaResposta extends StatelessWidget {
             preco: r.favorPreco,
             onPedir: () => onFavor(r.favores),
           ),
-        AssistantAcoesChips(acoes: r.acoes, onTap: onAcao),
+        AssistantAcoesChips(acoes: outras, onTap: onAcao),
         if (mostrarDeixa && r.deixa != null) AmigoDeixaLinha(deixa: r.deixa!, onTap: () => onDeixa(r.deixa!)),
       ],
     );

@@ -276,6 +276,12 @@ const Map<String, String> kStringsEn = <String, String>{
       'I couldn\'t find "{0}" at {1}. Look in other shops or suggest a Favour.',
   'Não encontrei "{0}" na Bora. Procura noutras lojas ou propõe-me um Favor.':
       'I couldn\'t find "{0}" on Bora. Look in other shops or suggest a Favour.',
+  // 18/11/2026 (farmacia-peca-aqui): na farmácia parceira, pedir à farmácia primeiro.
+  'Pedir à {0}': 'Ask {0}',
+  'A farmácia confirma se tem e o preço. Só pagas depois de confirmar.':
+      'The pharmacy confirms if it has it and the price. You only pay after you confirm.',
+  'Não encontrei "{0}" na {1}. Ajuda-me a pedir à farmácia ou diz-me onde mais há.':
+      'I couldn\'t find "{0}" at {1}. Help me ask the pharmacy or tell me where else it\'s sold.',
   // 09/11/2026 (missão m11-amigo-rosto): o rosto do Amigo — ecrã, home e mosaico.
   'A ouvir… toca para enviar': 'Listening… tap to send',
   'Amigo': 'Amigo',

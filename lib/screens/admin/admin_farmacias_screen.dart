@@ -24,23 +24,33 @@ import 'admin_partner_detail_screen.dart';
 class AdminFarmaciasScreen extends StatelessWidget {
   const AdminFarmaciasScreen({super.key, this.abaInicial = 0});
 
-  /// 0 Farmácias · 1 Pedidos de receita · 2 Extrato semanal.
+  /// 0 Farmácias · 1 Pedidos de receita · 2 Extrato semanal · 3 Pedidos especiais.
   final int abaInicial;
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
-      initialIndex: abaInicial.clamp(0, 2),
+      length: 4,
+      initialIndex: abaInicial.clamp(0, 3),
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Farmácias'),
           bottom: const TabBar(
             isScrollable: true,
-            tabs: [Tab(text: 'Farmácias'), Tab(text: 'Pedidos de receita'), Tab(text: 'Extrato semanal')],
+            tabs: [
+              Tab(text: 'Farmácias'),
+              Tab(text: 'Pedidos de receita'),
+              Tab(text: 'Extrato semanal'),
+              Tab(text: 'Pedidos especiais (pedido livre)'),
+            ],
           ),
         ),
-        body: const TabBarView(children: [_AbaFarmacias(), AdminPedidosReceitaAba(), AdminFarmaciasExtratoAba()]),
+        body: const TabBarView(children: [
+          _AbaFarmacias(),
+          AdminPedidosReceitaAba(),
+          AdminFarmaciasExtratoAba(),
+          AdminPedidosReceitaAba(tipo: 'pedido_livre'),
+        ]),
       ),
     );
   }
@@ -777,8 +787,48 @@ const kEstadosReceita = <String, String>{
   'entregue': 'Entregue',
 };
 
+/// Minutos entre o pedido e a resposta da farmácia (nulo se ainda não respondeu).
+int? minutosAteResponder(Map<String, dynamic> r) {
+  final a = DateTime.tryParse('${r['created_at'] ?? ''}');
+  final b = DateTime.tryParse('${r['respondido_em'] ?? ''}');
+  if (a == null || b == null) return null;
+  final m = b.difference(a).inMinutes;
+  return m < 0 ? 0 : m;
+}
+
+/// "3 min", "1 h 20 min" ou "ainda não respondeu".
+String tempoRespostaTxt(Map<String, dynamic> r) {
+  final m = minutosAteResponder(r);
+  if (m == null) return 'ainda não respondeu';
+  if (m < 60) return '$m min';
+  final h = m ~/ 60;
+  final resto = m % 60;
+  return resto == 0 ? '$h h' : '$h h $resto min';
+}
+
+/// A resposta da farmácia num texto curto (pedido especial).
+String respostaFarmaciaTxt(Map<String, dynamic> r) {
+  final partes = <String>[
+    if ('${r['itens_disponiveis'] ?? ''}'.trim().isNotEmpty) 'tem: ${r['itens_disponiveis']}',
+    if (r['valor_medicamentos_cents'] != null)
+      'preço ${eurosDeCents((r['valor_medicamentos_cents'] as num).toInt())}',
+    if ('${r['motivo_recusa'] ?? ''}'.trim().isNotEmpty) 'recusou: ${r['motivo_recusa']}',
+    if ('${r['motivo_texto'] ?? ''}'.trim().isNotEmpty) '${r['motivo_texto']}',
+    if ('${r['volta_a_ter'] ?? ''}'.trim().isNotEmpty) 'volta a ter: ${r['volta_a_ter']}',
+  ];
+  return partes.isEmpty ? '—' : partes.join(' · ');
+}
+
 class AdminPedidosReceitaAba extends StatefulWidget {
-  const AdminPedidosReceitaAba({super.key});
+  const AdminPedidosReceitaAba({super.key, this.tipo, this.listar});
+
+  /// 18/11/2026: 'pedido_livre' = só os pedidos especiais ("Não encontra o
+  /// produto? Peça aqui"), com o que o cliente pediu, a resposta e o tempo.
+  final String? tipo;
+
+  /// Só para testes: troca a leitura do servidor.
+  final Future<List<Map<String, dynamic>>> Function({String? estado})? listar;
+
   @override
   State<AdminPedidosReceitaAba> createState() => _AdminPedidosReceitaAbaState();
 }
@@ -786,9 +836,19 @@ class AdminPedidosReceitaAba extends StatefulWidget {
 class _AdminPedidosReceitaAbaState extends State<AdminPedidosReceitaAba> {
   final _svc = PrescricaoService();
   String? _estado;
-  late Future<List<Map<String, dynamic>>> _f = _svc.adminListar();
+  late Future<List<Map<String, dynamic>>> _f = _ler();
 
-  void _recarregar() => setState(() => _f = _svc.adminListar(estado: _estado));
+  bool get _soEspeciais => widget.tipo == 'pedido_livre';
+
+  Future<List<Map<String, dynamic>>> _ler() async {
+    final l = widget.listar != null
+        ? await widget.listar!(estado: _estado)
+        : await _svc.adminListar(estado: _estado, limite: widget.tipo == null ? 200 : 1000);
+    final t = widget.tipo;
+    return t == null ? l : l.where((r) => r['tipo'] == t).toList();
+  }
+
+  void _recarregar() => setState(() => _f = _ler());
 
   String _dt(dynamic v) {
     // app-15-11: hora de Lisboa, nunca o fuso do navegador (regra do painel).
@@ -865,12 +925,15 @@ class _AdminPedidosReceitaAbaState extends State<AdminPedidosReceitaAba> {
               ],
               const SizedBox(width: 12),
               AdminCsvButton(
-                nome: 'pedidos_receita',
+                nome: _soEspeciais ? 'pedidos_especiais_farmacia' : 'pedidos_receita',
                 colunas: const [
                   ('created_at', 'Data'),
                   ('loja', 'Loja'),
                   ('cliente_email', 'Cliente'),
                   ('tipo', 'Tipo'),
+                  ('descricao', 'O que pediu'),
+                  ('resposta_txt', 'Resposta da farmácia'),
+                  ('tempo_txt', 'Tempo até responder'),
                   ('estado_txt', 'Estado'),
                   ('respondido_por_email', 'Respondido por'),
                   ('respondido_em', 'Respondido em'),
@@ -891,31 +954,47 @@ class _AdminPedidosReceitaAbaState extends State<AdminPedidosReceitaAba> {
                       'total_txt': eurosDeCents((r['total_cents'] as num?)?.toInt()),
                       'demo_txt': r['is_demo'] == true ? 'sim' : 'não',
                       'foto_txt': r['tem_foto'] == true ? 'sim' : 'não',
+                      'resposta_txt': respostaFarmaciaTxt(r),
+                      'tempo_txt': tempoRespostaTxt(r),
                     },
                 ],
               ),
             ]),
           ),
+          if (_soEspeciais)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 4, 16, 4),
+              child: Text(
+                'O que os clientes pediram às farmácias pelo botão "Não encontra o produto? Peça aqui" '
+                '(pedido livre = produto que não está no catálogo da loja). Mostra a resposta da farmácia e '
+                'quanto tempo ela demorou a responder.',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ),
           Expanded(
             child: s.connectionState != ConnectionState.done
                 ? const Center(child: CircularProgressIndicator())
                 : s.hasError
                     ? Center(child: Text(PrescricaoService.mensagemDe(s.error!)))
                     : linhas.isEmpty
-                        ? const Center(child: Text('Nenhum pedido de receita.'))
+                        ? Center(child: Text(_soEspeciais ? 'Nenhum pedido especial.' : 'Nenhum pedido de receita.'))
                         : ListView.builder(
                             padding: const EdgeInsets.all(12),
                             itemCount: linhas.length,
                             itemBuilder: (context, i) {
                               final r = linhas[i];
+                              final pedido = '${r['descricao'] ?? ''}'.trim();
                               return Card(
                                 child: ListTile(
                                   title: Text('${r['loja']} · ${kEstadosReceita[r['estado']] ?? r['estado']}'
                                       '${r['is_demo'] == true ? ' · demonstração' : ''}'),
                                   subtitle: Text([
+                                    if (r['tipo'] != 'receita' && pedido.isNotEmpty) 'Pediu: "$pedido"',
                                     _dt(r['created_at']),
                                     r['tipo'] == 'receita' ? 'Receita' : 'Pedido especial',
                                     '${r['cliente_email'] ?? ''}',
+                                    if (r['tipo'] != 'receita') 'resposta: ${respostaFarmaciaTxt(r)}',
+                                    if (r['tipo'] != 'receita') 'tempo até responder: ${tempoRespostaTxt(r)}',
                                     if (r['respondido_em'] != null) 'respondido ${_dt(r['respondido_em'])} por ${r['respondido_por_email'] ?? '—'}',
                                     if (r['total_cents'] != null) 'total ${eurosDeCents((r['total_cents'] as num).toInt())}',
                                     'foto: ${r['tem_foto'] == true ? 'sim' : 'não'}',

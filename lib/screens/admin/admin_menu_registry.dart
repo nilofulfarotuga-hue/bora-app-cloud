@@ -325,6 +325,7 @@ List<AdminMenuSection> adminMenuSections() => [
       icon: Icons.phone_in_talk_outlined,
       color: AppColors.accent,
       builder: () => const AdminEncomendasTelefoneScreen(),
+      badge: 'encomendas_telefone',
       keywords: const ['telefone', 'ligar', 'encomenda', 'encomendado', 'loja', 'por do sol', 'balcao', 'nao parceira'],
     ),
     AdminMenuItem(

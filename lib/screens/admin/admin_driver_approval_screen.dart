@@ -113,7 +113,11 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
     final missing = _missingDocs(driver);
     // Adendo 3: o servidor só aprova depois do comprovativo aprovado. Avisa já, com
     // mensagem clara, em vez de deixar a chamada falhar com 400.
-    if (!await avisarSeAtividadePorAprovar(context, driver)) return;
+    if (!await avisarSeAtividadePorAprovar(context, driver,
+        papel: 'driver', entidadeId: driverId, aoAprovarComExcecao: _load)) {
+      return;
+    }
+    if (!mounted) return;
     final avisosRobo = avisosParaAprovar(driver);
 
     bool force = false;
@@ -212,12 +216,14 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
   }) async {
     final controller = TextEditingController();
     bool acknowledged = false;
+    String? erro;
     return showDialog<String>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setLocal) {
           final justOk = controller.text.trim().length >= 3;
           return AlertDialog(
+            key: const Key('aprovar-estafeta-faltam-documentos'),
             title: const Text('Faltam documentos'),
             content: SizedBox(
               width: 360,
@@ -263,6 +269,15 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
                       ),
                       controlAffinity: ListTileControlAffinity.leading,
                     ),
+                    if (erro != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(erro!,
+                            key: const Key('aprovar-estafeta-erro'),
+                            style: const TextStyle(
+                                color: AppColors.error,
+                                fontWeight: FontWeight.w700)),
+                      ),
                   ],
                 ),
               ),
@@ -272,12 +287,24 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
                 onPressed: () => Navigator.pop(ctx, null),
                 child: const Text('Cancelar'),
               ),
+              // [18/11/2026] Sempre ativo. Cinzento até escrever e marcar a
+              // caixa, o Danilo tocava e "não acontecia nada" (Shelen, 18/11).
+              // Agora diz o que falta.
               ElevatedButton(
+                key: const Key('aprovar-estafeta-mesmo-assim'),
                 style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.warning),
-                onPressed: (acknowledged && justOk)
-                    ? () => Navigator.pop(ctx, controller.text.trim())
-                    : null,
+                onPressed: () {
+                  if (!justOk || !acknowledged) {
+                    setLocal(() => erro = [
+                          if (!justOk) 'escreva a justificativa (mínimo 3 letras)',
+                          if (!acknowledged) 'marque a caixa "Compreendo o risco"',
+                        ].join(' e ').replaceFirstMapped(
+                            RegExp(r'^.'), (m) => m[0]!.toUpperCase()));
+                    return;
+                  }
+                  Navigator.pop(ctx, controller.text.trim());
+                },
                 child: const Text('Aprovar mesmo assim'),
               ),
             ],
@@ -444,6 +471,13 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
   }
 
   void _showDetail(Map<String, dynamic> driver) {
+    final id = driver['id']?.toString();
+    final status = driver['approval_status']?.toString();
+    final pendente = id != null && status == 'pending';
+    // Só candidaturas pendentes: suspenso, banido ou rejeitado volta pelo seu
+    // próprio caminho (revisão da suspensão, Reativar), nunca pela exceção.
+    final porAprovar = pendente && driver['is_banned'] != true;
+    final nome = driver['name']?.toString() ?? 'este estafeta';
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -461,6 +495,30 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
           onPedirDocumentos: (itens) =>
               _pedirDocumentos(sheetCtx, driver, itens),
           onAprovarComprovativo: () => _aprovarComprovativo(sheetCtx, driver),
+          // [18/11/2026] A ficha não tinha botão de aprovar a pessoa: o
+          // Danilo via os documentos e não tinha onde carregar. Fecha a ficha
+          // primeiro, para as janelas e avisos aparecerem à frente.
+          onAprovar: !pendente
+              ? null
+              : () {
+                  Navigator.of(sheetCtx).pop();
+                  _approve(id);
+                },
+          onRejeitar: !pendente
+              ? null
+              : () {
+                  Navigator.of(sheetCtx).pop();
+                  _reject(id);
+                },
+          onExcecao: !porAprovar
+              ? null
+              : () async {
+                  final ok = await aprovarPrestadorComExcecao(sheetCtx,
+                      papel: 'driver', id: id, nome: nome);
+                  if (!ok) return;
+                  if (sheetCtx.mounted) Navigator.of(sheetCtx).maybePop();
+                  if (mounted) await _load();
+                },
         ),
       ),
     );
@@ -768,12 +826,22 @@ class _DriverDetailSheet extends StatelessWidget {
     required this.scrollController,
     required this.onPedirDocumentos,
     required this.onAprovarComprovativo,
+    this.onAprovar,
+    this.onRejeitar,
+    this.onExcecao,
   });
 
   final Map<String, dynamic> driver;
   final ScrollController scrollController;
   final void Function(List<String> itens) onPedirDocumentos;
   final VoidCallback onAprovarComprovativo;
+
+  /// Só nas candidaturas pendentes (null = sem botão).
+  final VoidCallback? onAprovar;
+  final VoidCallback? onRejeitar;
+
+  /// "Aprovar mesmo assim (exceção do admin)" — quem ainda não está aprovado.
+  final VoidCallback? onExcecao;
 
   @override
   Widget build(BuildContext context) {
@@ -853,6 +921,41 @@ class _DriverDetailSheet extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Center(child: _ContactButtons(phone: d['phone'] as String?)),
+          if (onAprovar != null || onRejeitar != null || onExcecao != null) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                if (onAprovar != null)
+                  FilledButton.icon(
+                    key: const Key('ficha-estafeta-aprovar'),
+                    style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.success),
+                    onPressed: onAprovar,
+                    icon: const Icon(Icons.check_circle),
+                    label: const Text('Aprovar entregador'),
+                  ),
+                if (onRejeitar != null)
+                  OutlinedButton.icon(
+                    key: const Key('ficha-estafeta-rejeitar'),
+                    style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error),
+                    onPressed: onRejeitar,
+                    icon: const Icon(Icons.cancel),
+                    label: const Text('Rejeitar'),
+                  ),
+                if (onExcecao != null)
+                  OutlinedButton.icon(
+                    key: const Key('ficha-estafeta-excecao'),
+                    onPressed: onExcecao,
+                    icon: const Icon(Icons.admin_panel_settings_outlined),
+                    label: const Text('Aprovar mesmo assim (exceção do admin)'),
+                  ),
+              ],
+            ),
+          ],
           if (vereditoDe(d, 'drivers.registration_selfie_url', ficheiro: selfieBruta) != null)
             RoboVereditoChip(
               veredito: vereditoDe(d, 'drivers.registration_selfie_url', ficheiro: selfieBruta)!,

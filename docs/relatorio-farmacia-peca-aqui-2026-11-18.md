@@ -15,7 +15,7 @@ No painel admin há uma aba nova nas Farmácias, "Pedidos especiais (pedido livr
 ## Provas
 
 - Os testes do Amigo correm no PC: 66 verdes, dos quais 10 são novos (o caso Vomidrine, ben-u-ron, açaí e gotas de chocolate). A verificação de tipos do código do Amigo também passou.
-- Os testes novos da app estão em test/farmacia_peca_aqui_test.dart e correm no CI do pedido de revisão #39 (resultado mais abaixo).
+- Os testes novos da app estão em test/farmacia_peca_aqui_test.dart e correram no CI do pedido de revisão #39. Nos dois commits (runs 44306807207 e 44308397294), a análise estática passou com 0 erros e os testes unitários e goldens passaram todos.
 - O Juiz (um revisor que começou sem contexto) aprovou o trabalho. Corrigi os quatro pontos que ele levantou.
 - O trabalho está em dois commits, bc45170e e 636dea4a, no ramo ai/2026-11-18-farmacia-peca-aqui, com o pedido de revisão aberto: https://github.com/nilofulfarotuga-hue/bora-app-cloud/pull/39
 

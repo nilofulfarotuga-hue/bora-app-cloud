@@ -1111,15 +1111,17 @@ Deno.serve(async (req: Request) => {
     const out: FarmaciaParceira[] = [];
     try {
       const { data } = await adminClient.from('restaurants').select('id, name')
-        .eq('category', 'pharmacy').eq('is_partner', true).eq('is_online', true).limit(10);
-      for (const r of (data ?? []) as Json[]) {
+        .eq('category', 'pharmacy').eq('is_partner', true).eq('is_online', true).order('name').limit(10);
+      // Todas ao mesmo tempo (menos espera); a ordem fica a do nome, para a escolha não ser ao acaso.
+      const lidas = await Promise.all(((data ?? []) as Json[]).map(async (r) => {
         const id = String(r.id);
         const [{ data: vis }, { data: estado }] = await Promise.all([
           userClient.rpc('farmacia_botoes_visiveis', { p_restaurant_id: id }),
           adminClient.rpc('is_partner_open', { p_restaurant_id: id }),
         ]);
-        if (vis === true && estado?.is_open !== false) out.push({ restaurant_id: id, nome: String(r.name ?? 'farmácia') });
-      }
+        return vis === true && estado?.is_open !== false ? { restaurant_id: id, nome: String(r.name ?? 'farmácia') } : null;
+      }));
+      for (const f of lidas) if (f) out.push(f);
     } catch (e) {
       console.error('[ASSISTENTE] farmácias parceiras:', e);
     }
@@ -1988,8 +1990,11 @@ Deno.serve(async (req: Request) => {
   }
   if (acoes.some((a) => a.tipo === ACAO_PEDIR_FARMACIA)) {
     const nomes = new Map(abertas.map((f) => [f.restaurant_id, f.nome]));
-    const ordenadas = pedirFarmaciaPrimeiro(acoes).map((a: Json) =>
-      acaoParaApp(a, suportaPedirFarmacia, nomes.get(lerDestinoPedirFarmacia(a.destino)?.restaurant_id ?? '') ?? null));
+    const vistas = new Set<string>();
+    const ordenadas = pedirFarmaciaPrimeiro(acoes)
+      .map((a: Json) => acaoParaApp(a, suportaPedirFarmacia, nomes.get(lerDestinoPedirFarmacia(a.destino)?.restaurant_id ?? '') ?? null))
+      // na app antiga o pedido vira "abrir_loja": sem dois botões iguais para a mesma farmácia.
+      .filter((a: Json) => { const k = `${a.tipo}|${a.destino ?? ''}`; if (vistas.has(k)) return false; vistas.add(k); return true; });
     acoes.splice(0, acoes.length, ...ordenadas);
   }
 

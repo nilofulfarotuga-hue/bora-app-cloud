@@ -19,6 +19,15 @@ import '../../../widgets/bora_foto_ecra_inteiro.dart';
 
 String _hora(DateTime d) => '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
+/// 18/11/2026 (adendos 1 e 2): aceite (tudo ou parte) há menos de 6 horas e o
+/// cliente ainda não confirmou. Os mais velhos (o aceite não expira) vão para
+/// "Respondidos" e não contam no cartão — a mesma janela do lembrete ao cliente.
+bool aEsperaDoClienteAgora(PedidoPrescricao p, DateTime agora) {
+  if (!p.estado.aEsperaDoCliente) return false;
+  final desde = p.respondidoEm ?? p.updatedAt ?? p.createdAt;
+  return agora.difference(desde) < const Duration(hours: 6);
+}
+
 /// "7 min", "1 h 5 min".
 String _duracao(int minutos) {
   if (minutos < 60) return '$minutos min';
@@ -136,7 +145,8 @@ class _FarmaciaReceitasCartaoState extends State<FarmaciaReceitasCartao> {
     final n = _lista.where((p) => p.estado.aEsperaDaFarmacia).length;
     // 18/11/2026 (adendo 2): os aceites à espera do cliente também contam no
     // cartão (sem tocar o som — o som é só para o que a farmácia tem de responder).
-    final c = _lista.where((p) => p.estado.aEsperaDoCliente).length;
+    final agora = DateTime.now();
+    final c = _lista.where((p) => aEsperaDoClienteAgora(p, agora)).length;
     final destaque = n > 0;
     final linhas = <String>[
       if (n > 0) '$n à espera de resposta — toque para responder',
@@ -226,14 +236,12 @@ class ParceiroPrescricoesLista extends StatelessWidget {
     final aEspera = pedidos.where((p) => p.estado.aEsperaDaFarmacia).toList();
     // 18/11/2026 (adendo 1, caso da Farmácia da Sé): o aceite já não "desaparece"
     // para "Respondidos" lá em baixo — fica logo a seguir, à espera do cliente.
-    final aEsperaCliente = pedidos
-        .where((p) => p.estado == PrescricaoEstado.aceite || p.estado == PrescricaoEstado.aceiteParcial)
-        .toList();
+    final agoraDt = (agora ?? DateTime.now)();
+    final aEsperaCliente = pedidos.where((p) => aEsperaDoClienteAgora(p, agoraDt)).toList();
     final confirmados = pedidos.where((p) => p.estado == PrescricaoEstado.confirmado || p.estado == PrescricaoEstado.entregue).toList();
     final outros = pedidos
         .where((p) => !aEspera.contains(p) && !aEsperaCliente.contains(p) && !confirmados.contains(p))
         .toList();
-    final agoraDt = (agora ?? DateTime.now)();
 
     Widget seccao(String t, List<PedidoPrescricao> l, {bool forte = false}) => Padding(
           padding: const EdgeInsets.fromLTRB(4, 16, 4, 8),

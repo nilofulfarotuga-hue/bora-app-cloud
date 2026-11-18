@@ -361,15 +361,16 @@ export interface ProdutoDaBusca { restaurant_id?: string | null; parceiro?: bool
 
 export const ACAO_PEDIR_FARMACIA = 'pedir_farmacia';
 
-// Palavras que dizem "isto é coisa de farmácia" (sem acentos, minúsculas).
+// Palavras que dizem "isto é coisa de farmácia" (sem acentos, minúsculas). Só palavras sem dois sentidos:
+// "gotas" (de chocolate), "saquetas" (de chá), "pensos" (higiénicos), "receita" (de cozinha) e "vitamina"
+// (de fruta) ficam de fora de propósito (Juiz, 18/11).
 const PALAVRAS_FARMACIA = [
   'remedio', 'remedios', 'medicamento', 'medicamentos', 'farmacia', 'comprimido', 'comprimidos', 'capsula',
-  'capsulas', 'xarope', 'pomada', 'creme gordo', 'gotas', 'saqueta', 'saquetas', 'efervescente', 'antigripal',
-  'gripe', 'constipacao', 'febre', 'dor de cabeca', 'dores', 'enjoo', 'enjoos', 'vomito', 'vomitos', 'nausea',
-  'nauseas', 'diarreia', 'azia', 'tosse', 'garganta', 'alergia', 'antialergico', 'anti-histaminico',
-  'paracetamol', 'ibuprofeno', 'ben-u-ron', 'benuron', 'brufen', 'aspirina', 'vomidrine', 'dramamine',
-  'buscopan', 'strepsils', 'griponal', 'antibiotico', 'receita', 'termometro', 'preservativo', 'preservativos',
-  'teste de gravidez', 'penso', 'pensos', 'ligadura', 'vitamina', 'vitaminas', 'probiotico', 'colirio',
+  'capsulas', 'xarope', 'pomada', 'efervescente', 'antigripal', 'gripe', 'constipacao', 'febre',
+  'dor de cabeca', 'dor de garganta', 'dor de barriga', 'dor de dentes', 'enjoo', 'enjoos', 'vomito', 'vomitos',
+  'nausea', 'nauseas', 'diarreia', 'azia', 'tosse', 'antialergico', 'anti-histaminico', 'paracetamol',
+  'ibuprofeno', 'ben-u-ron', 'benuron', 'brufen', 'aspirina', 'vomidrine', 'dramamine', 'buscopan', 'strepsils',
+  'griponal', 'antibiotico', 'termometro', 'teste de gravidez', 'ligadura', 'probiotico', 'colirio',
 ];
 
 function semAcentosF(s: unknown): string {

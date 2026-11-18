@@ -155,10 +155,25 @@ void main() {
       final ctl = StreamController<List<PedidoPrescricao>>();
       addTearDown(ctl.close);
       await t.pumpWidget(_app(FarmaciaReceitasCartao(restaurant: farmacia, pedidos: ctl.stream)));
-      ctl.add([_pedido('00000000-0000-4000-8000-000000000002', 'aceite', respondido: '2026-11-18T11:10:00Z')]);
+      final ha10min = DateTime.now().toUtc().subtract(const Duration(minutes: 10)).toIso8601String();
+      final ha2dias = DateTime.now().toUtc().subtract(const Duration(days: 2)).toIso8601String();
+      ctl.add([
+        _pedido('00000000-0000-4000-8000-000000000002', 'aceite', respondido: ha10min),
+        // aceite velho (o aceite não expira): não conta para sempre no cartão.
+        _pedido('00000000-0000-4000-8000-000000000004', 'aceite', respondido: ha2dias),
+      ]);
       await t.pump();
       expect(find.text('1 à espera do cliente confirmar'), findsOneWidget);
       expect(find.text('Sem pedidos à espera'), findsNothing);
+    });
+
+    testWidgets('aceite com mais de 6 horas vai para "Respondidos"', (t) async {
+      await t.pumpWidget(_app(ParceiroPrescricoesLista(
+        agora: () => DateTime.utc(2026, 11, 18, 11, 22),
+        pedidos: [_pedido('00000000-0000-4000-8000-000000000005', 'aceite', respondido: '2026-11-13T10:21:00Z')],
+      )));
+      expect(find.text('À espera do cliente confirmar (1)'), findsNothing);
+      expect(find.text('Respondidos (1)'), findsOneWidget);
     });
   });
 

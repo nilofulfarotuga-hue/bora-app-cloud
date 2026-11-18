@@ -38,6 +38,10 @@ Deno.test('açaí: não é coisa de farmácia → nada de farmácia', () => {
   assertEquals(farmaciaParaPedir({ produtos: [], farmacias: [SE], termo: 'açaí' }), null);
 });
 
+Deno.test('gotas de chocolate só no supermercado → nada de farmácia à frente do carrinho', () => {
+  assertEquals(farmaciaParaPedir({ produtos: [CONTINENTE_ACAI], farmacias: [SE], termo: 'gotas de chocolate' }), null);
+});
+
 Deno.test('farmácia parceira fechada ou sem pedidos (lista vazia) → fica como antes', () => {
   assertEquals(farmaciaParaPedir({ produtos: [WELLS_VOMIDRINE], farmacias: [], termo: 'vomidrine' }), null);
 });
@@ -46,7 +50,9 @@ Deno.test('termos de farmácia', () => {
   for (const t of ['vomidrine', 'tenho dor de cabeça', 'xarope para a tosse', 'Ben-u-ron', 'remédio para enjoos', 'pomada']) {
     assert(pareceFarmacia(t), t);
   }
-  for (const t of ['açaí', 'pizza', 'leite meio gordo', 'cheeseburger']) assert(!pareceFarmacia(t), t);
+  // Juiz 18/11: palavras com dois sentidos não puxam a farmácia.
+  for (const t of ['açaí', 'pizza', 'leite meio gordo', 'cheeseburger', 'gotas de chocolate', 'chá em saquetas',
+    'pensos higiénicos', 'receita de bacalhau', 'vitamina de morango']) assert(!pareceFarmacia(t), t);
 });
 
 Deno.test('destino "loja|termo" vai e volta, sem "|" no termo', () => {

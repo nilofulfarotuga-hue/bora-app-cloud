@@ -14,6 +14,7 @@ import '../../stores/favorite_store.dart';
 import '../../stores/restaurant_store.dart';
 import '../bora/banner_pausa_loja.dart';
 import '../bora/loja_fechada.dart';
+import '../impressao/impressao_botoes_topo.dart';
 import 'market_category_chip_large.dart';
 import 'market_product_card.dart';
 import '../preco_com_promocao.dart';
@@ -222,6 +223,17 @@ class MarketStoreTab extends StatelessWidget {
                 : _etaText(cartStore.distanceKm),
             feeText:
                 eur(PricingService.estimatedDeliveryFee(distanceKm: cartStore.distanceKm, isPartner: isPartnerStore)),
+          ),
+        ),
+
+        // 17/11/2026 (A3 Guarda): "Imprimir documentos" e "Personalizados" logo à entrada da
+        // loja, antes da pesquisa — como o "Tenho receita" da farmácia. As lojas grandes (store,
+        // supermarket) abrem ESTE ecrã e não o StoreProductsScreen, por isso os cartões do #31
+        // só apareciam depois de tocar numa categoria. Sem o serviço ligado = não aparece nada.
+        SliverToBoxAdapter(
+          child: ImpressaoBotoesTopo(
+            restaurantId: restaurant.id,
+            storeName: storeName,
           ),
         ),
 

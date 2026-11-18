@@ -9,6 +9,7 @@ import 'admin_ajustes_peso_screen.dart';
 import 'admin_filas_estafetas_screen.dart';
 import 'admin_favor_diferencas_screen.dart';
 import 'admin_farmacias_screen.dart';
+import 'admin_impressao_screen.dart';
 import 'admin_robo_glovo_screen.dart';
 import 'admin_porteiro_screen.dart';
 import 'admin_caixa_guardados_screen.dart';
@@ -324,6 +325,7 @@ List<AdminMenuSection> adminMenuSections() => [
       icon: Icons.phone_in_talk_outlined,
       color: AppColors.accent,
       builder: () => const AdminEncomendasTelefoneScreen(),
+      badge: 'encomendas_telefone',
       keywords: const ['telefone', 'ligar', 'encomenda', 'encomendado', 'loja', 'por do sol', 'balcao', 'nao parceira'],
     ),
     AdminMenuItem(
@@ -1204,6 +1206,25 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.green,
       builder: () => const AdminFarmaciasScreen(),
       keywords: const ['farmacia', 'farmácia', 'receita', 'prescricao', 'prescrição', 'se', 'sé', 'teixeira', 'lista de permissao', 'escondida', 'comissao extra', 'email', 'e-mail', 'login', 'senha', 'nif', 'iban', 'certidao', 'certidão', 'horario', 'horário', 'extrato', 'receitas reais'],
+    ),
+    // 17/11/2026 (a3-guarda parte 2): impressão e personalizados por loja + robô do catálogo da A3.
+    AdminMenuItem(
+      id: 'impressao',
+      title: 'Impressão e personalizados',
+      subtitle: 'Ver os pedidos de impressão e personalizados com os arquivos, ligar o serviço por loja, editar a tabela de preços e o robô do catálogo da A3',
+      icon: Icons.print,
+      color: Colors.green,
+      builder: () => const AdminImpressaoScreen(),
+      keywords: const ['impressao', 'impressão', 'imprimir', 'copias', 'cópias', 'pdf', 'personalizado', 'caneca', 'a3', 'a3 guarda', 'papelaria', 'tabela de precos', 'robo', 'robô', 'catalogo', 'catálogo'],
+    ),
+    AdminMenuItem(
+      id: 'robo-a3',
+      title: 'Robô do catálogo da A3',
+      subtitle: 'Atualização diária às 07:00 de preço e esgotado a partir da loja online da A3: ligar, desligar e atualizar agora',
+      icon: Icons.sync,
+      color: Colors.green,
+      builder: () => const AdminImpressaoScreen(abaInicial: 3),
+      keywords: const ['robo', 'robô', 'a3', 'catalogo', 'catálogo', 'loja online', 'atualizar agora', 'prestashop'],
     ),
     // 14/11/2026 (farmacias-loja): extrato semanal só de leitura das farmácias, com CSV.
     AdminMenuItem(

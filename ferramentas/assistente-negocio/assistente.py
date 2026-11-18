@@ -77,18 +77,83 @@ def tenants_da_sessao(sessao):
     return db.ler("assistant_tenants", f"sessao=eq.{db.q(sessao)}&mode=neq.desligado")
 
 
-def tenant_para(sessao, numero):
-    """Devolve (tenant, motivo). tenant=None => a mensagem NAO e deste assistente (segue a porta normal)."""
+def candidatos(sessao, numero):
+    """Todos os assistentes desta sessao que atendem este numero, do mais antigo para o mais novo.
+    Devolve ([(tenant, motivo)], tenant_da_blocklist_ou_None). A blocklist de uma loja so vale para essa
+    loja: o numero continua a ser atendido nas outras; so fica calado se nenhuma o atender."""
     numero = so_digitos(numero)
-    for t in tenants_da_sessao(sessao):
+    out, bloqueado = [], None
+    for t in sorted(tenants_da_sessao(sessao), key=lambda x: str(x.get("created_at") or "")):
         if numero in {so_digitos(x) for x in (t.get("blocklist") or [])}:
-            return t, "blocklist"
+            bloqueado = bloqueado or t
+            continue
         if t["mode"] == "teste":
             if numero in {so_digitos(x) for x in (t.get("allowlist") or [])}:
-                return t, "allowlist"
+                out.append((t, "allowlist"))
         elif t["mode"] == "ligado":
-            return t, "ligado"
-    return None, "fora"
+            out.append((t, "ligado"))
+    return out, (None if out else bloqueado)
+
+
+# Missao a3-guarda-16-11 (17/11): o mesmo numero pode estar em teste em duas lojas (ex.: o Danilo na
+# Boom e na A3). Abrir a conversa com "Ola <loja>" (o link wa.me?text=Ola%20A3) escolhe essa loja; a
+# escolha fica enquanto houver conversa (24 h sem mensagens = esquece); "mudar de loja" mostra as
+# opcoes. Sem escolha, fica a loja mais antiga (a Boom), como sempre foi.
+ESCOLHA_HORAS = 24
+MUDAR_LOJA_RE = re.compile(r"\bmudar\s+de\s+loja\b", re.I)
+SAUDACAO_RE = re.compile(r"^(ola|oi|bom dia|boa tarde|boa noite)\b[\s,!.:-]*(.*)$")
+
+
+def _palavra_da_loja(t):
+    nome = re.sub(r"[^a-z0-9 ]", " ", sem_acentos(t.get("nome") or "").lower()).split()
+    return nome[0] if nome else ""
+
+
+def abre_loja(t, texto):
+    """True quando a mensagem e uma saudacao com o nome da loja ("Ola A3", "Boa tarde Boom")."""
+    m = SAUDACAO_RE.match(sem_acentos(texto or "").lower().strip())
+    p = _palavra_da_loja(t)
+    return bool(m and p and re.match(r"%s\b" % re.escape(p), m.group(2) or ""))
+
+
+def _loja_recente(cands, numero):
+    """A loja com a ultima mensagem deste numero nas ultimas ESCOLHA_HORAS horas, se houver."""
+    ids = ",".join(str(t["id"]) for t, _ in cands)
+    try:
+        r = db.ler("assistant_contacts",
+                   f"numero=eq.{db.q(numero)}&tenant_id=in.({ids})&ultima_msg_em=not.is.null&order=ultima_msg_em.desc&limit=1")
+    except Exception:
+        return None
+    if not r or hora_local(r[0]["ultima_msg_em"]) < agora() - dt.timedelta(hours=ESCOLHA_HORAS):
+        return None
+    for t, porque in cands:
+        if str(t["id"]) == str(r[0]["tenant_id"]):
+            return t, porque + ":recente"
+    return None
+
+
+def tenant_para(sessao, numero, texto=None):
+    """Devolve (tenant, motivo). tenant=None => a mensagem NAO e deste assistente (segue a porta normal)."""
+    numero = so_digitos(numero)
+    cands, bloqueado = candidatos(sessao, numero)
+    if bloqueado:
+        return bloqueado, "blocklist"
+    if not cands:
+        return None, "fora"
+    if len(cands) == 1:
+        return cands[0]
+    for t, porque in cands:
+        if texto and abre_loja(t, texto):
+            return t, porque + ":escolhida"
+    return _loja_recente(cands, numero) or cands[0]
+
+
+def texto_mudar_de_loja(cands):
+    linhas = ["Pode falar com estas lojas por este número:"]
+    for t, _ in cands:
+        linhas.append("• %s — escreva: Olá %s" % (t.get("nome"), _palavra_da_loja(t).upper() if len(_palavra_da_loja(t)) <= 3
+                                                    else _palavra_da_loja(t).capitalize()))
+    return "\n".join(linhas)
 
 
 # ----------------------------------------------------------------------------- Secretario Virtual: convite de teste
@@ -619,10 +684,17 @@ def atender(ev, simular=False):
     numero = so_digitos(ev.get("numero"))
     if ev.get("grupo") or "@g.us" in str(ev.get("msg_id") or ""):
         return {"tratado": False, "acao": "ignorar-grupo"}
-    t, porque = tenant_para(sessao, numero)
+    t, porque = tenant_para(sessao, numero, ev.get("texto"))
     if not t:
         return {"tratado": False, "acao": "nao-e-do-assistente"}
     texto = (ev.get("texto") or "").strip()
+    if porque != "blocklist" and MUDAR_LOJA_RE.search(sem_acentos(texto)):
+        cands, _ = candidatos(sessao, numero)
+        if len(cands) > 1:
+            registar(t, numero, "entrada", texto, decisao="mudar-de-loja", msg_id_wa=ev.get("msg_id"), simulado=simular)
+            aviso = texto_mudar_de_loja(cands)
+            enfileirar(t, numero, aviso, "mudar_de_loja", simular)
+            return {"tratado": True, "acao": "mudar-de-loja", "respostas": [aviso]}
     if porque == "blocklist":
         registar(t, numero, "entrada", texto or "[audio]", decisao="silencio-blocklist", msg_id_wa=ev.get("msg_id"), simulado=simular)
         return {"tratado": True, "acao": "silencio-blocklist", "respostas": []}

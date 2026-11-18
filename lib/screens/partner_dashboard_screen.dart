@@ -57,6 +57,7 @@ import 'profile_screen.dart';
 import '../widgets/aviso_dados_fiscais_em_falta.dart';
 import '../widgets/bora/bora_barra_separadores.dart';
 import 'partner/farmacia/parceiro_prescricoes_screen.dart';
+import 'partner/impressao/parceiro_impressoes_screen.dart' show ImpressaoPedidosCartao;
 import '../widgets/partner/farmacia_painel.dart';
 
 class PartnerDashboardScreen extends StatefulWidget {
@@ -1162,6 +1163,9 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                 // 11/11/2026 (farmácias): receitas e pedidos especiais, com toque
                 // persistente enquanto houver algum por responder. Só farmácias.
                 FarmaciaReceitasCartao(restaurant: currentRestaurant),
+                // 17/11/2026 (A3 Guarda): impressões e personalizados, com toque persistente
+                // enquanto houver algum por responder. Só lojas com o serviço ligado.
+                ImpressaoPedidosCartao(restaurant: currentRestaurant),
                 // 14/11/2026 (farmácias, bloco 2.1): botão grande "Abrir/Fechar a
                 // loja agora" e atalho para o horário. Só farmácias.
                 FarmaciaAbrirFecharCartao(

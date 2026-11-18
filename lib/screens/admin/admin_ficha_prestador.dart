@@ -234,6 +234,28 @@ class _FichaPrestador extends StatelessWidget {
                       refId: l['id']?.toString()),
             ),
           ],
+          // [18/11/2026] Exceção do dono: aprovar sem o comprovativo aprovado,
+          // com motivo e registo (antes era SQL à mão — Shelen, 18/11).
+          if (l['id'] != null &&
+              l['approval_status'] != 'approved' &&
+              l['is_banned'] != true) ...[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                key: const Key('ficha-prestador-excecao'),
+                onPressed: () async {
+                  final ok = await aprovarPrestadorComExcecao(context,
+                      papel: papel, id: l['id'].toString(), nome: nome);
+                  if (!ok || !context.mounted) return;
+                  Navigator.of(context).maybePop();
+                  aoMudar?.call();
+                },
+                icon: const Icon(Icons.admin_panel_settings_outlined),
+                label: const Text('Aprovar mesmo assim (exceção do admin)'),
+              ),
+            ),
+          ],
           if (docTexto(l['rejection_reason']) != null) ...[
             const SizedBox(height: 12),
             Text('Motivo de recusa: ${l['rejection_reason']}',

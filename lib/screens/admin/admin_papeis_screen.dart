@@ -232,7 +232,12 @@ class _AdminPapeisScreenState extends State<AdminPapeisScreen>
       // comprovativo, em vez de deixar a chamada falhar com 400.
       await juntarAtividadeAdmin(Supabase.instance.client, [c]);
       if (!mounted) return;
-      if (!await avisarSeAtividadePorAprovar(context, c)) return;
+      if (!await avisarSeAtividadePorAprovar(context, c,
+          papel: tipo,
+          entidadeId: c['id']?.toString(),
+          aoAprovarComExcecao: _load)) {
+        return;
+      }
       if (!mounted) return;
       final escolha = await showDialog<String>(
         context: context,

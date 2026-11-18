@@ -1980,7 +1980,12 @@ class _AdminServiceProviderDetailScreenState
       final linha = <String, dynamic>{'user_id': uid};
       await juntarAtividadeAdmin(_supabase, [linha]);
       if (!mounted) return;
-      if (!await avisarSeAtividadePorAprovar(context, linha)) return;
+      if (!await avisarSeAtividadePorAprovar(context, linha,
+          papel: 'service_provider',
+          entidadeId: widget.providerId,
+          aoAprovarComExcecao: _loadAll)) {
+        return;
+      }
       if (!mounted) return;
     }
     final confirm = await showDialog<bool>(

@@ -36,12 +36,16 @@ create function public._provider_atividade_evento(p_uid uuid, p_evento text, p_a
 create table public.admin_audit_log(id serial, action text, entity_type text, entity_id text, details jsonb);
 create function public.log_admin_action(p_action_type text, p_entity_type text, p_entity_id text, p_details jsonb) returns void language sql as $$
   insert into admin_audit_log(action, entity_type, entity_id, details) values ($1,$2,$3,$4) $$;
+-- Produção tem as duas versões (entity_id text e uuid): a chamada tem de escolher sem ambiguidade.
+create function public.log_admin_action(p_action text, p_entity_type text, p_entity_id uuid, p_details jsonb) returns void language sql as $$
+  insert into admin_audit_log(action, entity_type, entity_id, details) values ($1,$2,$3::text,$4) $$;
 
 create table public.drivers(id uuid primary key, user_id uuid, approval_status text, created_at timestamptz);
 create table public.cleaners(id uuid primary key, user_id uuid, approval_status text, created_at timestamptz);
 create table public.washers(id uuid primary key, user_id uuid, approval_status text, created_at timestamptz);
 create table public.casa_profissionais(id uuid primary key, user_id uuid, approval_status text, created_at timestamptz);
-create table public.service_providers(id uuid primary key, user_id uuid, approval_status text, created_at timestamptz);
+-- Tipos iguais aos de produção (conferidos 18/11 em information_schema): service_providers.id é TEXT.
+create table public.service_providers(id text primary key, user_id uuid, approval_status text, created_at timestamptz);
 create function public.admin_approve_driver(p_driver_id uuid, p_force boolean, p_justification text) returns jsonb language plpgsql as $$
 begin perform public._admin_op_guard(); update drivers set approval_status='approved' where id=p_driver_id; return '{}'; end $$;
 create function public.admin_review_cleaner(p_cleaner_id uuid, p_action text, p_reason text) returns jsonb language plpgsql as $$
@@ -50,7 +54,7 @@ create function public.admin_rever_lavador(p_washer_id uuid, p_accao text, p_mot
 begin update washers set approval_status='approved' where id=p_washer_id; return '{}'; end $$;
 create function public.admin_casa_decidir_profissional(p_id uuid, p_acao text, p_motivo text) returns jsonb language plpgsql as $$
 begin update casa_profissionais set approval_status='approved' where id=p_id; return '{}'; end $$;
-create function public.admin_appointment_provider_approve(p_provider_id uuid) returns void language plpgsql as $$
+create function public.admin_appointment_provider_approve(p_provider_id text) returns void language plpgsql as $$
 begin update service_providers set approval_status='approved' where id=p_provider_id; end $$;
 
 create table public.users(id uuid primary key, fcm_token text);
@@ -68,6 +72,7 @@ const N = '00000000-0000-4000-8000-00000000000b'; // não-admin
 const P1 = '00000000-0000-4000-8000-000000000001', P2 = '00000000-0000-4000-8000-000000000002';
 const C1 = '10000000-0000-4000-8000-000000000001', C2 = '10000000-0000-4000-8000-000000000002';
 const D1 = '20000000-0000-4000-8000-000000000001';
+const P3 = '00000000-0000-4000-8000-000000000003', S1 = 'prov-texto-1';
 
 let ok = 0, falhou = 0;
 const prova = (nome, cond, extra = '') => { if (cond) { ok++; console.log('OK  ', nome); } else { falhou++; console.log('FALHA', nome, extra); } };
@@ -80,7 +85,8 @@ await db.exec(fs.readFileSync(migracao, 'utf8'));
 for (const t of ['drivers', 'cleaners', 'washers', 'casa_profissionais', 'service_providers']) {
   await db.exec(`create trigger trg_atividade_antes_de_ativar before update of approval_status on public.${t} for each row when (new.approval_status = 'approved' and old.approval_status is distinct from 'approved') execute function fn_atividade_antes_de_ativar();`);
 }
-await db.exec(`insert into auth.users values ('${A}','admin@x','{"role":"admin"}'), ('${N}','n@x','{}'), ('${P1}','p1@x','{}'), ('${P2}','p2@x','{}');
+await db.exec(`insert into auth.users values ('${A}','admin@x','{"role":"admin"}'), ('${N}','n@x','{}'), ('${P1}','p1@x','{}'), ('${P2}','p2@x','{}'), ('${P3}','p3@x','{}');
+  insert into service_providers values ('${S1}','${P3}','pending', now());
   insert into cleaners values ('${C1}','${P1}','pending', now()), ('${C2}','${P2}','pending', now());
   insert into drivers values ('${D1}','${P2}','pending', now());
   insert into provider_atividade values ('${P1}','em_analise','p1/c.png'), ('${P2}','por_enviar',null);`);
@@ -129,6 +135,14 @@ e = await tenta(comoUser(A, `select admin_aprovar_prestador_excecao('driver','${
 r = await db.query(`select approval_status from drivers where id='${D1}'`);
 prova('estafeta aprovado pela exceção', e === null && r.rows[0].approval_status === 'approved', e || JSON.stringify(r.rows));
 
+// 6b. Serviços (id de texto) pela exceção, e id inválido num papel uuid.
+e = await tenta(comoUser(A, `select admin_aprovar_prestador_excecao('service_provider','${S1}','Ordem do Danilo, prestador de teste')`));
+r = await db.query(`select approval_status from service_providers where id='${S1}'`);
+prova('prestador de serviços (id de texto) aprovado pela exceção', e === null && r.rows[0].approval_status === 'approved', e || JSON.stringify(r.rows));
+e = await tenta(comoUser(A, `select admin_aprovar_prestador_excecao('cleaner','nao-e-uuid','Motivo comprido o suficiente')`));
+await db.exec('rollback').catch(() => {});
+prova('id inválido num papel uuid dá prestador_nao_encontrado (não erro cru)', e && e.includes('prestador_nao_encontrado'), e);
+
 // 7. Pedir documentos: aviso com kind próprio, papel em related_id, push e auditoria.
 e = await tenta(comoUser(A, `select admin_pedir_documentos_em_falta('${P2}','driver','Faltam documentos na tua candidatura','Na tua conta de estafeta falta: foto do veículo.', array['foto do veículo'])`));
 prova('pedir documentos passa', e === null, e);
@@ -141,7 +155,7 @@ await db.exec('rollback').catch(() => {});
 prova('não-admin não pede documentos', e && e.includes('admin_required'), e);
 
 // 8. Privilégios: anon não executa as funções novas.
-r = await db.query(`select has_function_privilege('anon','public.admin_aprovar_prestador_excecao(text,uuid,text)','execute') a, has_function_privilege('anon','public.admin_pedir_documentos_em_falta(uuid,text,text,text,text[])','execute') b, has_function_privilege('authenticated','public.admin_aprovar_prestador_excecao(text,uuid,text)','execute') c`);
+r = await db.query(`select has_function_privilege('anon','public.admin_aprovar_prestador_excecao(text,text,text)','execute') a, has_function_privilege('anon','public.admin_pedir_documentos_em_falta(uuid,text,text,text,text[])','execute') b, has_function_privilege('authenticated','public.admin_aprovar_prestador_excecao(text,text,text)','execute') c`);
 prova('anon sem execução; authenticated com execução', !r.rows[0].a && !r.rows[0].b && r.rows[0].c, JSON.stringify(r.rows));
 
 console.log(`\n${ok} OK, ${falhou} falhas`);

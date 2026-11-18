@@ -237,7 +237,7 @@ class _FichaPrestador extends StatelessWidget {
           // [18/11/2026] Exceção do dono: aprovar sem o comprovativo aprovado,
           // com motivo e registo (antes era SQL à mão — Shelen, 18/11).
           if (l['id'] != null &&
-              l['approval_status'] != 'approved' &&
+              l['approval_status'] == 'pending' &&
               l['is_banned'] != true) ...[
             const SizedBox(height: 12),
             Align(

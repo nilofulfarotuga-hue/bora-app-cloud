@@ -44,8 +44,11 @@ BEGIN
 END $function$;
 
 -- ── 1b. Aprovar mesmo assim (exceção do admin) ───────────────────────────────
+-- p_id é texto: service_providers.id é TEXT; os outros papéis são uuid e
+-- convertem-se só no ramo do papel pedido (IF, não CASE de expressão, para
+-- o Postgres não planear os outros ramos com o tipo errado).
 CREATE OR REPLACE FUNCTION public.admin_aprovar_prestador_excecao(
-  p_papel text, p_id uuid, p_motivo text)
+  p_papel text, p_id text, p_motivo text)
  RETURNS jsonb
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -65,13 +68,21 @@ BEGIN
     RAISE EXCEPTION 'motivo_excecao_curto' USING ERRCODE = '22023';
   END IF;
 
-  v_uid := CASE p_papel
-    WHEN 'driver'           THEN (SELECT d.user_id::uuid FROM public.drivers d WHERE d.id = p_id)
-    WHEN 'cleaner'          THEN (SELECT c.user_id::uuid FROM public.cleaners c WHERE c.id = p_id)
-    WHEN 'washer'           THEN (SELECT w.user_id::uuid FROM public.washers w WHERE w.id = p_id)
-    WHEN 'handyman'         THEN (SELECT h.user_id::uuid FROM public.casa_profissionais h WHERE h.id = p_id)
-    WHEN 'service_provider' THEN (SELECT s.user_id::uuid FROM public.service_providers s WHERE s.id = p_id)
-  END;
+  IF p_papel <> 'service_provider'
+     AND COALESCE(p_id, '') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+    RAISE EXCEPTION 'prestador_nao_encontrado';
+  END IF;
+  IF p_papel = 'driver' THEN
+    SELECT d.user_id INTO v_uid FROM public.drivers d WHERE d.id = p_id::uuid;
+  ELSIF p_papel = 'cleaner' THEN
+    SELECT c.user_id INTO v_uid FROM public.cleaners c WHERE c.id = p_id::uuid;
+  ELSIF p_papel = 'washer' THEN
+    SELECT w.user_id INTO v_uid FROM public.washers w WHERE w.id = p_id::uuid;
+  ELSIF p_papel = 'handyman' THEN
+    SELECT h.user_id INTO v_uid FROM public.casa_profissionais h WHERE h.id = p_id::uuid;
+  ELSE
+    SELECT s.user_id INTO v_uid FROM public.service_providers s WHERE s.id = p_id;
+  END IF;
   IF v_uid IS NULL THEN RAISE EXCEPTION 'prestador_nao_encontrado'; END IF;
 
   PERFORM public._provider_atividade_garantir(v_uid);
@@ -81,13 +92,13 @@ BEGIN
   PERFORM set_config('bora.excecao_atividade', v_uid::text, true);
   CASE p_papel
     WHEN 'driver' THEN
-      PERFORM public.admin_approve_driver(p_id, true, 'Exceção do admin: ' || v_motivo);
+      PERFORM public.admin_approve_driver(p_id::uuid, true, 'Exceção do admin: ' || v_motivo);
     WHEN 'cleaner' THEN
-      PERFORM public.admin_review_cleaner(p_id, 'approve', 'Exceção do admin: ' || v_motivo);
+      PERFORM public.admin_review_cleaner(p_id::uuid, 'approve', 'Exceção do admin: ' || v_motivo);
     WHEN 'washer' THEN
-      PERFORM public.admin_rever_lavador(p_id, 'approve', 'Exceção do admin: ' || v_motivo);
+      PERFORM public.admin_rever_lavador(p_id::uuid, 'approve', 'Exceção do admin: ' || v_motivo);
     WHEN 'handyman' THEN
-      PERFORM public.admin_casa_decidir_profissional(p_id, 'aprovar', 'Exceção do admin: ' || v_motivo);
+      PERFORM public.admin_casa_decidir_profissional(p_id::uuid, 'aprovar', 'Exceção do admin: ' || v_motivo);
     WHEN 'service_provider' THEN
       PERFORM public.admin_appointment_provider_approve(p_id);
   END CASE;
@@ -97,7 +108,7 @@ BEGIN
     v_admin.admin_id, 'admin',
     jsonb_build_object('papel', p_papel, 'entidade_id', p_id, 'admin_email', v_admin.admin_email,
                        'via', COALESCE(current_setting('bora.agente', true), 'painel')));
-  PERFORM public.log_admin_action('prestador_aprovado_excecao', p_papel, p_id::text,
+  PERFORM public.log_admin_action('prestador_aprovado_excecao', p_papel, p_id,
     jsonb_build_object('user_id', v_uid, 'motivo', v_motivo, 'atividade_status', v_estado,
                        'admin_email', v_admin.admin_email));
 
@@ -105,10 +116,10 @@ BEGIN
                             'atividade_status', v_estado);
 END $function$;
 
-REVOKE ALL ON FUNCTION public.admin_aprovar_prestador_excecao(text, uuid, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.admin_aprovar_prestador_excecao(text, uuid, text) TO authenticated;
+REVOKE ALL ON FUNCTION public.admin_aprovar_prestador_excecao(text, text, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_aprovar_prestador_excecao(text, text, text) TO authenticated;
 
-COMMENT ON FUNCTION public.admin_aprovar_prestador_excecao(text, uuid, text) IS
+COMMENT ON FUNCTION public.admin_aprovar_prestador_excecao(text, text, text) IS
   'Aprovar mesmo assim (exceção do admin): aprova o prestador sem o comprovativo de atividade aprovado, com motivo (>=10 letras), registo em admin_audit_log e evento excecao_admin. A regra provider_atividade_obrigatoria continua ligada para os outros.';
 
 -- ── 2. Pedir documentos em falta (aviso que abre o ecrã de pendências) ───────

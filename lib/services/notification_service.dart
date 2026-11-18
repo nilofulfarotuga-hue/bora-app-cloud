@@ -1691,6 +1691,14 @@ void _abrirTrabalhoDoPush(RemoteMessage msg) {
     unawaited(NotificationService.abrirComprovativoDoAviso());
     return;
   }
+  // [18/11/2026] Toque no push "Faltam documentos" aberto pelo sistema (app em
+  // segundo plano; no iPhone é sempre este caminho): a lista do que falta.
+  if (type == 'admin_message' &&
+      msg.data['kind']?.toString() == kKindDocumentosEmFalta) {
+    unawaited(NotificationService.abrirDocumentosEmFaltaDoAviso(
+        msg.data['relatedId']?.toString() ?? 'driver'));
+    return;
+  }
   final categoria = categoriaDaOfertaDeTrabalho(type) ??
       switch (type) {
         'cleaning_status' => 'limpeza',
@@ -2775,6 +2783,10 @@ class NotificationService {
           // ele (como o sino) e, se desistir, abre o sino como antes.
           if (data['kind'] == kKindComprovativoAtividade) {
             unawaited(NotificationService.abrirComprovativoDoAviso());
+          } else if (data['kind'] == kKindDocumentosEmFalta) {
+            // [18/11/2026] "Faltam documentos": a lista do que falta.
+            unawaited(NotificationService.abrirDocumentosEmFaltaDoAviso(
+                data['relatedId']?.toString() ?? 'driver'));
           } else {
             unawaited(openInboxFromNotification());
           }

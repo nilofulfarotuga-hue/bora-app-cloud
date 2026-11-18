@@ -474,7 +474,9 @@ class _AdminDriverApprovalScreenState extends State<AdminDriverApprovalScreen>
     final id = driver['id']?.toString();
     final status = driver['approval_status']?.toString();
     final pendente = id != null && status == 'pending';
-    final porAprovar = id != null && status != 'approved';
+    // Só candidaturas pendentes: suspenso, banido ou rejeitado volta pelo seu
+    // próprio caminho (revisão da suspensão, Reativar), nunca pela exceção.
+    final porAprovar = pendente && driver['is_banned'] != true;
     final nome = driver['name']?.toString() ?? 'este estafeta';
     showModalBottomSheet(
       context: context,

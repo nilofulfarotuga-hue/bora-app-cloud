@@ -70,7 +70,14 @@ void main() {
       expect(sino, contains('DocumentosEmFaltaScreen(papel: papelDocs)'));
       final push = _ler('lib/services/notification_service.dart');
       expect(push, contains("data['kind'] == kKindDocumentosEmFalta"));
-      expect(push, contains('abrirDocumentosEmFaltaDoAviso('));
+      // Os três caminhos do toque: app aberta, em segundo plano (no iPhone é
+      // sempre este) e fechada (arranque a frio).
+      expect(
+          'abrirDocumentosEmFaltaDoAviso('.allMatches(push).length -
+              1, // a definição
+          greaterThanOrEqualTo(3));
+      expect(push,
+          contains("msg.data['kind']?.toString() == kKindDocumentosEmFalta"));
     });
   });
 
@@ -244,6 +251,11 @@ void main() {
       expect(m, contains("'excecao_admin'"));
       expect(m, contains("'prestador_aprovado_excecao'"));
       expect(m, isNot(contains('DISABLE TRIGGER')));
+      // service_providers.id é TEXT em produção: com p_id uuid a função
+      // falhava em TODOS os papéis ("operator does not exist: text = uuid").
+      expect(m, contains('p_papel text, p_id text, p_motivo text'));
+      expect(m, contains('admin_appointment_provider_approve(p_id);'));
+      expect(m, contains("s.id = p_id;"));
     });
   });
 }

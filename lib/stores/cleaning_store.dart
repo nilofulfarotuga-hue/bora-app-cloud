@@ -69,7 +69,14 @@ class CleaningStore extends ChangeNotifier {
   // ORÇAMENTO + PROFISSIONAIS DISPONÍVEIS (wizard)
   // ══════════════════════════════════════════════════════════════════════════
 
-  /// Orçamento server-side (RPC cleaning_quote). null em erro.
+  /// Orçamento server-side. null em erro.
+  ///
+  /// 19/11/2026: com a morada da limpeza vai a `cleaning_quote_at`, que soma a
+  /// taxa de deslocação (km de ESTRADA ao centro da Guarda, calculados no
+  /// servidor) e diz se a morada fica fora da área. Sem coordenadas a taxa é 0
+  /// (a localização nunca trava). Se a `cleaning_quote_at` falhar SEM morada,
+  /// cai na `cleaning_quote` de sempre (o resultado é o mesmo). COM morada não
+  /// cai: mostrar um preço sem a taxa seria mostrar menos do que se cobra.
   Future<CleaningQuote?> quote({
     required String cleaningType,
     required String pricingMode,
@@ -77,16 +84,31 @@ class CleaningStore extends ChangeNotifier {
     int? hours,
     String recurrence = 'single',
     String productsBy = 'client',
+    double? lat,
+    double? lng,
   }) async {
+    final params = <String, dynamic>{
+      'p_cleaning_type': cleaningType,
+      'p_pricing_mode': pricingMode,
+      'p_home_size': homeSize,
+      'p_hours': hours,
+      'p_recurrence': recurrence,
+      'p_products_by': productsBy,
+    };
     try {
-      final res = await _sb.rpc('cleaning_quote', params: {
-        'p_cleaning_type': cleaningType,
-        'p_pricing_mode': pricingMode,
-        'p_home_size': homeSize,
-        'p_hours': hours,
-        'p_recurrence': recurrence,
-        'p_products_by': productsBy,
+      final res = await _sb.rpc('cleaning_quote_at', params: {
+        ...params,
+        'p_lat': lat,
+        'p_lng': lng,
       }).timeout(kAcaoTimeout);
+      return CleaningQuote.fromJson(_asMap(res));
+    } catch (e) {
+      debugPrint('CleaningStore.quote (cleaning_quote_at) error => $e');
+      if (lat != null && lng != null) return null;
+    }
+    try {
+      final res =
+          await _sb.rpc('cleaning_quote', params: params).timeout(kAcaoTimeout);
       return CleaningQuote.fromJson(_asMap(res));
     } catch (e) {
       debugPrint('CleaningStore.quote error => $e');

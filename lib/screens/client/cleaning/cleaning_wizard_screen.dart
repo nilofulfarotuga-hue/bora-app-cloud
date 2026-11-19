@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
 
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
+import '../../../config/maps_config.dart';
+import '../../../services/place_autocomplete_service.dart';
+import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/card_mandate_notice.dart';
 import '../../../models/cleaning_models.dart';
 import '../../../stores/cart_store.dart';
@@ -21,7 +25,14 @@ import '../../../l10n/tr.dart';
 ///   3. Profissional & Pagamento (lista disponível + resumo + confirmar)
 /// Preço SEMPRE server-side (RPC cleaning_quote); aqui só se mostra.
 class CleaningWizardScreen extends StatefulWidget {
-  const CleaningWizardScreen({super.key, this.repeatOf, this.agora});
+  const CleaningWizardScreen(
+      {super.key, this.repeatOf, this.agora, this.procurarMorada});
+
+  /// Procura das coordenadas da morada ESCRITA (sem sugestão tocada). Só os
+  /// testes a trocam; em produção é a procura do TVDE/Favores
+  /// ([PlaceAutocompleteService.procurarMoradaEscrita]).
+  @visibleForTesting
+  final Future<ll.LatLng?> Function(String morada)? procurarMorada;
 
   /// Relógio do ecrã — só os testes o trocam (para marcar no dia da mudança
   /// de hora). Em produção é sempre o instante real do telemóvel.
@@ -64,6 +75,23 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
   final _notesCtrl = TextEditingController();
   bool _addressPrefilled = false;
 
+  /// Coordenadas DA MORADA DA LIMPEZA (19/11/2026). Antes iam as do carrinho
+  /// (`cart.deliveryLocation`, a morada de entregas): uma cliente de Celorico
+  /// com a morada de entregas na Guarda ficava sem taxa de deslocação e a
+  /// oferta ia para quem não cobre a zona. Agora:
+  ///  - sugestão tocada no campo da rua → coordenadas dessa sugestão;
+  ///  - morada escrita à mão → procura-se ao avançar do passo 2 (nunca trava:
+  ///    se não achar, segue sem coordenadas e o servidor cobra taxa 0);
+  ///  - qualquer mudança na rua/cidade/código postal apaga-as.
+  /// A distância e a taxa vêm SEMPRE do servidor (`cleaning_quote_at`).
+  ll.LatLng? _addrCoords;
+  late final PlaceAutocompleteService _places =
+      createPlaceAutocompleteService(googleApiKey);
+
+  /// Só a resposta do pedido de preço mais recente conta (a morada e as
+  /// escolhas podem mudar com um pedido ainda a caminho).
+  int _quoteSeq = 0;
+
   // Passo 3 — profissional & pagamento
   List<AvailableCleaner> _cleaners = const [];
   bool _cleanersLoading = false;
@@ -99,6 +127,9 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
       _postalCtrl.text = antiga.addressPostal;
       _notesCtrl.text = antiga.notes;
       _addressPrefilled = antiga.addressStreet.isNotEmpty;
+      if (antiga.lat != null && antiga.lng != null) {
+        _addrCoords = ll.LatLng(antiga.lat!, antiga.lng!);
+      }
       _requestedCleanerId = antiga.cleanerId;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -135,11 +166,16 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
     if (cart.dropoffPostalCode.isNotEmpty) {
       _postalCtrl.text = cart.dropoffPostalCode;
     }
+    // As coordenadas do carrinho só valem enquanto a morada for a do carrinho
+    // (que veio com elas). Mudou uma letra → apagam-se ([_moradaMudou]).
+    if (cart.dropoffStreet.isNotEmpty) _addrCoords = cart.deliveryLocation;
     _addressPrefilled = true;
   }
 
   Future<void> _refreshQuote() async {
+    final seq = ++_quoteSeq;
     setState(() => _quoteLoading = true);
+    final coords = _addrCoords;
     final quote = await context.read<CleaningStore>().quote(
           cleaningType: _cleaningType,
           pricingMode: _pricingMode,
@@ -147,12 +183,68 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
           hours: _pricingMode == 'hourly' ? _hours : null,
           recurrence: _recurrence,
           productsBy: _productsBy,
+          lat: coords?.latitude,
+          lng: coords?.longitude,
         );
-    if (!mounted) return;
+    if (!mounted || seq != _quoteSeq) return;
     setState(() {
       _quote = quote;
       _quoteLoading = false;
     });
+  }
+
+  // ── morada da limpeza ─────────────────────────────────────────────────────
+
+  String get _moradaEscrita => [
+        _streetCtrl.text.trim(),
+        '${_postalCtrl.text.trim()} ${_cityCtrl.text.trim()}'.trim(),
+      ].where((p) => p.isNotEmpty).join(', ');
+
+  /// O cliente mexeu na morada: as coordenadas antigas já não são dela.
+  void _moradaMudou() {
+    if (_addrCoords == null) return;
+    setState(() => _addrCoords = null);
+    _refreshQuote();
+  }
+
+  /// Sugestão tocada no campo da rua: coordenadas certas + preço com a taxa.
+  /// Preenche a cidade e o código postal a partir da sugestão quando os traz.
+  void _sugestaoEscolhida(String morada, ll.LatLng? coords) {
+    final postal = RegExp(r'\b\d{4}-\d{3}\b').firstMatch(morada)?.group(0);
+    final partes = morada
+        .split(',')
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty && p.toLowerCase() != 'portugal')
+        .toList();
+    setState(() {
+      _addrCoords = coords;
+      if (postal != null) _postalCtrl.text = postal;
+      if (partes.length >= 2) {
+        final cidade =
+            partes.last.replaceAll(RegExp(r'\d{4}-\d{3}'), '').trim();
+        if (cidade.isNotEmpty) _cityCtrl.text = cidade;
+      }
+    });
+    _refreshQuote();
+  }
+
+  /// Morada escrita sem sugestão: procura as coordenadas (a mesma procura do
+  /// TVDE e dos Favores). Falhou → segue sem elas; nunca trava a marcação.
+  Future<void> _resolverMoradaEscrita() async {
+    if (_addrCoords != null) return;
+    final texto = _moradaEscrita;
+    if (texto.isEmpty) return;
+    ll.LatLng? achada;
+    try {
+      final procurar = widget.procurarMorada;
+      achada = procurar != null
+          ? await procurar(texto)
+          : (await _places.procurarMoradaEscrita(texto))?.coords;
+    } catch (_) {
+      achada = null;
+    }
+    if (!mounted || achada == null) return;
+    setState(() => _addrCoords = achada);
   }
 
   // ── navegação entre passos ────────────────────────────────────────────────
@@ -196,6 +288,21 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
         _snack('Preenche a morada da limpeza.'.tr);
         return;
       }
+      // Preço com a morada da limpeza (taxa de deslocação do servidor) ANTES
+      // de mostrar o resumo e de pagar.
+      final semCoords = _addrCoords == null;
+      await _resolverMoradaEscrita();
+      if (!mounted) return;
+      if (semCoords || _quote == null || _quoteLoading) await _refreshQuote();
+      if (!mounted) return;
+      if (_quote == null) {
+        _snack('Sem orçamento — verifica a ligação e tenta de novo.'.tr);
+        return;
+      }
+      if (_quote!.outOfArea) {
+        _snack(CleaningLabels.outOfAreaMessage(_quote!.maxDistanceKm).tr);
+        return;
+      }
       setState(() => _step = 2);
       await _loadCleaners();
       return;
@@ -216,8 +323,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
     final quote = _quote;
     if (scheduled == null || quote == null) return;
     setState(() => _cleanersLoading = true);
-    final cart = context.read<CartStore>();
-    final loc = cart.deliveryLocation;
+    final loc = _addrCoords;
     final list = await context.read<CleaningStore>().listAvailableCleaners(
           scheduledAt: scheduled,
           durationMin: quote.durationMin,
@@ -239,9 +345,12 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
     final store = context.read<CleaningStore>();
     final scheduled = _scheduledAt;
     if (scheduled == null) return;
+    if (_quote?.outOfArea == true) {
+      _snack(CleaningLabels.outOfAreaMessage(_quote!.maxDistanceKm).tr);
+      return;
+    }
     try {
-      final cart = context.read<CartStore>();
-      final loc = cart.deliveryLocation;
+      final loc = _addrCoords;
       final booking = await store.createBooking(
         cleaningType: _cleaningType,
         pricingMode: _pricingMode,
@@ -290,6 +399,15 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
         friendly = 'As limpezas estão temporariamente indisponíveis.'.tr;
       } else if (msg.contains('cleaner_not_available')) {
         friendly = 'Essa profissional já não está disponível — escolhe outra.'.tr;
+      } else if (msg.contains('fora_da_area_limpeza')) {
+        // O número vem do servidor (no orçamento ou na própria mensagem).
+        final doErro = double.tryParse(
+            RegExp(r'mais de (\d+(?:[.,]\d+)?) km').firstMatch(msg)?.group(1)
+                    ?.replaceAll(',', '.') ??
+                '');
+        friendly = CleaningLabels.outOfAreaMessage(
+                _quote?.maxDistanceKm ?? doErro)
+            .tr;
       }
       _snack(friendly);
     }
@@ -357,7 +475,8 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
                   BoraPrimaryButton(
                     label: 'Encomenda com obrigação de pagar'.tr,
                     loading: _avancando,
-                    onPressed: _goNext,
+                    // Fora da área da limpeza: botão desligado (19/11/2026).
+                    onPressed: _quote?.outOfArea == true ? null : _goNext,
                   ),
                   TextButton(
                     onPressed: _goBack,
@@ -595,10 +714,18 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
           ),
         const SizedBox(height: Spacing.lg),
         _sectionTitle('Morada da limpeza'.tr),
-        TextField(
+        // Com sugestões (como no TVDE): a sugestão traz as coordenadas da
+        // CASA a limpar. Não trava nada fora da Guarda — o limite da limpeza
+        // é o `max_distance_km` do servidor, mais nenhum.
+        AddressAutocompleteField(
           controller: _streetCtrl,
-          decoration: InputDecoration(
-              labelText: 'Rua e número'.tr, prefixIcon: const Icon(Icons.home)),
+          labelText: 'Rua e número'.tr,
+          prefixIcon: const Icon(Icons.home),
+          // A procura da morada escrita faz-se ao avançar, com a cidade e o
+          // código postal juntos (a rua sozinha cai numa rua da Guarda).
+          confirmarAoSair: false,
+          onSelected: _sugestaoEscolhida,
+          onChanged: (_) => _moradaMudou(),
         ),
         const SizedBox(height: Spacing.md),
         Row(
@@ -607,6 +734,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
               flex: 3,
               child: TextField(
                 controller: _cityCtrl,
+                onChanged: (_) => _moradaMudou(),
                 decoration: InputDecoration(labelText: 'Cidade'.tr),
               ),
             ),
@@ -615,6 +743,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
               flex: 2,
               child: TextField(
                 controller: _postalCtrl,
+                onChanged: (_) => _moradaMudou(),
                 keyboardType: TextInputType.number,
                 decoration:
                     InputDecoration(labelText: 'Código postal'.tr),
@@ -622,6 +751,8 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
             ),
           ],
         ),
+        if (_addrCoords != null && _quote != null && !_quoteLoading)
+          _TravelInfo(quote: _quote!),
         const SizedBox(height: Spacing.lg),
         _sectionTitle('Notas para a profissional (opcional)'.tr),
         TextField(
@@ -790,6 +921,12 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
                 if (quote.productsFeeCents > 0)
                   _summaryRow('Produtos'.tr,
                       '+ ${CleaningLabels.euro(quote.productsFeeCents)}'),
+                // Taxa de deslocação (19/11/2026): só a partir dos 10 km de
+                // estrada; os km são os que o servidor devolve.
+                if (quote.travelFeeCents > 0)
+                  _summaryRow(
+                      CleaningLabels.travelFeeLabel(quote.travelDistanceKm).tr,
+                      '+ ${CleaningLabels.euro(quote.travelFeeCents)}'),
                 const Divider(height: Spacing.lg),
                 _summaryRow('Total'.tr, CleaningLabels.euro(quote.totalCents),
                     bold: true),
@@ -797,6 +934,11 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
             ],
           ),
         ),
+        if (quote != null && quote.outOfArea)
+          Padding(
+            padding: const EdgeInsets.only(top: Spacing.md),
+            child: _TravelInfo(quote: quote),
+          ),
         const SizedBox(height: Spacing.md),
         Text(
           'Cancelamento: grátis até 24 h antes · 50% entre 24 h e 2 h · 100% a menos de 2 h.'.tr,
@@ -944,11 +1086,60 @@ class _QuoteCard extends StatelessWidget {
                         style: const TextStyle(
                             color: AppColors.textSecondary, fontSize: 13),
                       ),
+                      if (q.travelFeeCents > 0)
+                        Text(
+                          'inclui {0} de deslocação'.trArgs(
+                              [CleaningLabels.euro(q.travelFeeCents)]),
+                          style: const TextStyle(
+                              color: AppColors.textSecondary, fontSize: 13),
+                        ),
                     ],
                   ),
                 ),
               ],
             ),
+    );
+  }
+}
+
+/// Aviso por baixo da morada: a taxa de deslocação (com os km de estrada que
+/// o servidor devolveu) ou, fora da área, que ainda não se faz lá a limpeza.
+/// A menos de 10 km (taxa 0) não mostra nada.
+class _TravelInfo extends StatelessWidget {
+  const _TravelInfo({required this.quote});
+  final CleaningQuote quote;
+
+  @override
+  Widget build(BuildContext context) {
+    final fora = quote.outOfArea;
+    if (!fora && quote.travelFeeCents <= 0) return const SizedBox.shrink();
+    final texto = fora
+        ? CleaningLabels.outOfAreaMessage(quote.maxDistanceKm).tr
+        : '{0}: + {1}'.trArgs([
+            CleaningLabels.travelFeeLabel(quote.travelDistanceKm).tr,
+            CleaningLabels.euro(quote.travelFeeCents),
+          ]);
+    final cor = fora ? AppColors.error : AppColors.textSecondary;
+    return Padding(
+      padding: const EdgeInsets.only(top: Spacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(fora ? Icons.block : Icons.directions_car_outlined,
+              size: 18, color: cor),
+          const SizedBox(width: Spacing.xs),
+          Expanded(
+            child: Text(
+              texto,
+              style: TextStyle(
+                color: cor,
+                fontSize: 13,
+                fontWeight: fora ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

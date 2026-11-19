@@ -856,6 +856,11 @@ class _DetailsCard extends StatelessWidget {
                 '- ${CleaningLabels.euro(b.recurringDiscountCents)}'),
           if (b.productsFeeCents > 0)
             _row('Produtos'.tr, '+ ${CleaningLabels.euro(b.productsFeeCents)}'),
+          // Taxa de deslocação (19/11/2026): já dentro do total; km de estrada
+          // gravados pelo servidor na reserva.
+          if (b.travelFeeCents > 0)
+            _row(CleaningLabels.travelFeeLabel(b.travelDistanceKm).tr,
+                '+ ${CleaningLabels.euro(b.travelFeeCents)}'),
           _row('Total'.tr, CleaningLabels.euro(b.totalCents), bold: true),
         ],
       ),

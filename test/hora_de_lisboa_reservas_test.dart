@@ -59,6 +59,8 @@ class _Limpezas extends CleaningStore {
     int? hours,
     String recurrence = 'single',
     String productsBy = 'client',
+    double? lat,
+    double? lng,
   }) async =>
       const CleaningQuote(
         baseCents: 3000,

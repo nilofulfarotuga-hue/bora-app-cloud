@@ -92,6 +92,26 @@ class CleaningLabels {
   static String euro(int cents) =>
       '€${(cents / 100).toStringAsFixed(2).replaceAll('.', ',')}';
 
+  /// "28,6" — km como o servidor os devolve (uma casa decimal, vírgula).
+  /// Sem casa decimal quando é redondo ("32").
+  static String km(double km) {
+    final t = km == km.roundToDouble()
+        ? km.toStringAsFixed(0)
+        : km.toStringAsFixed(1);
+    return t.replaceAll('.', ',');
+  }
+
+  /// Linha da taxa de deslocação: "Taxa de deslocação (28,6 km de estrada)".
+  static String travelFeeLabel(double? km) => km == null
+      ? 'Taxa de deslocação'
+      : 'Taxa de deslocação (${CleaningLabels.km(km)} km de estrada)';
+
+  /// "Ainda não fazemos limpezas a mais de 32 km da Guarda" — o número vem
+  /// SEMPRE do servidor (`max_distance_km`); sem ele, frase sem número.
+  static String outOfAreaMessage(double? maxKm) => maxKm == null
+      ? 'Ainda não fazemos limpezas tão longe da Guarda.'
+      : 'Ainda não fazemos limpezas a mais de ${CleaningLabels.km(maxKm)} km da Guarda.';
+
   /// "08/11 10:00" — dia/mês e hora de LISBOA de um instante (nunca o fuso
   /// do telemóvel). Para as linhas curtas da série ("próxima: …").
   static String diaHoraLisboa(DateTime instante) {
@@ -198,6 +218,17 @@ class CleaningBooking {
   final int cleanerEarningsCents;
   final int boraFeeCents;
   final int cancelFeeCents;
+
+  /// Taxa de deslocação (19/11/2026): já está DENTRO de [totalCents] e vai
+  /// inteira para a profissional. 0 a menos de 10 km de estrada da Guarda.
+  final int travelFeeCents;
+
+  /// Km de ESTRADA desde o centro da Guarda, calculados no servidor.
+  final double? travelDistanceKm;
+
+  /// Coordenadas da morada da limpeza.
+  final double? lat;
+  final double? lng;
   final String? cancelReason;
   final String? cancelledBy;
   final String? offerCleanerId;
@@ -238,6 +269,10 @@ class CleaningBooking {
     required this.cleanerEarningsCents,
     required this.boraFeeCents,
     required this.cancelFeeCents,
+    this.travelFeeCents = 0,
+    this.travelDistanceKm,
+    this.lat,
+    this.lng,
     this.cancelReason,
     this.cancelledBy,
     this.offerCleanerId,
@@ -280,6 +315,10 @@ class CleaningBooking {
       cleanerEarningsCents: i(m['cleaner_earnings_cents']),
       boraFeeCents: i(m['bora_fee_cents']),
       cancelFeeCents: i(m['cancel_fee_cents']),
+      travelFeeCents: i(m['travel_fee_cents']),
+      travelDistanceKm: (m['travel_distance_km'] as num?)?.toDouble(),
+      lat: (m['lat'] as num?)?.toDouble(),
+      lng: (m['lng'] as num?)?.toDouble(),
       cancelReason: m['cancel_reason'] as String?,
       cancelledBy: m['cancelled_by'] as String?,
       offerCleanerId: m['offer_cleaner_id'] as String?,
@@ -346,6 +385,18 @@ class CleaningQuote {
   final int totalCents;
   final int durationMin;
 
+  /// Taxa de deslocação (19/11/2026, RPC `cleaning_quote_at`). Já está
+  /// incluída em [totalCents]. 0 sem morada ou a menos de 10 km de estrada.
+  final int travelFeeCents;
+
+  /// Km de ESTRADA até ao centro da Guarda, como o servidor os devolve.
+  /// A app NUNCA calcula distâncias: só mostra este número.
+  final double? travelDistanceKm;
+
+  /// Morada além do máximo da limpeza ([maxDistanceKm], vem do servidor).
+  final bool outOfArea;
+  final double? maxDistanceKm;
+
   const CleaningQuote({
     required this.baseCents,
     required this.typeSurchargeCents,
@@ -353,6 +404,10 @@ class CleaningQuote {
     required this.productsFeeCents,
     required this.totalCents,
     required this.durationMin,
+    this.travelFeeCents = 0,
+    this.travelDistanceKm,
+    this.outOfArea = false,
+    this.maxDistanceKm,
   });
 
   factory CleaningQuote.fromJson(Map<String, dynamic> m) => CleaningQuote(
@@ -363,6 +418,10 @@ class CleaningQuote {
         productsFeeCents: (m['products_fee_cents'] as num?)?.toInt() ?? 0,
         totalCents: (m['total_cents'] as num?)?.toInt() ?? 0,
         durationMin: (m['duration_min'] as num?)?.toInt() ?? 180,
+        travelFeeCents: (m['travel_fee_cents'] as num?)?.toInt() ?? 0,
+        travelDistanceKm: (m['travel_distance_km'] as num?)?.toDouble(),
+        outOfArea: m['out_of_area'] == true,
+        maxDistanceKm: (m['max_distance_km'] as num?)?.toDouble(),
       );
 }
 

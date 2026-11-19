@@ -2,6 +2,7 @@
 // Model → Store → Screen. Todos os valores monetários em cents (int),
 // calculados SEMPRE server-side (RPC cleaning_quote / create_cleaning_booking).
 
+import '../l10n/tr.dart';
 import '../utils/hora_lisboa.dart';
 
 /// Estado da reserva de limpeza (espelha o CHECK de cleaning_bookings.status).
@@ -103,14 +104,15 @@ class CleaningLabels {
 
   /// Linha da taxa de deslocação: "Taxa de deslocação (28,6 km de estrada)".
   static String travelFeeLabel(double? km) => km == null
-      ? 'Taxa de deslocação'
-      : 'Taxa de deslocação (${CleaningLabels.km(km)} km de estrada)';
+      ? 'Taxa de deslocação'.tr
+      : 'Taxa de deslocação ({0} km de estrada)'.trArgs([CleaningLabels.km(km)]);
 
-  /// "Ainda não fazemos limpezas a mais de 32 km da Guarda" — o número vem
+  /// "Ainda não fazemos limpezas a mais de 32 km da Guarda." — o número vem
   /// SEMPRE do servidor (`max_distance_km`); sem ele, frase sem número.
   static String outOfAreaMessage(double? maxKm) => maxKm == null
-      ? 'Ainda não fazemos limpezas tão longe da Guarda.'
-      : 'Ainda não fazemos limpezas a mais de ${CleaningLabels.km(maxKm)} km da Guarda.';
+      ? 'Ainda não fazemos limpezas tão longe da Guarda.'.tr
+      : 'Ainda não fazemos limpezas a mais de {0} km da Guarda.'
+          .trArgs([CleaningLabels.km(maxKm)]);
 
   /// "08/11 10:00" — dia/mês e hora de LISBOA de um instante (nunca o fuso
   /// do telemóvel). Para as linhas curtas da série ("próxima: …").

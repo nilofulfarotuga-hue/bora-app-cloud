@@ -628,6 +628,15 @@ String _fmtWhen(DateTime instante) {
   return '${two(d.day)}/${two(d.month)} às ${two(d.hour)}:${two(d.minute)}';
 }
 
+/// Taxa de deslocação (19/11/2026): já está dentro do "Ganhas" e é toda da
+/// profissional. "\ninclui €29,00 de deslocação (28,6 km de estrada)".
+String _deslocacao(CleaningBooking b) {
+  if (b.travelFeeCents <= 0) return '';
+  final km = b.travelDistanceKm;
+  return '\ninclui ${CleaningLabels.euro(b.travelFeeCents)} de deslocação'
+      '${km == null ? '' : ' (${CleaningLabels.km(km)} km de estrada)'}';
+}
+
 /// S4 (01/11/2026): "Semanal"/"Quinzenal" e "Cliente habitual" na oferta e
 /// na agenda — a profissional percebe que é uma série que se repete com ela.
 class _SelosDaSerie extends StatelessWidget {
@@ -716,7 +725,8 @@ class _OfferCardState extends State<_OfferCard> {
             Text(
               '${_fmtWhen(b.scheduledAt)} · ${b.addressCity}\n'
               'Ganhas ${CleaningLabels.euro(b.cleanerEarningsCents)}'
-              '${b.productsBy == 'cleaner' ? ' (produtos incluídos)' : ''}',
+              '${b.productsBy == 'cleaner' ? ' (produtos incluídos)' : ''}'
+              '${_deslocacao(b)}',
               style: const TextStyle(
                   color: AppColors.textSecondary, height: 1.4),
             ),
@@ -850,7 +860,8 @@ class _AgendaCardState extends State<_AgendaCard> {
               '${b.addressStreet}, ${b.addressCity} ${b.addressPostal}'
               '${b.notes.isNotEmpty ? '\nNota: ${b.notes}' : ''}\n'
               'Ganhas ${CleaningLabels.euro(b.cleanerEarningsCents)} · '
-              '${b.paymentMethod == 'cash' ? 'Dinheiro no local' : 'Pago na app'}',
+              '${b.paymentMethod == 'cash' ? 'Dinheiro no local' : 'Pago na app'}'
+              '${_deslocacao(b)}',
               style: const TextStyle(
                   color: AppColors.textSecondary, height: 1.4),
             ),

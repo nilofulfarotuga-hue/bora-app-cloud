@@ -859,7 +859,7 @@ class _DetailsCard extends StatelessWidget {
           // Taxa de deslocação (19/11/2026): já dentro do total; km de estrada
           // gravados pelo servidor na reserva.
           if (b.travelFeeCents > 0)
-            _row(CleaningLabels.travelFeeLabel(b.travelDistanceKm).tr,
+            _row(CleaningLabels.travelFeeLabel(b.travelDistanceKm),
                 '+ ${CleaningLabels.euro(b.travelFeeCents)}'),
           _row('Total'.tr, CleaningLabels.euro(b.totalCents), bold: true),
         ],

@@ -300,7 +300,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
         return;
       }
       if (_quote!.outOfArea) {
-        _snack(CleaningLabels.outOfAreaMessage(_quote!.maxDistanceKm).tr);
+        _snack(CleaningLabels.outOfAreaMessage(_quote!.maxDistanceKm));
         return;
       }
       setState(() => _step = 2);
@@ -346,7 +346,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
     final scheduled = _scheduledAt;
     if (scheduled == null) return;
     if (_quote?.outOfArea == true) {
-      _snack(CleaningLabels.outOfAreaMessage(_quote!.maxDistanceKm).tr);
+      _snack(CleaningLabels.outOfAreaMessage(_quote!.maxDistanceKm));
       return;
     }
     try {
@@ -406,8 +406,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
                     ?.replaceAll(',', '.') ??
                 '');
         friendly = CleaningLabels.outOfAreaMessage(
-                _quote?.maxDistanceKm ?? doErro)
-            .tr;
+                _quote?.maxDistanceKm ?? doErro);
       }
       _snack(friendly);
     }
@@ -925,7 +924,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
                 // estrada; os km são os que o servidor devolve.
                 if (quote.travelFeeCents > 0)
                   _summaryRow(
-                      CleaningLabels.travelFeeLabel(quote.travelDistanceKm).tr,
+                      CleaningLabels.travelFeeLabel(quote.travelDistanceKm),
                       '+ ${CleaningLabels.euro(quote.travelFeeCents)}'),
                 const Divider(height: Spacing.lg),
                 _summaryRow('Total'.tr, CleaningLabels.euro(quote.totalCents),
@@ -1114,11 +1113,9 @@ class _TravelInfo extends StatelessWidget {
     final fora = quote.outOfArea;
     if (!fora && quote.travelFeeCents <= 0) return const SizedBox.shrink();
     final texto = fora
-        ? CleaningLabels.outOfAreaMessage(quote.maxDistanceKm).tr
-        : '{0}: + {1}'.trArgs([
-            CleaningLabels.travelFeeLabel(quote.travelDistanceKm).tr,
-            CleaningLabels.euro(quote.travelFeeCents),
-          ]);
+        ? CleaningLabels.outOfAreaMessage(quote.maxDistanceKm)
+        : '${CleaningLabels.travelFeeLabel(quote.travelDistanceKm)}: '
+            '+ ${CleaningLabels.euro(quote.travelFeeCents)}';
     final cor = fora ? AppColors.error : AppColors.textSecondary;
     return Padding(
       padding: const EdgeInsets.only(top: Spacing.sm),

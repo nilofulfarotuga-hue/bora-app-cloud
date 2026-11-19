@@ -5637,4 +5637,10 @@ const Map<String, String> kStringsEn = <String, String>{
       'This link has already been used. If you already saved your password, sign in with it.',
   'Essa palavra-passe é muito comum. Escolha outra, com letras e números.':
       'That password is too common. Choose another one, with letters and numbers.',
+  // Limpeza longe da Guarda (19/11/2026)
+  'Taxa de deslocação': 'Travel fee',
+  'Taxa de deslocação ({0} km de estrada)': 'Travel fee ({0} km by road)',
+  'Ainda não fazemos limpezas tão longe da Guarda.': "We don't do cleanings that far from Guarda yet.",
+  'Ainda não fazemos limpezas a mais de {0} km da Guarda.': "We don't do cleanings more than {0} km from Guarda yet.",
+  'inclui {0} de deslocação': 'includes {0} travel fee',
 };

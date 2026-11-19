@@ -5,6 +5,7 @@ import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/auth_admin_service.dart';
 import '../../utils/hora_lisboa.dart';
+import '../../utils/vigia_servidor_texto.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 
 /// Vigia do servidor (PT-BR) — missão servidor-nao-travar-2026-11-16, B3.3.
@@ -152,6 +153,12 @@ class _MedicaoCard extends StatelessWidget {
       'canais_acumulados' => 'Uma conta com canais a mais',
       _ => null,
     };
+    // 17/11 (servidor-busca-leve, B4): quem e o quê em palavras de gente. As
+    // medições novas trazem-nos do servidor; as antigas traduzem-se aqui.
+    final quem = (linha['quem'] as String?) ??
+        quemGerouCarga(linha['top_papel'] as String?);
+    final oQue = (linha['o_que'] as String?) ??
+        oQueGerouCarga(linha['top_consulta'] as String?);
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(
@@ -167,9 +174,10 @@ class _MedicaoCard extends StatelessWidget {
           [
             if (motivo != null) motivo,
             if (linha['top_pct'] != null)
-              'consulta mais pesada: ${linha['top_pct']}% '
+              'mais pesado: $oQue — ${linha['top_pct']}% '
                   '(${linha['top_vezes'] ?? '—'} vezes, '
                   '${linha['top_media_ms'] ?? '—'} ms em média)',
+            if (linha['top_pct'] != null) 'quem: $quem',
           ].join(' · '),
           style: const TextStyle(fontSize: 12),
         ),
@@ -179,6 +187,8 @@ class _MedicaoCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text('Quem: $quem', style: const TextStyle(fontSize: 12)),
+                Text('O quê: $oQue', style: const TextStyle(fontSize: 12)),
                 Text('Papel (role): ${linha['top_papel'] ?? '—'}',
                     style: const TextStyle(fontSize: 12)),
                 const SizedBox(height: 4),

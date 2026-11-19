@@ -447,6 +447,8 @@ void main() {
         InterruptoresApp.mapaProcuraEstafeta,
         // Bloco C (29/10/2026): modo ocupado do parceiro, desligado por defeito.
         InterruptoresApp.modoOcupadoParceiro,
+        // 17/11/2026: "Quando chamamos o estafeta?" (lojas que não são de comida).
+        InterruptoresApp.quandoChamarParceiro,
       };
       expect(kInterruptoresApp, doCodigo);
     });

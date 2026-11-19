@@ -40,6 +40,17 @@ extension BusinessCategoryLabel on BusinessCategory {
   }
 }
 
+/// Categorias principais das lojas que não são de comida (17/11/2026): podem
+/// prometer o pedido pronto daqui a horas ou dias. Igual ao servidor
+/// (`_loja_nao_comida`).
+const Set<BusinessCategory> kCategoriasNaoComida = {
+  BusinessCategory.store,
+  BusinessCategory.festas,
+  BusinessCategory.pharmacy,
+  BusinessCategory.supermarket,
+  BusinessCategory.beauty,
+};
+
 /// Antecedência mínima das encomendas de festa, em dias (regra do Danilo,
 /// 2026-08-25: UM dia, ponto — a data mais cedo é sempre o dia seguinte).
 const int kFestasAvisoDias = 1;
@@ -462,6 +473,12 @@ class RestaurantModel {
   bool belongsTo(BusinessCategory section) =>
       category == section || extraCategories.contains(section);
 
+  /// Loja que NÃO é de comida (17/11/2026, A3 Guarda): ao aceitar, escolhe
+  /// "Quando chamamos o estafeta?" até 14 dias. Pela categoria PRINCIPAL, como
+  /// a função `_loja_nao_comida` do servidor: a A3 é `store` (com festas extra)
+  /// e entra; um restaurante com supermercado extra continua restaurante.
+  bool get lojaNaoComida => kCategoriasNaoComida.contains(category);
+
   /// True quando faz sentido mostrar o selo "Frescura garantida".
   ///
   /// Só onde há comida fresca: Restaurantes, Supermercados e Sobremesas. Numa
@@ -591,6 +608,14 @@ class RestaurantModel {
     if (!isOnline) return false;
     final instante = nowOverride ?? DateTime.now();
     if (emPausa(instante)) return false;
+    return dentroDoHorarioEm(instante);
+  }
+
+  /// O [instante] cai dentro do horário da loja (dia aberto, entre abrir e
+  /// fechar, fora da pausa do dia)? Só lê o horário — não olha a "online" nem à
+  /// pausa do parceiro. Serve para marcar uma hora no futuro (17/11/2026,
+  /// "Quando chamamos o estafeta?"). Hora de Lisboa, como [isOpenNow].
+  bool dentroDoHorarioEm(DateTime instante) {
     final now = paredeLisboa(instante);
     final day = businessHours.diaEm(now);
     if (day.closed) return false;

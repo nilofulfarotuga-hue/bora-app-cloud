@@ -94,6 +94,10 @@ String? etaDoPedido(OrderModel o, {Duration naFase = Duration.zero, LatLng? driv
   if (marcado != null && aEsperaDaHoraMarcada(o, DateTime.now())) {
     return textoAgendadoPara(janelaDoInstante(marcado));
   }
+  // 17/11/2026: a loja prometeu o pedido para daqui a horas ou dias
+  // ("Fica pronto sexta, 21/11, às 15:00"), não um "Chega em ~2900 min".
+  final longe = OrderEtaService.textoProntoLonge(o);
+  if (longe != null) return longe;
   if (o.serviceType == OrderServiceType.takeaway) {
     final pronto = o.takeawayReadyAt?.toLocal();
     if (pronto == null) return null;

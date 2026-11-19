@@ -1221,6 +1221,7 @@ const Set<String> kInterruptoresApp = <String>{
   'feature_oferta_ganho_visivel',
   'feature_mapa_procura_estafeta',
   'partner_busy_mode_enabled', // C6 (29/10/2026): modo ocupado do parceiro
+  'parceiro_quando_chamar_ligado', // 17/11/2026: lojas marcam até 14 dias
 };
 
 /// [17/10/2026 · cancelamento tardio] Validação das chaves de cancelamento em

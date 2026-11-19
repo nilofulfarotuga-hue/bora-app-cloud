@@ -55,6 +55,7 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
             rotulosGorjetas[s.key] ??
             rotulosPesoVariavel[s.key] ??
             rotulosFarmacias[s.key] ??
+            kRotulosLimpezaLonge[s.key] ??
             rotulosFavoresRecibos[s.key] ??
             rotulosRecibosVerdes[s.key] ??
             kRotulosDepositoVolta[s.key];
@@ -261,6 +262,10 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
     if (rotulosRecibosVerdes.containsKey(key)) return true;
     // Farmácias (11/11/2026): receita, prazos, comissão extra e texto da autorização.
     if (rotulosFarmacias.containsKey(key)) return true;
+    // Limpeza longe e em equipa (19/11/2026): taxa de deslocação, distância
+    // máxima e nº de profissionais. As que mudam o preço vão pelo caminho com
+    // motivo e auditoria (_isMoneyKey: "cents" e kChavesDinheiroSemMarca).
+    if (kRotulosLimpezaLonge.containsKey(key)) return true;
     // Depósito Volta (09/11/2026): valor e interruptor. Os dois vão pelo
     // caminho com motivo e auditoria (_isMoneyKey: "cents" e a lista
     // kChavesDinheiroSemMarca) — mudam o que o cliente paga.
@@ -1163,6 +1168,41 @@ const Set<String> kChavesDinheiroSemMarca = <String>{
   // Depósito Volta (09/11/2026): ligar/desligar cobra ou deixa de cobrar o
   // depósito a todos os clientes — vai com motivo e fica auditado.
   'volta_deposit_enabled',
+  // Limpeza longe (19/11/2026): os limites em km decidem a taxa que o cliente
+  // paga e se a limpeza se aceita — vão com motivo e ficam auditados.
+  'cleaning_travel_free_km',
+  'cleaning_travel_tier1_max_km',
+  'cleaning_max_distance_km',
+  'cleaning_travel_center_lat',
+  'cleaning_travel_center_lng',
+  'cleaning_road_fallback_factor',
+};
+
+/// [Limpeza longe e em equipa · 19/11/2026] Etiquetas PT-BR das chaves novas
+/// da limpeza (categoria 'cleaning'). Estar aqui TORNA a chave editável.
+const Map<String, String> kRotulosLimpezaLonge = <String, String>{
+  'cleaning_travel_free_km':
+      'Limpeza: até quantos km de ESTRADA do centro da Guarda NÃO há taxa de deslocação (hoje 10).',
+  'cleaning_travel_tier1_max_km':
+      'Limpeza: até quantos km de estrada se cobra a taxa fixa do 1.º escalão (hoje 15).',
+  'cleaning_travel_tier1_cents':
+      'Limpeza: taxa de deslocação do 1.º escalão (centavos; 800 = 8,00 €). Vai inteira para a profissional.',
+  'cleaning_travel_tier2_base_cents':
+      'Limpeza: taxa de deslocação acima do 1.º escalão (centavos; 1500 = 15,00 €), mais o valor por km.',
+  'cleaning_travel_per_km_cents':
+      'Limpeza: centavos por cada km de estrada acima do 1.º escalão (100 = 1,00 €/km).',
+  'cleaning_max_distance_km':
+      'Limpeza: distância máxima PELA ESTRADA ao centro da Guarda (hoje 32). Mais longe a app não deixa marcar.',
+  'cleaning_travel_center_lat':
+      'Limpeza: latitude do centro da Guarda (ponto de onde se mede a distância).',
+  'cleaning_travel_center_lng':
+      'Limpeza: longitude do centro da Guarda.',
+  'cleaning_road_fallback_factor':
+      'Limpeza: fator linha reta → estrada, usado só fora da grelha de estradas (1.63 = 63% a mais).',
+  'cleaning_travel_distance_mode':
+      'Limpeza: como se mede a distância (estrada = km de carro da Google). Só leitura na prática.',
+  'cleaning_max_professionals':
+      'Limpeza: máximo de profissionais na mesma limpeza (equipa, só no modo Por hora). 1 desliga a equipa.',
 };
 
 /// [Depósito Volta · 09/11/2026] Latas e garrafas de plástico (até 3 L) com

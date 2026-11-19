@@ -28,6 +28,8 @@ class _Limpezas extends CleaningStore {
   final List<ll.LatLng?> coordsDoPreco = [];
   final List<ll.LatLng?> coordsDaLista = [];
   final List<ll.LatLng?> coordsDaReserva = [];
+  final List<int> equipasPedidas = [];
+  final List<int> equipasCriadas = [];
 
   @override
   Future<int> getSettingInt(String key, int fallback) async =>
@@ -49,9 +51,37 @@ class _Limpezas extends CleaningStore {
     String productsBy = 'client',
     double? lat,
     double? lng,
+    int teamSize = 1,
   }) async {
     final c = lat == null || lng == null ? null : ll.LatLng(lat, lng);
     coordsDoPreco.add(c);
+    equipasPedidas.add(teamSize);
+    // Equipa em Celorico, Standard, por hora (o que a cleaning_quote_team
+    // devolve): 4 h × 12 € = 48 € de trabalho + 29 € de deslocação cada.
+    if (teamSize > 1 && pricingMode == 'hourly') {
+      final work = 1200 * (hours ?? 4);
+      final travel = c == _celorico ? 2900 : 0;
+      final share = work + travel;
+      return CleaningQuote(
+        baseCents: work,
+        typeSurchargeCents: 0,
+        recurringDiscountCents: 0,
+        productsFeeCents: 0,
+        totalCents: share * teamSize,
+        durationMin: (hours ?? 4) * 60,
+        travelFeeCents: travel,
+        travelDistanceKm: c == _celorico ? 28.6 : null,
+        maxDistanceKm: 32,
+        teamSize: teamSize,
+        shares: [
+          for (var i = 1; i <= teamSize; i++)
+            TeamShare(
+                slot: i,
+                shareCents: share,
+                cleanerEarningsCents: share - (work * 15 ~/ 100)),
+        ],
+      );
+    }
     const base = 7000; // T4+ Standard
     if (c == _celorico) {
       return const CleaningQuote(
@@ -119,9 +149,11 @@ class _Limpezas extends CleaningStore {
     double? lng,
     String notes = '',
     String? requestedCleanerId,
+    int teamSize = 1,
   }) async {
     coordsDaReserva
         .add(lat == null || lng == null ? null : ll.LatLng(lat, lng));
+    equipasCriadas.add(teamSize);
     return null;
   }
 }
@@ -260,5 +292,127 @@ void main() {
     final antiga = CleaningBooking.fromSupabase({'id': 'l0'});
     expect(antiga.travelFeeCents, 0);
     expect(antiga.travelDistanceKm, isNull);
+  });
+
+  testWidgets(
+      'Equipa: Celorico, Standard, 4 h, 2 profissionais → 154 €, '
+      '2 × 29 € de deslocação e 77 € em dinheiro a cada uma', (t) async {
+    await t.binding.setSurfaceSize(const Size(900, 2200));
+    addTearDown(() => t.binding.setSurfaceSize(null));
+    final store = _Limpezas();
+    await t.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider<CleaningStore>.value(value: store),
+        ChangeNotifierProvider<CartStore>.value(value: _carrinhoNaGuarda()),
+      ],
+      child: _app(CleaningWizardScreen(
+        agora: () => DateTime.utc(2026, 11, 19, 10),
+        procurarMorada: _procura,
+      )),
+    ));
+    await t.pumpAndSettle();
+    // Por hora, 4 h, 2 profissionais.
+    await t.tap(find.text('Por hora'));
+    await t.pumpAndSettle();
+    await t.tap(find.byIcon(Icons.add_circle_outline));
+    await t.pumpAndSettle();
+    await t.tap(find.byIcon(Icons.add_circle_outline));
+    await t.pumpAndSettle();
+    expect(find.text('4 h'), findsOneWidget);
+    expect(find.text('Quantas profissionais?'), findsOneWidget);
+    await t.tap(find.text('2'));
+    await t.pumpAndSettle();
+    expect(store.equipasPedidas.last, 2);
+
+    await t.tap(find.text('Continuar'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Escolher data e hora'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('OK'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('OK'));
+    await t.pumpAndSettle();
+    await _escreveMorada(t, 'Rua da Vivenda 3', 'Celorico da Beira', '6360-000');
+    await t.tap(find.text('Continuar'));
+    await t.pumpAndSettle();
+
+    expect(find.text('2 profissionais × 4 h'), findsOneWidget);
+    expect(find.text('2 × €48,00'), findsOneWidget);
+    expect(find.text('+ 2 × €29,00'), findsOneWidget);
+    expect(find.text('€154,00'), findsOneWidget);
+    expect(find.text('Em dinheiro: entregas €77,00 a cada profissional.'),
+        findsOneWidget);
+
+    await t.tap(find.text('Encomenda com obrigação de pagar'));
+    await t.pumpAndSettle();
+    expect(store.equipasCriadas.single, 2);
+    expect(store.coordsDaReserva.single, _celorico);
+  });
+
+  testWidgets('T4+ por tamanho: o aviso da casa grande passa a 2 profissionais',
+      (t) async {
+    await t.binding.setSurfaceSize(const Size(900, 2200));
+    addTearDown(() => t.binding.setSurfaceSize(null));
+    final store = _Limpezas();
+    await t.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider<CleaningStore>.value(value: store),
+        ChangeNotifierProvider<CartStore>.value(value: _carrinhoNaGuarda()),
+      ],
+      child: _app(CleaningWizardScreen(
+        agora: () => DateTime.utc(2026, 11, 19, 10),
+        procurarMorada: _procura,
+      )),
+    ));
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('limpeza_sugere_equipa')), findsNothing);
+    await t.tap(find.text(CleaningLabels.sizes['t4plus']!));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('limpeza_sugere_equipa')));
+    await t.pumpAndSettle();
+    // T4+ = 300 min → 2,5 h por profissional → 3 h cada, 2 profissionais.
+    expect(find.text('3 h'), findsOneWidget);
+    expect(store.equipasPedidas.last, 2);
+  });
+
+  test('reserva de equipa: a vaga 1 tem o total, cada uma a sua parte', () {
+    final principal = CleaningBooking.fromSupabase({
+      'id': 'p1',
+      'pricing_mode': 'hourly',
+      'hours': 4,
+      'base_cents': 4800,
+      'total_cents': 15400,
+      'travel_fee_cents': 2900,
+      'team_group_id': 'g1',
+      'team_size': 2,
+      'team_slot': 1,
+      'team_total_cents': 15400,
+      'share_cents': 7700,
+      'cleaner_earnings_cents': 6980,
+      'bora_fee_cents': 720,
+    });
+    final irma = CleaningBooking.fromSupabase({
+      'id': 'p2',
+      'total_cents': 0,
+      'team_group_id': 'g1',
+      'team_size': 2,
+      'team_slot': 2,
+      'team_total_cents': 15400,
+      'share_cents': 7700,
+      'cleaner_earnings_cents': 6980,
+    });
+    expect(principal.isTeam, isTrue);
+    expect(principal.isTeamSister, isFalse);
+    expect(irma.isTeamSister, isTrue);
+    expect(principal.clientTotalCents, 15400);
+    expect(principal.myShareCents, 7700); // em dinheiro, só a parte dela
+    expect(irma.myShareCents, 7700);
+    expect(principal.teamProductsCents, 0);
+    // Bora 7,20 + 7,20 = 14,40; cada profissional 69,80.
+    expect(principal.cleanerEarningsCents, 6980);
+    // Fora de equipa nada muda.
+    final so = CleaningBooking.fromSupabase({'id': 's', 'total_cents': 9900});
+    expect(so.isTeam, isFalse);
+    expect(so.myShareCents, 9900);
   });
 }

@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../services/admin_export_service.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_rpc_errors.dart';
 import '../../utils/hora_lisboa_ext.dart';
@@ -328,6 +329,105 @@ class _AdminCleaningBookingsScreenState
     }
   }
 
+  /// Exportar (CSV) as limpezas do filtro atual, com distância, taxa de
+  /// deslocação e equipa (19/11/2026).
+  Future<void> _exportar() async {
+    final rows = await _future;
+    if (!mounted) return;
+    if (rows.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nada para exportar.')));
+      return;
+    }
+    String eur(dynamic c) =>
+        (((c as num?)?.toInt() ?? 0) / 100).toStringAsFixed(2).replaceAll('.', ',');
+    await AdminExportService.instance.exportCsv(
+      filename: 'bora_limpezas.csv',
+      headers: const [
+        'ID', 'Data', 'Estado', 'Cliente', 'Profissional', 'Cidade',
+        'Pagamento', 'Estado pagamento', 'Total (EUR)', 'Ganho profissional (EUR)',
+        'Bora (EUR)', 'Km de estrada', 'Taxa deslocação (EUR)',
+        'Equipa (grupo)', 'Vaga', 'Nº profissionais', 'Parte da profissional (EUR)',
+        'Total da equipa (EUR)',
+      ],
+      rows: rows
+          .map((r) => <dynamic>[
+                r['id'],
+                r['scheduled_at'],
+                r['status'],
+                r['client_email'] ?? '',
+                r['cleaner_name'] ?? '',
+                r['address_city'] ?? '',
+                r['payment_method'],
+                r['payment_status'],
+                eur(r['total_cents']),
+                eur(r['cleaner_earnings_cents']),
+                eur(r['bora_fee_cents']),
+                r['travel_distance_km'] ?? '',
+                eur(r['travel_fee_cents']),
+                r['team_group_id'] ?? '',
+                r['team_slot'] ?? 1,
+                r['team_size'] ?? 1,
+                eur(r['share_cents'] ?? r['total_cents']),
+                eur(r['team_total_cents'] ?? r['total_cents']),
+              ])
+          .toList(),
+      subject: 'Limpezas Bora',
+    );
+  }
+
+  /// Equipa / atribuição à mão (19/11/2026): escolhe uma profissional
+  /// aprovada para ESTA vaga (admin_assign_cleaning_cleaner, auditado).
+  Future<void> _assign(Map<String, dynamic> b) async {
+    List<Map<String, dynamic>> lista = const [];
+    try {
+      final res = await Supabase.instance.client
+          .rpc('admin_list_cleaners', params: {'p_status': 'approved'});
+      lista = ((res as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(humanizeAdminRpcError(e)),
+          backgroundColor: AppColors.error));
+      return;
+    }
+    if (!mounted) return;
+    final vaga = (b['team_size'] as num? ?? 1) > 1
+        ? ' (vaga ${b['team_slot']} de ${b['team_size']})'
+        : '';
+    final escolhida = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text('Atribuir profissional$vaga'),
+        children: [
+          for (final c in lista)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, c),
+              child: Text(
+                  '${c['name'] ?? '—'} · raio ${(c['service_radius_km'] as num?)?.round() ?? '—'} km'),
+            ),
+          if (lista.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Nenhuma profissional aprovada.'),
+            ),
+        ],
+      ),
+    );
+    if (escolhida == null || !mounted) return;
+    await _run(
+        () => Supabase.instance.client.rpc('admin_assign_cleaning_cleaner',
+                params: {
+                  'p_booking_id': b['id'],
+                  'p_cleaner_id': escolhida['id'],
+                  'p_motivo': 'painel admin',
+                }),
+        'Profissional atribuída: ${escolhida['name']}$vaga');
+  }
+
   Future<void> _run(Future<dynamic> Function() fn, String successMsg) async {
     setState(() => _busy = true);
     try {
@@ -366,6 +466,11 @@ class _AdminCleaningBookingsScreenState
               for (final e in _statusLabels.entries)
                 PopupMenuItem(value: e.key, child: Text(e.value)),
             ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: 'Exportar (CSV)',
+            onPressed: _exportar,
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -442,6 +547,7 @@ class _AdminCleaningBookingsScreenState
                       onViewChat: () => _viewChat(rows[i]),
                       onAdvance: () => _advance(rows[i]),
                       onRequestPayment: () => _requestPayment(rows[i]),
+                      onAssign: () => _assign(rows[i]),
                     ),
                   );
                 },
@@ -464,9 +570,11 @@ class _BookingCard extends StatelessWidget {
     required this.onViewChat,
     required this.onAdvance,
     required this.onRequestPayment,
+    required this.onAssign,
   });
 
   final Map<String, dynamic> data;
+  final VoidCallback onAssign;
   final bool busy;
   final Map<String, String> statusLabels;
   final VoidCallback onCancel;
@@ -550,6 +658,38 @@ class _BookingCard extends StatelessWidget {
               style:
                   const TextStyle(fontSize: 12, color: AppColors.textSubtle),
             ),
+            // Limpeza longe (19/11/2026): km de ESTRADA e taxa de deslocação
+            // (vai inteira para a profissional, já dentro do total).
+            if (data['travel_distance_km'] != null ||
+                ((data['travel_fee_cents'] as num?) ?? 0) > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  'Distância: ${data['travel_distance_km'] ?? '—'} km de estrada · '
+                  'taxa de deslocação ${_euro(data['travel_fee_cents'])}'
+                  '${((data['team_size'] as num?) ?? 1) > 1 ? ' (por profissional)' : ''}',
+                  key: const Key('admin_limpeza_deslocacao'),
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary),
+                ),
+              ),
+            // Equipa (19/11/2026): cada vaga é uma reserva; a vaga 1 tem o
+            // total da equipa (o que o cliente paga) e as outras 0.
+            if (((data['team_size'] as num?) ?? 1) > 1)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  'Equipa: vaga ${data['team_slot']} de ${data['team_size']} '
+                  '(grupo ${(data['team_group_id'] as String? ?? '').split('-').first}) · '
+                  'parte desta profissional ${_euro(data['share_cents'])} · '
+                  'total da equipa ${_euro(data['team_total_cents'])}',
+                  key: const Key('admin_limpeza_equipa'),
+                  style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600),
+                ),
+              ),
             if ((data['recurrence'] as String? ?? 'single') != 'single')
               Padding(
                 padding: const EdgeInsets.only(top: 2),
@@ -585,6 +725,19 @@ class _BookingCard extends StatelessWidget {
                 label: const Text('Ver conversa'),
               ),
             ),
+            if (const ['scheduled', 'accepted'].contains(status)) ...[
+              const SizedBox(height: 4),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: busy ? null : onAssign,
+                  icon: const Icon(Icons.person_add_alt, size: 18),
+                  label: Text(data['cleaner_name'] == null
+                      ? 'Atribuir profissional à mão'
+                      : 'Trocar profissional'),
+                ),
+              ),
+            ],
             if (porPagarMbway) ...[
               const SizedBox(height: 4),
               SizedBox(

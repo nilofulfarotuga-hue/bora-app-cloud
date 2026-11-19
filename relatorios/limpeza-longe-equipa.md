@@ -78,3 +78,71 @@ devolver o que a `cleaning_quote_at` devolveu em produção):
 - Por verificar no Bloco B (ainda não li o corpo): se `cleaning_list_available_cleaners` e
   `_cleaning_next_offer` comparam o raio da profissional em linha reta, enquanto a taxa
   agora é por estrada.
+
+## Bloco A — envio
+- Enviado para a branch a 19/11: commits `ef8d022` e `3a2f627`. CI: Android run 602, iOS run 377,
+  web a seguir (os três disparam com o envio). e2e_log `bloco A enviado` (id 11585).
+
+## Bloco B — equipa de várias profissionais
+
+Desenho escolhido (o recomendado, confirmado ao ler o servidor): UMA reserva por profissional,
+ligadas por `team_group_id`.
+- Vaga 1 (principal) guarda em `total_cents` o TOTAL DA EQUIPA: é o que o cliente paga uma vez.
+  Assim o cartão/MB Way (`cleaning-checkout`), o webhook (`confirm_cleaning_payment_webhook`,
+  confere o valor com `total_cents`), o estorno e a taxa de cancelamento funcionam sem mexer em
+  nenhuma função da Stripe.
+- Vagas 2..N (irmãs): `total_cents = 0`. Todas as vagas guardam a parte da sua profissional:
+  `share_cents` (trabalho + a sua deslocação + parte igual dos produtos), `cleaner_earnings_cents`
+  e `bora_fee_cents` (15% só do trabalho). O acerto semanal (`compute_cleaner_weekly_settlement`)
+  já soma ganho/taxa por linha e por meio de pagamento: não precisou de mudar.
+- Colunas novas: `team_group_id`, `team_size`, `team_slot`, `team_total_cents`, `share_cents`;
+  índice único (equipa, vaga) contra toque duplo. Setting `cleaning_max_professionals = 3`.
+
+Migração `supabase/migrations/20261119200000_limpeza_equipa_2026_11_19.sql` (gerada a partir das
+funções que estão no ar, com trocas cirúrgicas):
+- `cleaning_quote_team` (nova): preço da equipa no servidor; só "Por hora"; 1 a 3 profissionais.
+- `create_cleaning_booking`: parâmetro novo `p_team_size` (por defeito 1; a app antiga continua a
+  funcionar); cria a vaga 1 e as irmãs; cada vaga toca à parte.
+- `_cleaning_next_offer`: a mesma profissional nunca fica com duas vagas da mesma equipa; o alerta
+  "Limpeza sem profissional" diz qual vaga falta; a oferta diz "equipa de 2 — tu e mais 1".
+- `_trg_cleaning_team_paid` (novo gatilho): a vaga 1 paga → as irmãs ficam pagas e começam a tocar
+  (regra de 19/10: MB Way/cartão só toca depois de pago; dinheiro toca logo).
+- `cancel_cleaning_booking`: o cliente cancela sempre a equipa toda (pela vaga 1, taxa sobre o total
+  da equipa); uma profissional que desiste só liberta a sua vaga (já era assim por linha).
+- `cleaner_accept_booking`: o cliente recebe "Maria confirmou… (equipa: 1 de 2 confirmadas)".
+- `_cleaning_complete`: tokens do cliente uma vez por equipa (vaga 1).
+- `_trg_cleaning_notify_admin_new`: um só alerta de limpeza nova por equipa, com "EQUIPA DE 2".
+- `_cleaning_cron_expire_no_cleaner`: vaga sem ninguém à hora → alerta diz a vaga e quanto devolver.
+- `generate_recurring_bookings`: a série repete a equipa, as mesmas profissionais primeiro.
+- `cancel_cleaning_series`: cancela pela vaga 1 (a devolução à Carteira é sobre o total, uma vez).
+- `cleaning_request_payment`: não pede MB Way nas irmãs.
+- `admin_assign_cleaning_cleaner` (nova): painel atribui/troca a profissional de uma vaga à mão.
+- Robôs: `supabase/migrations/20261119200100_robos_limpeza_equipa_2026_11_19.sql` (CLEANING_INFO e
+  assistant_learned explicam a opção; sai a frase do WhatsApp).
+
+App:
+- Cliente: "Quantas profissionais?" 1/2/3 no modo Por hora; aviso clicável em T3/T4+ no modo por
+  tamanho; resumo "2 profissionais × 4 h", "2 × €48,00", "+ 2 × €29,00", total €154,00 e "Em
+  dinheiro: entregas €77,00 a cada profissional"; acompanhamento com "A tua equipa · 1 de 2
+  confirmadas", cada vaga com o seu estado e o seu chat; as irmãs não aparecem repetidas nas listas.
+- Profissional (Bloco C): "Equipa de 2 — tu e mais 1", "inclui €29,00 de deslocação (28,6 km de
+  estrada)"; em dinheiro "RECEBER" mostra só a parte dela.
+- Painel (Bloco D, PT-BR): cartão da limpeza com distância, taxa e "Equipa: vaga 1 de 2 · parte desta
+  profissional · total da equipa"; botão "Atribuir profissional à mão"/"Trocar profissional" por
+  vaga; exportação CSV com as colunas novas; definições novas editáveis com etiqueta (as de preço e
+  de km pelo caminho com motivo e auditoria); o raio da profissional já se editava (5 a 50 km).
+
+Provas na app (testes): `test/limpeza_taxa_deslocacao_wizard_test.dart` — equipa Celorico 4 h × 2 =
+€154,00 com 2 × €29,00 e €77,00 a cada uma; aviso de T4+ passa a 2 profissionais × 3 h; modelo da
+equipa (vaga 1 com o total, cada uma a sua parte, ganho €69,80).
+
+## Reportes (não corrigidos, fora do scope)
+- Lembretes de 24 h e 2 h (`_cleaning_cron_reminders_*`) são por reserva: numa equipa o cliente pode
+  receber um lembrete por vaga. Não li o corpo; fica para ver.
+- Compensação de cancelamento tardio às profissionais não entra no acerto semanal (só conta
+  `completed`); com equipa a mensagem já divide pelo nº de profissionais, mas o pagamento continua
+  manual, como antes.
+- Se a vaga 1 ficar sem profissional à hora e outra vaga tiver, a vaga 1 é cancelada pelo cron e o
+  cliente vê a limpeza principal como cancelada, embora a equipa trabalhe; o alerta ao Danilo diz o
+  que devolver. Caso raro; melhoria possível: promover a vaga com profissional a principal.
+- `admin_cancel_cleaning` não foi tocada: cancelar a vaga 1 pelo painel não arrasta as irmãs.

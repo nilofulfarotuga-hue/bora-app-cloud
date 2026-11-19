@@ -62,6 +62,14 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
   CleaningQuote? _quote;
   bool _quoteLoading = false;
 
+  /// Equipa (19/11/2026): quantas profissionais. Só no modo "Por horas";
+  /// o máximo vem de `cleaning_max_professionals`.
+  int _teamSize = 1;
+  int _maxPros = 3;
+
+  /// Profissionais que contam para o preço e para a reserva.
+  int get _equipa => _pricingMode == 'hourly' ? _teamSize : 1;
+
   // Passo 2 — quando & onde
   /// INSTANTE (UTC) em que o relógio de Lisboa marca a hora escolhida. A Bora
   /// só opera em Portugal: o dia e a hora que o cliente vê e escolhe são os de
@@ -131,6 +139,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
         _addrCoords = ll.LatLng(antiga.lat!, antiga.lng!);
       }
       _requestedCleanerId = antiga.cleanerId;
+      if (antiga.isTeam) _teamSize = antiga.teamSize;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -140,10 +149,14 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
       _refreshQuote();
       final lead = await store.getSettingInt('cleaning_min_lead_hours', 12);
       final minH = await store.getSettingInt('cleaning_min_hours', 2);
+      final maxPros =
+          await store.getSettingInt('cleaning_max_professionals', 3);
       if (!mounted) return;
       setState(() {
         _leadHours = lead;
         _minHours = minH;
+        _maxPros = maxPros < 1 ? 1 : maxPros;
+        if (_teamSize > _maxPros) _teamSize = _maxPros;
         if (_hours < _minHours) _hours = _minHours;
       });
     });
@@ -185,6 +198,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
           productsBy: _productsBy,
           lat: coords?.latitude,
           lng: coords?.longitude,
+          teamSize: _equipa,
         );
     if (!mounted || seq != _quoteSeq) return;
     setState(() {
@@ -367,6 +381,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
         lng: loc?.longitude,
         notes: _notesCtrl.text.trim(),
         requestedCleanerId: _requestedCleanerId,
+        teamSize: _equipa,
       );
       if (!mounted || booking == null) return;
 
@@ -399,6 +414,10 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
         friendly = 'As limpezas estão temporariamente indisponíveis.'.tr;
       } else if (msg.contains('cleaner_not_available')) {
         friendly = 'Essa profissional já não está disponível — escolhe outra.'.tr;
+      } else if (msg.contains('equipa_so_por_horas') ||
+          msg.contains('equipa_invalida')) {
+        friendly =
+            'Mais do que uma profissional só no modo Por hora.'.tr;
       } else if (msg.contains('fora_da_area_limpeza')) {
         // O número vem do servidor (no orçamento ou na própria mensagem).
         final doErro = double.tryParse(
@@ -572,7 +591,64 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
               ),
             ],
           ),
+          if (_maxPros > 1) ...[
+            const SizedBox(height: Spacing.md),
+            _sectionTitle('Quantas profissionais?'.tr),
+            _choiceRow([
+              for (var n = 1; n <= _maxPros; n++)
+                _choice('$n', _teamSize == n, () {
+                  setState(() => _teamSize = n);
+                  _refreshQuote();
+                }),
+            ]),
+            if (_teamSize > 1)
+              Padding(
+                padding: const EdgeInsets.only(top: Spacing.xs),
+                child: Text(
+                  'Cada profissional faz {0} h, todas à mesma hora.'
+                      .trArgs([_hours]),
+                  style: const TextStyle(
+                      color: AppColors.textSecondary, fontSize: 13),
+                ),
+              ),
+          ],
         ],
+        // Casa grande no modo por tamanho: sugere a equipa (19/11/2026).
+        if (_pricingMode == 'fixed' &&
+            (_homeSize == 't3' || _homeSize == 't4plus') &&
+            _maxPros > 1)
+          Padding(
+            padding: const EdgeInsets.only(top: Spacing.md),
+            child: InkWell(
+              key: const Key('limpeza_sugere_equipa'),
+              borderRadius: BorderRadius.circular(Radii.md),
+              onTap: _passarParaEquipa,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(Spacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryWash,
+                  borderRadius: BorderRadius.circular(Radii.md),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.groups_outlined, color: AppColors.primary),
+                    const SizedBox(width: Spacing.sm),
+                    Expanded(
+                      child: Text(
+                        'Casa grande ou vivenda? Com 2 profissionais fica pronto mais depressa'
+                            .tr,
+                        style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right, color: AppColors.primary),
+                  ],
+                ),
+              ),
+            ),
+          ),
         const SizedBox(height: Spacing.lg),
         _sectionTitle('Tipo de limpeza'.tr),
         _choiceRow([
@@ -630,6 +706,21 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
         _QuoteCard(quote: _quote, loading: _quoteLoading),
       ],
     );
+  }
+
+  /// Aviso da casa grande: passa a "Por hora" com 2 profissionais e as horas
+  /// de cada uma = metade do tempo da casa (arredondado para cima).
+  void _passarParaEquipa() {
+    final minutos = _quote?.durationMin ?? 240;
+    var porPro = (minutos / 60 / 2).ceil();
+    if (porPro < _minHours) porPro = _minHours;
+    if (porPro > 12) porPro = 12;
+    setState(() {
+      _pricingMode = 'hourly';
+      _teamSize = 2;
+      _hours = porPro;
+    });
+    _refreshQuote();
   }
 
   // ── Passo 2: quando & onde ────────────────────────────────────────────────
@@ -773,6 +864,16 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionTitle('Profissional'.tr),
+        if (_equipa > 1)
+          Padding(
+            padding: const EdgeInsets.only(bottom: Spacing.sm),
+            child: Text(
+              'A que escolheres fica na equipa; as outras vagas vão para as primeiras disponíveis.'
+                  .tr,
+              style: const TextStyle(
+                  color: AppColors.textSecondary, fontSize: 13),
+            ),
+          ),
         if (_cleanersLoading)
           const Center(
             child: Padding(
@@ -902,13 +1003,54 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
                   'Serviço'.tr,
                   '${CleaningLabels.types[_cleaningType]} · '
                       '${_pricingMode == 'hourly' ? '$_hours h' : CleaningLabels.sizes[_homeSize]}'),
+              if (_equipa > 1)
+                _summaryRow('Equipa'.tr,
+                    '{0} profissionais × {1} h'.trArgs([_equipa, _hours])),
               if (_scheduledAt != null)
                 _summaryRow('Quando'.tr, _fmtDateTime(_scheduledAt!)),
               _summaryRow('Onde'.tr,
                   '${_streetCtrl.text.trim()}, ${_cityCtrl.text.trim()}'),
               _summaryRow(
                   'Recorrência'.tr, CleaningLabels.recurrences[_recurrence]!),
-              if (quote != null) ...[
+              if (quote != null && quote.teamSize > 1) ...[
+                const Divider(height: Spacing.lg),
+                _summaryRow(
+                    'Trabalho'.tr,
+                    '{0} × {1}'.trArgs([
+                      quote.teamSize,
+                      CleaningLabels.euro(quote.perProWorkCents)
+                    ])),
+                if (quote.productsFeeCents > 0)
+                  _summaryRow('Produtos'.tr,
+                      '+ ${CleaningLabels.euro(quote.productsFeeCents)}'),
+                if (quote.travelFeeCents > 0)
+                  _summaryRow(
+                      CleaningLabels.travelFeeLabel(quote.travelDistanceKm),
+                      '+ {0} × {1}'.trArgs([
+                        quote.teamSize,
+                        CleaningLabels.euro(quote.travelFeeCents)
+                      ])),
+                const Divider(height: Spacing.lg),
+                _summaryRow('Total'.tr, CleaningLabels.euro(quote.totalCents),
+                    bold: true),
+                if (_paymentMethod == 'cash' && quote.shares.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: Spacing.xs),
+                    child: Text(
+                      {for (final x in quote.shares) x.shareCents}.length == 1
+                          ? 'Em dinheiro: entregas {0} a cada profissional.'
+                              .trArgs([CleaningLabels.euro(quote.shares.first.shareCents)])
+                          : 'Em dinheiro: {0}.'.trArgs([
+                              quote.shares
+                                  .map((x) => 'vaga ${x.slot} ${CleaningLabels.euro(x.shareCents)}')
+                                  .join(' · ')
+                            ]),
+                      key: const Key('limpeza_equipa_dinheiro_resumo'),
+                      style: const TextStyle(
+                          color: AppColors.textSecondary, fontSize: 12),
+                    ),
+                  ),
+              ] else if (quote != null) ...[
                 const Divider(height: Spacing.lg),
                 _summaryRow('Base'.tr, CleaningLabels.euro(quote.baseCents)),
                 if (quote.typeSurchargeCents > 0)
@@ -1085,10 +1227,16 @@ class _QuoteCard extends StatelessWidget {
                         style: const TextStyle(
                             color: AppColors.textSecondary, fontSize: 13),
                       ),
+                      if (q.teamSize > 1)
+                        Text(
+                          '{0} profissionais'.trArgs([q.teamSize]),
+                          style: const TextStyle(
+                              color: AppColors.textSecondary, fontSize: 13),
+                        ),
                       if (q.travelFeeCents > 0)
                         Text(
                           'inclui {0} de deslocação'.trArgs(
-                              [CleaningLabels.euro(q.travelFeeCents)]),
+                              [CleaningLabels.euro(q.teamTravelFeeCents)]),
                           style: const TextStyle(
                               color: AppColors.textSecondary, fontSize: 13),
                         ),

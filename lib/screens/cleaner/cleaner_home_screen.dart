@@ -631,9 +631,13 @@ String _fmtWhen(DateTime instante) {
 /// Taxa de deslocação (19/11/2026): já está dentro do "Ganhas" e é toda da
 /// profissional. "\ninclui €29,00 de deslocação (28,6 km de estrada)".
 String _deslocacao(CleaningBooking b) {
-  if (b.travelFeeCents <= 0) return '';
+  // Equipa (19/11/2026): "Equipa de 2 — tu e mais 1".
+  final equipa = b.isTeam
+      ? '\nEquipa de ${b.teamSize} — tu e mais ${b.teamSize - 1}'
+      : '';
+  if (b.travelFeeCents <= 0) return equipa;
   final km = b.travelDistanceKm;
-  return '\ninclui ${CleaningLabels.euro(b.travelFeeCents)} de deslocação'
+  return '$equipa\ninclui ${CleaningLabels.euro(b.travelFeeCents)} de deslocação'
       '${km == null ? '' : ' (${CleaningLabels.km(km)} km de estrada)'}';
 }
 
@@ -886,7 +890,8 @@ class _AgendaCardState extends State<_AgendaCard> {
               state: b.paymentMethod == 'cash'
                   ? CollectState.collectCash
                   : CollectState.paidOnline,
-              amountCents: b.paymentMethod == 'cash' ? b.totalCents : null,
+              // Equipa: cada profissional recebe só a sua parte.
+              amountCents: b.paymentMethod == 'cash' ? b.myShareCents : null,
             ),
             const SizedBox(height: Spacing.sm),
             // Cliente (nome/foto) + comunicação — só com serviço em curso.
@@ -917,7 +922,7 @@ class _AgendaCardState extends State<_AgendaCard> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'RECEBER ${CleaningLabels.euro(b.totalCents)} EM DINHEIRO',
+                          'RECEBER ${CleaningLabels.euro(b.myShareCents)} EM DINHEIRO',
                           style: TextStyle(
                             color: Colors.orange.shade900,
                             fontSize: 17,

@@ -231,6 +231,18 @@ class CleaningBooking {
   /// Coordenadas da morada da limpeza.
   final double? lat;
   final double? lng;
+
+  /// Equipa (19/11/2026): uma reserva por profissional, ligadas por
+  /// [teamGroupId]. A vaga 1 tem o preço e o pagamento da equipa toda
+  /// ([totalCents] = total da equipa); as outras têm [totalCents] = 0.
+  final String? teamGroupId;
+  final int teamSize;
+  final int teamSlot;
+  final int? teamTotalCents;
+
+  /// Parte desta profissional (trabalho + a sua deslocação + parte dos
+  /// produtos). Em dinheiro é o que ela recebe do cliente.
+  final int? shareCents;
   final String? cancelReason;
   final String? cancelledBy;
   final String? offerCleanerId;
@@ -275,6 +287,11 @@ class CleaningBooking {
     this.travelDistanceKm,
     this.lat,
     this.lng,
+    this.teamGroupId,
+    this.teamSize = 1,
+    this.teamSlot = 1,
+    this.teamTotalCents,
+    this.shareCents,
     this.cancelReason,
     this.cancelledBy,
     this.offerCleanerId,
@@ -321,6 +338,11 @@ class CleaningBooking {
       travelDistanceKm: (m['travel_distance_km'] as num?)?.toDouble(),
       lat: (m['lat'] as num?)?.toDouble(),
       lng: (m['lng'] as num?)?.toDouble(),
+      teamGroupId: m['team_group_id'] as String?,
+      teamSize: (m['team_size'] as num?)?.toInt() ?? 1,
+      teamSlot: (m['team_slot'] as num?)?.toInt() ?? 1,
+      teamTotalCents: (m['team_total_cents'] as num?)?.toInt(),
+      shareCents: (m['share_cents'] as num?)?.toInt(),
       cancelReason: m['cancel_reason'] as String?,
       cancelledBy: m['cancelled_by'] as String?,
       offerCleanerId: m['offer_cleaner_id'] as String?,
@@ -338,6 +360,31 @@ class CleaningBooking {
   String get recurrenceLabel =>
       CleaningLabels.recurrences[recurrence] ?? recurrence;
   bool get isRecurring => recurrence != 'single';
+
+  /// Limpeza com mais do que uma profissional.
+  bool get isTeam => teamGroupId != null && teamSize > 1;
+
+  /// Vaga 2..N de uma equipa: não aparece nas listas do cliente (o cliente
+  /// vê a equipa pela vaga 1, que tem o preço e o pagamento).
+  bool get isTeamSister => isTeam && teamSlot > 1;
+
+  /// Quanto ESTA profissional recebe do cliente em dinheiro. Fora de equipa
+  /// é o total de sempre.
+  int get myShareCents => isTeam ? (shareCents ?? 0) : totalCents;
+
+  /// Total que o cliente paga (a equipa toda).
+  int get clientTotalCents => isTeam ? (teamTotalCents ?? totalCents) : totalCents;
+
+  /// Trabalho de UMA profissional (base + extra do tipo − desconto da série).
+  int get perProWorkCents =>
+      baseCents + typeSurchargeCents - recurringDiscountCents;
+
+  /// Produtos de limpeza da equipa toda (uma vez só). Na vaga 1 sai do total
+  /// da equipa menos o trabalho e a deslocação de cada profissional.
+  int get teamProductsCents => isTeam
+      ? (clientTotalCents - teamSize * (perProWorkCents + travelFeeCents))
+          .clamp(0, 1 << 30)
+      : productsFeeCents;
 
   /// O cliente pediu esta profissional pelo nome (S4): "Cliente habitual".
   bool pedidaPor(String? cleanerId) =>
@@ -399,6 +446,11 @@ class CleaningQuote {
   final bool outOfArea;
   final double? maxDistanceKm;
 
+  /// Equipa (RPC `cleaning_quote_team`): nº de profissionais e a parte de
+  /// cada uma. Com 1 profissional, [shares] tem uma só linha (ou fica vazio).
+  final int teamSize;
+  final List<TeamShare> shares;
+
   const CleaningQuote({
     required this.baseCents,
     required this.typeSurchargeCents,
@@ -410,7 +462,16 @@ class CleaningQuote {
     this.travelDistanceKm,
     this.outOfArea = false,
     this.maxDistanceKm,
+    this.teamSize = 1,
+    this.shares = const [],
   });
+
+  /// Trabalho de UMA profissional (base + extra do tipo − desconto da série).
+  int get perProWorkCents =>
+      baseCents + typeSurchargeCents - recurringDiscountCents;
+
+  /// Deslocação da equipa toda (cada profissional conduz e recebe a sua).
+  int get teamTravelFeeCents => travelFeeCents * teamSize;
 
   factory CleaningQuote.fromJson(Map<String, dynamic> m) => CleaningQuote(
         baseCents: (m['base_cents'] as num?)?.toInt() ?? 0,
@@ -424,6 +485,31 @@ class CleaningQuote {
         travelDistanceKm: (m['travel_distance_km'] as num?)?.toDouble(),
         outOfArea: m['out_of_area'] == true,
         maxDistanceKm: (m['max_distance_km'] as num?)?.toDouble(),
+        teamSize: (m['team_size'] as num?)?.toInt() ?? 1,
+        shares: [
+          for (final x in (m['shares'] as List? ?? const []))
+            TeamShare.fromJson(Map<String, dynamic>.from(x as Map)),
+        ],
+      );
+}
+
+/// A parte de uma profissional numa equipa (vem do servidor).
+class TeamShare {
+  final int slot;
+  final int shareCents;
+  final int cleanerEarningsCents;
+
+  const TeamShare({
+    required this.slot,
+    required this.shareCents,
+    required this.cleanerEarningsCents,
+  });
+
+  factory TeamShare.fromJson(Map<String, dynamic> m) => TeamShare(
+        slot: (m['slot'] as num?)?.toInt() ?? 1,
+        shareCents: (m['share_cents'] as num?)?.toInt() ?? 0,
+        cleanerEarningsCents:
+            (m['cleaner_earnings_cents'] as num?)?.toInt() ?? 0,
       );
 }
 

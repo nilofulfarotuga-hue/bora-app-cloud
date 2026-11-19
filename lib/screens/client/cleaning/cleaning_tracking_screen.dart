@@ -38,6 +38,27 @@ class CleaningTrackingScreen extends StatefulWidget {
 
 class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
   Map<String, dynamic>? _cleanerProfile;
+
+  /// Equipa (19/11/2026): nome da profissional de cada vaga (id da reserva →
+  /// nome), lido pela RPC pública da profissional.
+  final Map<String, String> _nomesEquipa = {};
+
+  /// Relê as vagas da equipa e os nomes de quem já aceitou.
+  Future<void> _carregarEquipa() async {
+    final b = _booking;
+    final g = b.teamGroupId;
+    if (!b.isTeam || g == null) return;
+    final store = context.read<CleaningStore>();
+    final team = await store.loadTeam(g);
+    for (final t in team) {
+      if (t.cleanerId == null || _nomesEquipa.containsKey(t.id)) continue;
+      final nome = await store.cleanerNameOf(t.id);
+      if (!mounted) return;
+      if (nome != null && nome.isNotEmpty) {
+        setState(() => _nomesEquipa[t.id] = nome);
+      }
+    }
+  }
   int _cancelFreeHours = 24;
   int _cancelHalfHours = 2;
   int _cancelGraceMinutes = 5;
@@ -94,6 +115,7 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
         _cancelGraceMinutes = graca;
       });
       _loadCleanerProfile();
+      _carregarEquipa();
     });
   }
 
@@ -483,6 +505,15 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
                   onPay: _payNow),
               const SizedBox(height: Spacing.lg),
             ],
+            if (b.isTeam) ...[
+              _TeamCard(
+                team: store.teamOf(b),
+                nomes: _nomesEquipa,
+                booking: b,
+                onRefresh: _carregarEquipa,
+              ),
+              const SizedBox(height: Spacing.lg),
+            ],
             if (b.cleanerId != null) ...[
               _CleanerCard(profile: _cleanerProfile, onCall: _callCleaner),
               // Chat disponível de "confirmada" até o cliente confirmar
@@ -814,6 +845,133 @@ class _CleanerCard extends StatelessWidget {
   }
 }
 
+/// Equipa (19/11/2026): cada vaga com a sua profissional ("Maria ✓",
+/// "Vaga 2 — à espera"), o chat com cada uma e, em dinheiro, quanto se
+/// entrega a cada uma.
+class _TeamCard extends StatelessWidget {
+  const _TeamCard({
+    required this.team,
+    required this.nomes,
+    required this.booking,
+    required this.onRefresh,
+  });
+  final List<CleaningBooking> team;
+  final Map<String, String> nomes;
+  final CleaningBooking booking;
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    final vagas = team.isEmpty ? [booking] : team;
+    final confirmadas = vagas.where((t) => t.cleanerId != null).length;
+    final shares = {for (final t in vagas) t.myShareCents};
+    return Container(
+      key: const Key('limpeza_equipa_cartao'),
+      padding: const EdgeInsets.all(Spacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        border: Border.all(color: AppColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.groups_outlined, color: AppColors.primary),
+              const SizedBox(width: Spacing.sm),
+              Expanded(
+                child: Text(
+                  'A tua equipa · {0} de {1} confirmadas'
+                      .trArgs([confirmadas, booking.teamSize]),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Atualizar'.tr,
+                icon: const Icon(Icons.refresh, size: 20),
+                onPressed: onRefresh,
+              ),
+            ],
+          ),
+          for (final t in vagas)
+            Padding(
+              padding: const EdgeInsets.only(top: Spacing.xs),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        t.status.isCancelled
+                            ? Icons.cancel_outlined
+                            : t.cleanerId != null
+                                ? Icons.check_circle
+                                : Icons.hourglass_top,
+                        size: 18,
+                        color: t.cleanerId != null && !t.status.isCancelled
+                            ? AppColors.primary
+                            : AppColors.textSubtle,
+                      ),
+                      const SizedBox(width: Spacing.xs),
+                      Expanded(
+                        child: Text(
+                          t.status.isCancelled
+                              ? 'Vaga {0} — {1}'
+                                  .trArgs([t.teamSlot, t.status.labelPt])
+                              : t.cleanerId != null
+                                  ? '{0} ✓ · {1}'.trArgs([
+                                      nomes[t.id] ?? 'Vaga {0}'.trArgs([t.teamSlot]),
+                                      t.status.labelPt,
+                                    ])
+                                  : 'Vaga {0} — à espera de profissional'
+                                      .trArgs([t.teamSlot]),
+                          style: const TextStyle(color: AppColors.textPrimary),
+                        ),
+                      ),
+                    ],
+                  ),
+                  // Cada profissional tem o seu chat (vaga 1 usa o de cima).
+                  if (t.teamSlot > 1 &&
+                      t.cleanerId != null &&
+                      const [
+                        CleaningStatus.accepted,
+                        CleaningStatus.onTheWay,
+                        CleaningStatus.inProgress,
+                        CleaningStatus.done,
+                      ].contains(t.status))
+                    CleaningChatButton(
+                      bookingId: t.id,
+                      myRole: 'client',
+                      title: nomes[t.id] ?? 'Vaga {0}'.trArgs([t.teamSlot]),
+                    ),
+                ],
+              ),
+            ),
+          if (booking.paymentMethod == 'cash') ...[
+            const SizedBox(height: Spacing.sm),
+            Text(
+              shares.length == 1
+                  ? 'Em dinheiro: entregas {0} a cada profissional.'
+                      .trArgs([CleaningLabels.euro(shares.first)])
+                  : 'Em dinheiro: {0}.'.trArgs([
+                      vagas
+                          .map((t) => 'vaga ${t.teamSlot} ${CleaningLabels.euro(t.myShareCents)}')
+                          .join(' · ')
+                    ]),
+              key: const Key('limpeza_equipa_dinheiro'),
+              style: const TextStyle(
+                  color: AppColors.textSecondary, fontSize: 13),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _DetailsCard extends StatelessWidget {
   const _DetailsCard({required this.booking});
   final CleaningBooking booking;
@@ -848,6 +1006,20 @@ class _DetailsCard extends StatelessWidget {
               }),
           if (b.notes.isNotEmpty) _row('Notas'.tr, b.notes),
           const Divider(height: Spacing.lg),
+          if (b.isTeam) ...[
+            // Equipa: o preço de uma profissional × N; produtos uma vez só;
+            // cada profissional conduz e recebe a sua deslocação.
+            _row('Equipa'.tr,
+                '{0} profissionais × {1} h'.trArgs([b.teamSize, b.hours ?? 0])),
+            _row('Trabalho'.tr,
+                '{0} × {1}'.trArgs([b.teamSize, CleaningLabels.euro(b.perProWorkCents)])),
+            if (b.teamProductsCents > 0)
+              _row('Produtos'.tr, '+ ${CleaningLabels.euro(b.teamProductsCents)}'),
+            if (b.travelFeeCents > 0)
+              _row(CleaningLabels.travelFeeLabel(b.travelDistanceKm),
+                  '+ {0} × {1}'.trArgs([b.teamSize, CleaningLabels.euro(b.travelFeeCents)])),
+            _row('Total'.tr, CleaningLabels.euro(b.clientTotalCents), bold: true),
+          ] else ...[
           _row('Base'.tr, CleaningLabels.euro(b.baseCents)),
           if (b.typeSurchargeCents > 0)
             _row('Suplemento'.tr, '+ ${CleaningLabels.euro(b.typeSurchargeCents)}'),
@@ -862,6 +1034,7 @@ class _DetailsCard extends StatelessWidget {
             _row(CleaningLabels.travelFeeLabel(b.travelDistanceKm),
                 '+ ${CleaningLabels.euro(b.travelFeeCents)}'),
           _row('Total'.tr, CleaningLabels.euro(b.totalCents), bold: true),
+          ],
         ],
       ),
     );

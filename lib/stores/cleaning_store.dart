@@ -14,7 +14,58 @@ class CleaningStore extends ChangeNotifier {
 
   // ── Reservas do cliente ──────────────────────────────────────────────────
   List<CleaningBooking> _bookings = const [];
-  List<CleaningBooking> get bookings => _bookings;
+
+  /// As reservas do cliente para as listas: as vagas 2..N de uma equipa ficam
+  /// de fora (a equipa vê-se pela vaga 1, que tem o preço e o pagamento).
+  List<CleaningBooking> get bookings =>
+      _bookings.where((b) => !b.isTeamSister).toList();
+
+  /// Todas as vagas de uma equipa, por ordem (vaga 1 primeiro), do que já foi
+  /// carregado. Vazia fora de equipa.
+  List<CleaningBooking> teamOf(CleaningBooking b) {
+    final g = b.teamGroupId;
+    if (g == null) return const [];
+    return _bookings.where((x) => x.teamGroupId == g).toList()
+      ..sort((a, c) => a.teamSlot.compareTo(c.teamSlot));
+  }
+
+  /// Relê do servidor as vagas de uma equipa (acompanhamento do cliente).
+  Future<List<CleaningBooking>> loadTeam(String teamGroupId) async {
+    try {
+      final rows = await _sb
+          .from('cleaning_bookings')
+          .select()
+          .eq('team_group_id', teamGroupId)
+          .order('team_slot')
+          .timeout(kAcaoTimeout);
+      final team =
+          rows.map<CleaningBooking>(CleaningBooking.fromSupabase).toList();
+      final ids = {for (final t in team) t.id};
+      _bookings = [
+        for (final b in _bookings)
+          if (!ids.contains(b.id)) b,
+        ...team,
+      ]..sort((a, c) => c.scheduledAt.compareTo(a.scheduledAt));
+      notifyListeners();
+      return team;
+    } catch (e) {
+      debugPrint('CleaningStore.loadTeam error => $e');
+      return _bookings.where((b) => b.teamGroupId == teamGroupId).toList()
+        ..sort((a, c) => a.teamSlot.compareTo(c.teamSlot));
+    }
+  }
+
+  /// Nome da profissional de uma vaga (null enquanto ninguém aceitou).
+  Future<String?> cleanerNameOf(String bookingId) async {
+    try {
+      final res = await _sb.rpc('cleaning_booking_cleaner_public',
+          params: {'p_booking_id': bookingId}).timeout(kAcaoTimeout);
+      if (res is Map) return res['name'] as String?;
+    } catch (e) {
+      debugPrint('CleaningStore.cleanerNameOf error => $e');
+    }
+    return null;
+  }
 
   /// Ativas pela ordem em que acontecem (a mais próxima primeiro — S3,
   /// 01/11/2026). O histórico fica do mais recente para o mais antigo.
@@ -86,6 +137,7 @@ class CleaningStore extends ChangeNotifier {
     String productsBy = 'client',
     double? lat,
     double? lng,
+    int teamSize = 1,
   }) async {
     final params = <String, dynamic>{
       'p_cleaning_type': cleaningType,
@@ -95,6 +147,21 @@ class CleaningStore extends ChangeNotifier {
       'p_recurrence': recurrence,
       'p_products_by': productsBy,
     };
+    // Equipa (19/11/2026): preço de N profissionais, todo no servidor.
+    if (teamSize > 1) {
+      try {
+        final res = await _sb.rpc('cleaning_quote_team', params: {
+          ...params,
+          'p_lat': lat,
+          'p_lng': lng,
+          'p_team_size': teamSize,
+        }).timeout(kAcaoTimeout);
+        return CleaningQuote.fromJson(_asMap(res));
+      } catch (e) {
+        debugPrint('CleaningStore.quote (cleaning_quote_team) error => $e');
+        return null;
+      }
+    }
     try {
       final res = await _sb.rpc('cleaning_quote_at', params: {
         ...params,
@@ -161,6 +228,7 @@ class CleaningStore extends ChangeNotifier {
     double? lng,
     String notes = '',
     String? requestedCleanerId,
+    int teamSize = 1,
   }) async {
     _setBusy(true);
     try {
@@ -186,6 +254,8 @@ class CleaningStore extends ChangeNotifier {
         'p_lng': lng,
         'p_notes': notes,
         'p_requested_cleaner_id': requestedCleanerId,
+        // Só vai com equipa: o servidor antigo não conhece o parâmetro.
+        if (teamSize > 1) 'p_team_size': teamSize,
       }), trabalho: TrabalhoEmCurso.limpeza);
       final booking = CleaningBooking.fromSupabase(_asMap(res));
       _tracked = booking;

@@ -61,6 +61,7 @@ class _Limpezas extends CleaningStore {
     String productsBy = 'client',
     double? lat,
     double? lng,
+    int teamSize = 1,
   }) async =>
       const CleaningQuote(
         baseCents: 3000,
@@ -99,6 +100,7 @@ class _Limpezas extends CleaningStore {
     double? lng,
     String notes = '',
     String? requestedCleanerId,
+    int teamSize = 1,
   }) async {
     criadas.add(scheduledAt);
     return null; // o ecrã pára aqui, sem pagar nem navegar

@@ -166,6 +166,9 @@ class TalaoNaoParceiroService {
       'RECEIPT_URL_REQUIRED' => 'Falta a foto do talão.',
       'FINANCIAL_COLUMNS_IMMUTABLE' =>
         'O servidor recusou alterar os valores do pedido.',
+      'SACO_VIAGEM_POR_MARCAR' =>
+        'Falta marcar o saco para viagem. Pede o saco ao balcão e carrega em '
+            '"Comprei o saco" antes de confirmar a compra.',
       _ => 'Não foi possível fechar o talão.',
     };
     final det = detalhe.length > 220 ? '${detalhe.substring(0, 220)}…' : detalhe;

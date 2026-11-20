@@ -693,3 +693,10 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
 - 17/11 noite, tentativa 5 (ultima): nao repeti envio nem migracao (2 falhas iguais = mudar de caminho; ja houve 4).
   SELECT 17/11: funcao nova 0, admin_chamar_estafeta_ja 1, 0 encomendas a aguardar. Falta so: Claude.ai (ou sessao com
   credencial) enviar o ramo `ai/2026-11-17-painel-chamar-estafeta-topo` e aplicar `20261117210000_painel_encomendas_telefone_a_aguardar.sql`.
+
+- 20/11 saco-viagem-2026-11-20 (Claude Code, Opus 5.5): (1) a bora-tranca recusou `apply_migration` da migração
+  `supabase/migrations/20261120122800_saco_viagem_restaurante_nao_parceiro.sql` ("migração é publicar: publica o
+  Claude.ai"). (2) Recusou também a prova numa transação desfeita (cria um pedido de prova em `orders`). Não contornei.
+  Falta à Claude.ai: aplicar a migração e correr `supabase/tests/saco_viagem_prova_rollback.sql` (cola-se a seguir à
+  migração; acaba em RAISE EXCEPTION, nada fica). A app nova não prende o estafeta enquanto a função não existir
+  (PGRST202 → segue com a marca do telemóvel). e2e_log fluxo saco-viagem-2026-11-20.

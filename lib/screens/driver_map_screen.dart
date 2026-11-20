@@ -13,6 +13,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/preco_balcao.dart';
 import '../services/talao_pendente_service.dart';
 import '../services/compra_rascunho_service.dart';
+import '../services/saco_viagem_service.dart';
 import '../services/fila_estafeta.dart';
 import '../services/weight_portions.dart';
 
@@ -3226,6 +3227,16 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
   /// pode passar por cima deles.
   int _toquesDesdeQueAbriu = 0;
 
+  /// Saco para viagem (20/11/2026, McDonald's/BK/KFC): o estafeta tem de
+  /// carregar em "Comprei o saco" antes de confirmar a compra. A marca fica no
+  /// telemóvel e no servidor (`estafeta_saco_viagem`).
+  bool _sacoComprado = false;
+  bool _sacoNoServidor = false;
+  bool _sacoAGravar = false;
+  int _sacoToques = 0;
+
+  bool get _precisaSaco => precisaSacoViagem(widget.order);
+
   bool get _guardaProgresso => !_isPartnerStore;
 
   bool get _isRestaurant =>
@@ -3258,6 +3269,146 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
     }
     _loadProductPhotos();
     if (!_isPartnerStore) _loadAjustesPeso();
+    if (_precisaSaco) unawaited(_carregarSaco());
+  }
+
+  /// Repõe a marca do saco (telemóvel primeiro, depois o servidor) e diz ao
+  /// servidor que este pedido pede saco — a partir daí ele recusa fechar a
+  /// compra sem a marca.
+  Future<void> _carregarSaco() async {
+    final id = widget.order.id;
+    final local = await SacoViagemService.lerLocal(id);
+    if (!mounted || _sacoToques > 0) return;
+    if (local != null) setState(() => _sacoComprado = local);
+    final s = await SacoViagemService.enviar(id, comprado: local);
+    // Um toque dado entretanto manda: esta leitura já é velha.
+    if (!mounted || s == null || _sacoToques > 0) return;
+    setState(() {
+      _sacoComprado = s.marcado;
+      _sacoNoServidor = true;
+    });
+    unawaited(SacoViagemService.gravarLocal(id, s.marcado));
+  }
+
+  /// Toque em "Comprei o saco" (ou desfazer): na hora no ecrã e no telemóvel,
+  /// depois no servidor. Sem rede fica no telemóvel e volta a ir ao confirmar.
+  Future<void> _marcarSaco(bool comprado) async {
+    final id = widget.order.id;
+    final toque = ++_sacoToques;
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _sacoComprado = comprado;
+      _sacoNoServidor = false;
+      _sacoAGravar = true;
+    });
+    await SacoViagemService.gravarLocal(id, comprado);
+    final s = await SacoViagemService.enviar(id, comprado: comprado);
+    if (!mounted || toque != _sacoToques) return; // houve outro toque
+    setState(() {
+      _sacoAGravar = false;
+      _sacoNoServidor = s != null && s.marcado == comprado;
+    });
+  }
+
+  /// A linha grande do topo: "SACO PARA VIAGEM — pede 1 saco ao balcão".
+  Widget _cartaoSacoViagem() {
+    const laranja = Color(0xFFF97316);
+    const verde = Color(0xFF16A34A);
+    final cor = _sacoComprado ? verde : laranja;
+    return Container(
+      key: const Key('saco_viagem_cartao'),
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _sacoComprado ? const Color(0xFFF0FDF4) : const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: cor, width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _sacoComprado ? Icons.check_circle : Icons.shopping_bag,
+                color: cor,
+                size: 34,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _sacoComprado
+                          ? 'SACO PARA VIAGEM COMPRADO'
+                          : 'SACO PARA VIAGEM',
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                        color: cor,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    Text(
+                      textoPedirSaco(widget.order.bagCount),
+                      key: const Key('saco_viagem_texto'),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _sacoComprado
+                ? (_sacoNoServidor
+                    ? 'Marcado ✓ — guardado no servidor.'
+                    : (_sacoAGravar
+                        ? 'Marcado ✓ — a guardar…'
+                        : 'Marcado ✓ — guardado no telemóvel; vai para o servidor ao confirmar.'))
+                : 'O cliente já pagou o saco. Pede-o ao balcão: entra no talão '
+                    'e no teu reembolso.',
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade800),
+          ),
+          const SizedBox(height: 10),
+          if (!_sacoComprado)
+            SizedBox(
+              height: 52,
+              child: ElevatedButton.icon(
+                key: const Key('saco_viagem_comprei'),
+                onPressed: () => _marcarSaco(true),
+                icon: const Icon(Icons.check, size: 24),
+                label: const Text(
+                  'Comprei o saco',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: verde,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            )
+          else
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                key: const Key('saco_viagem_desfazer'),
+                onPressed: () => _marcarSaco(false),
+                child: const Text('Desfazer (ainda não tenho o saco)'),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   /// Compra guardada (14/11/2026): repõe o que o estafeta já tinha marcado —
@@ -3636,6 +3787,9 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
 
     final progress = totalCount > 0 ? boughtCount / totalCount : 0.0;
 
+    // 20/11/2026: sem "Comprei o saco" o botão de seguir fica bloqueado.
+    final faltaSaco = _precisaSaco && !_sacoComprado;
+
     return Padding(
       // [08/10] Teclado OU barra de 3 botões do Android — o "Confirmar
       // compra" ficava por baixo da barra (edge-to-edge do Android 15).
@@ -3685,6 +3839,9 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              // 20/11/2026 (Danilo): restaurante não-parceiro — o saco para
+              // viagem SEMPRE no topo, com "Comprei o saco".
+              if (_precisaSaco) _cartaoSacoViagem(),
               // 14/11/2026 (B.6b): o total de balcão logo no topo, igual ao
               // cartão laranja "TENS DE FAZER A COMPRA".
               if (totalNaCaixa > 0)
@@ -4301,6 +4458,18 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                   ),
                 ],
               ),
+              // 20/11/2026: o saco para viagem do restaurante PASSA na caixa
+              // (ao contrário do saco do mercado) — o valor real vem no talão.
+              if (_precisaSaco)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    '+ o saco para viagem que pedires ao balcão (entra no talão '
+                    'e no teu reembolso)',
+                    key: const Key('saco_viagem_na_caixa'),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                  ),
+                ),
               // Depósito Volta (09/11/2026): a loja cobra o depósito das latas
               // e garrafas na caixa; o cliente paga-o numa linha à parte. Os
               // valores são os do servidor (o acerto vem do talão).
@@ -4476,7 +4645,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                 key: const Key('lista_compras_confirmar'),
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: allDecided && !_aConfirmar
+                  onPressed: allDecided && !_aConfirmar && !faltaSaco
                       ? () async {
                           if (_aConfirmar) return;
                           setState(() {
@@ -4508,9 +4677,12 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                               strokeWidth: 2, color: Colors.white),
                         )
                       : Text(
-                          allDecided
-                              ? 'Confirmar compra'
-                              : 'Marca todos os artigos ($pendingCount em falta)',
+                          faltaSaco
+                              ? 'Falta marcar o saco'
+                              : allDecided
+                                  ? 'Confirmar compra'
+                                  : 'Marca todos os artigos ($pendingCount em falta)',
+                          key: const Key('lista_compras_confirmar_texto'),
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 15,
@@ -4560,6 +4732,30 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                   order.serviceType ==
                                       OrderServiceType.restaurant);
                           if (useV2) {
+                            // 20/11/2026: saco para viagem marcado e gravado
+                            // no servidor ANTES do talão (o servidor recusa
+                            // fechar sem ele — SACO_VIAGEM_POR_MARCAR).
+                            if (_precisaSaco) {
+                              if (!_sacoComprado) {
+                                setState(() => _erroConfirmar =
+                                    'Falta marcar o saco: pede o saco para '
+                                    'viagem ao balcão e carrega em "Comprei o saco".');
+                                return;
+                              }
+                              if (!_sacoNoServidor) {
+                                final s = await SacoViagemService.enviar(
+                                    order.id, comprado: true);
+                                if (!mounted) return;
+                                if (s == null || !s.marcado) {
+                                  setState(() => _erroConfirmar =
+                                      'O saco ainda não ficou gravado no servidor '
+                                      '(ligação fraca?). Toca em "Confirmar '
+                                      'compra" outra vez.');
+                                  return;
+                                }
+                                setState(() => _sacoNoServidor = true);
+                              }
+                            }
                             // [ronda 04/10 · #5] Tentativa anterior falhou:
                             // usa a foto já tirada (não pede outra).
                             // M1 08/11/2026 ("toda foto de talão ... nunca se
@@ -4684,6 +4880,7 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                             }
                             _talaoPendente = null;
                             unawaited(CompraRascunhoService.concluir(order.id));
+                            unawaited(SacoViagemService.esquecerLocal(order.id));
                             // Estado local imediato; o realtime confirma a seguir.
                             order.isPurchaseFinalized = true;
                             // 28/10/2026 (C3): o valor a cobrar é o que o
@@ -4834,6 +5031,7 @@ Future<(File, int)?> _captureReceiptForV2(
             : totalBalcao(
                 order.items.where((i) => i.purchaseStatus != 'unavailable'),
                 parceiro: order.isPartnerStore),
+        lembrarSaco: precisaSacoViagem(order),
       );
     },
   );
@@ -4849,8 +5047,13 @@ class ReceiptCaptureSheet extends StatefulWidget {
     this.orderId,
     this.nifRpc,
     this.valorEstimado,
+    this.lembrarSaco = false,
   });
   final bool isCash;
+
+  /// 20/11/2026: restaurante não-parceiro — o valor escrito inclui o saco
+  /// para viagem comprado ao balcão (é o que a Bora reembolsa).
+  final bool lembrarSaco;
 
   /// 14/11/2026 (B.6b): valor de balcão estimado (base + opções), mostrado
   /// como ajuda por baixo do campo — o estafeta escreve o que pagou de facto.
@@ -4869,6 +5072,15 @@ class ReceiptCaptureSheet extends StatefulWidget {
 
 class _ReceiptCaptureSheetState extends State<ReceiptCaptureSheet> {
   File? _photo;
+
+  String? get _ajudaValor {
+    final partes = [
+      if (widget.valorEstimado != null)
+        'Valor estimado: {0}'.trArgs([eur(widget.valorEstimado!)]),
+      if (widget.lembrarSaco) 'Inclui o saco para viagem',
+    ];
+    return partes.isEmpty ? null : partes.join(' · ');
+  }
   final _totalCtrl = TextEditingController();
   bool _submitting = false;
 
@@ -5083,10 +5295,7 @@ class _ReceiptCaptureSheetState extends State<ReceiptCaptureSheet> {
               },
               decoration: InputDecoration(
                 labelText: 'Valor que pagaste de facto (€)',
-                helperText: widget.valorEstimado == null
-                    ? null
-                    : 'Valor estimado: {0}'
-                        .trArgs([eur(widget.valorEstimado!)]),
+                helperText: _ajudaValor,
                 prefixIcon: const Icon(Icons.euro),
                 border: const OutlineInputBorder(),
                 errorText: _erroValor,

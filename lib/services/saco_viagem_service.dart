@@ -42,7 +42,16 @@ class EstadoSacoServidor {
     required this.marcado,
     this.marcadoEm,
     this.servidorSemFuncao = false,
+    this.erro,
   });
+
+  /// O servidor respondeu ok:false (ex.: NOT_ASSIGNED_DRIVER). Não é falta de
+  /// rede: a app não bloqueia por isso — o fecho do talão diz o erro real.
+  final String? erro;
+
+  /// Pode seguir para o talão: saco marcado, pedido sem saco, função por
+  /// publicar ou recusa do servidor (o fecho do talão é a guarda real).
+  bool get podeSeguir => marcado || !obrigatorio || servidorSemFuncao || erro != null;
 
   final bool obrigatorio;
   final bool marcado;
@@ -54,7 +63,14 @@ class EstadoSacoServidor {
   final bool servidorSemFuncao;
 
   static EstadoSacoServidor? deResposta(Object? res) {
-    if (res is! Map || res['ok'] != true) return null;
+    if (res is! Map) return null;
+    if (res['ok'] != true) {
+      return EstadoSacoServidor(
+        obrigatorio: true,
+        marcado: false,
+        erro: (res['error'] ?? 'RESPOSTA_INVALIDA').toString(),
+      );
+    }
     return EstadoSacoServidor(
       obrigatorio: res['obrigatorio'] == true,
       marcado: res['marcado'] == true,
@@ -115,7 +131,9 @@ class SacoViagemService {
               .rpc(rpc, params: params)
               .timeout(_limiteRede);
       final estado = EstadoSacoServidor.deResposta(res);
-      if (estado == null) debugPrint('[SacoViagem] servidor recusou $orderId: $res');
+      if (estado == null || estado.erro != null) {
+        debugPrint('[SacoViagem] servidor recusou $orderId: $res');
+      }
       return estado;
     } catch (e) {
       debugPrint('[SacoViagem] envio $orderId: $e');

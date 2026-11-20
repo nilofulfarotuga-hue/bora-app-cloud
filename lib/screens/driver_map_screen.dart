@@ -3280,9 +3280,13 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
     final local = await SacoViagemService.lerLocal(id);
     if (!mounted || _sacoToques > 0) return;
     if (local != null) setState(() => _sacoComprado = local);
-    final s = await SacoViagemService.enviar(id, comprado: local);
+    // Ao abrir nunca se manda "desfazer" (false): só regista, ou repõe a marca
+    // que ficou só no telemóvel (revisão 20/11: um false atrasado apagava um
+    // "Comprei o saco" dado logo a seguir).
+    final s = await SacoViagemService.enviar(id,
+        comprado: local == true ? true : null);
     // Um toque dado entretanto manda: esta leitura já é velha.
-    if (!mounted || s == null || _sacoToques > 0) return;
+    if (!mounted || s == null || s.erro != null || _sacoToques > 0) return;
     setState(() {
       _sacoComprado = s.marcado;
       _sacoNoServidor = true;
@@ -4742,19 +4746,22 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                                     'viagem ao balcão e carrega em "Comprei o saco".');
                                 return;
                               }
-                              if (!_sacoNoServidor) {
-                                final s = await SacoViagemService.enviar(
-                                    order.id, comprado: true);
-                                if (!mounted) return;
-                                if (s == null || !s.marcado) {
-                                  setState(() => _erroConfirmar =
+                              // Manda sempre a marca antes do talão (repetir não faz
+                              // mal: o servidor mantém a 1.ª hora).
+                              final s = await SacoViagemService.enviar(
+                                  order.id, comprado: true);
+                              if (!mounted) return;
+                              if (s == null || !s.podeSeguir) {
+                                setState(() {
+                                  _sacoNoServidor = false;
+                                  _erroConfirmar =
                                       'O saco ainda não ficou gravado no servidor '
                                       '(ligação fraca?). Toca em "Confirmar '
-                                      'compra" outra vez.');
-                                  return;
-                                }
-                                setState(() => _sacoNoServidor = true);
+                                      'compra" outra vez.';
+                                });
+                                return;
                               }
+                              setState(() => _sacoNoServidor = s.marcado);
                             }
                             // [ronda 04/10 · #5] Tentativa anterior falhou:
                             // usa a foto já tirada (não pede outra).
@@ -4870,6 +4877,9 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                             }
                             if (!mounted) return;
                             if (!resultado.ok) {
+                              if (resultado.codigo == 'SACO_VIAGEM_POR_MARCAR') {
+                                setState(() => _sacoNoServidor = false);
+                              }
                               // Erro REAL (texto PT-PT + código), nunca engolido.
                               await _showTalaoErrorDialog(
                                 context,

@@ -74,6 +74,21 @@ void main() {
     expect(r?.marcado, isTrue);
   });
 
+  test('podeSeguir: só a falta de marca num pedido com saco bloqueia', () {
+    expect(const EstadoSacoServidor(obrigatorio: true, marcado: false).podeSeguir,
+        isFalse);
+    expect(const EstadoSacoServidor(obrigatorio: true, marcado: true).podeSeguir,
+        isTrue);
+    // O servidor diz que o pedido não pede saco: não prende.
+    expect(EstadoSacoServidor.deResposta({'ok': true, 'obrigatorio': false})!
+        .podeSeguir, isTrue);
+    // Recusa do servidor (ok:false): o fecho do talão diz o erro real.
+    final recusa = EstadoSacoServidor.deResposta(
+        {'ok': false, 'error': 'NOT_ASSIGNED_DRIVER'})!;
+    expect(recusa.erro, 'NOT_ASSIGNED_DRIVER');
+    expect(recusa.podeSeguir, isTrue);
+  });
+
   test('marca no telemóvel sobrevive e esquece-se no fim', () async {
     SharedPreferences.setMockInitialValues({});
     expect(await SacoViagemService.lerLocal('p1'), isNull);

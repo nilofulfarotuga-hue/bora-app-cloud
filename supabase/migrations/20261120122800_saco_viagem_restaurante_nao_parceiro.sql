@@ -71,13 +71,15 @@ BEGIN
     RETURN jsonb_build_object('ok', false, 'error', 'UNAUTHENTICATED');
   END IF;
 
-  SELECT id, assigned_driver_id, status, is_purchase_finalized, service_type,
-         is_partner_store, restaurant_id, bag_count
+  SELECT id, assigned_driver_id, current_driver_offer_id, status, is_purchase_finalized,
+         service_type, is_partner_store, restaurant_id, bag_count
     INTO v_o FROM public.orders WHERE id = p_order_id;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('ok', false, 'error', 'ORDER_NOT_FOUND');
   END IF;
-  IF NOT public._estafeta_atribuido(v_o.assigned_driver_id, v_uid) THEN
+  -- Mesmos estafetas que finalizar_talao_nao_parceiro aceita.
+  IF NOT (public._estafeta_atribuido(v_o.assigned_driver_id, v_uid)
+          OR v_o.current_driver_offer_id IS NOT DISTINCT FROM v_uid::text) THEN
     RETURN jsonb_build_object('ok', false, 'error', 'NOT_ASSIGNED_DRIVER');
   END IF;
   IF NOT public._saco_viagem_obrigatorio(v_o.service_type, v_o.is_partner_store,

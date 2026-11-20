@@ -73,8 +73,11 @@ class _AdminSacoViagemSectionState extends State<AdminSacoViagemSection> {
     }
     final marcado = d['marcado'] == true;
     final fechada = d['compra_fechada'] == true;
-    final semSaco = d['fechado_sem_saco'] == true;
     final appPediu = d['app_pediu_saco'] == true;
+    // Alerta vermelho só quando o app novo pediu a sacola; compra fechada pelo
+    // app antigo (ou antes de 20/11) fica como nota cinzenta.
+    final semSaco = d['fechado_sem_saco'] == true && appPediu;
+    final semSacoAntigo = d['fechado_sem_saco'] == true && !appPediu;
 
     final Color cor;
     final IconData icone;
@@ -87,6 +90,10 @@ class _AdminSacoViagemSectionState extends State<AdminSacoViagemSection> {
       cor = Colors.red.shade700;
       icone = Icons.warning_amber_rounded;
       titulo = 'ALERTA: compra fechada SEM marcar a sacola para viagem';
+    } else if (semSacoAntigo) {
+      cor = Colors.grey.shade700;
+      icone = Icons.info_outline;
+      titulo = 'Sacola para viagem: sem registro (app antigo)';
     } else {
       cor = const Color(0xFFF97316);
       icone = Icons.shopping_bag;
@@ -127,13 +134,16 @@ class _AdminSacoViagemSectionState extends State<AdminSacoViagemSection> {
               Text('Marcada por ${d['marcado_por'] ?? '—'} em ${_hora(d['marcado_em'])}.'),
             if (semSaco)
               Text(
-                appPediu
-                    ? 'O app pediu a sacola mas a compra foi fechada sem a marca '
-                        '(fechamento pelo painel/servidor). Confirmar com o '
-                        'entregador se pediu a sacola no balcão.'
-                    : 'A compra foi fechada por um app antigo (sem o botão '
-                        '"Comprei o saco") ou antes de 20/11/2026.',
+                'O app pediu a sacola mas a compra foi fechada sem a marca '
+                '(fechamento pelo painel/servidor). Confirmar com o '
+                'entregador se pediu a sacola no balcão.',
                 style: TextStyle(color: Colors.red.shade800),
+              ),
+            if (semSacoAntigo)
+              Text(
+                'A compra foi fechada por um app antigo (sem o botão '
+                '"Comprei o saco") ou antes de 20/11/2026 — não há registro.',
+                style: TextStyle(color: Colors.grey.shade800),
               ),
             if (!marcado && !fechada)
               const Text(

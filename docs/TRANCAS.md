@@ -723,3 +723,7 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   (7) GitHub (não é trava, é o próprio site): ao abrir a criação do token do Hermes pediu "Confirm access" (senha,
   código ou telemóvel). Não escrevo senhas nem códigos: o separador ficou aberto no perfil pessoal para o Danilo
   confirmar. e2e_log passo `B4-token-github`, estado bloqueado.
+  (8) Trava do modo automático, 20:21 UTC: recusou outra vez um comando que nomeava o ficheiro de segredos de um
+  perfil de agente (queria só os nomes das variáveis, para passar o `vendedor` a pedir o modelo pelo porteiro do
+  crédito). Não repeti nem contornei: o `vendedor` fica como estava (modelo `agentes` pelo OmniRoute) e a troca
+  fica para quem pode ler esses ficheiros. e2e_log passo `B7-almas-curtas`.

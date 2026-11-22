@@ -14,7 +14,7 @@ O Hermes já é o diretor-geral no servidor: tem uma alma nova e curta, uma regr
 
 **O fiscal, a funcionar ao vivo (B5).** O despachante do servidor passou a chamar o fiscal antes de fechar qualquer tarefa que mude alguma coisa. O fiscal só recebe a tarefa, o resultado e a prova, refaz a prova ele próprio e decide. Provei com tarefas reais: uma com prova certa ficou aprovada; uma com prova falsa de propósito foi apanhada e devolvida; um trabalho que dizia "feito, está tudo bem" sem prova foi chumbado. Desde que isto ficou ligado, 100% das tarefas fechadas passaram pelo fiscal. Os agentes crítico e qualidade ficaram arquivados dentro do fiscal (não apagados).
 
-**Os agentes (B7).** Arrumei os 25 e, com a tua ordem desta sessão para criar os que faltassem, olhei para todas as áreas e criei cinco: `mercados` (70% dos pedidos são compras em mercado e ninguém cuidava do catálogo), `gestor-servicos` (TVDE, limpeza, lavagem, marcações e reservas: houve 8 corridas sem motorista em 37), `engenheiro` (erros da app: 159 em sete dias sem ninguém a triar), `zelador` (o servidor) e `loja-online` (Loja Online e Mimo Patudo). Os cinco responderam bem a uma pergunta real do trabalho de cada um. Ficam 30 agentes: 7 com relógio, 16 a pedido, 6 arquivados com substituto e o trader bloqueado (só tu o ligas). Um agente desligado deixou de falhar: o despachante acorda-o para a tarefa. Quando nenhum agente serve, a tarefa já não fecha com uma frase vazia: faz o próprio Hermes.
+**Os agentes (B7).** Arrumei os 25 e, com a tua ordem desta sessão para criar os que faltassem, olhei para todas as áreas e criei cinco: `mercados` (70% dos pedidos são compras em mercado e ninguém cuidava do catálogo), `gestor-servicos` (TVDE, limpeza, lavagem, marcações e reservas: houve 8 corridas sem motorista em 37), `engenheiro` (erros da app: 159 em sete dias sem ninguém a triar), `zelador` (o servidor) e `loja-online` (Loja Online e Mimo Patudo). Os cinco responderam bem a uma pergunta real do trabalho de cada um. Ficam 30 agentes: 7 com relógio, 16 a pedido, 6 arquivados com substituto e o trader bloqueado (só tu o ligas). Todas as almas dos agentes ativos ficaram dentro do limite de 3 000 bytes pedido (seis passavam; encurtei-as sem tocar no travão do dinheiro nem nas linhas que escolhem o agente, e guardei as antigas). Ao testar uma, o agente dos números disse que os dados tinham duas horas quando tinham quinze; passou a ver o relógio antes de dizer a idade. Um agente desligado deixou de falhar: o despachante acorda-o para a tarefa. Quando nenhum agente serve, a tarefa já não fecha com uma frase vazia: faz o próprio Hermes.
 
 **A fila "à espera do Danilo".** Tinha 24 tarefas e só uma era tua. A causa: o despachante marcava assim qualquer tarefa cujo texto tivesse palavras como publicar, enviar ou cancelar. Agora só fica à tua espera o que um agente disser que precisa do teu autorizo (dinheiro ou apagar). Ficou uma: decidir se manténs o Google AI Plus, de 4,99 euros por mês.
 
@@ -22,9 +22,11 @@ O Hermes já é o diretor-geral no servidor: tem uma alma nova e curta, uma regr
 
 **Telegram e voz (B8).** Mandei três mensagens de teste iguais: chegou-te uma só, com voz. A voz já estava a sair pelo motor bom há uma semana. O despachante deixou de te avisar de tarefas que outros agentes pediram e que correram bem.
 
-**Crédito do Claude (B9).** O que custa é o arranque de cada conversa do Hermes, porque a memória rápida do Claude dura cinco minutos e cada conversa nova volta a pagá-la. Com a alma antiga cada arranque custava 13 cêntimos de dólar; com a alma curta custa 9, cerca de um terço a menos (medido chamada a chamada, antes e depois). A primeira conta que fiz dava mais de metade, mas era de testes feitos de seguida e por isso otimista; corrigi-a no registo. O maior gasto fixo que sobra é a ronda da torre: 8,6 cêntimos de hora a hora, cerca de 2 dólares por dia. Baixa sozinha para uma vez por dia quando o vigia por eventos for aplicado. Pus no porteiro do crédito a regra de poupança: aos 85% do crédito gasto, os agentes de volume passam aos motores grátis; clientes e o Hermes continuam no Claude; se o crédito acabar, ninguém fica sem motor e volta tudo sozinho no dia do crédito novo. Provei com simulação, sem gastar. A previsão do mês anda pelos 190 dólares, abaixo dos 200 mas à justa.
+**Crédito do Claude (B9).** O que custa é o arranque de cada conversa do Hermes, porque a memória rápida do Claude dura cinco minutos e cada conversa nova volta a pagá-la. Com a alma antiga cada arranque custava 13 cêntimos de dólar; com a alma curta custa 9, cerca de um terço a menos (medido chamada a chamada, antes e depois). A primeira conta que fiz dava mais de metade, mas era de testes feitos de seguida e por isso otimista; corrigi-a no registo. O maior gasto fixo que sobra é a ronda da torre: 8,6 cêntimos de hora a hora, cerca de 2 dólares por dia. Baixa sozinha para uma vez por dia quando o vigia por eventos for aplicado. Entretanto tirei à torre as ferramentas que ela nunca usa e cada ronda passou de 8,6 para 7 cêntimos, com a resposta igual. Ficou uma coisa por esclarecer: a soma do que vejo em cada chamada dá metade dos tokens que a API conta; vale a pena alguém ver de onde vem a outra metade, porque é o mesmo peso em todos os agentes. Pus no porteiro do crédito a regra de poupança: aos 85% do crédito gasto, os agentes de volume passam aos motores grátis; clientes e o Hermes continuam no Claude; se o crédito acabar, ninguém fica sem motor e volta tudo sozinho no dia do crédito novo. Provei com simulação, sem gastar. A previsão do mês anda pelos 190 dólares, abaixo dos 200 mas à justa.
 
-**Ferramentas (B11).** Conferi uma a uma as ferramentas do Hermes. Instalei o `gh` do GitHub (falta-lhe o token). A ligação ao Córtex funciona. Criei quatro skills curtas: provar-feito, pedir-autorizacao, corrigir-robo e acordar-agente. Não instalei Paperclip, OpenClaw nem Langfuse: não cabem numa máquina de 1 processador e 4 GB, ou fazem o mesmo que o Hermes.
+**Token do GitHub para o Hermes (B4).** Depois de confirmares o acesso no GitHub, criei o token: só para o repositório da app, por 90 dias (acaba a 20 de fevereiro de 2027), para abrir pedidos de revisão, enviar código e ler o CI. Passei-o direto para dentro do Hermes sem o mostrar em lado nenhum e limpei a área de transferência. O Hermes já lista os pedidos de revisão e as corridas do CI.
+
+**Ferramentas (B11).** Conferi uma a uma as ferramentas do Hermes. Instalei o `gh` do GitHub. A ligação ao Córtex funciona. Criei quatro skills curtas: provar-feito, pedir-autorizacao, corrigir-robo e acordar-agente. Não instalei Paperclip, OpenClaw nem Langfuse: não cabem numa máquina de 1 processador e 4 GB, ou fazem o mesmo que o Hermes.
 
 **Três vigias sem IA no servidor.** Um mata processos presos há mais de duas horas (o que derrubou o Hermes a 15/11). Outro, de hora a hora, confere se o Hermes responde e se a fila anda. O terceiro confere o teu "autorizo" no Telegram.
 
@@ -36,15 +38,13 @@ O Hermes já é o diretor-geral no servidor: tem uma alma nova e curta, uma regr
 
 **Os robôs ainda não leem as lições.** O suporte e o Amigo Bora não têm essa leitura no código; o remendo está escrito para a Claude.ai publicar. O do WhatsApp corre no servidor e também não lê.
 
-**Token do GitHub para o Hermes.** Abri a página de criar o token no Chrome pessoal, na conta certa, e o GitHub pediu para confirmar o acesso (senha, código ou telemóvel). Eu não escrevo senhas nem códigos, por isso parei aí e deixei o separador aberto. Falta um passo teu: confirmar o acesso nessa página. Depois cria-se o token só para o repositório da app, por 90 dias, e guarda-se dentro do Hermes sem o mostrar. O programa `gh` já lá está instalado.
-
-**Chave de leitura da Stripe para o Hermes.** Não a criei: a Stripe não tem sessão aberta em nenhum perfil do Chrome e entrar lá é contigo.
+**Proteger o ramo de produção no GitHub.** O token que o Hermes recebeu consegue enviar código e juntá-lo ao ramo de produção, como a missão pede. A regra "só depois do fiscal aprovar e do CI verde" está escrita na alma do Hermes, mas o GitHub não a obriga. Vale a pena ligar no GitHub a proteção desse ramo (exigir pedido de revisão e CI verde).
 
 **Disco do servidor: não chegou aos 70%.** Fiz a limpeza permitida e mudei para o PC uma cópia antiga de 818 MB (conferida). A tranca do PC recusou-me apagar a cache do Flutter do servidor (1,8 GB, sem uso desde julho), e não toquei no que a missão proíbe.
 
 **Página do Hermes no Córtex.** O servidor do Córtex recusou a escrita direta; ficou como proposta à espera da Claude.ai.
 
-**Alma de 6 agentes** continua um pouco acima dos 3 KB, porque levam a secção que lhes diz onde ler os factos sem inventar.
+**Dois agentes ainda fora do porteiro do crédito.** O vendedor e a torre continuam a pedir o modelo por outro caminho. A torre está assim de propósito: lê dados de pedidos de clientes e por isso só pode usar o Claude, nunca motores grátis.
 
 ## Erros que encontrei, e os meus
 
@@ -60,7 +60,6 @@ O carrinho abandonado já manda aviso aos clientes (está ligado), e a missão d
 
 ## Para o Danilo
 
-0. GitHub: confirmar o acesso na página que ficou aberta no Chrome pessoal. É o único passo que só tu podes dar; o resto do token faço eu a seguir.
 1. Google AI Plus, 4,99 euros por mês: manter ou cancelar? É a única tarefa que está mesmo à tua espera.
 2. O aviso de carrinho abandonado aos clientes está ligado. Fica ligado ou desliga-se?
 3. A chave geral dava tudo sem travão no dinheiro; a porta dá tudo e só trava o dinheiro e o apagar até dizeres autorizo. Por isso a chave geral não foi para dentro do Hermes.

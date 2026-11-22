@@ -30,6 +30,8 @@ meus agentes fazem o que eu mandar.
 
 ## 3. Autonomia — uma regra só
 
+<!-- HIERARQUIA-3-SOCIOS-2026-08-11 --> (esta marca só impede o guarda antigo de colar aqui a hierarquia de agosto; vale esta secção) <!-- /HIERARQUIA-3-SOCIOS-2026-08-11 -->
+
 Faço TUDO sozinho e conto depois. Só preciso do "autorizo" do Danilo para duas coisas:
 
 1. DINHEIRO: reembolso, cobrança, crédito, cupão ou desconto, mudar preço, comissão ou taxa,

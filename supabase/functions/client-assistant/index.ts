@@ -773,6 +773,26 @@ async function extractFromImages(s: Settings, imagens: Imagem[], hint: string): 
   }
 }
 
+// B6 (hermes-diretor-2026-11-20): lições dos robôs, com cache de 5 min em memória.
+const LICOES_TTL_MS = 5 * 60 * 1000;
+const licoesCache = new Map<string, { texto: string; em: number }>();
+// deno-lint-ignore no-explicit-any
+async function licoesDoRobo(adminClient: any, robo: string): Promise<string> {
+  const c = licoesCache.get(robo);
+  if (c && Date.now() - c.em < LICOES_TTL_MS) return c.texto;
+  try {
+    const { data, error } = await adminClient.rpc('licoes_robo_texto', { p_robo: robo, p_max: 2500 });
+    if (error) throw error;
+    const texto = typeof data === 'string' ? data : '';
+    licoesCache.set(robo, { texto, em: Date.now() });
+    return texto;
+  } catch (_e) {
+    return c?.texto ?? '';   // falhou: usa a última boa, ou nada
+  }
+}
+const blocoLicoes = (t: string) =>
+  t ? '\n\nLIÇÕES APRENDIDAS (correções reais; têm prioridade sobre o resto do conhecimento):\n' + t : '';
+
 // ─── Servidor ───────────────────────────────────────────────────────────────
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -1012,7 +1032,8 @@ Deno.serve(async (req: Request) => {
   const systemContexto = buildSystemContexto(knowledge, memory, learnedText, stats, {
     whatsapp: supRow?.whatsapp_number ?? '', email: supRow?.support_email ?? '',
   }, s.personality && amigoCtx ? blocoContextoAmigo(amigoCtx, momentoLisboa(new Date())) : '');
-  const systemPrompt = (s.pesquisaWeb ? buildSystemFixo(s.personality, false) : systemFixo) + '\n' + systemContexto;
+  const licoesTxt = await licoesDoRobo(adminClient, 'amigo');
+  const systemPrompt = (s.pesquisaWeb ? buildSystemFixo(s.personality, false) : systemFixo) + '\n' + systemContexto + blocoLicoes(licoesTxt);
 
   // v12: a última resposta do assistente e a sugestão que deixou (o "quero" a seguir monta esse carrinho em
   // código). Respostas antigas sem `ultima_sugestao`: vale o carrinho único que tiverem.
@@ -1697,7 +1718,8 @@ Deno.serve(async (req: Request) => {
       const pesquisasQueSobram = s.pesquisaWeb ? s.pesquisaMax - pesquisasFeitas : 0;
       const r = await claudePrimeiro({
         robo: roboClaude, prioridade: 1, system: [systemFixo],
-        contexto: notaSistema ? `${systemContexto}\n\n${notaSistema}` : systemContexto,
+        // B6: o Claude (caminho principal) recebe as lições no fim do contexto variável, fora da cache do prompt.
+        contexto: notaSistema ? `${systemContexto}${blocoLicoes(licoesTxt)}\n\n${notaSistema}` : systemContexto + blocoLicoes(licoesTxt),
         // v12: mínimo 1024 (o Sonnet passou a fazer a conversa livre)
         messages: claudeMsgs, tools: claudeTools, maxTokens: conversaLivre ? 1024 : 2048, modelo: modeloClaude,
         ...(pesquisasQueSobram > 0 ? { pesquisaWeb: { maxUsos: pesquisasQueSobram, local: LOCAL_PESQUISA }, timeoutMs: 40_000 } : {}),

@@ -58,7 +58,7 @@ VERSAO_API = "2023-06-01"
 VAR_CHAVE = "CLAUDE_ROBOS_API_KEY"
 TIMEOUT_S = 20
 # o Dipsy e o Opus trabalham com contextos grandes e respostas longas (codigo): mais tempo antes de cair
-TIMEOUT_POR_PERFIL = {"claude-dipsy": 150, "claude-opus": 180}
+TIMEOUT_POR_PERFIL = {"claude-dipsy": 900, "claude-opus": 900}
 PAUSA_429_S = 120            # 01/11: "429 -> tenta de novo em 2 min"
 
 # USD por milhao de tokens: (entrada, saida, escrita de cache 5 min = 1,25x, leitura de cache)
@@ -94,7 +94,7 @@ PERFIS_SEM_COMUM = ("claude-dipsy", "claude-opus")
 # esforco por perfil (o resto fica em "low", como a 31/10)
 ESFORCO_POR_PERFIL = {"claude-dipsy": "medium", "claude-opus": "medium"}
 # sem max_tokens no pedido: o agente do PC escreve codigo e relatorios (1024 cortava a meio)
-MAX_TOKENS_POR_PERFIL = {"claude-dipsy": 8000, "claude-opus": 8000}
+MAX_TOKENS_POR_PERFIL = {"claude-dipsy": 64000, "claude-opus": 64000}
 
 CONFIG_INICIAL = {
     # Lido na Console (platform.claude.com > Billing) a 31/10/2026 10:45 UTC, perfil Chrome do Danilo:
@@ -444,6 +444,14 @@ class Porteiro:
             return False, "Claude dormido (sem credito) ate %s" % self.dormido_ate, modelo, pr
         if self.castigo_ate > time.time():
             return False, "Claude em pausa: %s" % (self.castigo_motivo or "erro"), modelo, pr
+        # 22/11/2026 (missao hermes-diretor-2026-11-20, B9): poupanca por prioridade. Quando o gasto chega a
+        # poupanca_pct (85%) do credito, os agentes de volume (P3) passam aos gratis; clientes (P1) e o Hermes a
+        # decidir (P2) continuam no Claude ate a API dizer que acabou. poupanca_pct=0 desliga.
+        lim = float(self.cfg.get("poupanca_pct", 85) or 0)
+        if lim > 0 and pr >= 3:
+            c = self.contas()
+            if c["credito_usd"] > 0 and (c["credito_usd"] - c["resta_usd"]) >= c["credito_usd"] * lim / 100.0:
+                return False, "poupanca: ja se gastou %d%% do credito, o volume passa aos gratis (P%d)" % (lim, pr), modelo, pr
         if not self.cfg.get("racao", False):
             # 01/11/2026: sem racao. Quem diz que o credito acabou e a API (402), nao a conta local.
             return True, "sem racao: Claude enquanto houver credito (P%d)" % pr, modelo, pr

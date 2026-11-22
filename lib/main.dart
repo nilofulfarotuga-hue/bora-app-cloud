@@ -51,6 +51,9 @@ import 'screens/admin/admin_agentes_email_screen.dart';
 import 'screens/admin/admin_decisoes_screen.dart';
 import 'screens/admin/admin_caixa_guardados_screen.dart';
 import 'screens/admin/admin_motores_screen.dart';
+import 'screens/admin/admin_autorizacoes_screen.dart';
+import 'screens/admin/admin_sentinela_screen.dart';
+import 'screens/admin/admin_licoes_robos_screen.dart';
 import 'screens/admin/admin_maiores_18_screen.dart';
 import 'screens/admin/admin_tvde_conformidade_screen.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
@@ -1090,6 +1093,12 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           '/admin/agentes-email': (_) => const AdminAgentesEmailScreen(),
           // Missão 02/09/2026 (noite) — Motores: o roteador Motor Bora (quota, latência, pausar)
           '/admin/motores': (_) => const AdminMotoresScreen(),
+          // Missão hermes-diretor-2026-11-20 (B10) — o Danilo vê e manda no Hermes (o robô diretor):
+          // autorizações (o Hermes manda o link /admin/autorizacoes/<id>, tratado no onGenerateRoute),
+          // sentinela (o vigia) e lições dos robôs.
+          '/admin/autorizacoes': (_) => const AdminAutorizacoesScreen(),
+          '/admin/sentinela': (_) => const AdminSentinelaScreen(),
+          '/admin/licoes-robos': (_) => const AdminLicoesRobosScreen(),
           // Missão jev-decisor-2026-09-23 — Decisor (Jev/Gemini): lista, custo do dia, sombra/ativo.
           '/admin/decisoes': (_) => const AdminDecisoesScreen(),
           // Missão sistema-conteudo-14-11 (bloco 5.3) — Caixa de guardados + "Correr agora" do agente de segunda.
@@ -1285,6 +1294,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 settings: settings,
               );
             }
+          }
+          // hermes-diretor B10: /admin/autorizacoes/<id> abre a lista com esse pedido em destaque.
+          if (name.startsWith('/admin/autorizacoes/')) {
+            final id = int.tryParse(Uri.decodeComponent(
+                name.substring('/admin/autorizacoes/'.length).split(RegExp(r'[?#]')).first));
+            return MaterialPageRoute<void>(
+              builder: (_) => AdminAutorizacoesScreen(destacarId: id),
+              settings: settings,
+            );
           }
           // Adendo 1 m4 (08/11/2026): o aviso "cliente escreveu ao suporte"
           // (e o push do admin) abre logo a conversa dessa sessão.

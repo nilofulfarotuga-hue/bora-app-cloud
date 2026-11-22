@@ -1,10 +1,10 @@
 # Relatório — missão hermes-diretor-2026-11-20
 
-Feito pelo Claude Code no PC do Danilo, a 22/11/2026, das 18:24 às 21:15 (hora de Lisboa). Motor: Fable 5.2; ajudantes em Sonnet 5.5. A missão é de dia 20 e foi colada pelo Danilo nesta sessão no dia 22. Registo passo a passo: tabela `e2e_log`, fluxo `hermes-diretor-2026-11-20`. Pedido de revisão do código: https://github.com/nilofulfarotuga-hue/bora-app-cloud/pull/42. Entrega à Claude.ai: caixa de guardados n.º 139.
+Feito pelo Claude Code no PC do Danilo, a 22/11/2026, das 18:24 às 21:15 (hora de Lisboa), com uma atualização às 21:55 sobre a publicação. Motor: Fable 5.2; ajudantes em Sonnet 5.5. A missão é de dia 20 e foi colada pelo Danilo nesta sessão no dia 22. Registo passo a passo: tabela `e2e_log`, fluxo `hermes-diretor-2026-11-20`. Pedido de revisão do código: https://github.com/nilofulfarotuga-hue/bora-app-cloud/pull/42. Entrega à Claude.ai: caixa de guardados n.º 139.
 
 ## Resumo em poucas frases
 
-O Hermes já é o diretor-geral no servidor: tem uma alma nova e curta, uma regra só de autonomia (faz tudo sozinho, menos dinheiro e apagar), um fiscal que confere a prova de cada trabalho antes de o dar por feito, 30 agentes arrumados (cinco novos) e um despachante que acorda quem estiver desligado. Cada conversa nova dele ficou cerca de um terço mais barata. Passou também para a versão mais nova, a 0.23.3, e já tem o token do GitHub e uma chave da Stripe que só lê. A parte da base de dados (o vigia por eventos e a porta nova com o travão do dinheiro) escrevi-a e testei-a no PC, porque as travas deste PC não me deixam mudar a estrutura da base; a Claude.ai aplicou-a e publicou a porta entre as 20:30 e as 20:45, e o Hermes já lê a base por ela. Faltam os ecrãs novos do painel, que só aparecem quando o código for junto ao ramo de produção e publicado nas três lojas.
+O Hermes já é o diretor-geral no servidor: tem uma alma nova e curta, uma regra só de autonomia (faz tudo sozinho, menos dinheiro e apagar), um fiscal que confere a prova de cada trabalho antes de o dar por feito, 30 agentes arrumados (cinco novos) e um despachante que acorda quem estiver desligado. Cada conversa nova dele ficou cerca de um terço mais barata. Passou também para a versão mais nova, a 0.23.3, e já tem o token do GitHub e uma chave da Stripe que só lê. A parte da base de dados (o vigia por eventos e a porta nova com o travão do dinheiro) escrevi-a e testei-a no PC, porque as travas deste PC não me deixam mudar a estrutura da base; a Claude.ai aplicou-a e publicou a porta entre as 20:30 e as 20:45, e o Hermes já lê a base por ela. Os ecrãs novos do painel foram publicados: o pedido de revisão 42 foi junto ao ramo de produção às 20:44, o Android e o site ficaram publicados, e o iPhone estava ainda a compilar à hora de fechar (ver "Publicação", mais abaixo).
 
 ## Fiz isto
 
@@ -40,9 +40,13 @@ O Hermes já é o diretor-geral no servidor: tem uma alma nova e curta, uma regr
 
 ## Falta isto (e porquê)
 
-**Juntar o código ao ramo de produção e publicar o painel nas três.** Os ecrãs novos do painel (autorizações, sentinela, lições dos robôs, aba Agentes e o cartão do crédito) estão escritos e com 376 testes do painel verdes no PC, no pedido de revisão 42. Só aparecem depois de esse pedido ser junto ao ramo de produção, que é o que publica. A trava deste PC não me deixa publicar, e à Claude.ai o classificador recusou o clique de juntar; ela deixou a página aberta no Chrome pessoal. Até lá, o ecrã do painel com o botão "Autorizo" ainda não aparece: o autorizo dá-se no Telegram. O verificador do teu "autorizo" no Telegram já corre contra a base nova sem erro, mas ainda não foi provado com um autorizo teu a sério, porque não invento mensagens tuas.
+**Publicação (atualizado às 21:55).** O pedido de revisão 42 foi junto ao ramo de produção às 20:44 pela tua conta do GitHub, com os ecrãs novos do painel (autorizações, sentinela, lições dos robôs, aba Agentes e o cartão do crédito). O que vi depois: a publicação do Android no Google Play acabou com sucesso (versão 748); a do site acabou com sucesso, e eu abri o site publicado e encontrei lá dentro os ecrãs novos; a do iPhone ainda estava a compilar às 21:50. Falta por isso confirmar o iPhone. Não abri o painel com a tua conta, por isso ainda ninguém carregou a sério no botão "Autorizo" do ecrã novo.
 
-**Os robôs ainda não leem as lições.** O suporte e o Amigo Bora não têm essa leitura no código; o remendo está escrito no pedido de revisão, para publicar junto com o resto. O do WhatsApp corre no servidor e também não lê.
+**O "autorizo" pelo Telegram.** O verificador do teu "autorizo" no Telegram já corre contra a base nova sem erro, mas ainda não foi provado com um autorizo teu a sério, porque não invento mensagens tuas.
+
+**Segundo pedido de revisão, só com papéis e scripts.** Os três últimos envios desta missão (relatório final, almas curtas, leitor da Stripe, ajuste da torre) foram feitos depois de o pedido 42 ser junto e não entraram nele. Estão num segundo pedido de revisão. Não mudam nada na app, mas juntá-lo sozinho gastava uma versão nova nas lojas sem necessidade: o melhor é juntá-lo com a próxima mudança da app.
+
+**Os robôs ainda não leem as lições.** O suporte e o Amigo Bora não têm essa leitura no código; o remendo está escrito como proposta (em `docs/propostas/hermes-diretor-2026-11-20/licoes-nos-robos.md`), mas ainda não está no código dessas duas funções nem publicado. O do WhatsApp corre no servidor e também não lê.
 
 **Proteger o ramo de produção no GitHub.** O token que o Hermes recebeu consegue enviar código e juntá-lo ao ramo de produção, como a missão pede. A regra "só depois do fiscal aprovar e do CI verde" está escrita na alma do Hermes, mas o GitHub não a obriga. Vale a pena ligar no GitHub a proteção desse ramo (exigir pedido de revisão e CI verde).
 
@@ -54,7 +58,7 @@ O Hermes já é o diretor-geral no servidor: tem uma alma nova e curta, uma regr
 
 ## Erros que encontrei, e os meus
 
-**Quatro erros meus.** Primeiro: ao procurar a ajuda do script da voz, ele não tinha ajuda e mandou a palavra "--help" para o teu Telegram como urgente, com voz. Segundo: a primeira versão do juiz diário deu como erro coisas que são verdade (os preços dos Favores, o prazo do reembolso), porque não lhe dei as regras de negócio para conferir, e gravou duas lições erradas. Desliguei-as logo e mudei o juiz: só é erro o que contraria um facto que ele tem à frente; o resto fica "por conferir". Terceiro: na troca de versão do Hermes mandei parar o meu próprio script para ele não voltar atrás por engano, e o comando que usei cortou também a minha ligação ao servidor; os últimos passos não correram e tive de os correr à parte. Nada se perdeu. Quarto: a primeira medição do custo por conversa saiu otimista (está explicado no bloco do crédito) e já está corrigida.
+**Cinco erros meus.** Primeiro: ao procurar a ajuda do script da voz, ele não tinha ajuda e mandou a palavra "--help" para o teu Telegram como urgente, com voz. Segundo: a primeira versão do juiz diário deu como erro coisas que são verdade (os preços dos Favores, o prazo do reembolso), porque não lhe dei as regras de negócio para conferir, e gravou duas lições erradas. Desliguei-as logo e mudei o juiz: só é erro o que contraria um facto que ele tem à frente; o resto fica "por conferir". Terceiro: na troca de versão do Hermes mandei parar o meu próprio script para ele não voltar atrás por engano, e o comando que usei cortou também a minha ligação ao servidor; os últimos passos não correram e tive de os correr à parte. Nada se perdeu. Quarto: a primeira medição do custo por conversa saiu otimista (está explicado no bloco do crédito) e já está corrigida. Quinto: o batimento de hora a hora correu às 19:52, mesmo a meio da troca de versão, viu o Hermes em baixo e mandou o aviso "o gateway do Hermes não responde"; era a troca, não uma avaria, e eu devia ter parado o batimento durante esses minutos.
 
 **Trabalhei com menos memória livre do que a regra do PC pede.** A regra pede 800 MB livres para analisar e testar a app; a análise começou com 572 MB e os testes com 498 MB. Correram até ao fim sem erro, mas fica dito. A regra do navegador pede 1 500 MB livres: comecei o trabalho no GitHub com 480 MB e o da Stripe com 1 433 MB, sempre no Chrome que já estava aberto e sem abrir mais nada.
 
@@ -66,7 +70,6 @@ O carrinho abandonado já manda aviso aos clientes (está ligado), e a missão d
 
 ## Para o Danilo
 
-0. Juntar o pedido de revisão 42 ao ramo de produção, para os ecrãs novos do painel serem publicados. A página ficou aberta no Chrome pessoal; é o botão verde de juntar.
 1. Google AI Plus, 4,99 euros por mês: manter ou cancelar? É a única tarefa que está mesmo à tua espera.
 2. O aviso de carrinho abandonado aos clientes está ligado. Fica ligado ou desliga-se?
 3. A chave geral dava tudo sem travão no dinheiro; a porta dá tudo e só trava o dinheiro e o apagar até dizeres autorizo. Por isso a chave geral não foi para dentro do Hermes.

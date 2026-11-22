@@ -974,6 +974,26 @@ async function buildRagContext(
     '\n=== FIM CONHECIMENTO ===';
 }
 
+// B6 (hermes-diretor-2026-11-20): lições dos robôs, com cache de 5 min em memória.
+const LICOES_TTL_MS = 5 * 60 * 1000;
+const licoesCache = new Map<string, { texto: string; em: number }>();
+// deno-lint-ignore no-explicit-any
+async function licoesDoRobo(adminClient: any, robo: string): Promise<string> {
+  const c = licoesCache.get(robo);
+  if (c && Date.now() - c.em < LICOES_TTL_MS) return c.texto;
+  try {
+    const { data, error } = await adminClient.rpc('licoes_robo_texto', { p_robo: robo, p_max: 2500 });
+    if (error) throw error;
+    const texto = typeof data === 'string' ? data : '';
+    licoesCache.set(robo, { texto, em: Date.now() });
+    return texto;
+  } catch (_e) {
+    return c?.texto ?? '';   // falhou: usa a última boa, ou nada
+  }
+}
+const blocoLicoes = (t: string) =>
+  t ? '\n\nLIÇÕES APRENDIDAS (correções reais; têm prioridade sobre o resto do conhecimento):\n' + t : '';
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return jsonResponse({ error: 'method not allowed' }, 405);
@@ -1134,7 +1154,8 @@ Deno.serve(async (req: Request) => {
   // M10 09/11/2026 (2.11): Bora Motorista fechado → instruções e ferramentas sem corridas.
   const tvdeAberto = await boraMotoristaAberto(adminClient);
   const comTvde = (s: string) => (tvdeAberto ? s : semBoraMotorista(s));
-  const systemPrompt = comTvde(buildSystemPrompt(userRole, emFoco, settings, skillsMd, ragContext));
+  const licoesTxt = await licoesDoRobo(adminClient, 'suporte');
+  const systemPrompt = comTvde(buildSystemPrompt(userRole, emFoco, settings, skillsMd, ragContext)) + blocoLicoes(licoesTxt);
   // 31/10/2026 (fecho-pendentes): o Gemini também recebe as descrições sem o nome do dono (o Claude já
   // as recebia limpas por ferramentasParaClaude). Ninguém de fora pode saber quem é o dono.
   // v36: ferramentas desligadas no painel (support_settings.ferramentas_desligadas) não chegam ao modelo.
@@ -1326,7 +1347,8 @@ Deno.serve(async (req: Request) => {
     );
     const claudeTools = ferramentasParaClaude(tools, semNomesInternos);
     const sistemaClaude = [comTvde(CLAUDE_SUPORTE_FIXO), claudeSuporteGuias(settings, skillsMd)];
-    const contextoClaude = claudeSuporteContexto(userRole, emFoco, ragContext);
+    // B6: o Claude (caminho principal) recebe as lições no bloco variável, fora da cache do prompt.
+    const contextoClaude = claudeSuporteContexto(userRole, emFoco, ragContext) + blocoLicoes(licoesTxt);
     let modeloClaude: ModeloClaude | undefined = ehModeloClaude(settings.gemini_model) ? settings.gemini_model : undefined;
     while (toolIters <= settings.max_tool_iterations) {
       const pedidoClaude = {

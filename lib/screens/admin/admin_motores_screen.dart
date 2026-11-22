@@ -9,6 +9,11 @@
 // interruptores por robô (claude_robos), exportar o livro de gastos (ia_gastos) e as lições dos
 // robôs (licoes_robos). Model → Store → Screen: credito_claude_model.dart → CreditoClaudeStore.
 // Enquanto a migração 20261031_motor_claude_porteiro.sql não for aplicada, mostra "ainda não ativado".
+//
+// 22/11/2026 (missão hermes-diretor-2026-11-20, B10): duas abas, "Motores" (tudo o que já havia) e
+// "Agentes" (ligado ao relógio / a pedido / arquivado, auditoria, gasto do Hermes). O cartão do
+// crédito ganha a previsão do mês e quem gasta mais. As lições dos robôs passaram para o ecrã
+// próprio /admin/licoes-robos (o cartão daqui só abre esse ecrã).
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -16,10 +21,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../models/credito_claude_model.dart';
 import '../../services/admin_export_service.dart';
+import '../../stores/agentes_hermes_store.dart' show PrevisaoClaudeStore;
 import '../../stores/credito_claude_store.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../utils/hora_lisboa.dart';
 import '_admin_rpc_errors.dart';
+import 'admin_agentes_hermes_tab.dart';
 
 class AdminMotoresScreen extends StatefulWidget {
   const AdminMotoresScreen({super.key});
@@ -39,6 +46,7 @@ class _AdminMotoresScreenState extends State<AdminMotoresScreen> {
   bool _loading = false;
   String? _erro;
   final _claude = CreditoClaudeStore();
+  final _previsao = PrevisaoClaudeStore();
 
   @override
   void initState() {
@@ -49,11 +57,13 @@ class _AdminMotoresScreenState extends State<AdminMotoresScreen> {
   @override
   void dispose() {
     _claude.dispose();
+    _previsao.dispose();
     super.dispose();
   }
 
   Future<void> _carregar() async {
     _claude.carregar();
+    _previsao.carregar();
     setState(() {
       _loading = true;
       _erro = null;
@@ -111,37 +121,58 @@ class _AdminMotoresScreenState extends State<AdminMotoresScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: BoraScreenAppBar(
-        title: 'Motores (Claude primeiro, depois o grátis)',
-        actions: [
-          IconButton(onPressed: _carregar, icon: const Icon(Icons.refresh), tooltip: 'Atualizar'),
-        ],
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: BoraScreenAppBar(
+          title: 'Motores (Claude primeiro, depois o grátis)',
+          actions: [
+            IconButton(onPressed: _carregar, icon: const Icon(Icons.refresh), tooltip: 'Atualizar'),
+          ],
+          bottom: const TabBar(
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            indicatorColor: Colors.white,
+            tabs: [
+              Tab(text: 'Motores'),
+              Tab(text: 'Agentes'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            _abaMotores(),
+            const AdminAgentesTab(),
+          ],
+        ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _erro != null
-              ? Center(
-                  child: Text('Não foi possível carregar os motores. ${_erro!}',
-                      style: const TextStyle(color: AppColors.error)))
-              : ListView(
-                  padding: const EdgeInsets.all(12),
-                  children: [
-                    _SeccaoClaude(store: _claude),
-                    const SizedBox(height: 8),
-                    _cartaoOmniroute(),
-                    const SizedBox(height: 8),
-                    _resumo(),
-                    const SizedBox(height: 8),
-                    ..._motores.map(_cartao),
-                    const SizedBox(height: 16),
-                    const Text('Últimas chamadas', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                    const SizedBox(height: 6),
-                    ..._chamadas.take(60).map(_linhaChamada),
-                  ],
-                ),
     );
+  }
+
+  Widget _abaMotores() {
+    return _loading
+        ? const Center(child: CircularProgressIndicator())
+        : _erro != null
+            ? Center(
+                child: Text('Não foi possível carregar os motores. ${_erro!}',
+                    style: const TextStyle(color: AppColors.error)))
+            : ListView(
+                padding: const EdgeInsets.all(12),
+                children: [
+                  _SeccaoClaude(store: _claude, previsao: _previsao),
+                  const SizedBox(height: 8),
+                  _cartaoOmniroute(),
+                  const SizedBox(height: 8),
+                  _resumo(),
+                  const SizedBox(height: 8),
+                  ..._motores.map(_cartao),
+                  const SizedBox(height: 16),
+                  const Text('Últimas chamadas', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                  const SizedBox(height: 6),
+                  ..._chamadas.take(60).map(_linhaChamada),
+                ],
+              );
   }
 
   Widget _resumo() {
@@ -332,9 +363,12 @@ String _prioridade(int p) => switch (p) {
 
 /// Cartão do crédito, interruptores por robô e lições dos robôs. Lê tudo do [CreditoClaudeStore].
 class _SeccaoClaude extends StatelessWidget {
-  const _SeccaoClaude({required this.store});
+  const _SeccaoClaude({required this.store, this.previsao});
 
   final CreditoClaudeStore store;
+
+  /// Previsão do mês (RPC admin_credito_claude_previsao), logo a seguir ao cartão do crédito.
+  final PrevisaoClaudeStore? previsao;
 
   void _snack(BuildContext context, String texto) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(texto)));
@@ -376,6 +410,10 @@ class _SeccaoClaude extends StatelessWidget {
                     style: const TextStyle(fontSize: 12, color: AppColors.error)),
               ),
             _cartaoCredito(context, e),
+            if (previsao != null) ...[
+              const SizedBox(height: 8),
+              CartaoPrevisaoClaude(store: previsao),
+            ],
             if (e.settingsAtivos) ...[
               const SizedBox(height: 8),
               _cartaoRobos(context, e),
@@ -665,6 +703,7 @@ class _SeccaoClaude extends StatelessWidget {
   }
 
   // ── d) Lições dos robôs ──────────────────────────────────────────────────
+  // Desde 22/11/2026 vivem no ecrã próprio /admin/licoes-robos (por robô, com os casos de teste).
 
   Widget _cartaoLicoes(BuildContext context) {
     final String resumo;
@@ -674,116 +713,17 @@ class _SeccaoClaude extends StatelessWidget {
       resumo = 'Erro ao ler: ${store.erroLicoes}';
     } else {
       resumo = '${store.licoes.length} ${store.verArquivadas ? 'arquivadas' : 'ativas'} · '
-          'o que os robôs erraram e a regra certa (todos os robôs leem as ativas)';
+          'o que os robôs erraram e a regra certa; abra para ligar, desligar, editar e ver os testes';
     }
     return Card(
-      child: ExpansionTile(
+      child: ListTile(
         leading: const Icon(Icons.menu_book_outlined, color: AppColors.primary),
         title: const Text('Lições dos robôs', style: TextStyle(fontWeight: FontWeight.w700)),
         subtitle: Text(resumo, style: const TextStyle(fontSize: 12)),
-        childrenPadding: const EdgeInsets.only(bottom: 8),
-        children: !store.licoesAtivas
-            ? const []
-            : [
-                SwitchListTile(
-                  dense: true,
-                  value: store.verArquivadas,
-                  onChanged: (v) => store.mostrarArquivadas(v),
-                  title: const Text('Ver arquivadas'),
-                ),
-                if (store.licoes.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Text(store.verArquivadas ? 'Nenhuma lição arquivada.' : 'Nenhuma lição ativa.',
-                        style: const TextStyle(color: AppColors.textSubtle)),
-                  ),
-                ...store.licoes.map((l) => _linhaLicao(context, l)),
-              ],
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.of(context).pushNamed('/admin/licoes-robos'),
       ),
     );
   }
 
-  Widget _linhaLicao(BuildContext context, LicaoRobo l) {
-    final data = l.ativa
-        ? 'criada ${dataHoraLisboa(l.criadaEm?.toIso8601String())}'
-            '${l.editadaEm != null ? ' · editada ${dataHoraLisboa(l.editadaEm!.toIso8601String())}' : ''}'
-        : 'arquivada ${dataHoraLisboa(l.arquivadaEm?.toIso8601String())}${l.arquivadaPor != null ? ' por ${l.arquivadaPor}' : ''}';
-    return ListTile(
-      isThreeLine: true,
-      title: Text('${l.robo} · ${l.vezes}x', style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text('Errou: ${l.errou}\nRegra: ${l.regra}\n${l.origem} · $data'),
-      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-        if (l.ativa)
-          IconButton(
-            tooltip: 'Editar',
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () => _dialogoLicao(context, l),
-          ),
-        IconButton(
-          tooltip: l.ativa ? 'Arquivar (os robôs deixam de ler)' : 'Reativar',
-          icon: Icon(l.ativa ? Icons.archive_outlined : Icons.unarchive_outlined),
-          onPressed: () => _confirmarArquivo(context, l),
-        ),
-      ]),
-    );
-  }
-
-  Future<void> _dialogoLicao(BuildContext context, LicaoRobo l) async {
-    final errou = TextEditingController(text: l.errou);
-    final regra = TextEditingController(text: l.regra);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Editar lição · ${l.robo}'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(
-            controller: errou,
-            minLines: 2,
-            maxLines: 5,
-            decoration: const InputDecoration(labelText: 'O que o robô errou'),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: regra,
-            minLines: 2,
-            maxLines: 5,
-            decoration: const InputDecoration(labelText: 'A regra certa'),
-          ),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Salvar')),
-        ],
-      ),
-    );
-    // Sem dispose() aqui: a animação de saída do diálogo ainda desenha os campos.
-    final e = errou.text.trim();
-    final r = regra.text.trim();
-    if (ok != true || !context.mounted) return;
-    if (e.isEmpty || r.isEmpty) {
-      _snack(context, 'Os dois campos são obrigatórios.');
-      return;
-    }
-    await _tentar(context, () => store.editarLicao(l, errou: e, regra: r), 'Lição salva.');
-  }
-
-  Future<void> _confirmarArquivo(BuildContext context, LicaoRobo l) async {
-    final arquivar = l.ativa;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(arquivar ? 'Arquivar esta lição?' : 'Reativar esta lição?'),
-        content: Text(arquivar
-            ? 'Os robôs deixam de a ler. Fica guardada em "Ver arquivadas".'
-            : 'Os robôs voltam a ler esta lição.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(arquivar ? 'Arquivar' : 'Reativar')),
-        ],
-      ),
-    );
-    if (ok != true || !context.mounted) return;
-    await _tentar(context, () => store.arquivarLicao(l, arquivar: arquivar),
-        arquivar ? 'Lição arquivada.' : 'Lição reativada.');
-  }
 }

@@ -85,6 +85,9 @@ import 'admin_caca_clientes_screen.dart';
 import 'admin_assistentes_screen.dart';
 import 'admin_assistente_screen.dart';
 import 'admin_motores_screen.dart';
+import 'admin_autorizacoes_screen.dart';
+import 'admin_sentinela_screen.dart';
+import 'admin_licoes_robos_screen.dart';
 import 'admin_crash_logs_screen.dart';
 import 'admin_pagamentos_presos_screen.dart';
 import 'admin_stripe_contas_screen.dart';
@@ -1569,6 +1572,37 @@ List<AdminMenuSection> adminMenuSections() => [
       color: AppColors.primary,
       builder: () => const AdminDecisoesScreen(),
       keywords: const ['decisoes', 'decisor', 'jev', 'typesafe', 'sombra', 'custo', 'noshow', 'suporte', 'despacho'],
+    ),
+    // [hermes-diretor-2026-11-20 · B10] o Danilo vê e manda no Hermes (o robô diretor).
+    AdminMenuItem(
+      id: 'robos_hermes_autorizacoes',
+      title: 'Autorizações do Hermes',
+      subtitle: 'Dizer Autorizo ou Recusar quando o Hermes quer mexer em valores ou apagar algo; ver quem decidiu e por onde',
+      icon: Icons.verified_user_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminAutorizacoesScreen(),
+      keywords: const ['hermes', 'autorizo', 'autorizar', 'recusar', 'autorizacao', 'autorizacoes', 'aprovar', 'pedido', 'valor', 'apagar', 'dinheiro', 'travado'],
+      badge: 'novo',
+    ),
+    AdminMenuItem(
+      id: 'robos_sentinela',
+      title: 'Sentinela (vigia do Hermes)',
+      subtitle: 'Avisos do vigia por gravidade (pedido parado, pagamento estranho, erro repetido) e o que o Hermes fez em cada um',
+      icon: Icons.visibility_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminSentinelaScreen(),
+      keywords: const ['sentinela', 'vigia', 'hermes', 'avisos', 'urgente', 'pedido', 'parado', 'pagamento', 'erro', 'robo', 'apuros', 'carrinho', 'visto'],
+      badge: 'novo',
+    ),
+    AdminMenuItem(
+      id: 'robos_licoes',
+      title: 'Lições dos robôs',
+      subtitle: 'O que cada robô errou e a regra certa (ligar, desligar, editar), com os testes que repetem as perguntas e o último resultado',
+      icon: Icons.menu_book_outlined,
+      color: AppColors.primary,
+      builder: () => const AdminLicoesRobosScreen(),
+      keywords: const ['licoes', 'licao', 'robos', 'regra', 'errou', 'aprender', 'testes', 'regressao', 'casos', 'suporte', 'amigo', 'whatsapp', 'hermes'],
+      badge: 'novo',
     ),
     // [Radar de vídeos · 24/09] o que o PC recolhe do YouTube todos os dias + o playbook das redes.
     AdminMenuItem(

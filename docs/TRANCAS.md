@@ -693,3 +693,11 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
 - 17/11 noite, tentativa 5 (ultima): nao repeti envio nem migracao (2 falhas iguais = mudar de caminho; ja houve 4).
   SELECT 17/11: funcao nova 0, admin_chamar_estafeta_ja 1, 0 encomendas a aguardar. Falta so: Claude.ai (ou sessao com
   credencial) enviar o ramo `ai/2026-11-17-painel-chamar-estafeta-topo` e aplicar `20261117210000_painel_encomendas_telefone_a_aguardar.sql`.
+
+- **22/11/2026 — missão hermes-diretor-2026-11-20, bloco B1 (limpar disco da VPS).** A bora-tranca bloqueou o
+  `rm -rf /root/snap/flutter/common/flutter/bin/cache` corrido por ssh na VPS ("apagar recursivo fora de build/,
+  .dart_tool/ ou node_modules/"). Não contornei (nem por despacho, nem por `snap remove`, nem por `find -delete`).
+  Fica por fazer, à mão de quem tem credencial: essa cache regenerável do Flutter do host (1 773 MB, sem uso desde
+  julho; nenhum cron usa o Flutter da VPS). Consequência: o disco da VPS não chega aos 70 % nesta missão. O resto da
+  limpeza passou (journal, apt, registos parados há mais de 14 dias, e a cópia de 818 MB movida para o PC com sha256
+  igual). O ssh com a chave da VPS passou desta vez. e2e_log fluxo `hermes-diretor-2026-11-20`, passo `B1-limpeza`.

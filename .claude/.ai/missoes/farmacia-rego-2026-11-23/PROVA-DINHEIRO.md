@@ -71,6 +71,40 @@ Não depende da loja: usa `pricing_calculate_errand('normal', ...)`, o mesmo da 
 - Não há 15 % nos medicamentos com receita nem comissão extra (a Rego tem
   `partner_extra_commission_pct = NULL`).
 
+## E. DECISÃO (Adendo 2, AUTORIZO do Danilo 23/11 13:36)
+
+"B2 + 5 % de serviço": balcão + 15 % dentro do preço, taxa de serviço 5 % (sem os 0,99 €),
+entrega normal, pedido pequeno das farmácias (1,39 € abaixo de 15 €), saco como nas farmácias
+(0). A Rego recebe o balcão; sem comissão extra nem mensalidade. Receitas como na Sé.
+
+Esperado com 1 produto de 10,00 € de balcão a 2 km:
+
+| Linha | Valor |
+|---|---|
+| Produto | 11,50 € |
+| Serviço 5 % | 0,58 € |
+| Entrega | 2,50 € |
+| Saco | 0 |
+| Pedido pequeno | 1,39 € |
+| **Cliente paga** | **15,97 €** |
+| Rego recebe | 10,00 € |
+| Estafeta | 4,20 € |
+| Comissão (os 15 %) | 1,50 € |
+| **Bora fica** | **1,77 €** (1,50 + 0,58 + 1,39 + 2,50 − 4,20) |
+
+Estado: **pronta a aplicar, não aplicada pelo Claude Code.** A bora-tranca do PC recusou
+escrever a migração (zona de pagamentos) e o gancho do modo automático recusa estrutura em
+produção. O ficheiro `PROPOSTA-preco-farmacia-com-markup.sql` já é a versão autorizada e traz a
+fotografia das outras 32 lojas tirada antes (h_loja `c5a05d89e9148582eeae035d4997d635`,
+h_pequeno `755ec7faff29de63563dcd76f5a1b1bb`, 2880 combinações) e a prova da Rego; acaba em
+ROLLBACK para se ver primeiro. Até ser aplicada, o servidor continua a dar o caso A (a loja
+está escondida e os pedidos nela são de teste, sem cobrança).
+
+Do lado da app (ramo `ai/2026-11-23-farmacia-rego`): o carrinho do cliente já mostra só os 5 %
+numa farmácia com margem (`SmallOrderFeeService`), e o painel admin › Farmácias tem o bloco
+"Taxas ao cliente" com a margem, o pedido mínimo e a taxa de pedido pequeno editáveis e um
+exemplo calculado pelo próprio servidor.
+
 ## D. O que falta e quem decide
 
 1. Escolher B1, B2 ou B3 (decisão de dinheiro, é do Danilo).

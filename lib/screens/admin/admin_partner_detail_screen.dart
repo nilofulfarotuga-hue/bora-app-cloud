@@ -79,6 +79,11 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
   // Entrega grátis por loja (23/10/2026): restaurants.free_delivery_min_cents.
   final TextEditingController _entregaGratisCtrl = TextEditingController();
   bool _savingPedidoMinimo = false;
+  // Embalagem da loja (23/11/2026): restaurants.embalagem_cents e
+  // restaurants.embalagem_escalao_cents. Vazios = saco normal de 0,30 €.
+  final TextEditingController _embalagemCtrl = TextEditingController();
+  final TextEditingController _embalagemEscalaoCtrl = TextEditingController();
+  bool _savingEmbalagem = false;
   final TextEditingController _facebookCtrl = TextEditingController();
   final TextEditingController _instagramCtrl = TextEditingController();
   final TextEditingController _aboutCtrl = TextEditingController();
@@ -115,6 +120,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
     _minPedidoCtrl.dispose();
     _taxaPequenoCtrl.dispose();
     _entregaGratisCtrl.dispose();
+    _embalagemCtrl.dispose();
+    _embalagemEscalaoCtrl.dispose();
     _facebookCtrl.dispose();
     _instagramCtrl.dispose();
     _aboutCtrl.dispose();
@@ -132,7 +139,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
               'takeaway_enabled, reservations_enabled, curbside_enabled, takeaway_default_prep_minutes, hero_image_url, photo_url, '
               'owner_doc_url, activity_doc_url, lat, lng, partner_commission_billing, user_id, '
               'whatsapp, social_facebook, social_instagram, about_text, extra_categories, '
-              'min_order_cents_override, small_order_fee_cents_override, free_delivery_min_cents')
+              'min_order_cents_override, small_order_fee_cents_override, free_delivery_min_cents, '
+              'embalagem_cents, embalagem_escalao_cents')
           .eq('id', widget.restaurantId)
           .single();
       final openData = await Supabase.instance.client.rpc('is_partner_open', params: {
@@ -160,6 +168,10 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
                   '';
           _entregaGratisCtrl.text =
               (r['free_delivery_min_cents'] as num?)?.toInt().toString() ?? '';
+          _embalagemCtrl.text =
+              _centimosParaEurosTexto((r['embalagem_cents'] as num?)?.toInt());
+          _embalagemEscalaoCtrl.text = _centimosParaEurosTexto(
+              (r['embalagem_escalao_cents'] as num?)?.toInt());
           _facebookCtrl.text = r['social_facebook'] as String? ?? '';
           _instagramCtrl.text = r['social_instagram'] as String? ?? '';
           _aboutCtrl.text = r['about_text'] as String? ?? '';
@@ -465,6 +477,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
           AdminDestaqueLojaCard(restaurantId: widget.restaurantId),
           const SizedBox(height: 24),
           _pedidoMinimoCard(),
+          const SizedBox(height: 24),
+          _embalagemCard(),
           const SizedBox(height: 24),
           _storeProfileCard(),
           const SizedBox(height: 24),
@@ -1041,6 +1055,167 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
     } finally {
       if (mounted) setState(() => _savingPedidoMinimo = false);
     }
+  }
+
+  // ── EMBALAGEM DA LOJA (23/11/2026, AUTORIZO do Danilo 10:44) ──────────────
+
+  /// 100 → "1,00"; null → "" (campo vazio).
+  static String _centimosParaEurosTexto(int? cents) => cents == null
+      ? ''
+      : (cents / 100).toStringAsFixed(2).replaceAll('.', ',');
+
+  /// "1", "1,5", "1.50", "1 €" → cêntimos. Vazio → null. Inválido → -1.
+  static int? _eurosTextoParaCentimos(String texto) {
+    final t = texto.replaceAll('€', '').replaceAll(' ', '').replaceAll(',', '.');
+    if (t.isEmpty) return null;
+    final v = double.tryParse(t);
+    if (v == null || v < 0) return -1;
+    return (v * 100).round();
+  }
+
+  /// Grava a embalagem desta loja em `restaurants.embalagem_cents` e
+  /// `restaurants.embalagem_escalao_cents`. Os dois vazios = saco normal.
+  Future<void> _saveEmbalagem() async {
+    final valor = _eurosTextoParaCentimos(_embalagemCtrl.text.trim());
+    final escalao = _eurosTextoParaCentimos(_embalagemEscalaoCtrl.text.trim());
+    if (valor == -1 || (valor != null && (valor == 0 || valor > 2000))) {
+      _aviso('Embalagem inválida. Use um valor em euros entre 0,01 e 20,00 '
+          '(ex.: 1,00), ou deixe vazio para o saco normal.');
+      return;
+    }
+    if (escalao == -1 || (escalao != null && (escalao < 100 || escalao > 100000))) {
+      _aviso('Escalão inválido. Use um valor em euros entre 1,00 e 1.000,00 '
+          '(ex.: 30,00), ou deixe vazio para valor fixo.');
+      return;
+    }
+    if (valor == null && escalao != null) {
+      _aviso('Preencha o valor da embalagem antes do escalão '
+          '(ou deixe os dois vazios para o saco normal).');
+      return;
+    }
+    setState(() => _savingEmbalagem = true);
+    try {
+      await Supabase.instance.client.from('restaurants').update({
+        'embalagem_cents': valor,
+        'embalagem_escalao_cents': escalao,
+      }).eq('id', widget.restaurantId);
+      // Lê de volta: só se diz "gravado" com o valor que ficou no servidor.
+      final lido = await Supabase.instance.client
+          .from('restaurants')
+          .select('embalagem_cents, embalagem_escalao_cents')
+          .eq('id', widget.restaurantId)
+          .single();
+      SmallOrderFeeService.esquecerCache();
+      final c = (lido['embalagem_cents'] as num?)?.toInt();
+      final e = (lido['embalagem_escalao_cents'] as num?)?.toInt();
+      _aviso(c == null
+          ? 'Embalagem desligada: esta loja voltou ao saco normal de 0,30 €.'
+          : e == null
+              ? 'Embalagem gravada: ${_centimosParaEurosTexto(c)} € fixo por pedido.'
+              : 'Embalagem gravada: ${_centimosParaEurosTexto(c)} € a cada '
+                  '${_centimosParaEurosTexto(e)} € de pedido.');
+      await _loadAll();
+    } catch (e) {
+      _aviso('Erro ao salvar a embalagem: $e');
+    } finally {
+      if (mounted) setState(() => _savingEmbalagem = false);
+    }
+  }
+
+  /// Cartão PT-BR: embalagem (sacos e caixas de take away) DESTA loja.
+  Widget _embalagemCard() {
+    final ligada = _embalagemCtrl.text.trim().isNotEmpty;
+    return Card(
+      key: const Key('admin_embalagem_loja_card'),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Radii.lg),
+        side: const BorderSide(color: AppColors.divider),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(children: [
+              Icon(Icons.takeout_dining_outlined, size: 20),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text('Embalagem da loja',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              ),
+            ]),
+            const SizedBox(height: 4),
+            const Text(
+              'No lugar do saco de 0,30 €, o cliente vê a linha "Embalagem" '
+              '(sacos e caixas de take away). O valor vai 100 % para a loja no '
+              'acerto da semana: não é receita da Bora e não entra na comissão.\n\n'
+              'Exemplo da Boom! Burger: 1,00 € a cada 30,00 € de pedido (até '
+              '30 € = 1 €; acima de 30 € = 2 €; acima de 60 € = 3 €). Escalão '
+              'vazio = valor fixo por pedido. Os dois campos VAZIOS = saco normal.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    key: const Key('admin_embalagem_valor'),
+                    controller: _embalagemCtrl,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Embalagem por escalão (€)',
+                      hintText: 'vazio = saco normal',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    key: const Key('admin_embalagem_escalao'),
+                    controller: _embalagemEscalaoCtrl,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Escalão a cada (€) de pedido',
+                      hintText: 'vazio = valor fixo',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (ligada)
+                  TextButton.icon(
+                    onPressed: _savingEmbalagem
+                        ? null
+                        : () {
+                            _embalagemCtrl.clear();
+                            _embalagemEscalaoCtrl.clear();
+                            _saveEmbalagem();
+                          },
+                    icon: const Icon(Icons.undo, size: 18),
+                    label: const Text('Voltar ao saco normal'),
+                  ),
+                const Spacer(),
+                FilledButton(
+                  onPressed: _savingEmbalagem ? null : _saveEmbalagem,
+                  child: Text(_savingEmbalagem ? 'Salvando…' : 'Salvar'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _aviso(String texto) {

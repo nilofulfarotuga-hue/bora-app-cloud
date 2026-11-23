@@ -111,6 +111,45 @@ class SmallOrderFeeService {
     return (fixo + subtotal * pct * 100).round() / 100;
   }
 
+  // ── EMBALAGEM DA LOJA (23/11/2026, AUTORIZO do Danilo 10:44) ──────────────
+  // Espelho do `embalagem_loja_valor` do servidor: numa loja com
+  // `restaurants.embalagem_cents`, o saco de restaurante dá lugar à
+  // "Embalagem" (100 % da loja). Com `embalagem_escalao_cents` o valor sobe
+  // a cada escalão de subtotal (Boom! Burger: 1 € a cada 30 €); sem ele é
+  // fixo. O servidor manda; isto é só a conta antes do quote.
+  static final Map<String, ({int cents, int? escalaoCents})> _embalagem = {};
+
+  /// Valor da embalagem desta loja para este subtotal, em euros. `null` =
+  /// a loja não cobra embalagem (fica o saco normal).
+  static double? embalagemEur(String? restaurantId, double subtotal) {
+    final e = restaurantId == null ? null : _embalagem[restaurantId];
+    if (e == null || e.cents <= 0) return null;
+    final escalao = e.escalaoCents;
+    if (escalao == null || escalao <= 0) return e.cents / 100;
+    final subCents = (subtotal * 100).round();
+    final escaloes = (subCents / escalao).ceil();
+    return e.cents * (escaloes < 1 ? 1 : escaloes) / 100;
+  }
+
+  /// Espelho do `e_embalagem_da_loja` do servidor: o `bag_fee` deste pedido
+  /// é a embalagem da loja (e não o saco)? Só responde com a loja já lida.
+  static bool ehEmbalagemDaLoja(String? restaurantId, double bagFee) {
+    final e = restaurantId == null ? null : _embalagem[restaurantId];
+    if (e == null || e.cents <= 0 || bagFee <= 0) return false;
+    return (bagFee * 100).round() % e.cents == 0;
+  }
+
+  /// Só para testes: a embalagem desta loja (`cents == null` = sem embalagem).
+  @visibleForTesting
+  static void definirEmbalagemParaTeste(String restaurantId, int? cents,
+      {int? escalaoCents}) {
+    if (cents == null) {
+      _embalagem.remove(restaurantId);
+    } else {
+      _embalagem[restaurantId] = (cents: cents, escalaoCents: escalaoCents);
+    }
+  }
+
   /// Só para testes: marca/desmarca uma loja como farmácia parceira e fixa as
   /// definições da taxa de serviço.
   @visibleForTesting
@@ -204,10 +243,20 @@ class SmallOrderFeeService {
       final linha = await Supabase.instance.client
           .from('restaurants')
           .select('min_order_cents_override, small_order_fee_cents_override, '
-              'free_delivery_min_cents, category, is_partner')
+              'free_delivery_min_cents, category, is_partner, '
+              'embalagem_cents, embalagem_escalao_cents')
           .eq('id', restaurantId)
           .maybeSingle();
       if (linha == null) return;
+      final emb = (linha['embalagem_cents'] as num?)?.toInt();
+      if (emb != null && emb > 0) {
+        _embalagem[restaurantId] = (
+          cents: emb,
+          escalaoCents: (linha['embalagem_escalao_cents'] as num?)?.toInt(),
+        );
+      } else {
+        _embalagem.remove(restaurantId);
+      }
       if (linha['category'] == 'pharmacy' && linha['is_partner'] == true) {
         _farmacias.add(restaurantId);
       } else {
@@ -242,6 +291,7 @@ class SmallOrderFeeService {
     _porLoja.clear();
     _entregaGratisMin.clear();
     _farmacias.clear();
+    _embalagem.clear();
   }
 
   static int _comoInt(dynamic v) {

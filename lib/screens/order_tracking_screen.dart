@@ -16,6 +16,7 @@ import '../models/restaurant_model.dart' show BusinessCategory;
 import '../widgets/order_edit/client_order_edit_banner.dart';
 import '../widgets/aviso_estafeta_noutro_pedido.dart';
 import '../widgets/farmacia_chegada_cliente.dart';
+import '../widgets/saco_ou_embalagem.dart';
 import '../widgets/address_text.dart';
 import '../widgets/ajustes_peso_pedido.dart';
 import '../widgets/bora_support_fab.dart';
@@ -1244,7 +1245,14 @@ class _BottomCardState extends State<_BottomCard> {
                       // 2026-09-22: o saco entra no total — sem esta linha a
                       // soma do resumo não batia com o total (0,30 € a menos).
                       if (order.bagFee > 0)
-                        _SummaryRow(label: 'Saco'.tr, value: order.bagFee),
+                        // 23/11/2026: "Embalagem" quando é a da loja.
+                        SacoOuEmbalagem(
+                          restaurantId: order.restaurantId,
+                          bagFee: order.bagFee,
+                          builder: (context, embalagem) => _SummaryRow(
+                              label: embalagem ? 'Embalagem'.tr : 'Saco'.tr,
+                              value: order.bagFee),
+                        ),
                       // Depósito Volta (09/11/2026): linha à parte por lei;
                       // o valor do servidor, já com os acertos.
                       if (order.depositoVoltaTotal > 0)

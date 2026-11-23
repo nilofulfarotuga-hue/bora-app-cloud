@@ -26,6 +26,7 @@ import '../widgets/deposito_volta_nota.dart';
 import '../widgets/fatura_nif_pedido.dart';
 import '../widgets/private_bucket_image.dart';
 import '../widgets/refund_choice_dialog.dart';
+import '../widgets/saco_ou_embalagem.dart';
 import 'chat_screen.dart';
 import 'wallet_history_screen.dart';
 
@@ -1242,11 +1243,19 @@ class _ItemsCard extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      'Saco de transporte ({0})'.trArgs([order.bagCount]),
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
+                    // 23/11/2026: "Embalagem" quando é a da loja (servidor).
+                    child: SacoOuEmbalagem(
+                      restaurantId: order.restaurantId,
+                      bagFee: order.bagFee,
+                      builder: (context, embalagem) => Text(
+                        embalagem
+                            ? 'Embalagem'.tr
+                            : 'Saco de transporte ({0})'
+                                .trArgs([order.bagCount]),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                        ),
                       ),
                     ),
                   ),
@@ -1644,9 +1653,16 @@ class _PurchaseV2CardState extends State<_PurchaseV2Card> {
                         color: AppTheme.secondary, size: 20),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        '🛍️ Saco plástico — {0}× {1} €'.trArgs([widget.order.bagCount, (widget.order.bagFee / widget.order.bagCount).toStringAsFixed(2).replaceAll('.', ',')]),
-                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      // 23/11/2026: a embalagem da loja tem nome próprio.
+                      child: SacoOuEmbalagem(
+                        restaurantId: widget.order.restaurantId,
+                        bagFee: widget.order.bagFee,
+                        builder: (context, embalagem) => Text(
+                          embalagem
+                              ? 'Embalagem'.tr
+                              : '🛍️ Saco plástico — {0}× {1} €'.trArgs([widget.order.bagCount, (widget.order.bagFee / widget.order.bagCount).toStringAsFixed(2).replaceAll('.', ',')]),
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
                       ),
                     ),
                     Text(

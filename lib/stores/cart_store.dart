@@ -1039,6 +1039,11 @@ class CartStore extends ChangeNotifier {
       if (_checkinValeId != null) 'checkin_vale_id': _checkinValeId,
       'include_debt': true, // BUG #1 frontend (2026-05-12): server inclui dívida wallet em charge_total + retorna debt_settle_cents
       'payment_method': 'card', // any non-cash, RPC ignora para quote
+      // Embalagem da loja (23/11/2026): esta versão da app mostra a linha
+      // "Embalagem". Sem esta chave o servidor devolve o saco normal (as
+      // apps antigas continuam certas sem atualizar). Ver app_mostra_embalagem.
+      // Só vai com o interruptor ligado: o create_order tem de a mandar também.
+      if (SmallOrderFeeService.appMostraEmbalagem) kMostraEmbalagemChave: true,
     };
   }
 

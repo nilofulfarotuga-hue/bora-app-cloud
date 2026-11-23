@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:bora_app/models/cart_item.dart';
 import 'package:bora_app/models/order_service_type.dart';
+import 'package:bora_app/services/assistant_service.dart';
 import 'package:bora_app/services/small_order_fee.dart';
 import 'package:bora_app/stores/cart_store.dart';
 import 'package:bora_app/widgets/saco_ou_embalagem.dart';
@@ -12,17 +13,21 @@ import 'package:latlong2/latlong.dart';
 /// EMBALAGEM DA LOJA (23/11/2026, AUTORIZO do Danilo 10:44).
 ///
 /// Boom! Burger: 1 € a cada 30 € de pedido, no lugar do saco de 0,30 €.
-/// Os totais abaixo saíram do servidor a 23/11/2026:
+/// Os totais abaixo são a saída REAL do servidor a 23/11/2026 (~12:15), já
+/// com a Boom ligada (embalagem_cents=100, embalagem_escalao_cents=3000):
 /// `pricing_calculate_loja('restaurant', sub, 4, true, false, false, 1,
-/// 'boom-burger-guarda')` (hoje com saco 0,30) − 0,30 + a fórmula do
-/// `embalagem_loja_valor` (100 × GREATEST(1, CEIL(sub×100 / 3000)) / 100):
+/// 'boom-burger-guarda')`:
 ///
 ///   12,50 € -> embalagem 1,00 | total 16,63
 ///   29,99 € -> embalagem 1,00 | total 34,99
 ///   30,00 € -> embalagem 1,00 | total 32,50  (entrega base grátis)
 ///   30,01 € -> embalagem 2,00 | total 33,51
+///   32,20 € -> embalagem 2,00 | total 35,81
 ///   60,01 € -> embalagem 3,00 | total 66,01
 ///   95,00 € -> embalagem 4,00 | total 103,75
+///
+/// O quote_order_pricing só deixa a embalagem com `mostra_embalagem: true`
+/// no p_input; sem ela devolve o saco 0,30 (30,01 € -> 31,81).
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -30,6 +35,9 @@ void main() {
   const outra = 'outro-restaurante';
 
   setUp(() {
+    // Estes testes são da app COM a chave `mostra_embalagem` ligada; o grupo
+    // "interruptor" no fim prova o que acontece com ela desligada.
+    SmallOrderFeeService.definirAppMostraEmbalagemParaTeste(true);
     SmallOrderFeeService.definirEntregaGratisParaTeste(boom, 3000);
     SmallOrderFeeService.definirTaxaBaseParaTeste(null);
     SmallOrderFeeService.definirEmbalagemParaTeste(boom, 100,
@@ -39,6 +47,7 @@ void main() {
   });
 
   tearDown(() {
+    SmallOrderFeeService.definirAppMostraEmbalagemParaTeste(kAppMostraEmbalagem);
     SmallOrderFeeService.definirEntregaGratisParaTeste(boom, null);
     SmallOrderFeeService.definirEmbalagemParaTeste(boom, null);
     EmbalagemDaLoja.limparParaTeste();
@@ -98,6 +107,9 @@ void main() {
       (29.99, 1.00, 34.99),
       (30.00, 1.00, 32.50),
       (30.01, 2.00, 33.51),
+      // 32,20 €: a prova da Claude.ai (23/11 11:55, com a chave) deu
+      // Embalagem 2,00; total = 32,20 + 1,61 (5 %) + 0 (taxa base grátis) + 2.
+      (32.20, 2.00, 35.81),
       (60.01, 3.00, 66.01),
       (95.00, 4.00, 103.75),
     ]) {
@@ -202,6 +214,60 @@ void main() {
           deliveryLocation: const LatLng(40.5400, -7.2700),
         );
       expect(c.embalagemLocal, isNull);
+    });
+  });
+
+  group('interruptor mostra_embalagem (servidor desde 23/11 11:55)', () {
+    test('ligado: a cotação manda mostra_embalagem: true', () {
+      final entrada = cesto(boom, 30.01).entradaDoQuote()!;
+      expect(entrada[kMostraEmbalagemChave], isTrue);
+      expect(kMostraEmbalagemChave, 'mostra_embalagem');
+    });
+
+    test('desligado: sem a chave, e a conta local fica com o saco 0,30', () {
+      SmallOrderFeeService.definirAppMostraEmbalagemParaTeste(false);
+      final c = cesto(boom, 30.01);
+      expect(c.entradaDoQuote()!.containsKey(kMostraEmbalagemChave), isFalse);
+      final r = c.resumo;
+      expect(r.embalagemDaLoja, isFalse);
+      expect(r.saco, closeTo(0.30, 0.001));
+      // = servidor sem a chave: 31,81 (pricing_calculate_loja de 23/11)
+      expect(r.total, closeTo(31.81, 0.001));
+    });
+
+    test('esta versão sai DESLIGADA até o create_order mandar a chave', () {
+      // O createOrder vive em order_store.dart (zona vermelha; a tranca
+      // recusou a edição a 23/11). Ligar só a cotação faria o ecrã mostrar
+      // a embalagem e o pedido cobrar o saco.
+      final store = File('lib/stores/order_store.dart').readAsStringSync();
+      if (!store.contains('kMostraEmbalagemChave')) {
+        expect(kAppMostraEmbalagem, isFalse,
+            reason: 'não se liga a cotação sem o create_order');
+      }
+    });
+  });
+
+  group('outros ecrãs com o nome certo (adendo 1)', () {
+    test('assistente: bag_label Embalagem -> "Embalagem"; sem nome -> "Sacos"',
+        () {
+      final com = AssistantProposal.fromJson(
+          {'bag_fee': 2.0, 'bag_label': 'Embalagem', 'customer_total': 33.51});
+      final sem = AssistantProposal.fromJson({'bag_fee': 0.3});
+      expect(com.bagFeeEEmbalagem, isTrue);
+      expect(sem.bagFeeEEmbalagem, isFalse);
+      expect(
+          File('lib/screens/client/assistant/assistant_cards.dart')
+              .readAsStringSync(),
+          contains("p.bagFeeEEmbalagem ? 'Embalagem'.tr : 'Sacos'.tr"));
+    });
+
+    test('estafeta e fecho mensal', () {
+      expect(File('lib/screens/driver_map_screen.dart').readAsStringSync(),
+          contains("label: embalagem ? 'Embalagem' : 'Sacos'"));
+      expect(
+          File('lib/screens/admin/admin_fecho_mensal_screen.dart')
+              .readAsStringSync(),
+          contains("'sacos' => 'Sacos (sem a embalagem das lojas)'"));
     });
   });
 

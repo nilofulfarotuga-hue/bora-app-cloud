@@ -25,6 +25,7 @@
 - When a task matches a skill, EXECUTE the skill immediately
 - Do not ask for clarification if skill context is sufficient
 - Combine skill + short context instead of large explanations
+- Radar (23/11/2026): antes de uma tarefa, consulta `radar_buscar('<assunto>')` e o playbook do tema (`playbook-<tema>` no livro) — ver página do livro `radar-como-usar`.
 ## Validation Gate (MANDATORY)
 
 Before executing ANY task that touches:

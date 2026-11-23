@@ -724,6 +724,10 @@ class _PedidoExtratoTile extends StatelessWidget {
               'Comissão Bora ${pedido['sobre_txt'] ?? ''}'
               '${pct == null ? '' : ' (${pct.toString().replaceAll('.', ',')} %)'}',
               _eur(pedido['parte_bora_cents'])),
+          // Embalagem da loja (23/11/2026): 100 % tua, já somada ao "Fica
+          // para ti" (extrato_parceiro.embalagem_cents).
+          if (((pedido['embalagem_cents'] as num?) ?? 0) > 0)
+            _linha('Embalagem (é da loja)'.tr, _eur(pedido['embalagem_cents'])),
           _linha('Fica para ti', _eur(pedido['fica_para_o_parceiro_cents']),
               bold: true),
           // pagar-na-loja (10/11/2026): pedido da app pago em dinheiro — o

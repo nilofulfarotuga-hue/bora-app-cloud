@@ -1163,6 +1163,8 @@ class _AdminPartnerDetailScreenState extends State<AdminPartnerDetailScreen>
                   child: TextField(
                     key: const Key('admin_embalagem_valor'),
                     controller: _embalagemCtrl,
+                    // Redesenha para o "Voltar ao saco normal" seguir o campo.
+                    onChanged: (_) => setState(() {}),
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     decoration: const InputDecoration(

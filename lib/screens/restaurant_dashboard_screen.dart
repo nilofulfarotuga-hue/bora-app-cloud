@@ -735,7 +735,7 @@ class _PartnerEarningsSection extends StatelessWidget {
         ),
         // Embalagem da loja (23/11/2026): o servidor diz se o bag_fee deste
         // pedido é a embalagem; vai 100 % para a loja no acerto da semana.
-        if (order.bagFee > 0)
+        if (!isRejected && order.bagFee > 0)
           SacoOuEmbalagem(
             restaurantId: order.restaurantId,
             bagFee: order.bagFee,

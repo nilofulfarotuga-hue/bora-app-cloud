@@ -51,6 +51,9 @@ class EmbalagemDaLoja {
         return sim;
       } catch (e) {
         debugPrint('[EmbalagemDaLoja] falhou a perguntar ao servidor: $e');
+        // Guarda o "não" para esta sessão: senão cada redesenho do ecrã
+        // (o seguimento redesenha muito) voltava a chamar o servidor.
+        _respostas[chave] = false;
         return false;
       } finally {
         _emCurso.remove(chave);

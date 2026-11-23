@@ -149,6 +149,18 @@ class _PartnerWeeklyCloseoutCardState extends State<PartnerWeeklyCloseoutCard> {
                   style: const TextStyle(
                       fontSize: 12, color: AppColors.textSecondary),
                 ),
+                // Embalagem da loja (23/11/2026): 100 % da loja, à parte da
+                // comissão. O valor vem do acerto (`embalagem_total`).
+                if (_num(current['embalagem_total']) > 0)
+                  Text(
+                    'Embalagem (é da loja): {0}'
+                        .trArgs([_euros(_num(current['embalagem_total']))]),
+                    key: const Key('fecho_embalagem_da_loja'),
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary),
+                  ),
                 // pagar-na-loja (10/11/2026): o que já recebeste em mão do
                 // estafeta na recolha (pedidos da app pagos em dinheiro). Já
                 // está descontado do que a Bora te paga.

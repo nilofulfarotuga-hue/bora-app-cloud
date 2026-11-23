@@ -6,6 +6,7 @@ import 'admin_order_edits_screen.dart';
 import '../../config/app_spacing.dart';
 import '../../widgets/admin/escolher_estafeta_sheet.dart';
 import '../../widgets/private_bucket_image.dart';
+import '../../widgets/saco_ou_embalagem.dart';
 import '../../widgets/admin/admin_fatura_nif_section.dart';
 import '../../widgets/admin/admin_substituicao_section.dart';
 import '../../widgets/admin/admin_rascunho_compra_section.dart';
@@ -1189,7 +1190,15 @@ class _CashBreakdownCardState extends State<_CashBreakdownCard> {
               _kv('Produtos', eur(_num('produtos'))),
               _kv('Entrega', eur(_num('entrega'))),
               _kv('Taxa de serviço', eur(_num('taxa_servico'))),
-              _kv('Sacos', eur(_num('sacos'))),
+              // Embalagem da loja (23/11/2026): o servidor diz se o bag_fee
+              // é a embalagem (100 % da loja, fora da receita da Bora).
+              SacoOuEmbalagem(
+                restaurantId: widget.order['restaurant_id']?.toString(),
+                bagFee: _num('sacos'),
+                builder: (context, embalagem) => _kv(
+                    embalagem ? 'Embalagem (da loja)' : 'Sacos',
+                    eur(_num('sacos'))),
+              ),
               _kv('Ganho do entregador', eur(_num('ganho_estafeta'))),
               _kv('Valor do talão da loja', eur(talao)),
               const Divider(),

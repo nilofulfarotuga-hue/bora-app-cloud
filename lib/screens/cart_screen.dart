@@ -607,7 +607,11 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                       ),
                     if (resumo.saco > 0)
                       _SummaryRow(
-                          label: 'Saco para viagem'.tr, value: resumo.saco),
+                          // 23/11/2026: "Embalagem" quando a loja a cobra.
+                          label: resumo.embalagemDaLoja
+                              ? 'Embalagem'.tr
+                              : 'Saco para viagem'.tr,
+                          value: resumo.saco),
                     if (cartStore.smallOrderFee > 0)
                       _SummaryRow(
                         label: 'Taxa de pedido pequeno'.tr,

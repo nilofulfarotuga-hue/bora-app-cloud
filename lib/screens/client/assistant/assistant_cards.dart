@@ -117,7 +117,11 @@ class AssistantProposalCard extends StatelessWidget {
           _Parcela(rotulo: 'Taxa de serviço'.tr, valor: p.serviceFee),
           if (p.smallOrderFee > 0)
             _Parcela(rotulo: 'Taxa de pedido pequeno'.tr, valor: p.smallOrderFee),
-          if (p.bagFee > 0) _Parcela(rotulo: 'Sacos'.tr, valor: p.bagFee),
+          if (p.bagFee > 0)
+            _Parcela(
+                // 23/11/2026: o nome vem do servidor (bag_label).
+                rotulo: p.bagFeeEEmbalagem ? 'Embalagem'.tr : 'Sacos'.tr,
+                valor: p.bagFee),
           const SizedBox(height: 6),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

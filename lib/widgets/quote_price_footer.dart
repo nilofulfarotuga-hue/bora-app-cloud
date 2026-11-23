@@ -197,7 +197,10 @@ class _QuotePriceFooterState extends State<QuotePriceFooter> {
             const SizedBox(height: 12),
             _row('Taxa de entrega'.tr, delivery),
             if (service > 0) _row('Taxa de serviço'.tr, service),
-            if (bag > 0) _row('Saco'.tr, bag),
+            if (bag > 0)
+              _row(
+                  q['bag_label'] == 'Embalagem' ? 'Embalagem'.tr : 'Saco'.tr,
+                  bag),
             const Divider(),
             _row('Total'.tr, total, strong: true),
           ],

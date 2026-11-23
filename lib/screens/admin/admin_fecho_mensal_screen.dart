@@ -826,7 +826,9 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
   static String _nomeRubrica(String k) => switch (k) {
         'entrega' => 'Entrega',
         'taxa_servico' => 'Taxa de serviço',
-        'sacos' => 'Sacos',
+        // 23/11/2026: o servidor (_fecho_pedidos) já tira daqui a embalagem
+        // das lojas (100 % da loja); a rubrica é só o saco, receita da Bora.
+        'sacos' => 'Sacos (sem a embalagem das lojas)',
         'taxa_pedido_pequeno' => 'Taxa de pedido pequeno',
         // 10/11/2026: a parte da Bora nas lojas parceiras fatura-se aos clientes,
         // nunca às lojas — por isso "parte da Bora", não "comissão".

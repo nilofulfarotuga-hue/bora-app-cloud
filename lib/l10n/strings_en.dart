@@ -229,6 +229,10 @@ const Map<String, String> kStringsEn = <String, String>{
   'O estafeta paga-te {0} em dinheiro quando vier buscar o pedido.': 'The courier pays you {0} in cash when picking up the order.',
   'Já pago pela app — não cobres nada ao estafeta. Recebes no fecho semanal.': 'Already paid in the app — do not charge the courier. You get paid in the weekly settlement.',
   'Recebido em mão na recolha: {0} (já descontado)': 'Received in cash at pickup: {0} (already deducted)',
+  // Embalagem da loja (23/11/2026).
+  'Embalagem': 'Packaging',
+  'Embalagem (é da loja)': 'Packaging (goes to the store)',
+  'Embalagem (é da loja): {0}': 'Packaging (goes to the store): {0}',
   'Recebido em mão na recolha (o estafeta pagou-te)': 'Received in cash at pickup (the courier paid you)',
   // 09/11/2026: depósito Volta (latas e garrafas). Acrescentado à mão.
   '+{0} depósito Volta': '+{0} Volta deposit',

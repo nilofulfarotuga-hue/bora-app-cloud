@@ -503,6 +503,10 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
     final depositoVolta = s['deposit_volta_total'] is num
         ? (s['deposit_volta_total'] as num).toDouble()
         : double.tryParse('${s['deposit_volta_total'] ?? ''}') ?? 0;
+    // 23/11/2026 — Embalagem da loja na semana (acerto: embalagem_total).
+    final embalagem = s['embalagem_total'] is num
+        ? (s['embalagem_total'] as num).toDouble()
+        : double.tryParse('${s['embalagem_total'] ?? ''}') ?? 0;
     final statusColor = switch (status) {
       'paid' || 'received' => AppColors.success,
       'closed' => AppColors.info,
@@ -585,7 +589,8 @@ class _AdminSettlementsScreenState extends State<AdminSettlementsScreen> {
                 'Parte do parceiro: ${_fmtEur((s['partner_share'] as num?) ?? 0)}'
                 '${cashKept > 0 ? '\nDinheiro já recebido pelo parceiro (cash na loja): ${_fmtEur(cashKept)} — entra ao contrário' : ''}'
                 '${pagoRecolha > 0 ? '\n  dos quais recebido em mão do entregador na retirada (pago na loja): ${_fmtEur(pagoRecolha)}' : ''}'
-                '${depositoVolta > 0 ? '\nDepósito Volta (vai 100% para o parceiro): ${_fmtEur(depositoVolta)}' : ''}',
+                '${depositoVolta > 0 ? '\nDepósito Volta (vai 100% para o parceiro): ${_fmtEur(depositoVolta)}' : ''}'
+                '${embalagem > 0 ? '\nEmbalagem (da loja, vai 100% para o parceiro): ${_fmtEur(embalagem)}' : ''}',
                 style: const TextStyle(
                     fontSize: 12, color: AppColors.textSecondary, height: 1.5),
               ),

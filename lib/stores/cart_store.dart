@@ -689,7 +689,15 @@ class CartStore extends ChangeNotifier {
       );
     }
 
-    if (!semSaco && !mudaTaxa) return base;
+    // Embalagem da loja (23/11/2026, AUTORIZO do Danilo 10:44): espelho do
+    // `pricing_calculate_loja` — no pedido de restaurante de uma loja com
+    // embalagem, o saco de 0,30 € dá lugar ao valor da loja (por escalão).
+    // Mesmo caminho do saco das festas: fora do PricingService (protegido).
+    final embalagem = embalagemLocal;
+    final mudaSaco = semSaco || embalagem != null;
+    final sacoFinal = embalagem ?? (semSaco ? 0.0 : base.bagFee);
+
+    if (!mudaSaco && !mudaTaxa) return base;
 
     final serviceFee = mudaTaxa ? taxaNova : base.serviceFee;
     return OrderPricingBreakdown(
@@ -707,11 +715,18 @@ class CartStore extends ChangeNotifier {
       driverEarnings: base.driverEarnings,
       apartmentSurcharge: base.apartmentSurcharge,
       apartmentDelivery: base.apartmentDelivery,
-      bagFee: semSaco ? 0 : base.bagFee,
+      bagFee: sacoFinal,
       partnerMarkupHidden: base.partnerMarkupHidden,
       isPartnerSelfDispatch: base.isPartnerSelfDispatch,
     );
   }
+
+  /// A embalagem da loja para a conta LOCAL (antes do quote), em euros.
+  /// `null` = esta loja não cobra embalagem e fica o saco normal. Só no
+  /// pedido de restaurante, como o servidor.
+  double? get embalagemLocal => _serviceType == OrderServiceType.restaurant
+      ? SmallOrderFeeService.embalagemEur(_vendorRestaurantId, subtotal)
+      : null;
 
   // ── TAXA DE SERVIÇO DO NÃO-PARCEIRO (2026-09-08) ─────────────────────────
 
@@ -951,6 +966,11 @@ class CartStore extends ChangeNotifier {
       entrega: entrega < 0 ? 0 : entrega,
       apartamento: apartamento,
       saco: valor('bag_fee', local.bagFee),
+      // Embalagem da loja (23/11/2026): o nome da linha vem do servidor
+      // (`bag_label`); sem quote, da loja lida (`embalagem_cents`).
+      embalagemDaLoja: q != null
+          ? (q['embalagem_da_loja'] == true || q['bag_label'] == 'Embalagem')
+          : (!eFavor && embalagemLocal != null),
       taxaPedidoPequeno: taxaPedidoPequeno,
       total: (q?['customer_total'] as num?)?.toDouble() ??
           // Só aqui (conta local, que nunca traz o depósito) se soma.
@@ -1021,6 +1041,11 @@ class CartStore extends ChangeNotifier {
       if (_checkinValeId != null) 'checkin_vale_id': _checkinValeId,
       'include_debt': true, // BUG #1 frontend (2026-05-12): server inclui dívida wallet em charge_total + retorna debt_settle_cents
       'payment_method': 'card', // any non-cash, RPC ignora para quote
+      // Embalagem da loja (23/11/2026): esta versão da app mostra a linha
+      // "Embalagem". Sem esta chave o servidor devolve o saco normal (as
+      // apps antigas continuam certas sem atualizar). Ver app_mostra_embalagem.
+      // Só vai com o interruptor ligado: o create_order tem de a mandar também.
+      if (SmallOrderFeeService.appMostraEmbalagem) kMostraEmbalagemChave: true,
     };
   }
 
@@ -1977,7 +2002,15 @@ class ResumoDoCarrinho {
     this.descontoPremio = 0,
     this.depositoUnidades = 0,
     this.depositoCents = 0,
+    this.embalagemDaLoja = false,
   });
+
+  /// Embalagem da loja (23/11/2026): `true` = o [saco] é a "Embalagem" da
+  /// loja (100 % da loja, valor por escalão), não o saco normal.
+  final bool embalagemDaLoja;
+
+  /// O nome da linha do [saco], já traduzido pelo ecrã: "Embalagem" ou "Saco".
+  String get sacoRotulo => embalagemDaLoja ? 'Embalagem' : 'Saco';
 
   /// Depósito Volta (09/11/2026): embalagens e valor em cêntimos. Linha À
   /// PARTE (fora do [subtotal], sem markup, taxas nem tokens); já está

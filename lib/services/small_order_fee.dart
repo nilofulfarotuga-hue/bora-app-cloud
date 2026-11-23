@@ -19,7 +19,8 @@ const String kMostraEmbalagemChave = 'mostra_embalagem';
 /// troca o saco — tudo igual ao servidor sem a chave (saco normal).
 /// Para ligar: acrescentar `kMostraEmbalagemChave: true` ao `rpcInput` do
 /// `createOrder` em order_store.dart e pôr isto a `true`.
-const bool kAppMostraEmbalagem = false;
+// 23/11/2026 13:14: ligado (Danilo "pode mexer"); o createOrder em order_store.dart já manda a chave.
+const bool kAppMostraEmbalagem = true;
 
 /// TAXA DE PEDIDO PEQUENO (2026-08-27).
 ///

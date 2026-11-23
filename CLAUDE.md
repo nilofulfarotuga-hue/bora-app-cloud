@@ -21,6 +21,7 @@
   (`.claude/skills/ceo-ai/`). Antes de abrir sites: skill `navegadores-e-contas`.
 - LEI DO PRÉ-VOO: antes de começar, simular se o caminho vai dar certo (timeout, ficheiro em
   falta, permissão). Duas falhas iguais → mudar de abordagem, nunca uma 3.ª igual.
+- Radar (23/11/2026): antes de uma tarefa, consulta `radar_buscar('<assunto>')` e o playbook do tema (`playbook-<tema>` no livro) — ver página do livro `radar-como-usar`.
 
 ## 2. Modo de execução
 

@@ -988,19 +988,34 @@ class _AgendaCardState extends State<_AgendaCard> {
     final b = booking;
     switch (b.status) {
       case CleaningStatus.accepted:
-        return Row(
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: FilledButton.icon(
-                style:
-                    FilledButton.styleFrom(backgroundColor: AppColors.primary),
-                onPressed:
-                    _agindo ? null : () => _safe(context, () => store.markOnTheWay(b.id)),
-                icon: const Icon(Icons.directions_walk, size: 18),
-                label: const Text('A caminho'),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary),
+                    onPressed: _agindo
+                        ? null
+                        : () => _safe(context, () => store.markOnTheWay(b.id)),
+                    icon: const Icon(Icons.directions_walk, size: 18),
+                    label: const Text('A caminho'),
+                  ),
+                ),
+                _menu(context),
+              ],
+            ),
+            // Regra de 24/11/2026: só há deslocação paga com "A caminho" marcado.
+            const Padding(
+              padding: EdgeInsets.only(top: Spacing.xs),
+              child: Text(
+                'Toca em «A caminho» quando saíres. Se o cliente cancelar quando já estás a caminho, recebes a deslocação.',
+                key: Key('limpeza_dica_deslocacao'),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
               ),
             ),
-            _menu(context),
           ],
         );
       case CleaningStatus.onTheWay:

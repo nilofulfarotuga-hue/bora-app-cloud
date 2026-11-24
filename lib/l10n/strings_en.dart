@@ -16,6 +16,26 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 24/11/2026 (limpeza-cancelamento-app-2026-11-24 — só se paga a deslocação
+  // com a profissional a caminho). À mão; os mesmos pares estão em
+  // tool/l10n/traducoes/pt-en-42-limpeza-cancelamento-deslocacao.json.
+  'Cancelamento grátis: a profissional ainda não começou {0} minutos depois da hora marcada.':
+      'Free cancellation: the cleaner still hasn\'t started {0} minutes after the booked time.',
+  'Cancelamento grátis: a profissional ainda não está a caminho.':
+      'Free cancellation: the cleaner is not on the way yet.',
+  '{0} profissionais já estão a caminho.': '{0} cleaners are already on the way.',
+  'A profissional já está a caminho.': 'The cleaner is already on the way.',
+  'Se cancelares agora, pagas só a deslocação: {0}.':
+      'If you cancel now, you only pay the travel fee: {0}.',
+  'O resto ({0}) volta para o teu cartão ou MB WAY.':
+      'The rest ({0}) goes back to your card or MB WAY.',
+  'Limpeza cancelada. Taxa de deslocação: {0}.':
+      'Cleaning cancelled. Travel fee: {0}.',
+  'Limpeza cancelada, sem custos.': 'Cleaning cancelled, no charge.',
+  'Taxa de deslocação (a profissional já estava a caminho): {0}':
+      'Travel fee (the cleaner was already on the way): {0}',
+  'Cancelamento grátis enquanto a profissional não estiver a caminho. Se já estiver a caminho, pagas só a deslocação dela (a partir de {0}).':
+      'Free cancellation while the cleaner is not on the way. If she is already on the way, you only pay her travel fee (from {0}).',
   // 17/11/2026 (noite-farmacia-17-11, 3.1 — janela do MB WAY pergunta antes de cancelar).
   // À mão; os mesmos pares estão em tool/l10n/traducoes/pt-en-41-mbway-espera.json.
   'Cancelar o pagamento?': 'Cancel the payment?',

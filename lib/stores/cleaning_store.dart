@@ -339,7 +339,10 @@ class CleaningStore extends ChangeNotifier {
           .from('cleaning_bookings')
           .select()
           .eq('id', t.id)
-          .maybeSingle();
+          .maybeSingle()
+          // 24/11/2026: o cancelamento espera por esta leitura antes do aviso;
+          // sem limite de tempo, uma rede parada prendia o botão.
+          .timeout(kAcaoTimeout);
       if (row != null) {
         final updated =
             CleaningBooking.fromSupabase(Map<String, dynamic>.from(row));

@@ -4,6 +4,24 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/order_service_type.dart';
 import 'definicoes_publicas.dart';
 
+/// EMBALAGEM DA LOJA (23/11/2026): a chave que esta versão da app manda no
+/// `p_input` do `quote_order_pricing` e do `create_order` para o servidor
+/// aplicar a embalagem (`app_mostra_embalagem`). Sem ela fica o saco normal.
+const String kMostraEmbalagemChave = 'mostra_embalagem';
+
+/// O interruptor ÚNICO da embalagem nesta versão da app.
+///
+/// Fica `false` enquanto o `create_order` (lib/stores/order_store.dart, zona
+/// vermelha — a tranca recusou a edição a 23/11/2026) não mandar a mesma
+/// chave. Ligar só na cotação faria o cliente ver "Embalagem 2,00 €" e o
+/// pedido ser criado com o saco de 0,30 €: o total mostrado deixava de bater
+/// com o cobrado. Com `false`, a cotação não manda a chave e a conta local não
+/// troca o saco — tudo igual ao servidor sem a chave (saco normal).
+/// Para ligar: acrescentar `kMostraEmbalagemChave: true` ao `rpcInput` do
+/// `createOrder` em order_store.dart e pôr isto a `true`.
+// 23/11/2026 13:14: ligado (Danilo "pode mexer"); o createOrder em order_store.dart já manda a chave.
+const bool kAppMostraEmbalagem = true;
+
 /// TAXA DE PEDIDO PEQUENO (2026-08-27).
 ///
 /// Vale para TODAS as lojas e todas as categorias de ENTREGA: quando o
@@ -93,6 +111,9 @@ class SmallOrderFeeService {
   // subtotal, sem saco, e a taxa de pedido pequeno conta (as outras lojas
   // parceiras não a levam). O servidor manda; isto é só a conta antes do quote.
   static final Set<String> _farmacias = {};
+  // 23/11/2026 (AUTORIZO do Danilo 23/11 13:36, Farmácia Rêgo): farmácia com margem dentro do
+  // preço (`restaurants.app_markup_pct > 0`) leva só a % da taxa de serviço, sem o fixo.
+  static final Set<String> _farmaciasComMargem = {};
   static int? _farmaciaTaxaFixaCents;
   static double? _taxaServicoPct;
 
@@ -104,22 +125,83 @@ class SmallOrderFeeService {
   /// Taxa de serviço da farmácia para este subtotal, em euros, arredondada ao
   /// cêntimo. `null` enquanto as definições não foram lidas (o carrinho fica
   /// então com o valor do `PricingService` até chegar o quote).
-  static double? taxaServicoFarmacia(double subtotal) {
-    final fixo = _farmaciaTaxaFixaCents;
+  /// Com [restaurantId] de uma farmácia com margem, o fixo não entra.
+  static double? taxaServicoFarmacia(double subtotal, {String? restaurantId}) {
+    final semFixo = restaurantId != null && _farmaciasComMargem.contains(restaurantId);
+    final fixo = semFixo ? 0 : _farmaciaTaxaFixaCents;
     final pct = _taxaServicoPct;
     if (fixo == null || pct == null) return null;
     return (fixo + subtotal * pct * 100).round() / 100;
+  }
+
+  // ── EMBALAGEM DA LOJA (23/11/2026, AUTORIZO do Danilo 10:44) ──────────────
+  // Espelho do `embalagem_loja_valor` do servidor: numa loja com
+  // `restaurants.embalagem_cents`, o saco de restaurante dá lugar à
+  // "Embalagem" (100 % da loja). Com `embalagem_escalao_cents` o valor sobe
+  // a cada escalão de subtotal (Boom! Burger: 1 € a cada 30 €); sem ele é
+  // fixo. O servidor manda; isto é só a conta antes do quote.
+  static final Map<String, ({int cents, int? escalaoCents})> _embalagem = {};
+
+  static bool _appMostraEmbalagem = kAppMostraEmbalagem;
+
+  /// Esta versão manda `mostra_embalagem` ao servidor? Ver
+  /// [kAppMostraEmbalagem]. Sem isto o servidor cobra o saco normal, e a
+  /// conta local também.
+  static bool get appMostraEmbalagem => _appMostraEmbalagem;
+
+  /// Só para testes: liga/desliga o interruptor da embalagem.
+  @visibleForTesting
+  static void definirAppMostraEmbalagemParaTeste(bool valor) {
+    _appMostraEmbalagem = valor;
+  }
+
+  /// Valor da embalagem desta loja para este subtotal, em euros. `null` =
+  /// a loja não cobra embalagem (fica o saco normal), ou esta versão ainda
+  /// não manda `mostra_embalagem` (o servidor cobra então o saco).
+  static double? embalagemEur(String? restaurantId, double subtotal) {
+    if (!_appMostraEmbalagem) return null;
+    final e = restaurantId == null ? null : _embalagem[restaurantId];
+    if (e == null || e.cents <= 0) return null;
+    final escalao = e.escalaoCents;
+    if (escalao == null || escalao <= 0) return e.cents / 100;
+    final subCents = (subtotal * 100).round();
+    final escaloes = (subCents / escalao).ceil();
+    return e.cents * (escaloes < 1 ? 1 : escaloes) / 100;
+  }
+
+  /// Espelho do `e_embalagem_da_loja` do servidor: o `bag_fee` deste pedido
+  /// é a embalagem da loja (e não o saco)? Só responde com a loja já lida.
+  static bool ehEmbalagemDaLoja(String? restaurantId, double bagFee) {
+    final e = restaurantId == null ? null : _embalagem[restaurantId];
+    if (e == null || e.cents <= 0 || bagFee <= 0) return false;
+    return (bagFee * 100).round() % e.cents == 0;
+  }
+
+  /// Só para testes: a embalagem desta loja (`cents == null` = sem embalagem).
+  @visibleForTesting
+  static void definirEmbalagemParaTeste(String restaurantId, int? cents,
+      {int? escalaoCents}) {
+    if (cents == null) {
+      _embalagem.remove(restaurantId);
+    } else {
+      _embalagem[restaurantId] = (cents: cents, escalaoCents: escalaoCents);
+    }
   }
 
   /// Só para testes: marca/desmarca uma loja como farmácia parceira e fixa as
   /// definições da taxa de serviço.
   @visibleForTesting
   static void definirFarmaciaParaTeste(String restaurantId,
-      {bool farmacia = true, int? taxaFixaCents, double? taxaPct}) {
+      {bool farmacia = true, int? taxaFixaCents, double? taxaPct, bool comMargem = false}) {
     if (farmacia) {
       _farmacias.add(restaurantId);
     } else {
       _farmacias.remove(restaurantId);
+    }
+    if (farmacia && comMargem) {
+      _farmaciasComMargem.add(restaurantId);
+    } else {
+      _farmaciasComMargem.remove(restaurantId);
     }
     _farmaciaTaxaFixaCents = taxaFixaCents;
     _taxaServicoPct = taxaPct;
@@ -204,14 +286,30 @@ class SmallOrderFeeService {
       final linha = await Supabase.instance.client
           .from('restaurants')
           .select('min_order_cents_override, small_order_fee_cents_override, '
-              'free_delivery_min_cents, category, is_partner')
+              'free_delivery_min_cents, category, is_partner, app_markup_pct, '
+              'embalagem_cents, embalagem_escalao_cents')
           .eq('id', restaurantId)
           .maybeSingle();
       if (linha == null) return;
+      final emb = (linha['embalagem_cents'] as num?)?.toInt();
+      if (emb != null && emb > 0) {
+        _embalagem[restaurantId] = (
+          cents: emb,
+          escalaoCents: (linha['embalagem_escalao_cents'] as num?)?.toInt(),
+        );
+      } else {
+        _embalagem.remove(restaurantId);
+      }
       if (linha['category'] == 'pharmacy' && linha['is_partner'] == true) {
         _farmacias.add(restaurantId);
+        if (((linha['app_markup_pct'] as num?) ?? 0) > 0) {
+          _farmaciasComMargem.add(restaurantId);
+        } else {
+          _farmaciasComMargem.remove(restaurantId);
+        }
       } else {
         _farmacias.remove(restaurantId);
+        _farmaciasComMargem.remove(restaurantId);
       }
       final gratis = (linha['free_delivery_min_cents'] as num?)?.toInt();
       if (gratis != null) {
@@ -242,6 +340,8 @@ class SmallOrderFeeService {
     _porLoja.clear();
     _entregaGratisMin.clear();
     _farmacias.clear();
+    _farmaciasComMargem.clear();
+    _embalagem.clear();
   }
 
   static int _comoInt(dynamic v) {

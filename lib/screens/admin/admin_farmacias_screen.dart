@@ -18,6 +18,7 @@ import '../../utils/hora_lisboa.dart';
 import '../../widgets/admin/admin_csv_button.dart';
 import '_admin_password_reset_dialog.dart';
 import 'admin_farmacia_ficha.dart';
+import 'admin_farmacia_taxas.dart';
 import 'admin_farmacias_extrato_aba.dart';
 import 'admin_partner_detail_screen.dart';
 
@@ -525,6 +526,10 @@ class _AbaFarmaciasState extends State<_AbaFarmacias> {
                     certidaoAtual: f['business_registration_number'] as String?,
                     aoGravar: _recarregar,
                   ),
+                  taxas: AdminFarmaciaTaxas(
+                    key: ValueKey('taxas-${f['id']}'),
+                    restaurantId: '${f['id']}',
+                  ),
                 ),
             ],
           ),
@@ -594,6 +599,7 @@ class AdminFarmaciaCartao extends StatelessWidget {
     this.aoAbrirPrecos,
     this.aoEsconder,
     this.dadosEmpresa,
+    this.taxas,
   });
 
   final Map<String, dynamic> farmacia;
@@ -608,6 +614,9 @@ class AdminFarmaciaCartao extends StatelessWidget {
   final VoidCallback? aoAbrirPrecos;
   final VoidCallback? aoEsconder;
   final Widget? dadosEmpresa;
+
+  /// Bloco "Taxas ao cliente" (AdminFarmaciaTaxas), já construído — fala com o servidor sozinho.
+  final Widget? taxas;
 
   static const _titulo = TextStyle(fontWeight: FontWeight.w700);
   static const _pequeno = TextStyle(color: AppColors.textSecondary, fontSize: 12);
@@ -705,6 +714,10 @@ class AdminFarmaciaCartao extends StatelessWidget {
               label: const Text('Ver e editar preços'),
             ),
           ]),
+          if (taxas != null) ...[
+            const Divider(height: 24),
+            taxas!,
+          ],
           const Divider(height: 24),
           const Text('Receita e botões da farmácia', style: TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),

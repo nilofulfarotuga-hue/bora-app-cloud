@@ -924,7 +924,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
                         // cobrada pelo servidor mas ausente deste resumo.
                         if (sacoMostrado > 0)
                           _SummaryRow(
-                              label: 'Saco para viagem'.tr,
+                              // 23/11/2026: nome e valor vêm da cotação.
+                              label: resumo.embalagemDaLoja
+                                  ? 'Embalagem'.tr
+                                  : 'Saco para viagem'.tr,
                               value: sacoMostrado),
                         if (smallOrderFee > 0)
                           _SummaryRow(

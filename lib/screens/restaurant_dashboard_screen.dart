@@ -8,8 +8,10 @@ import '../models/order_model.dart';
 import '../models/restaurant_model.dart';
 import 'partner_call_driver_screen.dart';
 import 'partner_products_screen.dart';
+import '../l10n/tr.dart';
 import '../widgets/address_text.dart';
 import '../widgets/bora_support_fab.dart';
+import '../widgets/saco_ou_embalagem.dart';
 import 'register_partner_screen.dart';
 import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
@@ -731,6 +733,18 @@ class _PartnerEarningsSection extends StatelessWidget {
           _formatCurrency(restaurantShare),
           emphasize: true,
         ),
+        // Embalagem da loja (23/11/2026): o servidor diz se o bag_fee deste
+        // pedido é a embalagem; vai 100 % para a loja no acerto da semana.
+        if (!isRejected && order.bagFee > 0)
+          SacoOuEmbalagem(
+            restaurantId: order.restaurantId,
+            bagFee: order.bagFee,
+            builder: (context, embalagem) => embalagem
+                ? _buildSummaryRow(context, 'Embalagem (é da loja)'.tr,
+                    _formatCurrency(order.bagFee),
+                    emphasize: true)
+                : const SizedBox.shrink(),
+          ),
         if (isRejected)
           Padding(
             padding: const EdgeInsets.only(top: 4),

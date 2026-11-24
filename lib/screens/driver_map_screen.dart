@@ -11,6 +11,7 @@ import '../utils/euros.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/preco_balcao.dart';
+import '../widgets/saco_ou_embalagem.dart';
 import '../services/talao_pendente_service.dart';
 import '../services/compra_rascunho_service.dart';
 import '../services/fila_estafeta.dart';
@@ -4330,7 +4331,14 @@ class _ShoppingListSheetContentState extends State<_ShoppingListSheetContent> {
                 // Estafeta cobra ao cliente TOTAL = produtos + sacos +
                 // adicionados + taxa serviço + entrega.
                 // F2: a linha "Sacos" vive AQUI (conta do cliente), não na caixa.
-                _SummaryRow(label: 'Sacos', value: _bagFee),
+                // 23/11/2026: "Embalagem" quando o valor é a da loja (servidor).
+                SacoOuEmbalagem(
+                  restaurantId: order.restaurantId,
+                  bagFee: _bagFee,
+                  builder: (context, embalagem) => _SummaryRow(
+                      label: embalagem ? 'Embalagem' : 'Sacos',
+                      value: _bagFee),
+                ),
                 if (ajustePesoCliente != 0)
                   _SummaryRow(
                       label: 'Ajuste de peso', value: ajustePesoCliente),

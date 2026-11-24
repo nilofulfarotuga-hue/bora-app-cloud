@@ -729,3 +729,11 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   perfil de agente (queria só os nomes das variáveis, para passar o `vendedor` a pedir o modelo pelo porteiro do
   crédito). Não repeti nem contornei: o `vendedor` fica como estava (modelo `agentes` pelo OmniRoute) e a troca
   fica para quem pode ler esses ficheiros. e2e_log passo `B7-almas-curtas`.
+
+- 23/11/2026 (missao farmacia-rego-2026-11-23, Claude Code no PC): (1) gancho do modo automatico recusou um
+  CREATE FUNCTION em pg_temp so para provar visibilidade ("mudanca de estrutura em producao"); a prova fez-se so com
+  SELECTs em transacao desfeita. (2) bora-tranca recusou escrever supabase/migrations/20261123140000_farmacia_com_markup_rego.sql
+  ("migration que toca tokens/wallet/pagamentos/ledger"), mesmo com o AUTORIZO do Danilo de 23/11 13:36 no Adendo 2.
+  Nao contornei: a migracao autorizada ficou pronta em .claude/.ai/missoes/farmacia-rego-2026-11-23/PROPOSTA-preco-farmacia-com-markup.sql
+  (com a fotografia por hash das outras 32 lojas tirada antes), para a Claude.ai aplicar. (3) a tranca recusou ler os
+  ficheiros .env (so para ver nomes de variaveis); as fotos subiram pela Edge upload-restaurant-asset com o login de teste.

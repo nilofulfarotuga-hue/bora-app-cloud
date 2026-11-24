@@ -141,7 +141,15 @@ class AssistantProposal {
     required this.savingsCents,
     required this.hasMaior18,
     required this.distanceKm,
+    this.bagLabel,
   });
+
+  /// Embalagem da loja (23/11/2026): o nome da linha do [bagFee] que o
+  /// servidor manda (`bag_label`: 'Embalagem' ou 'Saco'); `null` = não veio.
+  final String? bagLabel;
+
+  /// `true` quando o [bagFee] é a embalagem da loja e não o saco.
+  bool get bagFeeEEmbalagem => bagLabel == 'Embalagem';
 
   final String proposalId;
   final String restaurantId;
@@ -185,6 +193,7 @@ class AssistantProposal {
         serviceFee: _num(j['service_fee']),
         smallOrderFee: _num(j['small_order_fee']),
         bagFee: _num(j['bag_fee']),
+        bagLabel: j['bag_label'] is String ? j['bag_label'] as String : null,
         customerTotal: _num(j['customer_total']),
         savingsCents: _int(j['savings_cents']),
         hasMaior18: _bool(j['has_maior_18']),

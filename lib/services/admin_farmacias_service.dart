@@ -114,6 +114,91 @@ class AdminFarmaciasService {
     }
   }
 
+  // ---------------------------------------------------------------- taxas ao cliente (por farmácia)
+
+  /// Taxas que o cliente paga nesta farmácia (23/11/2026, missão farmacia-rego-2026-11-23):
+  /// margem dentro do preço (restaurants.app_markup_pct), pedido mínimo e taxa de pedido pequeno
+  /// (overrides da loja, senão os valores gerais das Configurações) e a taxa de serviço geral.
+  Future<TaxasFarmacia> taxasLoja(String restaurantId) async {
+    try {
+      final loja = await _sb
+          .from('restaurants')
+          .select('app_markup_pct, min_order_cents_override, small_order_fee_cents_override')
+          .eq('id', restaurantId)
+          .single()
+          .timeout(timeout);
+      final cfg = await _sb
+          .from('platform_settings')
+          .select('key, value')
+          .inFilter('key', TaxasFarmacia.chavesGerais)
+          .timeout(timeout);
+      final geral = <String, num>{
+        for (final e in (cfg as List)) '${e['key']}': num.tryParse('${e['value']}') ?? 0,
+      };
+      return TaxasFarmacia.deMapas(Map<String, dynamic>.from(loja), geral);
+    } catch (e) {
+      throw AdminFarmaciaErro('Não foi possível ler as taxas: ${e is PostgrestException ? e.message : e}');
+    }
+  }
+
+  /// Grava a margem e os valores de pedido pequeno desta farmácia (admin; fica na auditoria da loja).
+  /// [margem] em fração (0.15 = 15 %); null = sem margem (preço = balcão). Pedido mínimo e taxa em
+  /// cêntimos; null = usa o valor geral das Configurações.
+  Future<void> definirTaxas(
+    String restaurantId, {
+    required double? margem,
+    required int? pedidoMinimoCents,
+    required int? taxaPedidoPequenoCents,
+  }) async {
+    try {
+      await _sb.from('restaurants').update({
+        'app_markup_pct': margem,
+        'min_order_cents_override': pedidoMinimoCents,
+        'small_order_fee_cents_override': taxaPedidoPequenoCents,
+      }).eq('id', restaurantId).timeout(timeout);
+    } catch (e) {
+      throw AdminFarmaciaErro('Não foi possível salvar as taxas: ${e is PostgrestException ? e.message : e}');
+    }
+  }
+
+  /// Conta feita pelo SERVIDOR (as mesmas funções do pedido real) para 1 produto de [balcao] € de
+  /// balcão a 2 km: mostra o que o cliente paga, o que a farmácia recebe e o que fica para a Bora.
+  /// Assim o painel nunca promete uma regra que o servidor ainda não aplica.
+  Future<ExemploTaxasFarmacia> exemploServidor(String restaurantId, {required double? margem, double balcao = 10}) async {
+    final subtotal = double.parse((balcao * (1 + (margem ?? 0))).toStringAsFixed(2));
+    try {
+      final q = await _sb.rpc('pricing_calculate_loja', params: {
+        'p_service_type': 'restaurant',
+        'p_subtotal': subtotal,
+        'p_distance_km': 2,
+        'p_is_partner_store': true,
+        'p_apartment_delivery': false,
+        'p_is_stacked_partner': false,
+        'p_bag_count': 0,
+        'p_restaurant_id': restaurantId,
+      }).timeout(timeout);
+      final pequeno = await _sb.rpc('small_order_fee_calc', params: {
+        'p_service_type': 'restaurant',
+        'p_subtotal': subtotal,
+        'p_restaurant_id': restaurantId,
+      }).timeout(timeout);
+      final recebe = await _sb.rpc('partner_store_share', params: {
+        'p_subtotal': subtotal,
+        'p_restaurant_id': restaurantId,
+      }).timeout(timeout);
+      final linha = Map<String, dynamic>.from(((q is List ? q.first : q) as Map));
+      return ExemploTaxasFarmacia.deServidor(
+        balcao: balcao,
+        subtotal: subtotal,
+        linha: linha,
+        pedidoPequeno: num.tryParse('$pequeno') ?? 0,
+        farmaciaRecebe: num.tryParse('$recebe') ?? 0,
+      );
+    } catch (e) {
+      throw AdminFarmaciaErro('Não foi possível calcular o exemplo: ${e is PostgrestException ? e.message : e}');
+    }
+  }
+
   // ---------------------------------------------------------------- receitas reais (global)
 
   /// Estado do interruptor. null = não foi possível ler (o ecrã mostra "não consegui ler" e não
@@ -155,4 +240,95 @@ class AdminFarmaciasService {
     }).timeout(timeout);
     return r is Map ? Map<String, dynamic>.from(r) : <String, dynamic>{};
   }
+}
+
+/// Taxas de uma farmácia (valores da loja + gerais das Configurações). Função pura, testável.
+class TaxasFarmacia {
+  const TaxasFarmacia({
+    required this.margem,
+    required this.pedidoMinimoCents,
+    required this.taxaPedidoPequenoCents,
+    required this.pedidoMinimoGeralCents,
+    required this.taxaPedidoPequenoGeralCents,
+    required this.taxaServicoPct,
+    required this.taxaServicoFixaFarmaciasCents,
+  });
+
+  static const chavesGerais = [
+    'min_order_cents',
+    'small_order_fee_cents',
+    'client_service_fee_pct',
+    'pharmacy_service_fee_fixed_cents',
+  ];
+
+  /// Fração (0.15 = 15 %) ou null (sem margem: preço = balcão).
+  final double? margem;
+  final int? pedidoMinimoCents;
+  final int? taxaPedidoPequenoCents;
+  final int pedidoMinimoGeralCents;
+  final int taxaPedidoPequenoGeralCents;
+  final double taxaServicoPct;
+  final int taxaServicoFixaFarmaciasCents;
+
+  factory TaxasFarmacia.deMapas(Map<String, dynamic> loja, Map<String, num> geral) => TaxasFarmacia(
+        margem: (loja['app_markup_pct'] as num?)?.toDouble(),
+        pedidoMinimoCents: (loja['min_order_cents_override'] as num?)?.toInt(),
+        taxaPedidoPequenoCents: (loja['small_order_fee_cents_override'] as num?)?.toInt(),
+        pedidoMinimoGeralCents: (geral['min_order_cents'] ?? 0).toInt(),
+        taxaPedidoPequenoGeralCents: (geral['small_order_fee_cents'] ?? 0).toInt(),
+        taxaServicoPct: (geral['client_service_fee_pct'] ?? 0).toDouble(),
+        taxaServicoFixaFarmaciasCents: (geral['pharmacy_service_fee_fixed_cents'] ?? 0).toInt(),
+      );
+
+  bool get temMargem => (margem ?? 0) > 0;
+  int get pedidoMinimoEfetivoCents => pedidoMinimoCents ?? pedidoMinimoGeralCents;
+  int get taxaPedidoPequenoEfetivaCents => taxaPedidoPequenoCents ?? taxaPedidoPequenoGeralCents;
+}
+
+/// Exemplo de um pedido calculado pelo servidor (euros).
+class ExemploTaxasFarmacia {
+  const ExemploTaxasFarmacia({
+    required this.balcao,
+    required this.produto,
+    required this.taxaServico,
+    required this.entrega,
+    required this.saco,
+    required this.pedidoPequeno,
+    required this.clientePaga,
+    required this.farmaciaRecebe,
+    required this.estafeta,
+  });
+
+  factory ExemploTaxasFarmacia.deServidor({
+    required double balcao,
+    required double subtotal,
+    required Map<String, dynamic> linha,
+    required num pedidoPequeno,
+    required num farmaciaRecebe,
+  }) {
+    double n(String k) => (num.tryParse('${linha[k]}') ?? 0).toDouble();
+    return ExemploTaxasFarmacia(
+      balcao: balcao,
+      produto: subtotal,
+      taxaServico: n('service_fee'),
+      entrega: n('delivery_fee'),
+      saco: n('bag_fee'),
+      pedidoPequeno: pedidoPequeno.toDouble(),
+      clientePaga: n('customer_total') + pedidoPequeno.toDouble(),
+      farmaciaRecebe: farmaciaRecebe.toDouble(),
+      estafeta: n('driver_earnings'),
+    );
+  }
+
+  final double balcao;
+  final double produto;
+  final double taxaServico;
+  final double entrega;
+  final double saco;
+  final double pedidoPequeno;
+  final double clientePaga;
+  final double farmaciaRecebe;
+  final double estafeta;
+
+  double get bora => double.parse((clientePaga - farmaciaRecebe - estafeta).toStringAsFixed(2));
 }

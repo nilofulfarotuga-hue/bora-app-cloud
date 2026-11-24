@@ -21,6 +21,7 @@ import '../services/offer_presentation_gate.dart';
 import '../services/offline_status_queue.dart';
 import '../services/payment_service.dart';
 import '../services/pricing_service.dart';
+import '../services/small_order_fee.dart';
 import '../utils/religar_com_espera.dart';
 import 'driver_store.dart';
 import 'restaurant_store.dart';
@@ -1027,6 +1028,9 @@ class OrderStore extends ChangeNotifier {
                   'name': i.name,
                 })
             .toList(),
+      // 23/11/2026 embalagem da loja (Danilo: "pode mexer", 13:14): avisa o
+      // servidor que esta app mostra a linha "Embalagem" (igual à cotação).
+      if (SmallOrderFeeService.appMostraEmbalagem) kMostraEmbalagemChave: true,
     };
 
     // Sessão 4C: defesa pré-RPC contra productId inválido.

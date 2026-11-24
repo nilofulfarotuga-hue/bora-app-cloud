@@ -221,6 +221,14 @@ class CleaningBooking {
   final int boraFeeCents;
   final int cancelFeeCents;
 
+  /// Deslocação que a profissional recebe quando o cliente cancela com ela
+  /// a caminho (24/11/2026): a taxa do cliente menos a parte da Bora. Entra
+  /// no acerto da semana. 0 nos outros cancelamentos.
+  final int cleanerCompensationCents;
+
+  /// Quando a profissional começou a limpeza (null enquanto não começou).
+  final DateTime? startedAt;
+
   /// Taxa de deslocação (19/11/2026): já está DENTRO de [totalCents] e vai
   /// inteira para a profissional. 0 a menos de 10 km de estrada da Guarda.
   final int travelFeeCents;
@@ -283,6 +291,8 @@ class CleaningBooking {
     required this.cleanerEarningsCents,
     required this.boraFeeCents,
     required this.cancelFeeCents,
+    this.cleanerCompensationCents = 0,
+    this.startedAt,
     this.travelFeeCents = 0,
     this.travelDistanceKm,
     this.lat,
@@ -334,6 +344,8 @@ class CleaningBooking {
       cleanerEarningsCents: i(m['cleaner_earnings_cents']),
       boraFeeCents: i(m['bora_fee_cents']),
       cancelFeeCents: i(m['cancel_fee_cents']),
+      cleanerCompensationCents: i(m['cleaner_compensation_cents']),
+      startedAt: ts(m['started_at']),
       travelFeeCents: i(m['travel_fee_cents']),
       travelDistanceKm: (m['travel_distance_km'] as num?)?.toDouble(),
       lat: (m['lat'] as num?)?.toDouble(),
@@ -422,6 +434,104 @@ class CleaningBooking {
     final c = createdAt;
     if (c == null || minutos <= 0) return false;
     return agora.difference(c).inSeconds <= minutos * 60;
+  }
+}
+
+/// Cancelamento pelo CLIENTE (regra do Danilo de 24/11/2026). Espelho, só
+/// para MOSTRAR antes de confirmar, da conta do servidor
+/// (`cancel_cleaning_booking`, migração 20261124055354); quem decide o valor
+/// é sempre o servidor. Os números vêm das definições
+/// `cleaning_cancel_travel_comp_cents`, `cleaning_cancel_bora_cut_cents` e
+/// `cleaning_pro_late_no_fee_minutes` — nunca cravados aqui.
+///
+///  * profissional atrasada (não começou [atrasoMinutos] depois da hora):
+///    ninguém paga nada;
+///  * nenhuma profissional a caminho: grátis;
+///  * cada profissional a caminho: o cliente paga a deslocação dela, o maior
+///    entre o mínimo e a taxa de deslocação dessa vaga; a profissional
+///    recebe isso menos a parte da Bora.
+class CancelamentoLimpeza {
+  const CancelamentoLimpeza({
+    required this.taxaClienteCents,
+    required this.profissionaisACaminho,
+    required this.profissionalAtrasada,
+  });
+
+  /// O que o cliente paga (0 = grátis).
+  final int taxaClienteCents;
+
+  /// Quantas profissionais já estavam a caminho (e contam para a taxa).
+  final int profissionaisACaminho;
+
+  /// A profissional não começou depois da tolerância: cancelamento sem taxa.
+  final bool profissionalAtrasada;
+
+  bool get gratis => taxaClienteCents <= 0;
+
+  /// O que volta ao cliente de um pagamento por cartão/MB Way: o total
+  /// menos a taxa (`cleaning-checkout`, ação reverse).
+  static int devolvidoCents(int totalPagoCents, int taxaCents) {
+    final r = totalPagoCents - taxaCents;
+    return r > 0 ? r : 0;
+  }
+
+  /// Deslocação de UMA vaga quando a profissional está a caminho.
+  static int deslocacaoDaVaga(CleaningBooking vaga, int minimoCents) =>
+      vaga.travelFeeCents > minimoCents ? vaga.travelFeeCents : minimoCents;
+
+  /// O que a profissional recebe de uma deslocação (taxa menos a parte da
+  /// Bora; nunca negativo).
+  static int compensacaoProfissional(int taxaVagaCents, int parteBoraCents) {
+    final r = taxaVagaCents - parteBoraCents;
+    return r > 0 ? r : 0;
+  }
+
+  static bool _aCaminho(CleaningBooking v) =>
+      v.status == CleaningStatus.onTheWay && v.startedAt == null;
+
+  /// Conta para a reserva [principal] (numa equipa, a vaga 1, onde está o
+  /// pagamento) e as outras vagas da [equipa] (pode trazer a principal; é
+  /// ignorada).
+  static CancelamentoLimpeza calcular({
+    required CleaningBooking principal,
+    Iterable<CleaningBooking> equipa = const [],
+    required DateTime agora,
+    required int minimoCents,
+    required int atrasoMinutos,
+  }) {
+    final atrasada = principal.startedAt == null &&
+        agora.toUtc().isAfter(principal.scheduledAt
+            .toUtc()
+            .add(Duration(minutes: atrasoMinutos)));
+    if (atrasada) {
+      return const CancelamentoLimpeza(
+          taxaClienteCents: 0,
+          profissionaisACaminho: 0,
+          profissionalAtrasada: true);
+    }
+    var taxa = 0;
+    var n = 0;
+    if (_aCaminho(principal)) {
+      taxa += deslocacaoDaVaga(principal, minimoCents);
+      n++;
+    }
+    if (principal.teamGroupId != null && principal.teamSlot == 1) {
+      for (final v in equipa) {
+        if (v.id == principal.id ||
+            v.teamGroupId != principal.teamGroupId ||
+            v.teamSlot <= 1) {
+          continue;
+        }
+        if (_aCaminho(v)) {
+          taxa += deslocacaoDaVaga(v, minimoCents);
+          n++;
+        }
+      }
+    }
+    return CancelamentoLimpeza(
+        taxaClienteCents: taxa,
+        profissionaisACaminho: n,
+        profissionalAtrasada: false);
   }
 }
 

@@ -11,9 +11,11 @@ const { avaliar, sqlRisco, sqlSoLeitura } = await import('../lib/guarda.js')
 const sh = (c) => avaliar('pwsh', { command: c })
 
 const BARRA_SHELL = [
-  ['git push origin autonomous-night-2026-04-29', 'push'],
+  ['git push origin autonomous-night-2026-04-29', 'push-principal'],
+  ['git push origin HEAD:main', 'push-principal'],
   ['git push --force origin main', 'push-forcado'],
-  ['git -C C:\\BoraLocal\\wt push', 'push'],
+  ['git -C C:\\BoraLocal\\wt push', 'push-sem-destino'],
+  ['git push -u origin', 'push-sem-destino'],
   ['git reset --hard HEAD~2', 'historia'],
   ['git clean -fd', 'historia'],
   ['git checkout -- .', 'historia'],
@@ -153,9 +155,21 @@ test('mcp: list_tables passa', () => {
 test('mcp: deploy de função protegida barra', () => {
   assert.ok(avaliar('mcp__supabase__deploy_edge_function', { name: 'stripe-webhook' }))
 })
-// 08/11 (m3, ordem do Danilo): publicar QUALQUER Edge Function passa a perguntar-lhe (antes as normais passavam sem perguntar)
-test('mcp: deploy de função normal pergunta ao Danilo', () => {
-  assert.equal(avaliar('mcp__supabase__deploy_edge_function', { name: 'notify-partner' })?.tipo, 'pergunta')
+// 24/11 (ordem do Danilo: quem faz publica): a função normal publica-se sem pergunta; a de dinheiro pergunta.
+test('mcp: deploy de função normal passa', () => {
+  assert.equal(avaliar('mcp__supabase__deploy_edge_function', { name: 'notify-partner' }), null)
+})
+test('mcp: deploy de função de dinheiro pergunta', () => {
+  for (const name of ['cleaning-checkout', 'tvde-payment', 'charge-tip', 'auto-refund-order', 'stripe-connect-webhook', 'pay-debt-standalone']) {
+    assert.equal(avaliar('mcp__supabase__deploy_edge_function', { name })?.tipo, 'pergunta', name)
+  }
+})
+test('shell: push para ramo de trabalho passa', () => {
+  assert.equal(sh('git push origin ai/2026-11-24-dipsy-x'), null)
+  assert.equal(sh('git push -u origin ai/2026-11-24-dipsy-x'), null)
+})
+test('shell: publicar pelo script passa', () => {
+  assert.equal(sh('node .claude/tools/publicar/publicar-pedido.mjs 48 --esperar-ci'), null)
 })
 test('mcp google: enviar barra', () => {
   assert.ok(avaliar('mcp__google__send_gmail_message', { to: 'x' }))

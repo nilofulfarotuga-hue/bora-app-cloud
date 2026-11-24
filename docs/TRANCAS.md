@@ -732,6 +732,12 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   (com a fotografia por hash das outras 32 lojas tirada antes), para a Claude.ai aplicar. (3) a tranca recusou ler os
   ficheiros .env (so para ver nomes de variaveis); as fotos subiram pela Edge upload-restaurant-asset com o login de teste.
 
+- 24/11/2026 (missao limpeza-cancelamento-app-2026-11-24, Claude Code no PC): (1) bora-tranca recusou o
+  apply_migration da migracao so de texto dos robos (supabase/migrations/20261124090000_robos_limpeza_cancelamento_deslocacao_2026_11_24.sql):
+  "migration é publicar: publica o Claude.ai". Nao contornei (nem por execute_sql); fica no repo e no e2e_log 14582 (precisa-claude-ai).
+  (2) flutter pub get dentro da worktree reescreveu analysis_options.yaml e os registos de plugins de linux/macos/windows;
+  repostos com git checkout, nao fazem parte da missao.
+
 - 20/11 saco-viagem-2026-11-20 (Claude Code, Opus 5.5): (1) a bora-tranca recusou `apply_migration` da migração
   `supabase/migrations/20261120122800_saco_viagem_restaurante_nao_parceiro.sql` ("migração é publicar: publica o
   Claude.ai"). (2) Recusou também a prova numa transação desfeita (cria um pedido de prova em `orders`). Não contornei.

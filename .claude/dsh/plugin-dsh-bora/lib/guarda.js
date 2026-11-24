@@ -87,7 +87,10 @@ const VERBO_ESCRITA = /(>>?|\b(set-content|add-content|out-file|new-item|remove-
 // ---------- shell (pwsh, bash, run_code e qualquer código) ----------
 // [id, expressão, porque, tipo]
 const SHELL = [
-  ['push', /\bgit\b[^|;&\n]*\bpush(?=\s|$)/, 'enviar código para o servidor (git push) publica nas lojas e na web: só com o "sim" do Danilo.', PERGUNTA],
+  // 24/11/2026 (ordem do Danilo: "o Claude Code, o Hermes e o Gypsy têm de publicar também"): o push normal para um
+  // ramo de trabalho passa sem pergunta. O ramo principal só recebe código pelo script que confere o CI verde.
+  ['push-principal', /\bgit\b[^|;&\n]*\bpush\b[^|;&\n]*\s(\S*:)?(refs\/heads\/)?(autonomous-night-2026-04-29|main|master|prod|production|producao)(?=\s|$)/, 'enviar direto para o ramo principal salta os testes: publica com node .claude/tools/publicar/publicar-pedido.mjs <número do pedido> (confere o CI verde e só depois junta).', BARRA],
+  ['push-sem-destino', /\bgit\b[^|;&\n]*\bpush((\s+-\S+)*(\s+origin)?(\s+-\S+)*)\s*(?=$|[|;&\n])/, 'git push sem destino escrito pode ir parar ao ramo principal: escreve git push origin ai/AAAA-MM-DD-...', BARRA],
   ['historia', /\bgit\b[^|;&\n]*\b(reset\s+--hard|clean\s+-\S*f|rebase(?=\s|$)|filter-branch|filter-repo|commit\s+--amend|reflog\s+(expire|delete)|gc\s+--prune|update-ref\s+-d|branch\s+-d(?=\s|$)|tag\s+-d(?=\s|$)|stash\s+(drop|clear)|checkout\s+--(?=\s)|restore\s+\.(?=\s|$)|worktree\s+(remove|prune))/, 'mexer ou apagar histórico do git não se faz (nunca reescrever histórico publicado), nem com "sim".', BARRA],
   ['git-add-tudo', /\bgit\b[^|;&\n]*\badd\s+(-a(?=\s|$)|--all|\.(?=\s|$)|\*)/, 'git add de tudo apanha o trabalho de outras sessões: adiciona só os ficheiros da tarefa, pelo caminho.', BARRA],
   ['apagar', /(^|[\s;&|(])rm\s+(-[a-z-]*[rf]|[^|;&\n]*\*)|\brmdir\s+\/s|(^|[\s;&|(])rd\s+\/s|\bdel\s+[^|;&\n]*\/[sfq]|(^|[\s;&|(])erase\s|\bremove-item\b[^|;&\n]*(-recurse|-r(?=\s)|-force|-fo(?=\s)|\*)|(^|[\s;&|(])ri\s+[^|;&\n]*-(recurse|force)|shutil\.rmtree|os\.removedirs|fs\.rm(sync)?\([^)]*recursive|find\s[^|;&\n]*-delete|\bgit\s+rm(?=\s)/, 'apagar ficheiros em massa ou à força: só com o "sim" do Danilo.', PERGUNTA],
@@ -101,6 +104,7 @@ const SHELL = [
   ['matar-processos', /\btaskkill\b|\bstop-process\b|\bpkill\b|(^|[\s;&|(])kill\s+-9/, 'matar processos pode derrubar sessões do Danilo (Claude Code, controlo remoto): só com o "sim" dele.', PERGUNTA],
   ['mensagens-fora', /api\.telegram\.org|graph\.facebook\.com|\bsend-mailmessage\b|\bsendmail\b|\bsmtp(lib|client)?\b|wa\.me\/|whatsapp.*send/, 'enviar mensagens ou publicar para fora: só com o "sim" do Danilo.', PERGUNTA],
 ]
+const FUNCAO_DINHEIRO = /(pay|stripe|mbway|refund|charge|payout|wallet|token|pricing|dispatch|checkout|finalize|settle|ledger|debt|connect|(^|-)tip(-|$))/i
 const PUSH_FORCADO = /\bgit\b[^|;&\n]*\bpush\b[^|;&\n]*(\s--force(-with-lease)?\b|\s-f(?=\s|$)|\s\+\S+:|\s--mirror\b|\s--delete\b|\s-d(?=\s|$))/
 
 // ---------- REA (engenharia reversa): só nas NOSSAS coisas (regra do Danilo de 19/10 e 13/10) ----------
@@ -214,12 +218,16 @@ function avaliarMcp(servidor, ferramenta, args) {
     if (ferramenta === 'execute_sql' || ferramenta === 'apply_migration') {
       const s = sqlAvaliar(a.query ?? a.sql)
       if (s && s.tipo === BARRA) return r('sql', s.porque, BARRA)
-      if (ferramenta === 'apply_migration') return r('migracao', `aplicar uma migração muda a base de produção para sempre: só com o "sim" do Danilo.${s ? ' ' + s.porque : ''}`, PERGUNTA)
-      if (s) return r('sql', s.porque, PERGUNTA)
+      // 24/11/2026: quem faz a missão aplica a migração; a que mexe em dinheiro ou pedidos continua a perguntar.
+      if (s) return r(ferramenta === 'apply_migration' ? 'migracao' : 'sql', s.porque, PERGUNTA)
       return null
     }
     if (ferramenta === 'deploy_edge_function') {
-      return r('publicar-funcao', `publicar a Edge Function ${String(a.name ?? '').slice(0, 60)} em produção: só com o "sim" do Danilo.`, PERGUNTA)
+      // 24/11/2026: publicar a função passa; as de dinheiro (pagamentos, reembolsos, tokens, despacho) perguntam.
+      if (FUNCAO_DINHEIRO.test(String(a.name ?? ''))) {
+        return r('publicar-funcao', `publicar a Edge Function ${String(a.name ?? '').slice(0, 60)} mexe em dinheiro ou no despacho: só com o "sim" do Danilo.`, PERGUNTA)
+      }
+      return null
     }
     return null
   }
@@ -405,7 +413,7 @@ export function temSegredo(texto) {
 
 // ---------- modo Planear (/planear no Telegram): só se lê e se planeia; mexer só depois do /aprovar ----------
 const PLANEAR_FERRAMENTAS_ESCRITA = new Set(['write', 'run_code', 'agendar_tarefa', 'cancelar_tarefa', 'memorizar', 'esquecer', 'criar_ferramenta', 'promover_ferramenta', 'apagar_ferramenta', 'libertar_memoria'])
-const PLANEAR_SHELL = /\b(git\s+(commit|add|checkout|switch|branch|stash|merge|apply|am|restore|reset|rm|mv|tag|worktree)|dsh-commit\.ps1|npm|pnpm|yarn|pip3?|flutter\s+(pub|create|build|clean)|dart\s+(fix|format))\b/
+const PLANEAR_SHELL = /\b(git\s+(commit|add|checkout|switch|branch|stash|merge|apply|am|restore|reset|rm|mv|tag|worktree|push)|dsh-commit\.ps1|publicar-pedido\.mjs|npm|pnpm|yarn|pip3?|flutter\s+(pub|create|build|clean)|dart\s+(fix|format))\b/
 function avaliarPlanear(n, args) {
   const nao = (o) => r('modo-planear', `estás em modo Planear: agora só se lê e se faz o plano (${o} fica para depois de o Danilo mandar /aprovar).`)
   if (PLANEAR_FERRAMENTAS_ESCRITA.has(n)) return nao(`a ferramenta ${n}`)

@@ -59,7 +59,11 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
             rotulosFavoresRecibos[s.key] ??
             rotulosRecibosVerdes[s.key] ??
             kRotulosDepositoVolta[s.key];
-        by.putIfAbsent(s.category ?? 'other', () => []).add(rotulo == null
+        // As chaves da limpeza de 23-24/11/2026 foram gravadas com a categoria
+        // 'limpeza' (as outras são 'cleaning'): mostram-se no mesmo grupo.
+        final categoria =
+            s.category == 'limpeza' ? 'cleaning' : (s.category ?? 'other');
+        by.putIfAbsent(categoria, () => []).add(rotulo == null
             ? s
             : _Setting(
                 key: s.key,
@@ -1203,6 +1207,12 @@ const Map<String, String> kRotulosLimpezaLonge = <String, String>{
       'Limpeza: como se mede a distância (estrada = km de carro da Google). Só leitura na prática.',
   'cleaning_max_professionals':
       'Limpeza: máximo de profissionais na mesma limpeza (equipa, só no modo Por hora). 1 desliga a equipa.',
+  // Cancelamento com a profissional a caminho (regra do Danilo de 24/11/2026).
+  // Têm "cents" no nome: vão pelo diálogo com motivo e auditoria.
+  'cleaning_cancel_travel_comp_cents':
+      'Limpeza: taxa de deslocação MÍNIMA que o cliente paga se cancelar com a profissional já a caminho (centavos; 500 = 5,00 €), por profissional a caminho. Se a taxa de deslocação da limpeza for maior, vale essa. Sem profissional a caminho, cancelar é grátis.',
+  'cleaning_cancel_bora_cut_cents':
+      'Limpeza: parte da Bora em cada taxa de deslocação de cancelamento (centavos; 100 = 1,00 €). A profissional recebe o resto no acerto semanal.',
 };
 
 /// [Depósito Volta · 09/11/2026] Latas e garrafas de plástico (até 3 L) com

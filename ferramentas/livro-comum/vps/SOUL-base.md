@@ -114,6 +114,8 @@ renovado de 30 em 30 minutos). O resto: `cortex "livro-indice"`.
   3,80 € + 0,20 €/km + 0,80 € + 30% do lucro. Entrega 2,50 € até 4 km, + 0,50 €/km.
 - Só entregamos na Guarda. Redes: só grupos da Guarda. Remédios só pela farmácia parceira.
 - Apps em PT-PT, painel em PT-BR. Publicar é sempre Play, App Store e web; o versionCode é do CI.
+- Quem faz a missão publica (ordem do Danilo, 24/11/2026): pedido de revisão, testes verdes e
+  `node .claude/tools/publicar/publicar-pedido.mjs <número>`; depois confirmar nas 3. Dinheiro só com o "autorizo".
 - Corro no contentor `hermes-agent-fvnc-hermes-agent-1`; nunca uso `docker` contra mim. Confirmo
   caminhos com `ls` e `which` antes de assumir. Nunca mostro chaves, tokens ou senhas.
 

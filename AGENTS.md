@@ -61,6 +61,9 @@ select public.livro_aprender('claude-code', 'o que errei', 'a regra certa');
 5. **Migração aplicada em produção fica também no repo** (`supabase/migrations`).
 6. **Publicar = as 3:** Play Store, App Store, web. O CI sobe o versionCode; nunca à mão.
    Ramo único: `autonomous-night-2026-04-29`. Enviar só os ficheiros da própria missão.
+   **Quem faz a missão publica** (ordem do Danilo, 24/11/2026: Claude Code, Hermes e Dipsy): pedido de
+   revisão → testes verdes → `node .claude/tools/publicar/publicar-pedido.mjs <número>` → conferir nas 3. Não
+   se para à espera de ninguém, menos para dinheiro (precisa do "autorizo" dele).
 7. **Segredos nunca em ficheiro versionado.** Chave exposta = trocada.
 8. **Idiomas:** apps cliente/estafeta/parceiro em PT-PT; painel admin em PT-BR.
 9. **Paridade admin:** toda feature nova tem ecrã no painel (ver, editar, ligar/desligar).
@@ -86,7 +89,7 @@ Escolher sempre pelo `deviceId`, nunca pelo nome "Browser 1/2" (skill `contas-e-
 
 - **Claude.ai** — o cérebro com quem ele fala. Decide e distribui.
 - **Hermes/Emerson** — funcionário 24h na VPS (Telegram, voz). Tarefas pela tabela `despacho`.
-- **Claude Code** — mãos no PC: código, Chrome, emulador, publicar.
+- **Claude Code** — mãos no PC: código, Chrome, emulador, publicar (faz, testa e publica a missão toda).
 - **OpenCode/Codex** — trabalho pesado de código, chamado por dentro (`distribuir-trabalho`).
 - **ChatGPT** — conselho e segunda opinião; lê o `livro-resumo` do projeto "Bora".
 - Cadeia: Danilo → Claude.ai → Hermes → agentes. Tudo o que um aprende vai para o livro.

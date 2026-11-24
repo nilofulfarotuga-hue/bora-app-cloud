@@ -59,9 +59,10 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
       }
     }
   }
-  int _cancelFreeHours = 24;
-  int _cancelHalfHours = 2;
-  int _cancelGraceMinutes = 5;
+  // Regra de cancelamento de 24/11/2026: lidos das definições do servidor
+  // (os mesmos valores por omissão que o `cancel_cleaning_booking` usa).
+  int _cancelDeslocacaoMinCents = 500;
+  int _cancelAtrasoMinutos = 15;
   bool _rated = false;
 
   /// Trava de re-entrada LOCAL deste ecrã (PADRAO_BORA 3.13).
@@ -104,16 +105,8 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
       final store = context.read<CleaningStore>();
       store.trackBooking(widget.booking);
       _carregarSerie();
-      final free = await store.getSettingInt('cleaning_cancel_free_hours', 24);
-      final half = await store.getSettingInt('cleaning_cancel_half_hours', 2);
-      final graca =
-          await store.getSettingInt('cleaning_cancel_grace_minutes', 5);
+      await _lerRegraCancelamento();
       if (!mounted) return;
-      setState(() {
-        _cancelFreeHours = free;
-        _cancelHalfHours = half;
-        _cancelGraceMinutes = graca;
-      });
       _loadCleanerProfile();
       _carregarEquipa();
     });
@@ -162,29 +155,71 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
 
   // ── ações ────────────────────────────────────────────────────────────────
 
-  /// Pré-visualização da taxa de cancelamento (janelas do backend; o valor
-  /// final é SEMPRE decidido server-side).
+  /// Lê do servidor os números da regra de cancelamento (24/11/2026).
+  Future<void> _lerRegraCancelamento() async {
+    final store = context.read<CleaningStore>();
+    final minimo = await store.getSettingInt(
+        'cleaning_cancel_travel_comp_cents', _cancelDeslocacaoMinCents);
+    final atraso = await store.getSettingInt(
+        'cleaning_pro_late_no_fee_minutes', _cancelAtrasoMinutos);
+    if (!mounted) return;
+    setState(() {
+      _cancelDeslocacaoMinCents = minimo;
+      _cancelAtrasoMinutos = atraso;
+    });
+  }
+
+  /// O que o cliente paga se cancelar agora (regra de 24/11/2026). Só para
+  /// mostrar: o valor final é SEMPRE decidido no servidor.
+  CancelamentoLimpeza _previsaoCancelamento(CleaningBooking b) =>
+      CancelamentoLimpeza.calcular(
+        principal: b,
+        equipa: context.read<CleaningStore>().teamOf(b),
+        agora: DateTime.now(),
+        minimoCents: _cancelDeslocacaoMinCents,
+        atrasoMinutos: _cancelAtrasoMinutos,
+      );
+
+  /// Texto do aviso antes de confirmar o cancelamento.
   String _cancelFeePreview(CleaningBooking b) {
-    // 31/10/2026: nos primeiros minutos depois de marcar não há taxa
-    // (cleaning_cancel_grace_minutes, já no servidor).
-    if (b.cancelaSemTaxaPorAcabarDeMarcar(DateTime.now(), _cancelGraceMinutes)) {
-      return 'Cancelamento sem taxa: marcaste há menos de {0} minutos.'
-          .trArgs([_cancelGraceMinutes]);
+    final p = _previsaoCancelamento(b);
+    if (p.profissionalAtrasada) {
+      return 'Cancelamento grátis: a profissional ainda não começou {0} minutos depois da hora marcada.'
+          .trArgs([_cancelAtrasoMinutos]);
     }
-    final hours =
-        b.scheduledAt.difference(DateTime.now()).inMinutes / 60.0;
-    if (hours >= _cancelFreeHours) return 'Cancelamento grátis.'.tr;
-    if (hours >= _cancelHalfHours) {
-      return 'Taxa de 50% ({0}).'.trArgs([CleaningLabels.euro((b.totalCents * 0.5).round())]);
+    if (p.gratis) {
+      return 'Cancelamento grátis: a profissional ainda não está a caminho.'.tr;
     }
-    return 'Taxa de 100% ({0}).'.trArgs([CleaningLabels.euro(b.totalCents)]);
+    final taxa = CleaningLabels.euro(p.taxaClienteCents);
+    final quem = p.profissionaisACaminho > 1
+        ? '{0} profissionais já estão a caminho.'
+            .trArgs([p.profissionaisACaminho])
+        : 'A profissional já está a caminho.'.tr;
+    var texto = '$quem ${'Se cancelares agora, pagas só a deslocação: {0}.'.trArgs([taxa])}';
+    final pagoPorApp = b.paymentStatus == 'held' &&
+        (b.paymentMethod == 'card' || b.paymentMethod == 'mbway');
+    if (pagoPorApp) {
+      final volta = CancelamentoLimpeza.devolvidoCents(
+          b.totalCents, p.taxaClienteCents);
+      if (volta > 0) {
+        texto +=
+            '\n${'O resto ({0}) volta para o teu cartão ou MB WAY.'.trArgs([CleaningLabels.euro(volta)])}';
+      }
+    }
+    return texto;
   }
 
   Future<void> _cancel() => _comTrava(_cancelarReserva);
 
   Future<void> _cancelarReserva() async {
-    final b = _booking;
     final store = context.read<CleaningStore>();
+    // A taxa depende de a profissional já estar a caminho: relê o estado (e o
+    // da equipa) antes de mostrar o valor, para não avisar com dados velhos.
+    await store.refreshTracked();
+    final g = _booking.teamGroupId;
+    if (_booking.isTeam && g != null) await store.loadTeam(g);
+    if (!mounted) return;
+    final b = _booking;
     // S2 (01/11/2026): numa série, cancelar é SÓ esta limpeza — a série
     // continua (o servidor já não a mata). Para acabar com ela, o segundo
     // botão leva ao "Parar a série toda".
@@ -241,15 +276,23 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
     }
     if (escolha != _EscolhaCancelar.esta) return;
     try {
-      await store.cancelBooking(b.id);
-      // Liberta a retenção do cartão / estorna MB Way (no-op sem PI).
+      final cancelada = await store.cancelBooking(b.id);
+      // Liberta a retenção do cartão / estorna MB Way (no-op sem PI): o
+      // servidor devolve o total menos a taxa de deslocação, se houver.
       // Prémio do check-in: não houve pagamento; o vale volta sozinho.
       if (b.paymentMethod != 'cash' && b.paymentMethod != 'premio') {
-        store.reversePayment(b.id);
+        store.reversePayment(cancelada?.id ?? b.id);
       }
       if (!mounted) return;
+      // O valor que conta é o do servidor (a profissional pode ter saído
+      // entre o aviso e a confirmação).
+      final taxa = cancelada?.cancelFeeCents ?? 0;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Limpeza cancelada.'.tr)),
+        SnackBar(
+            content: Text(taxa > 0
+                ? 'Limpeza cancelada. Taxa de deslocação: {0}.'
+                    .trArgs([CleaningLabels.euro(taxa)])
+                : 'Limpeza cancelada, sem custos.'.tr)),
       );
       // A série continua: volta a ler a próxima data.
       _carregarSerie();
@@ -767,7 +810,10 @@ class _CancelledBanner extends StatelessWidget {
                         color: AppColors.textPrimary)),
                 if (booking.cancelFeeCents > 0)
                   Text(
-                    'Taxa de cancelamento: {0}'.trArgs([CleaningLabels.euro(booking.cancelFeeCents)]),
+                    booking.cancelledBy == 'client'
+                        ? 'Taxa de deslocação (a profissional já estava a caminho): {0}'
+                            .trArgs([CleaningLabels.euro(booking.cancelFeeCents)])
+                        : 'Taxa de cancelamento: {0}'.trArgs([CleaningLabels.euro(booking.cancelFeeCents)]),
                     style: const TextStyle(
                         color: AppColors.textSecondary, fontSize: 13),
                   ),

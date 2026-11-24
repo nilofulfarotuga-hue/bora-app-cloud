@@ -77,6 +77,10 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
   /// O servidor guarda o mesmo instante (`scheduled_at` é timestamptz).
   DateTime? _scheduledAt;
   int _leadHours = 12;
+
+  /// Taxa de deslocação mínima quando se cancela com a profissional a
+  /// caminho (regra de 24/11/2026), lida de `platform_settings`.
+  int _cancelDeslocacaoMinCents = 500;
   final _streetCtrl = TextEditingController();
   final _cityCtrl = TextEditingController();
   final _postalCtrl = TextEditingController();
@@ -151,8 +155,11 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
       final minH = await store.getSettingInt('cleaning_min_hours', 2);
       final maxPros =
           await store.getSettingInt('cleaning_max_professionals', 3);
+      final deslocMin = await store.getSettingInt(
+          'cleaning_cancel_travel_comp_cents', _cancelDeslocacaoMinCents);
       if (!mounted) return;
       setState(() {
+        _cancelDeslocacaoMinCents = deslocMin;
         _leadHours = lead;
         _minHours = minH;
         _maxPros = maxPros < 1 ? 1 : maxPros;
@@ -1082,7 +1089,9 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
           ),
         const SizedBox(height: Spacing.md),
         Text(
-          'Cancelamento: grátis até 24 h antes · 50% entre 24 h e 2 h · 100% a menos de 2 h.'.tr,
+          'Cancelamento grátis enquanto a profissional não estiver a caminho. Se já estiver a caminho, pagas só a deslocação dela (a partir de {0}).'
+              .trArgs([CleaningLabels.euro(_cancelDeslocacaoMinCents)]),
+          key: const Key('limpeza_politica_cancelamento'),
           style: const TextStyle(color: AppColors.textSubtle, fontSize: 12),
         ),
       ],

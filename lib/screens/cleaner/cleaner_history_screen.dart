@@ -74,6 +74,9 @@ class _HistoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final b = booking;
     final cancelled = b.status.isCancelled;
+    // 24/11/2026: o cliente cancelou com ela a caminho → recebe a deslocação
+    // (valor do servidor, `cleaner_compensation_cents`).
+    final comp = cancelled ? b.cleanerCompensationCents : 0;
     String two(int n) => n.toString().padLeft(2, '0');
     final when = '${two(b.scheduledAt.day)}/${two(b.scheduledAt.month)}/'
         '${b.scheduledAt.year}';
@@ -117,19 +120,35 @@ class _HistoryCard extends StatelessWidget {
                   style: const TextStyle(
                       color: AppColors.textSecondary, fontSize: 13),
                 ),
+                if (comp > 0) ...[
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Deslocação paga: o cliente cancelou quando já estavas a caminho. Entra no acerto da semana.',
+                    key: Key('limpeza_historico_deslocacao'),
+                    style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ],
               ],
             ),
           ),
           Text(
             cancelled
-                ? (b.cancelFeeCents > 0
-                    ? CleaningLabels.euro(
-                        (b.cancelFeeCents * 85 / 100).round())
-                    : '—')
+                ? (comp > 0
+                    ? CleaningLabels.euro(comp)
+                    // Não comparência do cliente (marcada pela profissional).
+                    : (b.cancelledBy == 'cleaner' && b.cancelFeeCents > 0
+                        ? CleaningLabels.euro(
+                            (b.cancelFeeCents * 85 / 100).round())
+                        : '—'))
                 : CleaningLabels.euro(b.cleanerEarningsCents),
             style: TextStyle(
                 fontWeight: FontWeight.w800,
-                color: cancelled ? AppColors.textSubtle : AppColors.primary),
+                color: cancelled && comp <= 0
+                    ? AppColors.textSubtle
+                    : AppColors.primary),
           ),
         ],
       ),

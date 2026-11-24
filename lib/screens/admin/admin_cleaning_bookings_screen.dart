@@ -702,6 +702,7 @@ class _BookingCard extends StatelessWidget {
                 ),
               ),
             if (data['payment_method'] != 'cash') _PagamentoLinha(data: data),
+            _CancelamentoDeslocacao(data: data),
             // RASTRO DO PAGAMENTO (2026-09-05) — é isto que se olha quando um
             // cliente diz que foi cobrado duas vezes. A chave de idempotência é
             // a que impede a repetição de rede de criar uma segunda reserva; se
@@ -824,6 +825,105 @@ class _PagamentoLinha extends StatelessWidget {
       child: Text('Pagamento: $texto',
           style: TextStyle(
               fontSize: 12, fontWeight: FontWeight.w700, color: cor)),
+    );
+  }
+}
+
+/// Dinheiro de um cancelamento PELO CLIENTE (regra de 24/11/2026): quanto o
+/// cliente paga de deslocação, quanto a profissional desta vaga recebe e o
+/// que fica para a Bora. Tudo lido da linha (`cancel_fee_cents`,
+/// `cleaner_compensation_cents`), que o servidor gravou no cancelamento.
+///
+/// Equipa: a taxa do cliente fica só na vaga 1 (onde está o pagamento) e a
+/// compensação em cada vaga; a parte da Bora só se calcula fora de equipa
+/// (`boraCents` null numa equipa — soma-se vaga a vaga).
+///
+/// `null` = não é um cancelamento pelo cliente, ou não houve dinheiro nenhum.
+({int clienteCents, int profissionalCents, int? boraCents})?
+    resumoCancelamentoClienteLimpeza(Map<String, dynamic> linha) {
+  int n(dynamic v) => (v is num) ? v.toInt() : int.tryParse('${v ?? ''}') ?? 0;
+  if (linha['status'] != 'cancelled_client' ||
+      linha['cancelled_by'] != 'client') {
+    return null;
+  }
+  final cliente = n(linha['cancel_fee_cents']);
+  final prof = n(linha['cleaner_compensation_cents']);
+  if (cliente <= 0 && prof <= 0) return null;
+  final equipa = linha['team_group_id'] != null;
+  final bora = cliente - prof;
+  return (
+    clienteCents: cliente,
+    profissionalCents: prof,
+    boraCents: equipa ? null : (bora < 0 ? 0 : bora),
+  );
+}
+
+/// Ficha da limpeza cancelada pelo cliente com a profissional a caminho.
+class _CancelamentoDeslocacao extends StatelessWidget {
+  const _CancelamentoDeslocacao({required this.data});
+  final Map<String, dynamic> data;
+
+  static String _eur(int c) => '€${(c / 100).toStringAsFixed(2)}';
+
+  @override
+  Widget build(BuildContext context) {
+    final r = resumoCancelamentoClienteLimpeza(data);
+    if (r == null) return const SizedBox.shrink();
+    Widget linha(String rotulo, String valor) => Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 190,
+                child: Text(rotulo,
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.textSecondary)),
+              ),
+              Text(valor,
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary)),
+            ],
+          ),
+        );
+    return Container(
+      key: const Key('admin_limpeza_cancelamento_deslocacao'),
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+              'Cancelada pelo cliente com a profissional a caminho (deslocação)',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary)),
+          linha('Taxa paga pelo cliente', _eur(r.clienteCents)),
+          linha('Compensação da profissional', _eur(r.profissionalCents)),
+          if (r.boraCents != null)
+            linha('Parte da Bora', _eur(r.boraCents!))
+          else
+            const Padding(
+              padding: EdgeInsets.only(top: 2),
+              child: Text(
+                  'Equipe: a taxa do cliente fica na vaga 1 e a compensação em cada vaga. Parte da Bora = taxa − soma das compensações.',
+                  style:
+                      TextStyle(fontSize: 11, color: AppColors.textSubtle)),
+            ),
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Text(
+                'A compensação entra no acerto semanal da profissional.',
+                style: TextStyle(fontSize: 11, color: AppColors.textSubtle)),
+          ),
+        ],
+      ),
     );
   }
 }

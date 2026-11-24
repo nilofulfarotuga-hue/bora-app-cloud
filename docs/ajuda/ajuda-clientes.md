@@ -50,7 +50,7 @@ Nos mercados, os produtos ao quilo (fruta, carne, peixe) têm um preço estimado
 Para reservar mesa pagas 3 € adiantados. Quando chegas, o restaurante desconta 2 € na tua conta; o resto é a taxa da reserva. Podes cancelar sem custo até 2 horas antes da hora marcada. Se cancelares com menos de 2 horas ou não apareceres, os 3 € não são devolvidos.
 
 ## Limpezas
-Podes marcar uma limpeza em casa pela app, com preço fixo conforme o tamanho da casa. Os materiais custam 3 € a mais e as limpezas repetidas têm 10 % de desconto. Se cancelares nos primeiros 5 minutos depois de marcar, não pagas nada.
+Podes marcar uma limpeza em casa pela app, com preço fixo conforme o tamanho da casa. Os materiais custam 3 € a mais e as limpezas repetidas têm 10 % de desconto. Cancelar é grátis enquanto a profissional ainda não está a caminho. Se ela já estiver a caminho, pagas só a deslocação dela (5,00 €, ou a taxa de deslocação da limpeza se for maior); o resto do que pagaste por cartão ou MB Way volta sozinho. Se a profissional não começar 15 minutos depois da hora marcada, cancelar é grátis. A app mostra o valor antes de confirmares.
 
 ## Mudar o nome do perfil
 O nome do teu perfil não se muda na app. Para mudar o nome, fala com o Suporte e a equipa trata disso. A foto mudas tu no ecrã Perfil, tocando na câmara por cima da foto. O email é o teu acesso à conta e não se altera.

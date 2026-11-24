@@ -1,0 +1,75 @@
+diff --git a/.claude/plugins/bora-mods/hooks/tranca.test.ts b/.claude/plugins/bora-mods/hooks/tranca.test.ts
+index 532eafd..0917331 100644
+--- a/.claude/plugins/bora-mods/hooks/tranca.test.ts
++++ b/.claude/plugins/bora-mods/hooks/tranca.test.ts
+@@ -183,28 +183,30 @@ describe('passa (chega ao Claude Code)', () => {
+   })
+ })
+ 
+-describe('B · publicar nega sem perguntar', () => {
+-  test('git push ao ramo principal nega, mesmo com "Permitir" à espera', async ($, on) => {
+-    const d = dubles(on, { resposta: 'Permitir' })
+-    const r = await $.tool.call({ tool: 'Bash', command: 'git push origin autonomous-night-2026-04-29' })
++describe('B · quem faz publica (24/11/2026): sem pergunta e sem bloqueio, menos o dinheiro', () => {
++  test('git push segue sem perguntar e fica no registo', async ($, on) => {
++    const d = dubles(on, { resposta: 'Recusar' })
++    const r = await $.tool.call({ tool: 'Bash', command: 'git push origin ai/2026-11-24-x' })
+     expect(d.perguntas).toEqual([])
+-    expect(r.deny).toMatch(/publica o Claude\.ai/)
+-    expect(d.corridas).toEqual([])
++    expect(r.deny).toBeUndefined()
++    expect(d.corridas).toEqual(['Bash'])
+   })
+ 
+-  test('deploy de Edge Function fora da lista nega', async ($, on) => {
+-    const d = dubles(on, { resposta: 'Permitir' })
++  test('deploy de Edge Function fora da lista segue; a protegida continua negada', async ($, on) => {
++    const d = dubles(on, { resposta: 'Recusar' })
+     const r = await $.tool.call({ tool: 'mcp__claude_ai_Supabase__deploy_edge_function', project_id: 'x', name: 'notify-partner', files: [] })
+     expect(d.perguntas).toEqual([])
+-    expect(r.deny).toMatch(/BLOQUEADO/)
++    expect(r.deny).toBeUndefined()
++    const p = await $.tool.call({ tool: 'mcp__claude_ai_Supabase__deploy_edge_function', project_id: 'x', name: 'stripe-webhook', files: [] })
++    expect(p.deny).toMatch(/protegida|PROTSLUG|BLOQUEADO/)
+   })
+ 
+-  test('migration nega; a cópia bkp_ passa', async ($, on) => {
+-    const d = dubles(on, { resposta: 'Permitir' })
++  test('migration normal segue; a de dinheiro continua negada', async ($, on) => {
++    const d = dubles(on, { resposta: 'Recusar' })
+     const r = await $.tool.call({ tool: 'mcp__claude_ai_Supabase__apply_migration', project_id: 'x', name: 'm', query: 'create table t (id int)' })
+-    expect(r.deny).toMatch(/BLOQUEADO/)
+-    const b = await $.tool.call({ tool: 'mcp__claude_ai_Supabase__execute_sql', project_id: 'x', query: 'create table public.bkp_produtos_20261105 as select * from produtos' })
+-    expect(b.deny).toBeUndefined()
++    expect(r.deny).toBeUndefined()
++    const m = await $.tool.call({ tool: 'mcp__claude_ai_Supabase__apply_migration', project_id: 'x', name: 'm', query: 'create or replace function public.create_order() returns int language sql as $$ select 1 $$' })
++    expect(m.deny).toMatch(/dinheiro/)
+     expect(d.perguntas).toEqual([])
+   })
+ 
+diff --git a/.claude/plugins/bora-mods/hooks/tranca.ts b/.claude/plugins/bora-mods/hooks/tranca.ts
+index 9c2c083..e6cd4a5 100644
+--- a/.claude/plugins/bora-mods/hooks/tranca.ts
++++ b/.claude/plugins/bora-mods/hooks/tranca.ts
+@@ -119,10 +119,18 @@ async function idSessao($: EngineInterface): Promise<string> {
+ async function guarda($: EngineInterface, e: { tool: string; tool_use_id: string }): Promise<{ deny: string } | null> {
+   const args = argsDe(e)
+   const v = avaliaChamada(e.tool, args, await contexto($, e.tool, args))
+-  if (v.acao === 'nega' || v.acao === 'pergunta') {
++  if (v.acao === 'pergunta') {
++    // 24/11/2026, ordem do Danilo: "quero que o Claude Code publique". Quem faz a missão publica:
++    // push, migration, DDL e deploy que não tocam em dinheiro seguem, e ficam no registo. O que é
++    // dinheiro já vem como 'nega'. O push direto ao ramo principal fica com a trava global, que
++    // manda passar pelo .claude/tools/publicar/publicar-pedido.mjs (confere o CI verde antes de juntar).
++    conta.pergunta++
++    await anotar($, { sessao: await idSessao($), tool: e.tool, decisao: 'publicar-segue', motivo: v.motivo, resumo: resumo(e.tool, args) })
++    return null
++  }
++  if (v.acao === 'nega') {
+     conta.nega++
+-    const porque = v.acao === 'pergunta' ? `${v.motivo} é publicar: publica o Claude.ai` : v.motivo
+-    const texto = `bora-tranca: BLOQUEADO ${e.tool} — ${porque}. Não contornes: reporta no e2e_log e ao Danilo.`
++    const texto = `bora-tranca: BLOQUEADO ${e.tool} — ${v.motivo}. Não contornes: reporta no e2e_log e ao Danilo.`
+     $.ui.log(texto)
+     $.ui.notice(e.tool_use_id, 'bloqueado pela bora-tranca')
+     await anotar($, { sessao: await idSessao($), tool: e.tool, decisao: 'nega', motivo: v.motivo, resumo: resumo(e.tool, args) })

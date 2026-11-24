@@ -1,12 +1,12 @@
 ---
 name: juiz-dsh
-description: "Como o Dipsy (dsh) faz commits: sempre pelo dsh-commit.ps1, que corre o Juiz anti-trapaça e recusa se falhar. Nunca git commit à mão nem git push."
+description: "Como o Dipsy (dsh) faz commits e publica: commit sempre pelo dsh-commit.ps1 (Juiz anti-trapaça); push só do ramo ai/; publicar pelo publicar-pedido.mjs com o CI verde."
 ---
 
 # Juiz antes de cada commit do Dipsy
 
-O Dipsy não tem a tranca do Claude Code. A guarda dele barra `git commit` à mão e `git push`. O único caminho é este
-script, que corre o Juiz do repo (`.claude/juiz/anti_trapaca.py` e `zonas_diff.py`) **antes** de o commit existir:
+O Dipsy não tem a tranca do Claude Code. A guarda dele barra `git commit` à mão e o push direto ao ramo principal. O
+único caminho para o commit é este script, que corre o Juiz do repo (`.claude/juiz/anti_trapaca.py` e `zonas_diff.py`) **antes** de o commit existir:
 
 ```
 powershell -NoProfile -File C:\Users\danil\.dsh\dsh-commit.ps1 -Mensagem "tipo: o que mudou" -Caminhos ficheiro1,ficheiro2 [-Repo <pasta>] [-Tarefa feature|fix]
@@ -19,7 +19,9 @@ powershell -NoProfile -File C:\Users\danil\.dsh\dsh-commit.ps1 -Mensagem "tipo: 
 3. Corre o Juiz anti-trapaça (teste apagado ou enfraquecido, asserção a menos, conserto-fantasma) e o das zonas
    protegidas (preços, despacho, Stripe, tokens, RLS). Se qualquer um sair com código diferente de 0, **não há commit**.
 4. Só se os dois passarem faz o commit, só desses ficheiros. Regista tudo em `C:\Users\danil\.dsh\juiz-dsh.log`.
-5. Nunca faz push. Enviar para o servidor é do Claude Code, depois de o Danilo dizer.
+5. O script não faz push. Depois do commit (ordem do Danilo de 24/11: o Dipsy também publica):
+   `git push origin ai/AAAA-MM-DD-dipsy-...` → pedido de revisão → testes verdes →
+   `node .claude/tools/publicar/publicar-pedido.mjs <número>` → conferir nas 3 (Android, iPhone, web).
 
 ## Regras
 - Lista os ficheiros um a um (`-Caminhos a,b`). Nunca `git add -A` nem `git add .`.

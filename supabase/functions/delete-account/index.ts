@@ -2,6 +2,10 @@
 //
 // ENCERRAMENTO DE CONTA A PEDIDO DO PROPRIO (RGPD art. 17 / App Store 5.1.1(v))
 // Reescrito a 2026-09-07, missao `ios-lancamento`.
+// 23/11/2026 (Claude.ai, autorizado pelo Danilo, caso Shelen): base = commit ad507012 +
+// (1) limpeza ativa como profissional bloqueia o encerramento; (2) cleaners/washers sem null
+// em colunas NOT NULL. Publicada no servidor como v35 (com o import de _shared/keys.ts fixado
+// ao commit ad507012); aqui fica com o import relativo.
 //
 // A funcao que estava aqui era uma pagina HTML estatica: devolvia 200/text-html
 // e a app mostrava "Conta apagada." sem nada ter sido apagado.
@@ -104,6 +108,13 @@ Deno.serve(async (req: Request) => {
     emCurso('appointments', 'client_user_id', uid, FINAIS.appointments, 'marcacoes'),
     emCurso('cleaning_bookings', 'client_user_id', uid, FINAIS.cleaning_bookings, 'limpezas'),
   ]);
+
+  // 23/11/2026 (caso Shelen): a profissional apagou a conta com uma limpeza "a caminho" e a
+  // cliente ficou 2 h a espera. Limpeza ativa como PROFISSIONAL tambem bloqueia o encerramento.
+  const cleanerId = limpeza.data?.id ?? null;
+  if (cleanerId) {
+    await emCurso('cleaning_bookings', 'cleaner_id', cleanerId, FINAIS.cleaning_bookings, 'limpezas_como_profissional');
+  }
 
   if (driverId) {
     await emCurso('orders', 'assigned_driver_id', driverId, FINAIS.orders, 'entregas');
@@ -222,9 +233,16 @@ Deno.serve(async (req: Request) => {
     ['washers', lavagem.data?.id],
   ] as [string, string | undefined][]) {
     if (!id) continue;
-    const campos: Record<string, unknown> = { name: marca, phone: null, email: null, nif: null, photo_url: null };
-    if (tabela === 'service_providers') { campos.iban = null; campos.is_active_admin = false; }
-    else { campos.is_active = false; campos.docs = null; }
+    // 23/11/2026: em cleaners e washers name/phone/email/nif/photo_url/docs sao NOT NULL.
+    // Os null faziam o update falhar todo, a funcao devolvia 500 DEPOIS de fechar o acesso
+    // (a app mostrava erro e a pessoa repetia) e a profissional ficava ativa com os dados todos.
+    let campos: Record<string, unknown>;
+    if (tabela === 'service_providers') {
+      campos = { name: marca, phone: null, email: null, nif: null, photo_url: null, iban: null, is_active_admin: false };
+    } else {
+      campos = { name: marca, phone: '000000000', email: emailMorto, nif: '000000000', photo_url: '',
+                 docs: {}, iban: null, is_active: false };
+    }
     const { error } = await db.from(tabela).update(campos).eq('id', id);
     prova[tabela] = error ? { accao: 'falhou', erro: error.message } : { accao: 'anonimizado', linhas: 1 };
   }

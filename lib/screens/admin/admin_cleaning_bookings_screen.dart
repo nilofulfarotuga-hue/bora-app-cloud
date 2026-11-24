@@ -898,9 +898,13 @@ class _CancelamentoDeslocacao extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-              'Cancelada pelo cliente com a profissional a caminho (deslocação)',
-              style: TextStyle(
+          Text(
+              // Cancelamentos de antes de 24/11/2026 (regra antiga de 50 %/100 %)
+              // não têm compensação gravada: não se chamam "deslocação".
+              r.profissionalCents > 0
+                  ? 'Cancelada pelo cliente com a profissional a caminho (deslocação)'
+                  : 'Cancelada pelo cliente: taxa sem compensação da profissional (regra antiga, antes de 24/11/2026)',
+              style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary)),

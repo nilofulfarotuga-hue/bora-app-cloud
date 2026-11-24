@@ -171,14 +171,20 @@ class _CleaningTrackingScreenState extends State<CleaningTrackingScreen> {
 
   /// O que o cliente paga se cancelar agora (regra de 24/11/2026). Só para
   /// mostrar: o valor final é SEMPRE decidido no servidor.
-  CancelamentoLimpeza _previsaoCancelamento(CleaningBooking b) =>
-      CancelamentoLimpeza.calcular(
-        principal: b,
-        equipa: context.read<CleaningStore>().teamOf(b),
-        agora: DateTime.now(),
-        minimoCents: _cancelDeslocacaoMinCents,
-        atrasoMinutos: _cancelAtrasoMinutos,
-      );
+  CancelamentoLimpeza _previsaoCancelamento(CleaningBooking b) {
+    final equipa = context.read<CleaningStore>().teamOf(b);
+    // O servidor cancela a equipa toda pela vaga 1: a conta parte sempre dela.
+    final principal = b.isTeamSister
+        ? equipa.firstWhere((v) => v.teamSlot == 1, orElse: () => b)
+        : b;
+    return CancelamentoLimpeza.calcular(
+      principal: principal,
+      equipa: equipa,
+      agora: DateTime.now(),
+      minimoCents: _cancelDeslocacaoMinCents,
+      atrasoMinutos: _cancelAtrasoMinutos,
+    );
+  }
 
   /// Texto do aviso antes de confirmar o cancelamento.
   String _cancelFeePreview(CleaningBooking b) {

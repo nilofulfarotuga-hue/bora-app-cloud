@@ -731,3 +731,15 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   Nao contornei: a migracao autorizada ficou pronta em .claude/.ai/missoes/farmacia-rego-2026-11-23/PROPOSTA-preco-farmacia-com-markup.sql
   (com a fotografia por hash das outras 32 lojas tirada antes), para a Claude.ai aplicar. (3) a tranca recusou ler os
   ficheiros .env (so para ver nomes de variaveis); as fotos subiram pela Edge upload-restaurant-asset com o login de teste.
+
+- 20/11 saco-viagem-2026-11-20 (Claude Code, Opus 5.5): (1) a bora-tranca recusou `apply_migration` da migração
+  `supabase/migrations/20261120122800_saco_viagem_restaurante_nao_parceiro.sql` ("migração é publicar: publica o
+  Claude.ai"). (2) Recusou também a prova numa transação desfeita (cria um pedido de prova em `orders`). Não contornei.
+  Falta à Claude.ai: aplicar a migração e correr `supabase/tests/saco_viagem_prova_rollback.sql` (cola-se a seguir à
+  migração; acaba em RAISE EXCEPTION, nada fica). A app nova não prende o estafeta enquanto a função não existir
+  (PGRST202 → segue com a marca do telemóvel). e2e_log fluxo saco-viagem-2026-11-20.
+
+- 24/11/2026 (saco-viagem-fecho e codigo-parado, Claude Code no PC): a bora-tranca recusou o `git push` dos ramos
+  ai/2026-11-24-saco-viagem-fecho, ai/2026-11-24-radar-fila e ai/2026-11-24-delete-account-v35 ("git push é
+  publicar: publica o Claude.ai"). Não contornado. A Claude.ai refez os três num só ramo,
+  ai/2026-11-24-codigo-parado, a partir do GitHub e do servidor, e enviou-o ela. e2e_log fluxo codigo-parado-24-11.

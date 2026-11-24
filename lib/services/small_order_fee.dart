@@ -111,6 +111,9 @@ class SmallOrderFeeService {
   // subtotal, sem saco, e a taxa de pedido pequeno conta (as outras lojas
   // parceiras não a levam). O servidor manda; isto é só a conta antes do quote.
   static final Set<String> _farmacias = {};
+  // 23/11/2026 (AUTORIZO do Danilo 23/11 13:36, Farmácia Rêgo): farmácia com margem dentro do
+  // preço (`restaurants.app_markup_pct > 0`) leva só a % da taxa de serviço, sem o fixo.
+  static final Set<String> _farmaciasComMargem = {};
   static int? _farmaciaTaxaFixaCents;
   static double? _taxaServicoPct;
 
@@ -122,8 +125,10 @@ class SmallOrderFeeService {
   /// Taxa de serviço da farmácia para este subtotal, em euros, arredondada ao
   /// cêntimo. `null` enquanto as definições não foram lidas (o carrinho fica
   /// então com o valor do `PricingService` até chegar o quote).
-  static double? taxaServicoFarmacia(double subtotal) {
-    final fixo = _farmaciaTaxaFixaCents;
+  /// Com [restaurantId] de uma farmácia com margem, o fixo não entra.
+  static double? taxaServicoFarmacia(double subtotal, {String? restaurantId}) {
+    final semFixo = restaurantId != null && _farmaciasComMargem.contains(restaurantId);
+    final fixo = semFixo ? 0 : _farmaciaTaxaFixaCents;
     final pct = _taxaServicoPct;
     if (fixo == null || pct == null) return null;
     return (fixo + subtotal * pct * 100).round() / 100;
@@ -187,11 +192,16 @@ class SmallOrderFeeService {
   /// definições da taxa de serviço.
   @visibleForTesting
   static void definirFarmaciaParaTeste(String restaurantId,
-      {bool farmacia = true, int? taxaFixaCents, double? taxaPct}) {
+      {bool farmacia = true, int? taxaFixaCents, double? taxaPct, bool comMargem = false}) {
     if (farmacia) {
       _farmacias.add(restaurantId);
     } else {
       _farmacias.remove(restaurantId);
+    }
+    if (farmacia && comMargem) {
+      _farmaciasComMargem.add(restaurantId);
+    } else {
+      _farmaciasComMargem.remove(restaurantId);
     }
     _farmaciaTaxaFixaCents = taxaFixaCents;
     _taxaServicoPct = taxaPct;
@@ -276,7 +286,7 @@ class SmallOrderFeeService {
       final linha = await Supabase.instance.client
           .from('restaurants')
           .select('min_order_cents_override, small_order_fee_cents_override, '
-              'free_delivery_min_cents, category, is_partner, '
+              'free_delivery_min_cents, category, is_partner, app_markup_pct, '
               'embalagem_cents, embalagem_escalao_cents')
           .eq('id', restaurantId)
           .maybeSingle();
@@ -292,8 +302,14 @@ class SmallOrderFeeService {
       }
       if (linha['category'] == 'pharmacy' && linha['is_partner'] == true) {
         _farmacias.add(restaurantId);
+        if (((linha['app_markup_pct'] as num?) ?? 0) > 0) {
+          _farmaciasComMargem.add(restaurantId);
+        } else {
+          _farmaciasComMargem.remove(restaurantId);
+        }
       } else {
         _farmacias.remove(restaurantId);
+        _farmaciasComMargem.remove(restaurantId);
       }
       final gratis = (linha['free_delivery_min_cents'] as num?)?.toInt();
       if (gratis != null) {
@@ -324,6 +340,7 @@ class SmallOrderFeeService {
     _porLoja.clear();
     _entregaGratisMin.clear();
     _farmacias.clear();
+    _farmaciasComMargem.clear();
     _embalagem.clear();
   }
 

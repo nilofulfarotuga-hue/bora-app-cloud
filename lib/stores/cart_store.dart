@@ -668,7 +668,9 @@ class CartStore extends ChangeNotifier {
         _temEntregaDeLoja &&
         SmallOrderFeeService.ehFarmacia(_vendorRestaurantId);
     final taxaFarmacia =
-        farmacia ? SmallOrderFeeService.taxaServicoFarmacia(base.subtotal) : null;
+        farmacia
+            ? SmallOrderFeeService.taxaServicoFarmacia(base.subtotal, restaurantId: _vendorRestaurantId)
+            : null;
     if (farmacia) {
       return OrderPricingBreakdown(
         distanceKm: base.distanceKm,

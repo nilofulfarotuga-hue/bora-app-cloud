@@ -1,7 +1,7 @@
 {
   "name": "dsh-bora",
   "description": "Plugin do Bora para o dsh (Dipsy): olhos (captura_ecra, ver_imagem), a guarda que barra ou PERGUNTA ao Danilo pelo Telegram antes de correr (dinheiro, publicar, apagar), e a pesquisa na internet pelo proxy com registo. Codigo nosso, sem dependencias de terceiros.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "main": "lib/index.js",

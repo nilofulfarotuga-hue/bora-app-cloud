@@ -25,7 +25,6 @@ const CHAVE_FALSA = ['sk', 'live', 'x'.repeat(26)].join('_')
 
 // ---------- o que passou a PERGUNTAR (ordem do Danilo de 08/11) ----------
 for (const [c, regra] of [
-  ['git push origin autonomous-night-2026-04-29', 'push'],
   ['rm -rf build', 'apagar'],
   ['Remove-Item -Recurse -Force C:\\temp\\x', 'apagar'],
   ['schtasks /create /tn x /tr y', 'sistema'],
@@ -41,6 +40,7 @@ for (const [c, regra] of [
 for (const [c, regra] of [
   ['git push --force origin main', 'push-forcado'],
   ['git push origin --delete autonomous-night-2026-04-29', 'push-forcado'],
+  ['git push origin autonomous-night-2026-04-29', 'push-principal'],
   ['git reset --hard HEAD~2', 'historia'],
   ['git rebase origin/main', 'historia'],
   ['git commit -m "x"', 'commit-sem-juiz'],
@@ -80,9 +80,9 @@ test('DROP POLICY pergunta; pg_read_file barra', () => {
   assert.equal(sqlAvaliar('drop policy p on x')?.tipo, 'pergunta')
   assert.equal(sqlAvaliar("select pg_read_file('/etc/passwd')")?.tipo, 'barra')
 })
-test('migração pergunta sempre, mesmo inofensiva', () => {
+test('migração normal passa (24/11: quem faz publica)', () => {
   const x = avaliar('mcp__supabase__apply_migration', { name: 'x', query: 'create table teste_m3(a int)' })
-  assert.equal(x?.tipo, 'pergunta'); assert.equal(x?.regra, 'migracao')
+  assert.equal(x, null)
 })
 test('migração que apaga sem backup barra', () => assert.equal(tipo(avaliar('mcp__supabase__apply_migration', { name: 'x', query: 'delete from orders' })), 'barra'))
 test('execute_sql de leitura e insert no e2e_log passam sem perguntar', () => {

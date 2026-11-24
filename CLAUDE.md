@@ -6,8 +6,10 @@
 
 @AGENTS.md
 
-**Modo automático seguro (05/11/2026):** segue a skill `modo-automatico`: faz e testa num ramo de ensaio
-`ai/AAAA-MM-DD-descricao`, abre pedido de revisão e não publica. Publica o Claude.ai.
+**Modo automático (05/11/2026, publicar desde 24/11/2026):** segue a skill `modo-automatico`: faz e testa num
+ramo `ai/AAAA-MM-DD-descricao`, abre pedido de revisão, espera os testes verdes e **publica tu** com
+`node .claude/tools/publicar/publicar-pedido.mjs <número>`; depois confere nas 3. Ordem do Danilo (24/11): "o Claude
+Code termina a missão e publica, não para em nada". Dinheiro continua a precisar do "autorizo" dele.
 
 ## 1. Antes de planear
 
@@ -104,9 +106,13 @@ Flutter, 3 GB para emulador. Medir com
 
 ## 8. Publicação
 
-- Push no ramo `autonomous-night-2026-04-29` = publicação (build Android → Play + deploy web).
+- Push no ramo `autonomous-night-2026-04-29` = publicação (build Android → Play + deploy web + iPhone).
   Commits só-`.md`/só-`.claude/` não disparam, mas o paths-ignore avalia TODOS os commits do
   push: ver sempre o que viaja junto. `git add` por caminho; WIP de outras sessões fica fora.
+- Quem faz a missão publica (24/11/2026): ramo `ai/...` → pedido de revisão → CI verde →
+  `node .claude/tools/publicar/publicar-pedido.mjs <número>` (recusa se houver teste vermelho ou a correr,
+  junta sem forçar e acompanha Android, web e iPhone). Nunca push direto ao ramo principal (a trava
+  recusa). Teste vermelho = encontrar a causa e corrigir, nunca saltar o teste.
 - `versionCode` é do CI. Nunca mexer no `pubspec`.
 - `context-mode` (`ctx_*`, `/ctx doctor`) só existe em sessões interativas, não no loop `-p`.
 

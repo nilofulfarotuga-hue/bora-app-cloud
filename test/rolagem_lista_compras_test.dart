@@ -144,8 +144,17 @@ void main() {
     final botao = find.descendant(
         of: find.byKey(const Key('lista_compras_confirmar')),
         matching: find.byType(ElevatedButton));
+    // Saco para viagem (20/11/2026): KFC não-parceiro com saco — sem "Comprei o
+    // saco" o Confirmar fica desligado mesmo com os produtos todos marcados.
+    expect(t.widget<ElevatedButton>(botao).onPressed, isNull,
+        reason: 'produtos marcados mas saco por marcar: Confirmar desligado');
+    final saco = find.byKey(const Key('saco_viagem_comprei'));
+    await t.ensureVisible(saco);
+    await _assentar(t);
+    await t.tap(saco);
+    await _assentar(t);
     expect(t.widget<ElevatedButton>(botao).onPressed, isNotNull,
-        reason: 'todos marcados: Confirmar compra ligado');
+        reason: 'todos marcados e saco comprado: Confirmar compra ligado');
     expect(botao.hitTestable(), findsOneWidget);
     expect(find.text('Confirmar compra'), findsOneWidget);
   });

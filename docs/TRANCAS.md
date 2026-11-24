@@ -737,3 +737,15 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   "migration é publicar: publica o Claude.ai". Nao contornei (nem por execute_sql); fica no repo e no e2e_log 14582 (precisa-claude-ai).
   (2) flutter pub get dentro da worktree reescreveu analysis_options.yaml e os registos de plugins de linux/macos/windows;
   repostos com git checkout, nao fazem parte da missao.
+
+- 20/11 saco-viagem-2026-11-20 (Claude Code, Opus 5.5): (1) a bora-tranca recusou `apply_migration` da migração
+  `supabase/migrations/20261120122800_saco_viagem_restaurante_nao_parceiro.sql` ("migração é publicar: publica o
+  Claude.ai"). (2) Recusou também a prova numa transação desfeita (cria um pedido de prova em `orders`). Não contornei.
+  Falta à Claude.ai: aplicar a migração e correr `supabase/tests/saco_viagem_prova_rollback.sql` (cola-se a seguir à
+  migração; acaba em RAISE EXCEPTION, nada fica). A app nova não prende o estafeta enquanto a função não existir
+  (PGRST202 → segue com a marca do telemóvel). e2e_log fluxo saco-viagem-2026-11-20.
+
+- 24/11/2026 (saco-viagem-fecho e codigo-parado, Claude Code no PC): a bora-tranca recusou o `git push` dos ramos
+  ai/2026-11-24-saco-viagem-fecho, ai/2026-11-24-radar-fila e ai/2026-11-24-delete-account-v35 ("git push é
+  publicar: publica o Claude.ai"). Não contornado. A Claude.ai refez os três num só ramo,
+  ai/2026-11-24-codigo-parado, a partir do GitHub e do servidor, e enviou-o ela. e2e_log fluxo codigo-parado-24-11.

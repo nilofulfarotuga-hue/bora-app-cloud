@@ -57,10 +57,7 @@ begin
            || v_atraso || ' minutos depois da hora marcada, cancelar é grátis. A app mostra o valor antes de confirmares.')
    where source_file = 'docs/ajuda/ajuda-clientes.md'
      and chunk_text like '%Se cancelares nos primeiros 5 minutos depois de marcar, não pagas nada.%';
-  update public.support_knowledge_chunks
-     set char_count = length(chunk_text)
-   where source_file = 'docs/ajuda/ajuda-clientes.md'
-     and chunk_text like '%Cancelar é grátis enquanto a profissional ainda não está a caminho.%';
+  -- char_count é coluna gerada: atualiza-se sozinha (24/11: o update à mão fazia falhar a migração).
 
   insert into public.assistant_learned (question_norm, question, answer, source, kind, active)
   values

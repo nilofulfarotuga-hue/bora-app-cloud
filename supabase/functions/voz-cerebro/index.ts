@@ -335,5 +335,6 @@ Deno.serve(async (req: Request) => {
   if (novas.length && novas[novas.length - 1].role === "user") {
     novas.push({ role: "assistant", content: [{ type: "text", text: falado.trim() || "Com certeza." }] });
   }
-  return json({ texto: falado.trim(), novas_mensagens: novas, custo_usd: Number(custo.toFixed(5)), uso, motor, escalado, terminar });
+  // Texto para a voz: sem quebras de linha nem espaços a mais (o "\n\n" ia parar à voz).
+  return json({ texto: falado.replace(/\s+/g, " ").trim(), novas_mensagens: novas, custo_usd: Number(custo.toFixed(5)), uso, motor, escalado, terminar });
 });

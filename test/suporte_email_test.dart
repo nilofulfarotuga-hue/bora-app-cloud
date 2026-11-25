@@ -17,7 +17,7 @@ void main() {
     expect(corpo, isNot(contains('await canLaunchUrl(')),
         reason: 'no Android 11+ o canLaunchUrl diz não a mailto: e o botão morre');
     expect(corpo, contains('launchUrl(uri'));
-    expect(corpo, contains("'Escreve-nos para boraappbora@gmail.com'.tr"),
+    expect(corpo, contains("'Escreve-nos para suporte@boraguarda.com'.tr"),
         reason: 'sem app de e-mail a pessoa tem de ver o endereço');
   });
 

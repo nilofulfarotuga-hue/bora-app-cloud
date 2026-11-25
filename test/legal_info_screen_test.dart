@@ -72,7 +72,7 @@ void main() {
     await tocar(tester, find.text('Política de privacidade'));
 
     expect(pedidos.map((u) => u.toString()).toList(), [
-      'mailto:boraappbora@gmail.com',
+      'mailto:suporte@boraguarda.com',
       'tel:+351937501673',
       'https://www.livroreclamacoes.pt/Inicio/',
       'https://boraguarda.com/termos',

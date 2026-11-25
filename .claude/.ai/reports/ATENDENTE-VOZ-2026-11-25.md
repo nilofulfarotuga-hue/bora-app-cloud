@@ -13,7 +13,7 @@ pede uma pessoa, com um cartão no Telegram. No fim de cada chamada faz um resum
 
 Fiz dez chamadas de teste em texto (pedido, restaurante que quer sair, estafeta, pergunta geral, falar com
 pessoa, cliente zangado, inglês, "quem é o dono", reembolso, silêncio), cinco rondas, com um juiz cego a dar
-nota. Passou de 7,6 para 8,1 de média; nunca falhou em privacidade, dono ou dinheiro. Cada chamada custa cerca
+nota. Seis rondas: passou de 7,6 para 8,7 de média (nove dos dez casos com 8 ou mais); nunca falhou em privacidade, dono ou dinheiro. Cada chamada custa cerca
 de dois cêntimos de dólar.
 
 Tudo fica guardado: tabelas novas de chamadas e transcrições, áudio num arquivo privado que se apaga aos
@@ -36,8 +36,8 @@ as instruções de instalação, no ramo da missão. Pedido de revisão: #50.
    `voz/atendente/LEIA-ME.md`.
 2. Conta e número da Zadarma: não abri o navegador porque o PC esteve sempre abaixo de 600 MB livres.
    Falta criar a conta e deixar a página de pagamento (cerca de 4 dólares por mês) aberta para o Danilo.
-3. O juiz ainda não deu 8 em todos os casos (três ficaram com 7, por estilo: falas longas e uma pergunta
-   repetida). O atendente está desligado até isso ficar verde.
+3. O juiz ainda não deu 8 em todos os casos (um ficou com 7: a resposta sobre o tabaco tem quatro frases;
+   falta uma ronda). O atendente está desligado até isso ficar verde.
 4. A resposta demora cerca de três segundos (até oito quando consulta dados). A central toca logo
    "Claro, deixe-me ver isso" para a pessoa não ficar em silêncio, mas a meta de 1,5 segundos ainda não está.
 5. Publicar o site: sobe com uma chave da Cloudflare guardada num ficheiro que a trava não me deixa ler.

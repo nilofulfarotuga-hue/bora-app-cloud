@@ -27,7 +27,7 @@ class LegalIdentity {
   static const String morada = 'Rua do Torreão 14, 6300-610 Guarda, Portugal';
 
   // ── Contactos ──────────────────────────────────────────────────────────
-  static const String email = 'boraappbora@gmail.com';
+  static const String email = 'suporte@boraguarda.com';
 
   /// Como se mostra no ecrã.
   static const String telefone = '+351 937 501 673';

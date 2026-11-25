@@ -105,7 +105,7 @@ class RoleScreen extends StatelessWidget {
 
                   const Spacer(flex: 1),
                   Text(
-                    'v1.0 · boraappbora@gmail.com'.tr,
+                    'v1.0 · suporte@boraguarda.com'.tr,
                     style: const TextStyle(
                       fontSize: 11,
                       color: AppColors.textSecondary,

@@ -98,6 +98,7 @@ import 'screens/admin/admin_support_tickets_screen.dart';
 import 'screens/admin/admin_cancellations_screen.dart';
 import 'screens/admin/admin_suporte_conversas_screen.dart';
 import 'screens/admin/admin_conversas_ao_vivo_screen.dart';
+import 'screens/admin/admin_chamadas_voz_screen.dart';
 import 'screens/admin/admin_tvde_chats_screen.dart';
 import 'screens/admin/admin_tvde_pagos_sem_corrida_screen.dart';
 import 'screens/admin/admin_tvde_roundtrips_screen.dart';
@@ -1234,6 +1235,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // Conversas ao vivo (15/11/2026): os 3 robôs numa lista só. A
           // conversa (/admin/conversas/<origem>/<id>) está no onGenerateRoute.
           '/admin/conversas': (_) => const AdminConversasAoVivoScreen(),
+          // Atendente de voz do telefone (25/11/2026): lista das chamadas.
+          kRotaChamadasVoz: (_) => const AdminChamadasVozScreen(),
           '/admin/carwash': (_) => const AdminCarwashScreen(),
           '/admin/encomendas-telefone': (_) =>
               const AdminEncomendasTelefoneScreen(),
@@ -1317,6 +1320,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           // Conversas ao vivo (15/11/2026): o aviso e o push de cada mensagem
           // de cliente (suporte da app, Amigo, lojas no WhatsApp) abrem logo
           // a conversa: /admin/conversas/<origem>/<id>.
+          // Atendente de voz (25/11/2026): o aviso e o push de cada chamada
+          // abrem logo a chamada: /admin/chamadas/<id>.
+          final chamadaVoz = chamadaVozDoLink(name);
+          if (chamadaVoz != null) {
+            return MaterialPageRoute<void>(
+              builder: (_) => AdminChamadaVozScreen(chamadaId: chamadaVoz),
+              settings: settings,
+            );
+          }
           final conversaAoVivo = conversaDoLink(name);
           if (conversaAoVivo != null) {
             return MaterialPageRoute<void>(

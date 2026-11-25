@@ -1,0 +1,24 @@
+# Atendente de voz da Bora — central na VPS (missão atendente-voz-2026-11-25, bloco B2).
+# Asterisk (linha SIP da Zadarma) -> AudioSocket -> central (Python). Ver LEIA-ME.md.
+# Arranca sozinho com a VPS (restart: unless-stopped) e não depende do contentor do Hermes.
+services:
+  asterisk:
+    image: andrius/asterisk:22
+    restart: unless-stopped
+    network_mode: host          # SIP 5060/udp e RTP 10000-10099/udp sem NAT do Docker
+    volumes:
+      - ./asterisk:/etc/asterisk-bora:ro
+      - voz-chamadores:/var/voz
+    env_file: .env
+    entrypoint: ["/bin/sh", "/etc/asterisk-bora/arrancar.sh"]
+    mem_limit: 160m
+  central:
+    build: ./central
+    restart: unless-stopped
+    network_mode: host          # escuta só em 127.0.0.1:9092 (ver VOZ_PORTA); a firewall fecha o resto
+    env_file: .env
+    volumes:
+      - voz-chamadores:/var/voz:ro
+    mem_limit: 220m
+volumes:
+  voz-chamadores:

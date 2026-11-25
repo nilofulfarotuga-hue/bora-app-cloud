@@ -80,7 +80,7 @@ Deno.serve(async (req: Request) => {
   try {
     switch (op) {
       case "ping":
-        return json({ ok: true, hora: new Date().toISOString(), versao: "v1" });
+        return json({ ok: true, hora: new Date().toISOString(), versao: "v2" });
 
       // Definições + gasto do dia + motor a usar (reserva se o teto do dia passou).
       case "config": {

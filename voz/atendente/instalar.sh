@@ -11,6 +11,7 @@ REPO="https://github.com/nilofulfarotuga-hue/bora-app-cloud"
 RAIZ=/opt/voz
 PASTA="$RAIZ/voz/atendente"
 ZADARMA_HOSTS="sip.zadarma.com sipurifr.zadarma.com sipde.zadarma.com sipuriny.zadarma.com"
+ZADARMA_REDES="185.45.152.0/24 185.45.155.0/24 195.122.19.0/27"
 
 [ "$(id -u)" = 0 ] || { echo "ERRO: correr como root"; exit 1; }
 
@@ -80,6 +81,7 @@ EOF
         ufw allow proto udp from "$ip" to any port 5060 comment "zadarma $h" >/dev/null
       done
     done
+    for r in $ZADARMA_REDES; do ufw allow proto udp from "$r" to any port 5060 comment "zadarma rede" >/dev/null; done
     ufw allow 10000:10099/udp comment "rtp voz" >/dev/null
     echo "OK firewall ufw: 5060 só Zadarma, RTP 10000-10099"
   else

@@ -52,6 +52,7 @@ import 'admin_restaurante_do_dia_screen.dart';
 import 'admin_support_escalations_screen.dart';
 import 'admin_suporte_conversas_screen.dart';
 import 'admin_conversas_ao_vivo_screen.dart';
+import 'admin_chamadas_voz_screen.dart';
 import 'admin_tvde_chats_screen.dart';
 import 'admin_bora_motorista_fechado_screen.dart';
 import 'admin_connect_payments_screen.dart';
@@ -996,6 +997,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.green,
       builder: () => const AdminConversasAoVivoScreen(),
       keywords: const ['conversas', 'ao vivo', 'robôs', 'robo', 'amigo', 'whatsapp', 'lojas', 'suporte', 'assumir', 'responder', 'equipa', 'não lidas'],
+    ),
+    // 25/11/2026 (atendente-voz-2026-11-25): quem liga para a Bora é atendido por um assistente virtual.
+    AdminMenuItem(
+      id: 'clientes_chamadas_voz',
+      title: 'Chamadas (atendente de voz)',
+      subtitle: 'Cada chamada ao telefone da Bora atendida pelo assistente virtual: resumo, transcrição, áudio, custo da IA, marcar resolvida; ligar/desligar o atendente, saudação, voz e tetos de gasto',
+      icon: Icons.phone_in_talk,
+      color: Colors.green,
+      builder: () => const AdminChamadasVozScreen(),
+      keywords: const ['chamadas', 'telefone', 'voz', 'atendente', 'ligação', 'ligacao', 'assistente virtual', 'transcrição', 'áudio', 'gravação'],
     ),
     AdminMenuItem(
       id: 'clientes_reclamacoes',

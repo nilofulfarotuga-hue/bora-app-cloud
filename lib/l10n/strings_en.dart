@@ -3570,8 +3570,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Not editable once payment is confirmed',
   'Não encontrei essa morada.':
       'I could not find that address.',
-  'Não encontrei uma resposta automática para isso. 😔\n\nContacta-nos diretamente:\n📧 boraappbora@gmail.com\n📞 +351 937 501 673':
-      'I could not find an automatic answer for that. 😔\n\nContact us directly:\n📧 boraappbora@gmail.com\n📞 +351 937 501 673',
+  'Não encontrei uma resposta automática para isso. 😔\n\nContacta-nos diretamente:\n📧 suporte@boraguarda.com\n📞 +351 937 501 673':
+      'I could not find an automatic answer for that. 😔\n\nContact us directly:\n📧 suporte@boraguarda.com\n📞 +351 937 501 673',
   'Não encontrámos esta loja.':
       'We could not find this store.',
   'Não encontrámos este serviço.':
@@ -4706,8 +4706,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'or sign up with email',
   'sem hora':
       'no time set',
-  'v1.0 · boraappbora@gmail.com':
-      'v1.0 · boraappbora@gmail.com',
+  'v1.0 · suporte@boraguarda.com':
+      'v1.0 · suporte@boraguarda.com',
   '{0}\nPodes reagendar mais 1 vez.':
       '{0}\nYou can reschedule 1 more time.',
   '{0}  ·  predefinido':
@@ -5107,8 +5107,8 @@ const Map<String, String> kStringsEn = <String, String>{
   'Escreve o teu nome.': 'Enter your name.',
   'Escreve um telefone válido.': 'Enter a valid phone number.',
   'Pedir para descobrir': 'Ask to discover',
-  'Escreve-nos para boraappbora@gmail.com':
-      'Write to us at boraappbora@gmail.com',
+  'Escreve-nos para suporte@boraguarda.com':
+      'Write to us at suporte@boraguarda.com',
   // 07/10/2026: missão maiores-18 — tabaco/álcool, documento na entrega.
   'Só para maiores de 18 anos':
       'Adults only (18+)',

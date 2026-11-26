@@ -11,7 +11,7 @@ class SupportSettingsProvider extends ChangeNotifier {
   SupportSettingsState _state = SupportSettingsState.loading;
   bool _supportAgentEnabled = false;
   String _whatsappNumber = '+351937501673';
-  String _supportEmail = 'boraappbora@gmail.com';
+  String _supportEmail = 'suporte@boraguarda.com';
   int _slaHours = 24;
   String? _lastError;
 

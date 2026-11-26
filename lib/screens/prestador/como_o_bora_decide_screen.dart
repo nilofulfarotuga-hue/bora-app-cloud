@@ -57,7 +57,7 @@ class ComoOBoraDecide {
         'Há sempre uma pessoa da equipa Bora para falar consigo sobre qualquer '
             'decisão da app:',
         '• WhatsApp da Bora: +351 937 501 673',
-        '• Email da Bora: boraappbora@gmail.com',
+        '• Email da Bora: suporte@boraguarda.com',
         'Não precisa de falar com um robô. Quando escreve, é uma pessoa que lê '
             'e responde.',
       ],
@@ -226,7 +226,7 @@ class ComoOBoraDecide {
         '• Na app, no ecrã "A minha conta foi suspensa", vê o motivo, a data, '
             'quem decidiu e até quando, e tem o botão "Pedir revisão" para '
             'escrever a sua versão. Também pode pedir pelo WhatsApp da Bora '
-            '(+351 937 501 673) ou por email (boraappbora@gmail.com); a equipa '
+            '(+351 937 501 673) ou por email (suporte@boraguarda.com); a equipa '
             'regista o pedido na hora.',
         '• Pode pedir revisão quantas vezes tiver factos novos.',
         '• A revisão é feita por uma pessoa (o responsável da Bora), nunca pela '

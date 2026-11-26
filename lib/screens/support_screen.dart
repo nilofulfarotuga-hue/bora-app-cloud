@@ -102,7 +102,7 @@ class _SupportScreenState extends State<SupportScreen> {
         _addBot(match.answer.tr);
       } else {
         _addBot(
-          'Não encontrei uma resposta automática para isso. 😔\n\nContacta-nos diretamente:\n📧 boraappbora@gmail.com\n📞 +351 937 501 673'.tr,
+          'Não encontrei uma resposta automática para isso. 😔\n\nContacta-nos diretamente:\n📧 suporte@boraguarda.com\n📞 +351 937 501 673'.tr,
         );
       }
     });
@@ -123,7 +123,7 @@ class _SupportScreenState extends State<SupportScreen> {
   Future<void> _launchEmail() async {
     final uri = Uri(
       scheme: 'mailto',
-      path: 'boraappbora@gmail.com',
+      path: 'suporte@boraguarda.com',
       query: 'subject=Suporte Bora App',
     );
     // [E-mail do suporte · 07/10] Sem `canLaunchUrl`: no Android 11+ ela diz
@@ -136,7 +136,7 @@ class _SupportScreenState extends State<SupportScreen> {
     } catch (_) {/* sem app de e-mail */}
     if (!abriu && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Escreve-nos para boraappbora@gmail.com'.tr)));
+          content: Text('Escreve-nos para suporte@boraguarda.com'.tr)));
     }
   }
 

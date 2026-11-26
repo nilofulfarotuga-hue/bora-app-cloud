@@ -7,6 +7,7 @@ import 'package:bora_app/screens/client/checkin_premios_screen.dart';
 import 'package:bora_app/services/checkin_premios_service.dart';
 import 'package:bora_app/services/checkin_service.dart';
 import 'package:bora_app/stores/cart_store.dart';
+import 'package:bora_app/utils/premio_checkin_fluxo.dart';
 import 'package:bora_app/widgets/checkin/checkin_mes_sheet.dart';
 import 'package:bora_app/widgets/checkin/premio_carrinho_banner.dart';
 import 'package:bora_app/widgets/home/checkin_diario_card.dart';
@@ -234,6 +235,48 @@ void main() {
     await t.tap(find.byKey(const Key('btn_usar_p1')));
     await t.pumpAndSettle();
     expect(usados, ['p1']);
+  });
+
+  testWidgets('Os meus prémios: o desconto abre a loja (não o formulário da limpeza)', (t) async {
+    final desconto = <String>[];
+    final servico = <String>[];
+    await t.pumpWidget(MaterialApp(
+      home: CheckinPremiosScreen(
+        carregar: () async => _estado(vales: [
+          {
+            ..._vale('d1', 'por_usar', chave: 'desconto_continente_3', tipo: 'desconto'),
+            'titulo': '3 € de desconto no Continente',
+            'loja_id': 'continente-guarda',
+            'loja_nome': 'Continente',
+            'valor_cents': 300,
+            'minimo_cents': 2500,
+          },
+          _vale('s1', 'por_usar', chave: 'mes', marco: 30, tipo: 'servico'),
+        ]),
+        usarDesconto: (_, v) async => desconto.add(v.id),
+        escolherServico: (_, v) async => servico.add(v.id),
+      ),
+    ));
+    await t.pumpAndSettle();
+    expect(find.descendant(of: find.byKey(const Key('btn_usar_d1')), matching: find.text('Usar')), findsOneWidget);
+    expect(find.descendant(of: find.byKey(const Key('btn_usar_s1')), matching: find.text('Escolher')), findsOneWidget);
+    expect(find.textContaining('Continente · '), findsOneWidget);
+    await t.tap(find.byKey(const Key('btn_usar_d1')));
+    await t.pumpAndSettle();
+    expect(desconto, ['d1']);
+    expect(servico, isEmpty, reason: 'o desconto nunca abre o formulário da limpeza/lavagem');
+  });
+
+  test('texto do desconto diz o valor e o mínimo da compra', () {
+    final v = CheckinVale.fromJson({
+      'id': 'd1', 'marco': 10, 'chave': 'desconto_continente_3', 'tipo': 'desconto', 'estado': 'por_usar',
+      'titulo': '3 € de desconto no Continente', 'loja_id': 'continente-guarda',
+      'valor_cents': 300, 'minimo_cents': 2500,
+    });
+    expect(v.ehDesconto, isTrue);
+    expect(v.minimoCents, 2500);
+    expect(textoComoUsarDesconto(v), contains('3,00 €'));
+    expect(textoComoUsarDesconto(v), contains('25,00 €'));
   });
 
   testWidgets('carrinho da loja certa: "Tens um prémio para esta loja — Aplicar"', (t) async {

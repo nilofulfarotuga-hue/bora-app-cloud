@@ -25,12 +25,16 @@ class CheckinPremiosScreen extends StatefulWidget {
     this.carregar,
     this.usarProduto,
     this.escolherServico,
+    this.usarDesconto,
     this.levantarEscada,
   });
 
   final Future<CheckinPremiosEstado?> Function()? carregar;
   final Future<void> Function(BuildContext context, CheckinVale vale)? usarProduto;
   final Future<void> Function(BuildContext context, CheckinVale vale)? escolherServico;
+
+  /// Prémio de desconto: abre a loja. Por omissão, [usarPremioDesconto].
+  final Future<void> Function(BuildContext context, CheckinVale vale)? usarDesconto;
 
   /// Escada: "Levantar". Por omissão, `CheckinPremiosService.instance.levantar`.
   final Future<CheckinEscadaResultado> Function()? levantarEscada;
@@ -69,6 +73,8 @@ class _CheckinPremiosScreenState extends State<CheckinPremiosScreen> {
     try {
       if (v.ehProduto) {
         await (widget.usarProduto ?? usarPremioProduto)(context, v);
+      } else if (v.ehDesconto) {
+        await (widget.usarDesconto ?? usarPremioDesconto)(context, v);
       } else {
         await (widget.escolherServico ??
             (ctx, vale) => Navigator.of(ctx).push(MaterialPageRoute<void>(
@@ -192,7 +198,7 @@ class _ValeCartao extends StatelessWidget {
     switch (v.estado) {
       case 'por_usar':
       case 'reservado':
-        final onde = v.ehProduto && (v.lojaNome ?? '').isNotEmpty ? '${v.lojaNome} · ' : '';
+        final onde = (v.ehProduto || v.ehDesconto) && (v.lojaNome ?? '').isNotEmpty ? '${v.lojaNome} · ' : '';
         return '$onde${'Vale até {0}'.trArgs([_data(v.validoAte)])}';
       case 'guardado':
         return 'Este mês já não há mais prémios de {0} dias. Fica disponível a {1}.'
@@ -254,7 +260,7 @@ class _ValeCartao extends StatelessWidget {
                 key: Key('btn_usar_${v.id}'),
                 onPressed: aUsar ? null : onUsar,
                 style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-                child: Text(aUsar ? '…' : (v.ehProduto ? 'Usar'.tr : 'Escolher'.tr)),
+                child: Text(aUsar ? '…' : (v.ehServico ? 'Escolher'.tr : 'Usar'.tr)),
               ),
             ],
           ],

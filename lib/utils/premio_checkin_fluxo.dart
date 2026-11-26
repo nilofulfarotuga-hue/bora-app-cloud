@@ -59,6 +59,35 @@ Future<void> usarPremioProduto(BuildContext context, CheckinVale vale) async {
   }
 }
 
+/// Prémio de DESCONTO (26/11/2026), a partir de "Os meus prémios": abre a loja
+/// certa. O desconto não se "reserva": entra sozinho no carrinho dessa loja
+/// quando a compra de produtos chega ao mínimo (o servidor confirma no pedido).
+/// Antes o botão abria o formulário da limpeza/lavagem e o vale ficava parado.
+Future<void> usarPremioDesconto(BuildContext context, CheckinVale vale) async {
+  final lojaId = vale.lojaId;
+  final loja = (lojaId == null || lojaId.isEmpty) ? null : await lojaPorId(context, lojaId);
+  if (!context.mounted) return;
+  if (loja == null) {
+    _aviso(context, 'Esta loja não está disponível de momento.'.tr);
+    return;
+  }
+  await abrirLoja(context, loja);
+  if (!context.mounted) return;
+  _aviso(context, textoComoUsarDesconto(vale));
+}
+
+/// "O desconto de 3,00 € entra sozinho no carrinho quando os produtos
+/// chegarem a 25,00 €. Entrega e taxas pagam-se à parte."
+String textoComoUsarDesconto(CheckinVale vale) {
+  String euros(int c) => (c / 100).toStringAsFixed(2).replaceAll('.', ',');
+  final minimo = vale.minimoCents ?? 0;
+  return minimo > 0
+      ? 'O desconto de {0} € entra sozinho no carrinho quando os produtos chegarem a {1} €. Entrega e taxas pagam-se à parte.'
+          .trArgs([euros(vale.valorCents), euros(minimo)])
+      : 'O desconto de {0} € entra sozinho no carrinho desta loja. Entrega e taxas pagam-se à parte.'
+          .trArgs([euros(vale.valorCents)]);
+}
+
 /// A partir do carrinho da loja certa: "Tens um prémio — Aplicar".
 Future<bool> aplicarPremioNoCarrinho(BuildContext context, CheckinVale vale) async {
   ReservaPremio? reserva;

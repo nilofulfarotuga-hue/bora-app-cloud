@@ -1582,6 +1582,10 @@ const Map<String, String> kStringsEn = <String, String>{
       'You can book for today.',
   'Escolhe uma hora que ainda não passou.':
       'Choose a time that has not passed yet.',
+  'O desconto de {0} € entra sozinho no carrinho quando os produtos chegarem a {1} €. Entrega e taxas pagam-se à parte.':
+      'The €{0} discount is applied automatically in the cart once your products reach €{1}. Delivery and fees are paid separately.',
+  'O desconto de {0} € entra sozinho no carrinho desta loja. Entrega e taxas pagam-se à parte.':
+      'The €{0} discount is applied automatically in this store\'s cart. Delivery and fees are paid separately.',
   'Lavagem exterior do carro':
       'Exterior car wash',
   'Só por fora (ducha exterior).':

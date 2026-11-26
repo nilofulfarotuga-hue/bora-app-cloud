@@ -186,6 +186,7 @@ class CheckinVale {
     this.opcoes = const [],
     this.opcao,
     this.valorCents = 0,
+    this.minimoCents,
     this.validoAte,
     this.ativarEm,
     this.esperarAte,
@@ -216,6 +217,9 @@ class CheckinVale {
   final List<String> opcoes;
   final String? opcao;
   final int valorCents;
+
+  /// Vale de DESCONTO: compra mínima de produtos para o desconto entrar.
+  final int? minimoCents;
   final DateTime? validoAte;
   final DateTime? ativarEm;
   final DateTime? esperarAte;
@@ -227,6 +231,7 @@ class CheckinVale {
 
   bool get ehProduto => tipo == 'produto';
   bool get ehServico => tipo == 'servico';
+  bool get ehDesconto => tipo == 'desconto';
 
   /// Pode ser usado agora (no carrinho ou numa marcação).
   bool get usavel => estado == 'por_usar' || estado == 'reservado';
@@ -250,6 +255,7 @@ class CheckinVale {
             : const [],
         opcao: m['opcao'] as String?,
         valorCents: _int(m['valor_cents']),
+        minimoCents: m['minimo_cents'] == null ? null : _int(m['minimo_cents']),
         validoAte: _data(m['valido_ate']),
         ativarEm: _data(m['ativar_em']),
         esperarAte: _data(m['esperar_ate']),

@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'notification_service.dart' show postWakeActivityNotification;
+import 'tvde_visibilidade.dart';
 
 /// [GPS parado · 10/11/2026] Marca desta versão do código da posição em fundo.
 /// Vai em `driver_posicao_segredo(p_app_build)` e fica em
@@ -241,7 +242,7 @@ class BoraForegroundService {
     final result = await FlutterForegroundTask.startService(
       serviceId: _serviceId,
       notificationTitle: '🟢 Bora — estás online',
-      notificationText: 'Recebes as corridas e os pedidos na hora.',
+      notificationText: _textoOnline(),
       callback: boraForegroundCallback,
     );
     final ok = _resultIsSuccess(result);
@@ -254,9 +255,16 @@ class BoraForegroundService {
   static Future<bool> startDriver() async {
     return _start(
       title: '🟢 Bora — estás online',
-      text: 'Recebes as corridas e os pedidos na hora.',
+      text: _textoOnline(),
     );
   }
+
+  /// 26/11/2026 (arquivo-tvde-total): a notificação fixa do estafeta não fala
+  /// de corridas com o Bora Motorista fechado (TvdeVisibilidade; fora da app
+  /// principal o interruptor fica fechado, que é o seguro).
+  static String _textoOnline() => TvdeVisibilidade.aberto
+      ? 'Recebes as corridas e os pedidos na hora.'
+      : 'Recebes os pedidos na hora.';
 
   /// Inicia o serviço com a notificação "🟢 Bora — Loja aberta".
   static Future<bool> startPartner() async {

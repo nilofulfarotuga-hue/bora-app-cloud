@@ -23,6 +23,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../services/tvde_visibilidade.dart';
 import '../../utils/hora_lisboa_ext.dart';
 
 class AdminNotificationsInboxScreen extends StatefulWidget {
@@ -114,8 +115,16 @@ class AdminNotificationsInboxScreen extends StatefulWidget {
   };
 
   /// Nome do tipo em português; tipo desconhecido fica "Aviso: <tipo>".
-  static String rotuloDoTipo(String tipo) =>
-      rotulosPorTipo[tipo] ?? 'Aviso: ${tipo.replaceAll('_', ' ')}';
+  ///
+  /// 26/11/2026 (arquivo-tvde-total): com o Bora Motorista fechado, os avisos
+  /// antigos `tvde_*` mostram-se como arquivo.
+  static String rotuloDoTipo(String tipo) {
+    final r = rotulosPorTipo[tipo] ?? 'Aviso: ${tipo.replaceAll('_', ' ')}';
+    if (tipo.startsWith('tvde') && !TvdeVisibilidade.aberto) {
+      return 'Arquivo (Bora Motorista): $r';
+    }
+    return r;
+  }
 
   /// Nível do aviso em português (`severity`).
   static String nivelPtBr(String? severidade) => switch (severidade) {

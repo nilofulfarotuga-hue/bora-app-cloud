@@ -320,7 +320,15 @@ class _GanhosScreenState extends State<GanhosScreen> {
                             size: 18, color: Colors.grey.shade600),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: Text((l['titulo'] ?? '').toString(),
+                          // 26/11/2026 (arquivo-tvde-total): o servidor
+                          // (meu_ganho_ao_vivo) chama ao papel 'driver'
+                          // "Entregas e corridas"; com o Bora Motorista
+                          // fechado lê-se "Entregas" (as somas não mudam).
+                          child: Text(
+                              (l['papel'] == 'driver' &&
+                                      !TvdeVisibilidade.aberto)
+                                  ? 'Entregas'
+                                  : (l['titulo'] ?? '').toString(),
                               style: const TextStyle(fontSize: 13)),
                         ),
                         Text(eur(l['semana_cents'] as num?),

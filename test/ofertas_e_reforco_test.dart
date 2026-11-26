@@ -51,6 +51,9 @@ void main() {
 
     test('categoria', () {
       expect(categoriaEmPalavras('tvde'), 'TVDE (corrida)');
+    // 26/11/2026 (arquivo-tvde-total): Bora Motorista fechado.
+    expect(categoriaEmPalavras('tvde', tvdeAberto: false), 'Arquivo (Bora Motorista)');
+    expect(categoriaEmPalavras('entrega', tvdeAberto: false), 'Entrega');
       expect(categoriaEmPalavras('favor'), 'Favor');
       expect(categoriaEmPalavras('entrega'), 'Entrega');
     });

@@ -15,6 +15,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
+import '../../services/tvde_visibilidade.dart';
 import '../../widgets/admin/meio_pagamento_acerto.dart';
 import 'admin_receipts_screen.dart';
 import 'admin_vigia_dinheiro_screen.dart';
@@ -402,7 +403,10 @@ class _AdminExtratoDonoScreenState extends State<AdminExtratoDonoScreen> {
 
   static String _origem(String? o) => switch (o) {
         'pedido' => 'Pedidos (entregas)',
-        'corrida' => 'Corridas TVDE',
+        // 26/11/2026 (arquivo-tvde-total): fechado, as corridas antigas são arquivo.
+        'corrida' => TvdeVisibilidade.aberto
+            ? 'Corridas TVDE'
+            : 'Arquivo (Bora Motorista)',
         'limpeza' => 'Limpezas',
         'lavagem' => 'Lavagens',
         _ => o ?? '—',
@@ -478,9 +482,11 @@ class _AdminExtratoDonoScreenState extends State<AdminExtratoDonoScreen> {
           _linha('Devem à Bora e ainda não entrou', eur(r['devem_a_bora_cents']),
               bold: true, cor: AppColors.success),
           const SizedBox(height: 4),
-          const Text(
-              'Inclui os saldos das carteiras dos clientes (crédito que podem gastar) e o TVDE, que ainda não entra no acerto semanal.',
-              style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+          Text(
+              TvdeVisibilidade.aberto
+                  ? 'Inclui os saldos das carteiras dos clientes (crédito que podem gastar) e o TVDE, que ainda não entra no acerto semanal.'
+                  : 'Inclui os saldos das carteiras dos clientes (crédito que podem gastar) e o arquivo do Bora Motorista, que não entra no acerto semanal.',
+              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
         ]),
       ),
     );
@@ -544,7 +550,9 @@ class _AdminExtratoDonoScreenState extends State<AdminExtratoDonoScreen> {
                         : (boraPaga ? 'Marcar pago' : 'Marcar recebido')),
                   )
                 else
-                  Text(l['tipo'] == 'tvde' ? 'sem acerto TVDE' : '',
+                  Text(l['tipo'] == 'tvde'
+                          ? (TvdeVisibilidade.aberto ? 'sem acerto TVDE' : 'arquivo (Bora Motorista)')
+                          : '',
                       style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
               ]),
             ),
@@ -565,7 +573,14 @@ class _AdminExtratoDonoScreenState extends State<AdminExtratoDonoScreen> {
           _linha('Carteiras dos clientes — soma do histórico', eur(a['carteiras_historico_cents']),
               cor: carteirasBatem ? AppColors.success : AppColors.error),
           _linha('Estafetas — saldo vitalício das entregas', eur(a['estafetas_saldo_cents'])),
-          _linha('TVDE — saldo (negativo = a Bora deve)', eur(a['tvde_saldo_cents'])),
+          // 26/11/2026 (arquivo-tvde-total): fechado e a zero, a linha sai;
+          // com saldo fica, com o rótulo do arquivo. A conta não muda.
+          if (TvdeVisibilidade.aberto || ((a['tvde_saldo_cents'] as num?) ?? 0) != 0)
+            _linha(
+                TvdeVisibilidade.aberto
+                    ? 'TVDE — saldo (negativo = a Bora deve)'
+                    : 'Arquivo (Bora Motorista) — saldo (negativo = a Bora deve)',
+                eur(a['tvde_saldo_cents'])),
           _linha('Comissão da Bora no livro-razão (pedidos pagos)', eur(a['ledger_comissao_cents'])),
           _linha('Achados do vigia por resolver', '${a['achados_abertos'] ?? '—'}',
               bold: true,

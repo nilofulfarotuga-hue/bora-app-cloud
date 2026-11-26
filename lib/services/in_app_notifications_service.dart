@@ -9,10 +9,18 @@ import '../utils/sessao.dart';
 /// Avisos do Bora Motorista (TVDE de passageiros) no sininho: `tvde_*`
 /// (ex.: `tvde_cancel_comp`, `tvde_goodwill_credit`) e `ride_*`
 /// (ex.: `ride_update`).
+///
+/// 26/11/2026 (arquivo-tvde-total): também os avisos dos documentos da Ficha
+/// legal do motorista (`motorista_documento`, do cron
+/// `motorista_docs_alerta`) e qualquer `ficha_legal*` — falam de TVDE, IMT e
+/// dístico. (`tvde_conformidade` e `tvde_queixa` já entram por `tvde`.)
 @visibleForTesting
 bool eAvisoDoBoraMotorista(Map<String, dynamic> n) {
   final kind = (n['kind'] as String? ?? '').toLowerCase();
-  return kind.startsWith('tvde') || kind.startsWith('ride_');
+  return kind.startsWith('tvde') ||
+      kind.startsWith('ride_') ||
+      kind.startsWith('motorista_documento') ||
+      kind.startsWith('ficha_legal');
 }
 
 /// 04/11/2026 (fechar-bora-motorista): com `tvde_app_visivel` fechado os

@@ -30,6 +30,7 @@ import '../../config/app_spacing.dart';
 import '../../utils/gps_parado.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_rpc_errors.dart';
+import '../../services/tvde_visibilidade.dart';
 import '../../utils/hora_lisboa_ext.dart';
 
 /// Lê o mapa inteiro das pendências (por omissão `admin_pendencias_operacao`).
@@ -47,11 +48,22 @@ class SecaoPendencias {
     required this.chip,
     required this.explicacao,
     required this.icone,
+    this.tvde = false,
   });
 
   /// Chave no jsonb do RPC (`taloes`, `pagamentos_falhados`, …).
   final String chave;
   final String titulo;
+
+  /// 26/11/2026 (arquivo-tvde-total): caixa só do Bora Motorista. Com
+  /// `tvde_app_visivel` fechado sai da tela quando está a zero; com alguma
+  /// coisa fica, com o título do arquivo.
+  final bool tvde;
+
+  /// O título que se lê na tela.
+  String get tituloVisivel => tvde && !TvdeVisibilidade.aberto
+      ? 'Arquivo (Bora Motorista): $titulo'
+      : titulo;
 
   /// Rótulo curto do chip de totais no cabeçalho.
   final String chip;
@@ -77,6 +89,7 @@ const List<SecaoPendencias> kSecoesPendencias = [
     explicacao: 'Corridas do Bora Motorista em que o cartão ou o MB Way não '
         'fechou, nos últimos 14 dias. Ninguém foi cobrado; vale a pena ligar.',
     icone: Icons.credit_card_off,
+    tvde: true,
   ),
   SecaoPendencias(
     chave: 'pacotes_sem_volta',
@@ -85,6 +98,7 @@ const List<SecaoPendencias> kSecoesPendencias = [
     explicacao: 'Vales de volta (pacote ida-e-volta de € 8) ainda sem corrida '
         'de volta.',
     icone: Icons.swap_horiz,
+    tvde: true,
   ),
   SecaoPendencias(
     chave: 'voltas_retidas',
@@ -93,6 +107,7 @@ const List<SecaoPendencias> kSecoesPendencias = [
     explicacao: 'Voltas que o sistema segurou (dispatch hold) por distância '
         'suspeita: corrigir os km e libertar, ou cancelar e devolver o vale.',
     icone: Icons.pan_tool_alt_outlined,
+    tvde: true,
   ),
   SecaoPendencias(
     chave: 'cancelamentos_taxa_sem_estafeta',
@@ -127,6 +142,14 @@ const List<SecaoPendencias> kSecoesPendencias = [
     icone: Icons.notifications_off_outlined,
   ),
 ];
+
+/// 26/11/2026 (arquivo-tvde-total): as caixas que a tela mostra. Com o Bora
+/// Motorista fechado, as caixas TVDE a zero saem; as contas não mudam (o
+/// total geral continua a somar todas).
+List<SecaoPendencias> secoesPendenciasVisiveis(int Function(String) total) => [
+      for (final s in kSecoesPendencias)
+        if (!s.tvde || TvdeVisibilidade.aberto || total(s.chave) > 0) s,
+    ];
 
 /// Rotas nomeadas do painel que existem em `lib/main.dart` (`routes:` mais os
 /// prefixos tratados em `onGenerateRoute`), confirmadas por grep a 23/09/2026.
@@ -313,7 +336,10 @@ String _motivoRetencao(String r) => switch (r) {
 
 String _veiculo(String v) => switch (v) {
       'car' => 'carro',
-      'carro_passageiros' => 'Bora Motorista (passageiros)',
+      // 26/11/2026 (arquivo-tvde-total): fechado, é um estafeta de carro.
+      'carro_passageiros' => TvdeVisibilidade.aberto
+          ? 'Bora Motorista (passageiros)'
+          : 'Estafeta de carro',
       'motorcycle' => 'mota',
       'bicycle' => 'bicicleta',
       '' => '',
@@ -1087,11 +1113,12 @@ class _AdminPendenciasOperacaoScreenState
               geradoEm: d.geradoEm,
               gpsLimiteS: d.gpsLimiteS,
               totais: [
-                for (final s in kSecoesPendencias) (s, d.total(s.chave))
+                for (final s in secoesPendenciasVisiveis(d.total))
+                  (s, d.total(s.chave))
               ],
             ),
             if (d.totalGeral == 0) const _NadaPendente(),
-            for (final s in kSecoesPendencias)
+            for (final s in secoesPendenciasVisiveis(d.total))
               _SecaoTile(
                 secao: s,
                 itens: d.lista(s.chave),
@@ -1363,7 +1390,7 @@ class _SecaoTile extends StatelessWidget {
         title: Row(
           children: [
             Expanded(
-              child: Text(secao.titulo,
+              child: Text(secao.tituloVisivel,
                   style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 14.5,

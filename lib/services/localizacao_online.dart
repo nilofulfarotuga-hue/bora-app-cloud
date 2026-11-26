@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/app_colors.dart';
 import 'foreground_service.dart';
+import 'tvde_visibilidade.dart';
 
 /// GPS do motorista/estafeta ONLINE à espera de trabalho — sempre vivo.
 ///
@@ -186,18 +187,24 @@ class _ExplicacaoSempre extends StatelessWidget {
     return AlertDialog(
       backgroundColor: AppColors.surface,
       icon: const Icon(Icons.bolt, color: AppColors.primary, size: 40),
-      title: const Text(
-        'Recebe as corridas na hora',
+      // 26/11/2026 (arquivo-tvde-total): este pedido aparece também ao
+      // estafeta das entregas — com o Bora Motorista fechado
+      // (TvdeVisibilidade) fala só de pedidos.
+      title: Text(
+        TvdeVisibilidade.aberto
+            ? 'Recebe as corridas na hora'
+            : 'Recebe os pedidos na hora',
         textAlign: TextAlign.center,
-        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
       ),
-      content: const Text(
-        'Para te chegarem as corridas e os pedidos logo que o cliente pede — '
+      content: Text(
+        '${TvdeVisibilidade.aberto ? 'Para te chegarem as corridas e os pedidos' : 'Para te chegarem os pedidos'}'
+        ' logo que o cliente pede — '
         'mesmo a conduzir, com a app em fundo ou o ecrã desligado:\n\n'
         '• na localização escolhe "Permitir sempre";\n'
         '• na bateria escolhe "Não otimizar".\n\n'
         'Só usamos a tua localização enquanto estás online.',
-        style: TextStyle(fontSize: 14, height: 1.4),
+        style: const TextStyle(fontSize: 14, height: 1.4),
       ),
       actionsAlignment: MainAxisAlignment.spaceBetween,
       actions: [

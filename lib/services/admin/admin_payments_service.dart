@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../models/saved_card.dart';
+import '../tvde_visibilidade.dart';
 
 /// Uma cobrança, venha ela de que vertical vier.
 class AdminPaymentRow {
@@ -59,7 +60,11 @@ class AdminPaymentRow {
     'limpeza': 'Limpeza',
   };
 
-  String get verticalRotulo => rotulosVertical[vertical] ?? vertical;
+  /// 26/11/2026 (arquivo-tvde-total): com o Bora Motorista fechado, os
+  /// pagamentos antigos de TVDE mostram-se como arquivo.
+  String get verticalRotulo => vertical.startsWith('tvde') && !TvdeVisibilidade.aberto
+      ? 'Arquivo (Bora Motorista)'
+      : (rotulosVertical[vertical] ?? vertical);
 
   /// Rótulo da conta Stripe (painel em PT-BR).
   String get contaStripeRotulo => stripeAccount == 'empresa' ? 'Empresa' : 'Pessoal';

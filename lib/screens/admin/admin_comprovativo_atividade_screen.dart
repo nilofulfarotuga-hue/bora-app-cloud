@@ -20,6 +20,7 @@ import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
 import '../../services/robo_documentos.dart';
 import '../../services/robo_documentos_service.dart';
+import '../../services/tvde_visibilidade.dart';
 import '../../widgets/admin_robo_documentos.dart';
 import 'admin_robo_documentos_screen.dart';
 import '../../utils/hora_lisboa_ext.dart';
@@ -28,7 +29,9 @@ import '_admin_rpc_errors.dart';
 /// Rótulo PT-BR do papel (nunca o nome técnico cru — PADRAO §1.16).
 String rotuloPapelAtividade(String p) => switch (p) {
       'estafeta' => 'Entregas',
-      'motorista_tvde' => 'Corridas (TVDE)',
+      // 26/11/2026 (arquivo-tvde-total): fechado, o motorista de carro de
+      // passageiros trabalha como estafeta.
+      'motorista_tvde' => TvdeVisibilidade.aberto ? 'Corridas (TVDE)' : 'Entregas',
       'limpeza' => 'Limpeza',
       'lavagem' => 'Lavagem de carros',
       'servicos' => 'Serviços',

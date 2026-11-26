@@ -21,6 +21,7 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'tvde_visibilidade.dart';
 
 /// Um papel de trabalho com o seu interruptor.
 @immutable
@@ -89,15 +90,27 @@ class PapelDeTrabalho {
 ///
 /// Quem só é motorista não tem escolha nenhuma a fazer — mostrar-lhe uma caixa
 /// com uma linha só é estorvo. Foi pedido assim.
-bool mostrarCaixaDePapeis(List<PapelDeTrabalho> papeis) => papeis.length > 1;
+bool mostrarCaixaDePapeis(List<PapelDeTrabalho> papeis) =>
+    papeisVisiveis(papeis).length > 1;
+
+/// 26/11/2026 (arquivo-tvde-total): com o Bora Motorista fechado
+/// (TvdeVisibilidade) o papel 'driver' (corridas de passageiros) não conta
+/// para a caixa — a caixa já não o desenha, e quem tem 'driver' + outro papel
+/// via uma caixa de uma linha só. Aberto, todos contam como antes.
+List<PapelDeTrabalho> papeisVisiveis(List<PapelDeTrabalho> papeis) =>
+    TvdeVisibilidade.aberto
+        ? papeis
+        : papeis.where((p) => p.papel != 'driver').toList();
 
 /// Desligar o ÚLTIMO papel ligado deixaria a pessoa online sem receber nada —
 /// e isso lê-se como avaria, não como escolha. Quem quer parar de todo desliga
 /// o "estou online", que é o interruptor que existe para isso.
 ///
 /// Ligar é sempre permitido; esta pergunta só se faz ao desligar.
+// 26/11/2026 (arquivo-tvde-total): conta só os papéis que se veem — fechado,
+// as corridas escondidas não deixam desligar o último que se vê.
 bool podeDesligar(List<PapelDeTrabalho> papeis) =>
-    papeis.where((p) => p.aceita).length > 1;
+    papeisVisiveis(papeis).where((p) => p.aceita).length > 1;
 
 /// Aviso a mostrar a quem tenta desligar o último.
 const String avisoUltimoPapel =

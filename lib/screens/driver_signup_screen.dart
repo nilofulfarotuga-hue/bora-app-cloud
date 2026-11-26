@@ -170,6 +170,13 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
         try {
           _vehicleType =
               VehicleType.values.firstWhere((v) => v.name == vehicleTypeName);
+          // 26/11/2026 (arquivo-tvde-total): com o Bora Motorista fechado um
+          // rascunho antigo de "Carro — Passageiros" volta como "Carro"
+          // (entregas) — o botão de passageiros não se desenha.
+          if (!TvdeVisibilidade.aberto &&
+              _vehicleType == VehicleType.carPassengers) {
+            _vehicleType = VehicleType.car;
+          }
         } catch (_) {}
       }
       final plate = prefs.getString('$_kDraftKey.plate') ?? '';
@@ -936,10 +943,10 @@ class _DriverSignupScreenState extends State<DriverSignupScreen> {
                       ),
                       // 04/11/2026 (fechar-bora-motorista): o cadastro de
                       // motorista de passageiros só aparece com
-                      // `tvde_app_visivel` aberto (um rascunho antigo que já
-                      // o tinha escolhido continua a vê-lo para poder mudar).
-                      if (TvdeVisibilidade.aberto ||
-                          _vehicleType == VehicleType.carPassengers)
+                      // `tvde_app_visivel` aberto. 26/11/2026
+                      // (arquivo-tvde-total): o rascunho antigo já não o
+                      // mostra — volta como "Carro" ao ler o rascunho.
+                      if (TvdeVisibilidade.aberto)
                         const ButtonSegment(
                           value: VehicleType.carPassengers,
                           label: Text('Carro — Passageiros'),

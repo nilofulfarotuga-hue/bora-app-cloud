@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../services/tvde_visibilidade.dart';
 
 class AdminVigiaDinheiroScreen extends StatefulWidget {
   const AdminVigiaDinheiroScreen({super.key});
@@ -40,7 +41,10 @@ class _AdminVigiaDinheiroScreenState extends State<AdminVigiaDinheiroScreen> {
   static String _kindTxt(String? k) => switch (k) {
         'saldo_vs_historico' => 'Carteira: histórico ≠ saldo',
         'vigia_entregas_saldo' => 'Entregas: histórico ≠ saldo',
-        'vigia_tvde_saldo' => 'TVDE: eventos ≠ saldo',
+        // 26/11/2026 (arquivo-tvde-total): fechado, rótulo do arquivo.
+        'vigia_tvde_saldo' => TvdeVisibilidade.aberto
+            ? 'TVDE: eventos ≠ saldo'
+            : 'Arquivo (Bora Motorista): eventos ≠ saldo',
         'vigia_ledger_snapshot' => 'Livro-razão ≠ snapshot',
         'vigia_parceiro_arcas' => 'Parceiro: livro-razão ≠ order_financials',
         'vigia_duplicado_carteira' => 'Carteira: linha repetida',

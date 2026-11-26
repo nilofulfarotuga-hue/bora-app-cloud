@@ -13,6 +13,8 @@
 /// linha.
 library;
 
+import 'tvde_visibilidade.dart';
+
 /// Vermelho, amarelo ou verde.
 enum EstadoItemConta { falta, emAnalise, ok }
 
@@ -256,7 +258,11 @@ EstadoMinhaConta montarMinhaConta({
   final itens = <ItemConta>[];
   final aprovacao = (driver['approval_status'] ?? '').toString();
   final vt = (driver['vehicle_type'] ?? '').toString();
-  final tvde = vt == 'carro_passageiros' || vt == 'carPassengers';
+  // 26/11/2026 (arquivo-tvde-total): com o Bora Motorista fechado
+  // (TvdeVisibilidade) o carro de passageiros é um estafeta de carro como os
+  // outros — vê a foto do veículo e a matrícula aqui, sem "Conformidade TVDE".
+  final tvde = TvdeVisibilidade.aberto &&
+      (vt == 'carro_passageiros' || vt == 'carPassengers');
 
   // 1. Aprovação — só aparece enquanto não está aprovada.
   if (aprovacao != 'approved') {

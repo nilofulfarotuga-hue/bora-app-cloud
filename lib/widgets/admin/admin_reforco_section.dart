@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../services/tvde_visibilidade.dart';
 import '../../utils/hora_lisboa.dart';
 import '../../utils/ofertas_em_palavras.dart';
 
@@ -46,6 +47,14 @@ class _NumSpec {
   final int min;
   final int max;
   final int padrao;
+
+  /// 26/11/2026 (arquivo-tvde-total): com o Bora Motorista fechado a
+  /// explicação não fala do TVDE.
+  String get explicacaoVisivel => TvdeVisibilidade.aberto
+      ? explicacao
+      : explicacao
+          .replaceAll('entregas, Favores e TVDE.', 'entregas e Favores.')
+          .replaceAll(' Vale também para o TVDE.', '');
 }
 
 class _AdminReforcoSectionState extends State<AdminReforcoSection> {
@@ -275,7 +284,7 @@ class _AdminReforcoSectionState extends State<AdminReforcoSection> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(s.explicacao, style: const TextStyle(fontSize: 13)),
+            Text(s.explicacaoVisivel, style: const TextStyle(fontSize: 13)),
             const SizedBox(height: 12),
             TextField(
               controller: ctrl,
@@ -348,7 +357,11 @@ class _AdminReforcoSectionState extends State<AdminReforcoSection> {
         _aviso('Erro ao salvar a ordem ($chave): $e', erro: true);
       }
     }
-    if (tudoBem) _aviso('Ordem salva (entregas, Favores e TVDE).');
+    if (tudoBem) {
+      _aviso(TvdeVisibilidade.aberto
+          ? 'Ordem salva (entregas, Favores e TVDE).'
+          : 'Ordem salva (entregas e Favores).');
+    }
     if (mounted) setState(() => _gravandoOrdem = false);
     await _load();
   }
@@ -405,7 +418,9 @@ class _AdminReforcoSectionState extends State<AdminReforcoSection> {
           const SizedBox(height: 8),
           Text('Não deu para ler as definições: $_erro',
               style: const TextStyle(fontSize: 12, color: AppColors.error)),
-        ] else if (semNada || !_ativoEntregas || !_ativoTvde) ...[
+        ] else if (semNada ||
+            !_ativoEntregas ||
+            (!_ativoTvde && TvdeVisibilidade.aberto)) ...[
           const SizedBox(height: 8),
           _AvisoServidor(
             texto: semNada
@@ -427,6 +442,8 @@ class _AdminReforcoSectionState extends State<AdminReforcoSection> {
                     'entregas e Favores')
                 : null,
           ),
+          // 26/11/2026 (arquivo-tvde-total): só com o Bora Motorista aberto.
+          if (TvdeVisibilidade.aberto)
           SwitchListTile(
             secondary: const Icon(Icons.local_taxi_outlined),
             title: const Text('Ligado para TVDE'),
@@ -457,7 +474,9 @@ class _AdminReforcoSectionState extends State<AdminReforcoSection> {
         ]),
         const SizedBox(height: 8),
         _cartao([
+          // 26/11/2026 (arquivo-tvde-total): a linha do TVDE só aberto.
           for (final s in _numeros)
+            if (s.chave != 'tvde_forcado_tentativas' || TvdeVisibilidade.aberto)
             ListTile(
               enabled: (kChavesReforcoTvde.contains(s.chave)
                   ? _ativoTvde
@@ -465,7 +484,7 @@ class _AdminReforcoSectionState extends State<AdminReforcoSection> {
               title: Text(s.rotulo,
                   style: const TextStyle(fontWeight: FontWeight.w600)),
               subtitle:
-                  Text(s.explicacao, style: const TextStyle(fontSize: 12)),
+                  Text(s.explicacaoVisivel, style: const TextStyle(fontSize: 12)),
               trailing: Text(
                 '${_num(s.chave) ?? s.padrao} ${s.unidade}',
                 style: const TextStyle(fontWeight: FontWeight.bold),
@@ -510,10 +529,13 @@ class _AdminReforcoSectionState extends State<AdminReforcoSection> {
               ),
           ],
         ),
-        const Text(
-          'Só quem ligou o interruptor (verde) entra no reforço, pela ordem '
-          'abaixo. A mesma ordem é gravada para entregas/Favores e para o TVDE.',
-          style: TextStyle(fontSize: 12, color: AppColors.textSubtle),
+        Text(
+          TvdeVisibilidade.aberto
+              ? 'Só quem ligou o interruptor (verde) entra no reforço, pela ordem '
+                  'abaixo. A mesma ordem é gravada para entregas/Favores e para o TVDE.'
+              : 'Só quem ligou o interruptor (verde) entra no reforço, pela ordem '
+                  'abaixo.',
+          style: const TextStyle(fontSize: 12, color: AppColors.textSubtle),
         ),
         const SizedBox(height: 8),
         if (_listaSemServidor)

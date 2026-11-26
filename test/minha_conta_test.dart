@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:bora_app/services/minha_conta.dart';
+import 'package:bora_app/services/tvde_visibilidade.dart';
 
 /// Missão m2-estafeta-conta-fila-2026-11-08 — a regra do semáforo "A minha
 /// conta". O SQL da proposta (driver_minha_conta_estado) segue as mesmas regras.
@@ -23,6 +24,10 @@ void main() {
 
   group('montarMinhaConta', () {
     test('Vasco: mostra exatamente o que lhe falta, a vermelho', () {
+      // 26/11/2026 (arquivo-tvde-total): o veículo fora daqui só com o Bora
+      // Motorista ABERTO. Fechado: bora_motorista_fechado_test.dart.
+      TvdeVisibilidade.definirParaTeste(true);
+      addTearDown(() => TvdeVisibilidade.definirParaTeste(false));
       final e = montarMinhaConta(
         driver: valdemir,
         fiscal: {

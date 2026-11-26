@@ -18,6 +18,7 @@ import 'package:bora_app/services/heartbeat_service.dart';
 import 'package:bora_app/services/porta_online_service.dart';
 import 'package:bora_app/services/tvde_conformidade_service.dart'
     show mensagemErroConformidade;
+import 'package:bora_app/services/tvde_visibilidade.dart';
 import 'package:bora_app/stores/driver_store.dart';
 import 'package:bora_app/utils/mensagem_online_recusado.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -280,6 +281,9 @@ void main() {
     });
 
     test('TVDE_BLOQUEADO usa a mensagem do servidor', () {
+      // 26/11/2026 (arquivo-tvde-total): só com o Bora Motorista ABERTO.
+      TvdeVisibilidade.definirParaTeste(true);
+      addTearDown(() => TvdeVisibilidade.definirParaTeste(false));
       expect(
         mensagemOnlineRecusado('TVDE_BLOQUEADO',
             mensagemServidor: 'Não podes ficar online: seguro caducado'),
@@ -305,6 +309,10 @@ void main() {
     });
 
     test('resposta da RPC → resultado (todos os códigos do servidor)', () {
+      // 26/11/2026 (arquivo-tvde-total): a frase TVDE do servidor só passa
+      // com o Bora Motorista ABERTO.
+      TvdeVisibilidade.definirParaTeste(true);
+      addTearDown(() => TvdeVisibilidade.definirParaTeste(false));
       for (final c in [
         'SEM_CONTA',
         'CONTA_APAGADA',

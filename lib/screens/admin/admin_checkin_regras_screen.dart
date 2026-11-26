@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../services/tvde_visibilidade.dart';
 import '../../utils/checkin_regras.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '../../widgets/checkin/premio_foto.dart';
@@ -186,7 +187,11 @@ class _AdminCheckinRegrasScreenState extends State<AdminCheckinRegrasScreen> {
                     children: [
                       _secao('Custo do mês × teto (R6)', [_custoView()]),
                       _secao('Regras (R2 a R8)', [
-                        for (final r in kRegrasCheckin) _regraView(r),
+                        // 26/11/2026 (arquivo-tvde-total): a regra da corrida TVDE só com o
+                        // Bora Motorista aberto (a definição fica no servidor, intacta).
+                        for (final r in kRegrasCheckin)
+                          if (r.chave != 'checkin_pedido_conta_tvde' || TvdeVisibilidade.aberto)
+                            _regraView(r),
                         _r7View(),
                       ]),
                       _secao('Quem está em que dia', [_porDiaView()]),

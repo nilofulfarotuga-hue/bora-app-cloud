@@ -1,5 +1,6 @@
 import 'package:latlong2/latlong.dart';
 
+import '../services/tvde_visibilidade.dart';
 import 'order_service_type.dart';
 
 enum VehicleType {
@@ -37,7 +38,10 @@ extension VehicleTypeLabel on VehicleType {
       case VehicleType.bicycle:
         return 'Bicicleta';
       case VehicleType.carPassengers:
-        return 'Carro — Passageiros';
+        // 26/11/2026 (arquivo-tvde-total): com o Bora Motorista fechado
+        // (TvdeVisibilidade) é só "Carro" — o cliente via "Carro —
+        // Passageiros" no acompanhamento da entrega.
+        return TvdeVisibilidade.aberto ? 'Carro — Passageiros' : 'Carro';
     }
   }
 }

@@ -1,5 +1,6 @@
 import 'package:bora_app/config/app_theme.dart';
 import 'package:bora_app/screens/admin/admin_pendencias_operacao_screen.dart';
+import 'package:bora_app/services/tvde_visibilidade.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -291,6 +292,39 @@ Future<void> _rolarAte(WidgetTester tester, Finder alvo) async {
 
 void main() {
   setUpAll(carregaFonteInter);
+  // 26/11/2026 (arquivo-tvde-total): os testes de sempre correm com o Bora
+  // Motorista aberto; o grupo "Bora Motorista fechado" no fim prova o arquivo.
+  setUp(() => TvdeVisibilidade.definirParaTeste(true));
+  tearDown(() => TvdeVisibilidade.definirParaTeste(false));
+
+  group('Bora Motorista fechado (arquivo-tvde-total)', () {
+    setUp(() => TvdeVisibilidade.definirParaTeste(false));
+
+    test('caixas TVDE a zero saem; com valor ficam com o título do arquivo',
+        () {
+      final tvde = kSecoesPendencias.where((s) => s.tvde).toList();
+      expect(tvde.map((s) => s.chave),
+          ['pagamentos_falhados', 'pacotes_sem_volta', 'voltas_retidas']);
+
+      final aZero = secoesPendenciasVisiveis((_) => 0);
+      expect(aZero.any((s) => s.tvde), isFalse);
+      expect(aZero.length, kSecoesPendencias.length - tvde.length);
+
+      final comUm = secoesPendenciasVisiveis(
+          (c) => c == 'pagamentos_falhados' ? 1 : 0);
+      final pag = comUm.singleWhere((s) => s.chave == 'pagamentos_falhados');
+      expect(pag.tituloVisivel,
+          'Arquivo (Bora Motorista): Pagamentos falhados (TVDE)');
+      expect(comUm.any((s) => s.chave == 'pacotes_sem_volta'), isFalse);
+    });
+
+    test('aberto, tudo como antes', () {
+      TvdeVisibilidade.definirParaTeste(true);
+      expect(secoesPendenciasVisiveis((_) => 0).length,
+          kSecoesPendencias.length);
+      expect(kSecoesPendencias[1].tituloVisivel, kSecoesPendencias[1].titulo);
+    });
+  });
 
   group('funções puras', () {
     test('rotaAdminRegistada só deixa abrir rotas que existem em main.dart',

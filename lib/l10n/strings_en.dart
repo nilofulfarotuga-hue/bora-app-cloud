@@ -1576,6 +1576,12 @@ const Map<String, String> kStringsEn = <String, String>{
       '2 hours of cleaning at home',
   'Marca-se com pelo menos 12 horas de antecedência.':
       'Book at least 12 hours in advance.',
+  'Marca-se com pelo menos {0} horas de antecedência.':
+      'Book at least {0} hours in advance.',
+  'Podes marcar para hoje.':
+      'You can book for today.',
+  'Escolhe uma hora que ainda não passou.':
+      'Choose a time that has not passed yet.',
   'Lavagem exterior do carro':
       'Exterior car wash',
   'Só por fora (ducha exterior).':

@@ -12,6 +12,7 @@ import '../../config/app_colors.dart';
 import '../../l10n/tr.dart';
 import '../../services/checkin_premios_service.dart';
 import '../../stores/cart_store.dart';
+import '../../stores/cleaning_store.dart';
 
 class CheckinPremioServicoScreen extends StatefulWidget {
   const CheckinPremioServicoScreen({super.key, required this.vale, this.service});
@@ -29,6 +30,9 @@ class _CheckinPremioServicoScreenState extends State<CheckinPremioServicoScreen>
   bool _lavarAgora = true;
   bool _aEnviar = false;
   String? _erro;
+
+  /// Até o servidor responder, vale o valor por omissão de sempre (12 h).
+  int _leadHoras = 12;
 
   final _rua = TextEditingController();
   final _cidade = TextEditingController(text: 'Guarda');
@@ -52,6 +56,23 @@ class _CheckinPremioServicoScreenState extends State<CheckinPremioServicoScreen>
     _rua.text = cart.dropoffStreet;
     if (cart.dropoffCity.isNotEmpty) _cidade.text = cart.dropoffCity;
     _cp.text = cart.dropoffPostalCode;
+    _lerAntecedencia();
+  }
+
+  /// Antecedência da limpeza (26/11/2026): a MESMA da marcação normal
+  /// (`cleaning_min_lead_hours`, hoje 0 h). Antes estava fixa em 13 h e o
+  /// cliente não podia usar o prémio para hoje.
+  Future<void> _lerAntecedencia() async {
+    CleaningStore? store;
+    try {
+      store = context.read<CleaningStore>();
+    } catch (_) {
+      store = null;
+    }
+    if (store == null) return;
+    final h = await store.getSettingInt('cleaning_min_lead_hours', _leadHoras);
+    if (!mounted) return;
+    setState(() => _leadHoras = h < 0 ? 0 : h);
   }
 
   @override
@@ -64,7 +85,7 @@ class _CheckinPremioServicoScreenState extends State<CheckinPremioServicoScreen>
 
   Future<void> _escolherQuando() async {
     final agora = DateTime.now();
-    final minimo = _opcao == 'limpeza' ? agora.add(const Duration(hours: 13)) : agora;
+    final minimo = _opcao == 'limpeza' ? agora.add(Duration(hours: _leadHoras)) : agora;
     final dia = await showDatePicker(
       context: context,
       initialDate: _quando ?? minimo,
@@ -89,6 +110,13 @@ class _CheckinPremioServicoScreenState extends State<CheckinPremioServicoScreen>
     final precisaHora = _opcao == 'limpeza' || !_lavarAgora;
     if (precisaHora && _quando == null) {
       setState(() => _erro = 'Escolhe o dia e a hora.'.tr);
+      return;
+    }
+    if (_opcao == 'limpeza' &&
+        _quando!.isBefore(DateTime.now().add(Duration(hours: _leadHoras)))) {
+      setState(() => _erro = _leadHoras == 0
+          ? 'Escolhe uma hora que ainda não passou.'.tr
+          : 'A limpeza tem de ser agendada com pelo menos {0} h de antecedência.'.trArgs([_leadHoras]));
       return;
     }
     setState(() {
@@ -168,7 +196,9 @@ class _CheckinPremioServicoScreenState extends State<CheckinPremioServicoScreen>
               escolhida: _opcao == 'limpeza',
               onTap: () => setState(() => _opcao = 'limpeza'),
               titulo: '2 horas de limpeza em casa'.tr,
-              subtitulo: 'Marca-se com pelo menos 12 horas de antecedência.'.tr,
+              subtitulo: _leadHoras == 0
+                  ? 'Podes marcar para hoje.'.tr
+                  : 'Marca-se com pelo menos {0} horas de antecedência.'.trArgs([_leadHoras]),
             ),
           if (temLavagem)
             _Opcao(

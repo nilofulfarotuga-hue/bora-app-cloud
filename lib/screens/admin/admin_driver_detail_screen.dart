@@ -13,6 +13,7 @@ import '../../widgets/admin/escolher_estafeta_sheet.dart'
 import '../../widgets/bora/bora_bottom_action_bar.dart';
 import '../../services/robo_documentos.dart';
 import '../../services/robo_documentos_service.dart';
+import '../../services/tvde_visibilidade.dart';
 import '../../widgets/admin_robo_documentos.dart';
 import '../../widgets/private_bucket_image.dart';
 import '_admin_password_reset_dialog.dart';
@@ -1537,20 +1538,36 @@ class _EditDriverSheetState extends State<_EditDriverSheet> {
               decoration: const InputDecoration(labelText: 'Veículo'),
               // [15/11/2026] 'carro_passageiros' (TVDE, 5 motoristas): sem
               // ele o formulário destes motoristas abria com o veículo vazio.
-              items: const [
-                DropdownMenuItem(value: 'motorcycle', child: Text('Moto')),
-                DropdownMenuItem(value: 'car',        child: Text('Carro')),
-                DropdownMenuItem(value: 'bicycle',    child: Text('Bicicleta')),
-                DropdownMenuItem(
-                    value: 'carro_passageiros',
-                    child: Text('Carro de passageiros (TVDE)')),
+              // 26/11/2026 (arquivo-tvde-total): com o Bora Motorista
+              // fechado a opção só aparece para quem já a tem (senão o
+              // formulário abria vazio), com o nome "Estafeta de carro".
+              items: [
+                const DropdownMenuItem(value: 'motorcycle', child: Text('Moto')),
+                const DropdownMenuItem(value: 'car',        child: Text('Carro')),
+                const DropdownMenuItem(value: 'bicycle',    child: Text('Bicicleta')),
+                if (TvdeVisibilidade.aberto || _vt == 'carro_passageiros')
+                  DropdownMenuItem(
+                      value: 'carro_passageiros',
+                      child: Text(TvdeVisibilidade.aberto
+                          ? 'Carro de passageiros (TVDE)'
+                          : 'Estafeta de carro')),
               ],
               onChanged: (v) => setState(() => _vt = v ?? 'motorcycle'),
             ),
             TextField(controller: _plate, decoration: const InputDecoration(labelText: 'Placa')),
             // TVDE — carro visível ao passageiro no cartão.
-            TextField(controller: _makeModel, decoration: const InputDecoration(labelText: 'Marca e modelo (TVDE)')),
-            TextField(controller: _color, decoration: const InputDecoration(labelText: 'Cor do carro (TVDE)')),
+            TextField(
+                controller: _makeModel,
+                decoration: InputDecoration(
+                    labelText: TvdeVisibilidade.aberto
+                        ? 'Marca e modelo (TVDE)'
+                        : 'Marca e modelo do carro')),
+            TextField(
+                controller: _color,
+                decoration: InputDecoration(
+                    labelText: TvdeVisibilidade.aberto
+                        ? 'Cor do carro (TVDE)'
+                        : 'Cor do carro')),
             const SizedBox(height: 12),
             const Text('Dados sensíveis (o valor fica oculto no histórico)', style: TextStyle(color: AppColors.warning, fontSize: 12)),
             // BUG 1 fix: onChanged trigger setState para que sensitiveChanged

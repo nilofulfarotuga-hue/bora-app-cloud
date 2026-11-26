@@ -31,6 +31,7 @@ import '../../config/app_spacing.dart';
 import '../../services/admin_area_estafeta_service.dart';
 import '../../services/minha_conta.dart';
 import '../../services/robo_documentos.dart';
+import '../../services/tvde_visibilidade.dart';
 import '../../utils/euros.dart';
 import '../../utils/periodo_entregas.dart';
 import '../../widgets/admin/admin_entregue_sem_codigo_button.dart';
@@ -1152,7 +1153,12 @@ class _AdminAreaEstafetaScreenState extends State<AdminAreaEstafetaScreen> {
               const SizedBox(height: Spacing.md),
               const Divider(height: 1),
               const SizedBox(height: Spacing.md),
-              if (modo == null)
+              // 26/11/2026 (arquivo-tvde-total): o modo de trabalho só existe
+              // para corridas de passageiros; com o Bora Motorista fechado
+              // não aparece (o modo gravado fica intacto no servidor).
+              if (!TvdeVisibilidade.aberto)
+                const SizedBox.shrink()
+              else if (modo == null)
                 const Text('Não consegui ler o modo de trabalho.', style: _estiloPequeno)
               else
                 _blocoModoTrabalho(modo),

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:bora_app/screens/admin/admin_dashboard_content.dart';
 import 'package:bora_app/screens/admin/admin_menu_accordion.dart';
 import 'package:bora_app/screens/admin/admin_menu_registry.dart';
+import 'package:bora_app/services/tvde_visibilidade.dart';
 
 import 'fabrica_de_fotos.dart';
 
@@ -111,6 +112,10 @@ void main() {
 
   testWidgets('dashboard novo — cartões de cima, por área, dinheiro, gráfico e menu fechado',
       (tester) async {
+    // 26/11/2026 (arquivo-tvde-total): a foto de referência é a do Bora
+    // Motorista aberto (a linha "Bora Motorista" com valores).
+    TvdeVisibilidade.definirParaTeste(true);
+    addTearDown(() => TvdeVisibilidade.definirParaTeste(false));
     await fotografaTela(
       tester,
       nome: 'painel_admin_dashboard_2026_09_14',

@@ -66,6 +66,7 @@ import '../widgets/trocar_de_papel.dart';
 import '../widgets/driver_fiscal_card.dart';
 import '../widgets/estafeta_documentos_em_falta.dart';
 import '../services/role_switch_helper.dart';
+import '../services/tvde_visibilidade.dart';
 import 'driver_map_screen.dart';
 import 'driver_order_action_helper.dart';
 import '../widgets/bora/maior_18.dart';
@@ -1095,14 +1096,21 @@ class _DriverHomeScreenState extends State<DriverHomeScreen>
             Card(
               margin: const EdgeInsets.only(bottom: 16),
               child: ListTile(
+                // 26/11/2026 (arquivo-tvde-total): com o Bora Motorista
+                // fechado o carro de passageiros é um carro como os outros
+                // (ícone e frase do carro; o rótulo já diz só "Carro").
                 leading: Icon(
-                  vehicleType == VehicleType.car
+                  (vehicleType == VehicleType.car ||
+                          (!TvdeVisibilidade.aberto &&
+                              vehicleType == VehicleType.carPassengers))
                       ? Icons.directions_car
                       : Icons.motorcycle,
                 ),
                 title: Text('Veículo: ${vehicleType.label}'),
                 subtitle: Text(
-                  vehicleType == VehicleType.car
+                  (vehicleType == VehicleType.car ||
+                          (!TvdeVisibilidade.aberto &&
+                              vehicleType == VehicleType.carPassengers))
                       ? 'Pode aceitar todos os serviços disponíveis.'
                       : 'Disponível para restaurantes e pequenas entregas.',
                 ),

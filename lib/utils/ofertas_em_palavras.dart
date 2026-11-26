@@ -110,14 +110,17 @@ String desfechoEmPalavras(Object? desfecho) {
 }
 
 /// Categoria do registro, em palavras.
-String categoriaEmPalavras(Object? categoria) {
+///
+/// 26/11/2026 (arquivo-tvde-total): [tvdeAberto] vem de `TvdeVisibilidade.aberto`
+/// (fica fora daqui para isto continuar puro); fechado, `tvde` é arquivo.
+String categoriaEmPalavras(Object? categoria, {bool tvdeAberto = true}) {
   switch ('${categoria ?? ''}'.trim()) {
     case 'entrega':
       return 'Entrega';
     case 'favor':
       return 'Favor';
     case 'tvde':
-      return 'TVDE (corrida)';
+      return tvdeAberto ? 'TVDE (corrida)' : 'Arquivo (Bora Motorista)';
     case 'limpeza':
       return 'Limpeza';
     case 'lavagem':

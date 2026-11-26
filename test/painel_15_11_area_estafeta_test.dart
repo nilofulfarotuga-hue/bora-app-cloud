@@ -10,6 +10,7 @@ import 'package:bora_app/screens/admin/admin_area_estafeta_screen.dart';
 import 'package:bora_app/services/admin_area_estafeta_service.dart';
 import 'package:bora_app/services/minha_conta.dart';
 import 'package:bora_app/services/robo_documentos.dart';
+import 'package:bora_app/services/tvde_visibilidade.dart';
 import 'package:bora_app/utils/periodo_entregas.dart';
 import 'package:bora_app/widgets/admin/escolher_estafeta_sheet.dart'
     show EstafetaParaAtribuir;
@@ -1009,7 +1010,19 @@ void main() {
       expect(falso.chamadas, contains('aviso_gps:$_driverId'));
     });
 
+    testWidgets('26/11 arquivo-tvde-total: Bora Motorista fechado esconde o modo de trabalho',
+        (t) async {
+      TvdeVisibilidade.definirParaTeste(false);
+      await _abrir(t);
+      expect(find.byKey(const Key('area_modo_atual')), findsNothing);
+      expect(find.byKey(const Key('area_modo_rides_only')), findsNothing);
+      expect(find.textContaining('corridas de passageiros'), findsNothing);
+      expect(find.textContaining('TVDE'), findsNothing);
+    });
+
     testWidgets('modo de trabalho: pede motivo e grava o motivo na auditoria', (t) async {
+      TvdeVisibilidade.definirParaTeste(true);
+      addTearDown(() => TvdeVisibilidade.definirParaTeste(false));
       final falso = await _abrir(t);
       expect(_botao(t, 'area_modo_everything').onPressed, isNull,
           reason: 'já está em "Tudo"');
@@ -1025,6 +1038,8 @@ void main() {
     });
 
     testWidgets('quem não faz corridas de passageiros não muda de modo', (t) async {
+      TvdeVisibilidade.definirParaTeste(true);
+      addTearDown(() => TvdeVisibilidade.definirParaTeste(false));
       await _abrir(t,
           falso: _Falso(modo: const ModoTrabalho(modo: 'everything', veiculo: 'motorcycle')));
       expect(find.byKey(const Key('area_modo_rides_only')), findsNothing);

@@ -16,6 +16,7 @@ import 'package:bora_app/services/foto_avaliacao_service.dart';
 import 'package:bora_app/services/interruptores_app.dart';
 import 'package:bora_app/services/mapa_procura_service.dart';
 import 'package:bora_app/services/prato_visitas_service.dart';
+import 'package:bora_app/services/tvde_visibilidade.dart';
 import 'package:bora_app/widgets/foto_prova_entrega.dart';
 import 'package:bora_app/widgets/home/meus_habituais.dart';
 import 'package:bora_app/widgets/partner/painel_avaliacoes_e_funil.dart';
@@ -473,6 +474,10 @@ void main() {
     });
 
     testWidgets('a chave de dinheiro continua com cadeado/motivo', (t) async {
+      // 26/11/2026 (arquivo-tvde-total): a categoria TVDE só aparece com o
+      // Bora Motorista aberto; o cadeado do dinheiro prova-se aberto.
+      TvdeVisibilidade.definirParaTeste(true);
+      addTearDown(() => TvdeVisibilidade.definirParaTeste(false));
       await t.runAsync(() async {
         await t.pumpWidget(const MaterialApp(home: AdminPlatformSettingsScreen()));
         for (var i = 0; i < 20; i++) {
@@ -486,6 +491,25 @@ void main() {
       await t.tap(find.text('tvde_cancel_fee_cents'));
       await t.pumpAndSettle();
       expect(find.textContaining('Motivo'), findsOneWidget);
+    });
+
+    testWidgets('26/11 arquivo-tvde-total: fechado, a categoria TVDE sai das definições',
+        (t) async {
+      TvdeVisibilidade.definirParaTeste(false);
+      await t.runAsync(() async {
+        await t.pumpWidget(const MaterialApp(home: AdminPlatformSettingsScreen()));
+        for (var i = 0; i < 20; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          await t.pump();
+          if (find.text('CLIENTE').evaluate().isNotEmpty) break;
+        }
+      });
+      expect(find.text('CLIENTE'), findsOneWidget);
+      expect(find.text('TVDE'), findsNothing);
+      expect(eDefinicaoDoBoraMotorista('tvde_cancel_fee_cents', 'tvde'), isTrue);
+      expect(eDefinicaoDoBoraMotorista('client_live_location_enabled', 'tvde'), isFalse);
+      expect(eDefinicaoDoBoraMotorista('plataforma_licenca_imt', 'legal'), isTrue);
+      expect(eDefinicaoDoBoraMotorista('ask_cutlery', 'client'), isFalse);
     });
   });
 

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:bora_app/services/admin/admin_payments_service.dart';
+import 'package:bora_app/services/tvde_visibilidade.dart';
 
 /// Modelo da aba admin "Pagamentos/Cartões" (Carteira Única, Parte 6).
 /// A regra que mais importa: só se oferece "Estornar" no que foi mesmo cobrado
@@ -57,6 +58,17 @@ void main() {
         expect(r, isNot(chave), reason: '$chave devia ter rótulo legível');
       }
       expect(AdminPaymentRow.rotulosVertical.length, 6);
+    });
+
+    test('26/11 arquivo-tvde-total: TVDE fechado mostra-se como arquivo', () {
+      TvdeVisibilidade.definirParaTeste(false);
+      expect(linha(vertical: 'tvde').verticalRotulo, 'Arquivo (Bora Motorista)');
+      expect(linha(vertical: 'tvde_plano').verticalRotulo,
+          'Arquivo (Bora Motorista)');
+      expect(linha(vertical: 'limpeza').verticalRotulo, 'Limpeza');
+      TvdeVisibilidade.definirParaTeste(true);
+      expect(linha(vertical: 'tvde').verticalRotulo, 'TVDE corrida');
+      TvdeVisibilidade.definirParaTeste(false);
     });
 
     test('vertical desconhecida não rebenta — mostra o valor cru', () {

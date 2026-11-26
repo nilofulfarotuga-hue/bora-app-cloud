@@ -15,6 +15,11 @@ import 'admin_notification_failures_screen.dart';
 import 'admin_orders_screen.dart';
 import 'admin_reservations_screen.dart';
 import 'admin_tvde_rides_screen.dart';
+import '../../services/tvde_visibilidade.dart';
+
+/// 26/11/2026 (arquivo-tvde-total): com o Bora Motorista fechado, o que
+/// ainda tiver valor de TVDE no início do painel aparece com este prefixo.
+const String kRotuloArquivoTvde = 'Arquivo (Bora Motorista)';
 
 /// Corpo do Painel Admin (PT-BR): alertas, uma linha por vertical, dinheiro
 /// em três cartões, gráfico, menu por secções e o interruptor de demo.
@@ -136,7 +141,13 @@ class AdminDashboardContent extends StatelessWidget {
         Icons.warning_amber_rounded, AppColors.error, const AdminOrdersScreen());
     add('pedidos_atrasados', 'pedidos atrasados', Icons.timer_off_outlined,
         AppColors.warning, const AdminOrdersScreen());
-    add('tvde_sem_motorista_hoje', 'corridas sem motorista hoje',
+    // 26/11/2026 (arquivo-tvde-total): só aparece com valor (> 0); fechado,
+    // leva o rótulo do arquivo.
+    add(
+        'tvde_sem_motorista_hoje',
+        TvdeVisibilidade.aberto
+            ? 'corridas sem motorista hoje'
+            : 'corridas sem motorista hoje ($kRotuloArquivoTvde)',
         Icons.local_taxi, AppColors.warning, const AdminTvdeRidesScreen());
     add('marcacoes_por_confirmar', 'marcações por confirmar', Icons.rule,
         AppColors.warning, const AdminMarcacoesConfirmacaoScreen());
@@ -287,12 +298,23 @@ class AdminDashboardContent extends StatelessWidget {
             ('entregues', _toInt(e['entregues_hoje'])),
           ], const AdminOrdersScreen()),
           const Divider(height: 1),
-          linha('Bora Motorista', Icons.local_taxi, const Color(0xFF0EA5E9), [
-            ('corridas hoje', _toInt(t['hoje'])),
-            ('em curso', _toInt(t['em_curso'])),
-            ('agendadas', _toInt(t['agendadas'])),
-          ], const AdminTvdeRidesScreen()),
-          const Divider(height: 1),
+          // 26/11/2026 (arquivo-tvde-total): fechado e tudo a zero, a linha
+          // sai; com algum valor fica, com o rótulo do arquivo.
+          if (TvdeVisibilidade.aberto ||
+              _toInt(t['hoje']) + _toInt(t['em_curso']) + _toInt(t['agendadas']) >
+                  0) ...[
+            linha(
+                TvdeVisibilidade.aberto ? 'Bora Motorista' : kRotuloArquivoTvde,
+                Icons.local_taxi,
+                const Color(0xFF0EA5E9),
+                [
+                  ('corridas hoje', _toInt(t['hoje'])),
+                  ('em curso', _toInt(t['em_curso'])),
+                  ('agendadas', _toInt(t['agendadas'])),
+                ],
+                const AdminTvdeRidesScreen()),
+            const Divider(height: 1),
+          ],
           linha('Barbearias', Icons.content_cut, const Color(0xFF8B5CF6), [
             ('marcações hoje', _toInt(s['hoje'])),
             ('por concluir', _toInt(s['por_concluir'])),
@@ -336,7 +358,9 @@ class AdminDashboardContent extends StatelessWidget {
       }
 
       p('entregas_cents', 'entregas');
-      p('tvde_cents', 'Bora Motorista');
+      // 26/11/2026 (arquivo-tvde-total): p() já salta o zero; só o rótulo muda.
+      p('tvde_cents',
+          TvdeVisibilidade.aberto ? 'Bora Motorista' : kRotuloArquivoTvde);
       p('servicos_cents', 'barbearias');
       p('limpeza_cents', 'limpeza');
       p('lavagem_cents', 'lavagem');

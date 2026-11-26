@@ -1,4 +1,5 @@
 import '../models/driver_model.dart' show DriverStatus;
+import '../services/tvde_visibilidade.dart';
 
 /// [B4 · 01/11/2026] Estafeta não aprovado não fica online.
 ///
@@ -62,6 +63,11 @@ class CodigoOnline {
   };
 }
 
+/// 26/11/2026 (arquivo-tvde-total): frase das recusas do Bora Motorista
+/// quando o serviço está fechado.
+const String _fraseNeutraOnline =
+    'Não podes ficar online agora. Fala com o suporte da Bora.';
+
 /// Frase única (PT-PT) para quando o servidor não deixa ficar online.
 String mensagemOnlineRecusado(String? codigo, {String? mensagemServidor}) {
   final aparada = mensagemServidor?.trim() ?? '';
@@ -75,14 +81,27 @@ String mensagemOnlineRecusado(String? codigo, {String? mensagemServidor}) {
       return 'A tua candidatura não foi aprovada. Fala com o suporte da Bora.';
     case CodigoOnline.contaBloqueada:
       return 'A tua conta está bloqueada. Fala com o suporte da Bora.';
+    // 26/11/2026 (arquivo-tvde-total): com o Bora Motorista fechado
+    // (TvdeVisibilidade) estas três recusas não falam em TVDE, Ficha legal
+    // nem limite legal de horas — e não se mostra o texto do servidor, que
+    // pode trazer esses nomes. Aberto, tudo como antes.
     case CodigoOnline.tvdeBloqueado:
+      if (!TvdeVisibilidade.aberto) return _fraseNeutraOnline;
       return doServidor ??
           'Não podes ficar online: falta resolver a conformidade TVDE.';
     case CodigoOnline.documentoExpirado:
+      if (!TvdeVisibilidade.aberto) {
+        // O gatilho fn_motorista_doc_expirado_online só olha para os
+        // documentos da Ficha legal (que não estão em "A minha conta"):
+        // o caminho certo é o suporte.
+        return 'Não podes ficar online: há um documento fora da validade. '
+            'Fala com o suporte da Bora para o atualizares.';
+      }
       return 'Não podes ficar online: há um documento fora da validade '
           '(${doServidor ?? 'ver a Ficha legal'}). Atualiza a validade na '
           'Ficha legal para voltares a ficar online.';
     case CodigoOnline.limiteHoras:
+      if (!TvdeVisibilidade.aberto) return _fraseNeutraOnline;
       return doServidor != null
           ? 'Não podes ficar online: ${doServidor[0].toLowerCase()}${doServidor.substring(1)}.'
           : 'Não podes ficar online: atingiste o limite legal de horas de '

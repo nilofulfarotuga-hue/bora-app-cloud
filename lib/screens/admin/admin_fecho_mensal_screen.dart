@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
+import '../../services/tvde_visibilidade.dart';
 import '../../widgets/admin/admin_fecho_contabilista_section.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 import '_admin_rpc_errors.dart';
@@ -81,6 +82,14 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
       : <Map<String, dynamic>>[];
   static Map<String, dynamic> _mapa(dynamic v) =>
       v is Map ? Map<String, dynamic>.from(v) : <String, dynamic>{};
+
+  // 26/11/2026 (arquivo-tvde-total): a linha "TVDE outros motoristas" só
+  // aparece aberta ou com valor; fechada leva o rótulo do arquivo.
+  static bool _mostraTvde(Map<String, dynamic> fin) =>
+      TvdeVisibilidade.aberto || _n(fin['parte_bora_tvde_outros']) != 0;
+  static String get _rotuloTvde => TvdeVisibilidade.aberto
+      ? 'TVDE outros motoristas (parte Bora)'
+      : 'Arquivo (Bora Motorista): outros motoristas (parte Bora)';
 
   bool get _modeloNovo => DateTime(_ano, _mes).isAfter(DateTime(2026, 9));
 
@@ -275,7 +284,10 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
       ['Totais', 'Receita própria Bora', _n(t['receita_propria_bora']).toStringAsFixed(2), ''],
       ['Totais', 'Pago a estafetas', _n(t['pago_a_estafetas']).toStringAsFixed(2), ''],
       ['Totais', 'Lucro', _n(t['lucro']).toStringAsFixed(2), ''],
-      ['Totais', 'TVDE outros motoristas (parte Bora)', _n(fin['parte_bora_tvde_outros']).toStringAsFixed(2), ''],
+      // 26/11/2026 (arquivo-tvde-total): fechado e a zero, a linha sai; com
+      // valor fica, com o rótulo do arquivo. O valor e o total não mudam.
+      if (_mostraTvde(fin))
+        ['Totais', _rotuloTvde, _n(fin['parte_bora_tvde_outros']).toStringAsFixed(2), ''],
       for (final e in _mapa(fin['rubricas']).entries)
         ['Rubrica', e.key, _n(e.value).toStringAsFixed(2), ''],
       for (final x in _lista(fin['faturas_recibo']))
@@ -371,7 +383,7 @@ class _AdminFechoMensalScreenState extends State<AdminFechoMensalScreen> {
         ['Receita própria Bora', _eur(t['receita_propria_bora'])],
         ['Pago a estafetas', _eur(t['pago_a_estafetas'])],
         ['Lucro', _eur(t['lucro'])],
-        ['TVDE outros motoristas (parte Bora)', _eur(fin['parte_bora_tvde_outros'])],
+        if (_mostraTvde(fin)) [_rotuloTvde, _eur(fin['parte_bora_tvde_outros'])],
         ['Total a declarar', _eur(fin['total_a_declarar'])],
         for (final x in _lista(fin['faturas_recibo']))
           ['Fatura-recibo: ${x['destinatario']}${x['nif'] != null ? ' (NIF ${x['nif']})' : ''}', _eur(x['valor'])],

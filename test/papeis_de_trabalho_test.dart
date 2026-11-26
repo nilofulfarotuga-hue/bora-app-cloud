@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:bora_app/services/papeis_de_trabalho.dart';
+import 'package:bora_app/services/tvde_visibilidade.dart';
 
 /// A caixa "O que queres aceitar?" era um rádio de duas opções fixas. Quem
 /// acumula quatro papéis via duas linhas e não tinha onde ligar a limpeza nem
@@ -9,6 +10,12 @@ PapelDeTrabalho p(String papel, {bool aceita = true}) =>
     PapelDeTrabalho(papel: papel, aceita: aceita);
 
 void main() {
+  // 26/11/2026 (arquivo-tvde-total): estes casos contam o papel 'driver',
+  // que só entra nas contas com o Bora Motorista ABERTO. O fechado está em
+  // bora_motorista_fechado_test.dart.
+  setUpAll(() => TvdeVisibilidade.definirParaTeste(true));
+  tearDownAll(() => TvdeVisibilidade.definirParaTeste(false));
+
   group('a caixa só aparece a quem tem escolha para fazer', () {
     test('quem tem um papel só não vê caixa nenhuma', () {
       expect(mostrarCaixaDePapeis([p('driver')]), isFalse);

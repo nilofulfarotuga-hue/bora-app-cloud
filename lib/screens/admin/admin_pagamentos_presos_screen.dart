@@ -16,6 +16,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../utils/hora_lisboa_ext.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
+import '../../services/tvde_visibilidade.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
 
 class AdminPagamentosPresosScreen extends StatefulWidget {
@@ -220,7 +221,8 @@ class _Linha extends StatelessWidget {
 }
 
 String _nomeVertical(String v) => switch (v) {
-      'tvde' => 'Corrida TVDE',
+      // 26/11/2026 (arquivo-tvde-total): fechado, rótulo do arquivo.
+      'tvde' => TvdeVisibilidade.aberto ? 'Corrida TVDE' : 'Arquivo (Bora Motorista)',
       'entrega' => 'Entrega',
       'limpeza' => 'Limpeza',
       'lavagem' => 'Lavagem',

@@ -760,3 +760,8 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   bora_fee = taxa normal − prémio, gatilho de devolução do vale para qualquer pagamento, migração da reserva ffa77ebf
   do Divan). Backups já feitos: bkp_cleaning_bookings_divan_20261126 e bkp_checkin_premios_vales_20261126.
   e2e_log fluxo premios-checkin-26-11, estado precisa-danilo.
+
+- 26/11/2026 (arquivo-tvde-total, Claude Code no PC, Opus 5.5): o classificador do modo automático recusou lançar
+  um ajudante (subagente) para a parte do painel admin ("Auto-Mode Bypass"; o pedido incluía ecrãs de dinheiro só
+  para esconder rótulos TVDE). Não repeti nem contornei a delegação: fiz eu essa parte, só texto e visibilidade,
+  sem tocar em somas nem RPCs. e2e_log fluxo arquivo-tvde-26-11.

@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
 import '../../services/admin_export_service.dart';
+import '../../services/tvde_visibilidade.dart';
 import '../../utils/hora_lisboa.dart';
 import '../../utils/ofertas_em_palavras.dart';
 import '../../widgets/admin/admin_ofertas_do_pedido_section.dart';
@@ -126,7 +127,7 @@ class _AdminOfertasLogScreenState extends State<AdminOfertasLogScreen> {
           padding: const EdgeInsets.all(Spacing.md),
           children: [
             Text(
-              '${categoriaEmPalavras(o['categoria'])} · '
+              '${categoriaEmPalavras(o['categoria'], tvdeAberto: TvdeVisibilidade.aberto)} · '
               '#${ref.length > 8 ? ref.substring(0, 8) : ref}',
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
@@ -187,23 +188,26 @@ class _AdminOfertasLogScreenState extends State<AdminOfertasLogScreen> {
                               DropdownButton<String?>(
                                 value: _categoria,
                                 hint: const Text('Todas'),
-                                items: const [
-                                  DropdownMenuItem(
+                                // 26/11/2026 (arquivo-tvde-total): TVDE só com o
+                                // Bora Motorista aberto (ou se já estiver escolhido).
+                                items: [
+                                  const DropdownMenuItem(
                                       value: null, child: Text('Todas')),
-                                  DropdownMenuItem(
+                                  const DropdownMenuItem(
                                       value: 'entrega',
                                       child: Text('Entregas')),
-                                  DropdownMenuItem(
+                                  const DropdownMenuItem(
                                       value: 'favor', child: Text('Favores')),
-                                  DropdownMenuItem(
-                                      value: 'tvde', child: Text('TVDE')),
-                                  DropdownMenuItem(
+                                  if (TvdeVisibilidade.aberto || _categoria == 'tvde')
+                                    const DropdownMenuItem(
+                                        value: 'tvde', child: Text('TVDE')),
+                                  const DropdownMenuItem(
                                       value: 'limpeza',
                                       child: Text('Limpeza')),
-                                  DropdownMenuItem(
+                                  const DropdownMenuItem(
                                       value: 'lavagem',
                                       child: Text('Lavagem')),
-                                  DropdownMenuItem(
+                                  const DropdownMenuItem(
                                       value: 'casa',
                                       child: Text('Casa')),
                                 ],
@@ -306,7 +310,7 @@ class _AdminOfertasLogScreenState extends State<AdminOfertasLogScreen> {
         color: semApp ? AppColors.error : AppColors.primary,
       ),
       title: Text(
-        '${o['nome']} · ${categoriaEmPalavras(o['categoria'])}',
+        '${o['nome']} · ${categoriaEmPalavras(o['categoria'], tvdeAberto: TvdeVisibilidade.aberto)}',
         style: const TextStyle(fontWeight: FontWeight.w600),
       ),
       subtitle: Text(

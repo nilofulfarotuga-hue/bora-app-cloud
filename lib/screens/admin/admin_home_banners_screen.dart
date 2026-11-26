@@ -15,6 +15,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
+import '../../services/tvde_visibilidade.dart';
 import '../../utils/hora_lisboa.dart';
 import '../../utils/safe_image_picker.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
@@ -957,8 +958,11 @@ class _EditorFaixaScreenState extends State<_EditorFaixaScreen> {
           isExpanded: true,
           decoration: const InputDecoration(labelText: 'Categoria'),
           items: [
+            // 26/11/2026 (arquivo-tvde-total): o Bora Motorista só se oferece
+            // como destino com ele aberto (ou se a faixa já o tiver).
             for (final e in _categorias.entries)
-              DropdownMenuItem(value: e.key, child: Text(e.value)),
+              if (e.key != 'motorista' || TvdeVisibilidade.aberto || _destino == 'motorista')
+                DropdownMenuItem(value: e.key, child: Text(e.value)),
           ],
           onChanged: (v) => setState(() => _destino = v),
         );

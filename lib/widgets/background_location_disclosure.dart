@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/app_colors.dart';
+import '../services/tvde_visibilidade.dart';
 
 /// Declaração em destaque (prominent disclosure) de LOCALIZAÇÃO EM SEGUNDO PLANO.
 ///
@@ -77,19 +78,27 @@ class _DisclosureDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text(
+          // 26/11/2026 (arquivo-tvde-total): com o Bora Motorista fechado
+          // (TvdeVisibilidade) a declaração fala só de entregas e pedidos
+          // (a finalidade é a mesma; só sai a palavra "corridas").
+          children: [
+            const Text(
               'O Bora recolhe a tua localização — incluindo quando a app está '
               'fechada ou não está a ser usada — para:',
               style: TextStyle(fontSize: 14, height: 1.4),
             ),
-            SizedBox(height: 10),
-            _Bullet('mostrar a tua posição em tempo real ao cliente e à '
-                'central durante entregas e corridas;'),
-            _Bullet('te enviar pedidos e corridas próximos enquanto estás '
-                'Online.'),
-            SizedBox(height: 12),
-            Text(
+            const SizedBox(height: 10),
+            _Bullet(TvdeVisibilidade.aberto
+                ? 'mostrar a tua posição em tempo real ao cliente e à '
+                    'central durante entregas e corridas;'
+                : 'mostrar a tua posição em tempo real ao cliente e à '
+                    'central durante as entregas;'),
+            _Bullet(TvdeVisibilidade.aberto
+                ? 'te enviar pedidos e corridas próximos enquanto estás '
+                    'Online.'
+                : 'te enviar pedidos próximos enquanto estás Online.'),
+            const SizedBox(height: 12),
+            const Text(
               'A recolha só acontece enquanto estás Online e para assim que '
               'ficas Offline. Podes recusar — só não vais poder ficar Online.',
               style: TextStyle(

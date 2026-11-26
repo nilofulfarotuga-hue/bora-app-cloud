@@ -8,8 +8,27 @@ import '../../services/remote_fees_service.dart';
 import '../../services/small_order_fee.dart';
 import '../../config/app_colors.dart';
 import '../../widgets/bora/bora_screen_app_bar.dart';
+import '../../services/tvde_visibilidade.dart';
 import 'admin_gorjetas_screen.dart'
     show kChaveGorjetaJunto, kExplicacaoGorjetaJunto;
+
+/// 26/11/2026 (arquivo-tvde-total): definições do Bora Motorista (TVDE) que
+/// saem da tela com o interruptor fechado. As duas da posição do cliente ao
+/// vivo vivem na categoria 'tvde' mas não são só do TVDE: ficam.
+const Set<String> kDefinicoesLegaisDoBoraMotorista = {
+  'plataforma_licenca_imt',
+  'motorista_docs_aviso_dias',
+  'motorista_bloqueio_doc_expirado',
+  'fiscalizacao_token_horas',
+  'fiscalizacao_verificar_base_url',
+  'sentinela_min_tvde_sem_motorista',
+};
+
+bool eDefinicaoDoBoraMotorista(String key, String? category) {
+  if (key.startsWith('client_live_location_')) return false;
+  if (category == 'tvde' || category == 'tvde_conformidade') return true;
+  return key.startsWith('tvde') || kDefinicoesLegaisDoBoraMotorista.contains(key);
+}
 
 /// Admin Platform Settings — edit configurable parameters in `platform_settings`.
 /// HIGH-RISK: changes propagate live; use with care. All changes audited.
@@ -50,6 +69,12 @@ class _AdminPlatformSettingsScreenState extends State<AdminPlatformSettingsScree
       final by = <String, List<_Setting>>{};
       for (final s in list) {
         if (_obsoleteDepositKeys.contains(s.key)) continue;
+        // 26/11/2026 (arquivo-tvde-total): com o Bora Motorista fechado as
+        // definições dele saem desta tela (ficam no servidor, intactas, e
+        // voltam quando o interruptor do Arquivo abrir).
+        if (!TvdeVisibilidade.aberto && eDefinicaoDoBoraMotorista(s.key, s.category)) {
+          continue;
+        }
         final rotulo = rotulosCancelamento[s.key] ??
             rotulosVitrineCliente[s.key] ??
             rotulosGorjetas[s.key] ??

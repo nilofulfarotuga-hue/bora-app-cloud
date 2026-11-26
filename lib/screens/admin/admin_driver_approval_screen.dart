@@ -8,6 +8,7 @@ import '../../services/driver_documentos.dart';
 import '../../services/robo_documentos.dart';
 import '../../widgets/admin_documentos.dart';
 import '../../widgets/admin_robo_documentos.dart';
+import '../../services/tvde_visibilidade.dart';
 import '../../widgets/admin_ficha_tvde.dart';
 import '../../widgets/admin_other_role_badge.dart';
 import '../../widgets/private_bucket_image.dart';
@@ -957,7 +958,9 @@ class _DriverDetailSheet extends StatelessWidget {
             onDesfazer: (v) => desfazerDecisaoDoRobo(context, v),
           ),
 
-          if (eMotoristaTvde(d)) FichaTvdeSecao(driver: d),
+          // 26/11/2026 (arquivo-tvde-total): a ficha TVDE só com o Bora
+          // Motorista aberto; fechado, é aprovado como estafeta de carro.
+          if (TvdeVisibilidade.aberto && eMotoristaTvde(d)) FichaTvdeSecao(driver: d),
 
           const DocSeccao('Pagamento'),
           DocCampo('IBAN', d['iban'], falta: faltaItem('iban')),

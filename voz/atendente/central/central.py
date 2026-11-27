@@ -97,6 +97,15 @@ def voz_ms(pcm: bytes) -> int:
     return n * 20
 
 
+# 27/11/2026 (chamada das 11:42: "sexta-feita" em vez de estafeta, "Josemim" em vez de Jyosmi): o Whisper
+# aceita um texto de contexto com as palavras que vão aparecer. Lojas da app e palavras da Bora.
+VOCABULARIO = _env("VOZ_WHISPER_PROMPT", (
+    "Chamada para a Bora, app de entregas da Guarda. Estafeta, parceiro, Favores, MB Way, tokens, carteira, "
+    "registo, pedido, entrega. Lojas: Jyosmi Sushi, Fuku Sushi, Tiago's Pizza, Boom Burger, Goola Açaí, "
+    "Sabores de Casa, Doner Kebab, Pôr do Sol, Pizzaria Central, Continente, Pingo Doce, Lidl, Auchan, "
+    "Intermarché, Mercadona, McDonald's, Burger King, KFC, Pizza Hut, Farmácia da Sé, Leonidas, Natur House."))
+
+
 async def ouvir_texto(pcm: bytes) -> str:
     """Groq Whisper (rápido; a chave Groq já existe na VPS). Áudio curto em WAV 8 kHz.
     Ruído e alucinações do Whisper ("Obrigado.", "Legendas…") devolvem "" e não vão ao cérebro."""
@@ -110,7 +119,7 @@ async def ouvir_texto(pcm: bytes) -> str:
                          headers={"Authorization": "Bearer " + _env("GROQ_API_KEY")},
                          files={"file": ("fala.wav", buf.getvalue(), "audio/wav")},
                          data={"model": "whisper-large-v3-turbo", "language": "pt", "temperature": "0",
-                               "response_format": "verbose_json"})
+                               "response_format": "verbose_json", "prompt": VOCABULARIO[:900]})
         if r.status_code != 200:
             LOG.warning("groq %s %s", r.status_code, r.text[:200])
             return ""
@@ -518,13 +527,40 @@ async def cerebro_stream(dados: dict, fila: asyncio.Queue) -> dict:
     return fim
 
 
-async def pipeline_voz(fila_txt: asyncio.Queue, fila_audio: asyncio.Queue, voz: str):
+# 27/11/2026 (Danilo: "a Gemini fala percebo, depois o Claude fala percebo de novo"): o Opus às vezes começa
+# com uma palavra de ligação mesmo depois da ponte. Se a ponte já tocou, essa palavra sai da 1.ª frase dele
+# ("Compreendo, quer retirar…" -> "Quer retirar…"); se a frase era só isso ("Certo."), não se diz.
+LIGACAO = re.compile(r"^\s*(certo|percebo|compreendo|entendo|obrigad[ao]|muito bem|[óo]timo|claro|ah,? certo|"
+                     r"muito prazer|com certeza|perfeito|est[áa] bem)\s*[,.!…]+\s*", re.I)
+
+
+def sem_ligacao(frase: str) -> str:
+    resto = LIGACAO.sub("", frase, count=1)
+    resto = LIGACAO.sub("", resto, count=1)      # "Certo, compreendo, …"
+    if re.fullmatch(r"(senhora?|dona|sr\.?|sra\.?)\s+[\wÀ-ÿ'-]+(\s+[\wÀ-ÿ'-]+)?\s*[.!]?\s*", resto, re.I):
+        return ""                                # "Obrigada, senhora Maria." -> já disse "Obrigada."
+    return (resto[:1].upper() + resto[1:]) if resto else ""
+
+
+async def pipeline_voz(fila_txt: asyncio.Queue, fila_audio: asyncio.Queue, voz: str,
+                       t_ponte: "asyncio.Task | None" = None):
     """Transforma cada frase em som logo que chega (a seguinte prepara-se enquanto a anterior toca)."""
+    primeira = True
     while True:
         frase = await fila_txt.get()
         if frase is None:
             await fila_audio.put(None)
             return
+        if primeira and t_ponte is not None:
+            try:
+                ponte = await t_ponte
+            except Exception:  # noqa: BLE001
+                ponte = ""
+            if ponte:
+                frase = sem_ligacao(frase)
+                if not frase.strip():
+                    continue                        # era só "Certo.": a ponte já o disse
+        primeira = False
         if f"{voz}|{frase}" in cache_tts or not (_env("VOZ_MOTOR_VOZ") == "google" and _env("GEMINI_TTS_KEY")):
             try:
                 pcm = await falar_pcm(frase, voz)
@@ -763,7 +799,7 @@ async def conversa(ch: Chamada, uid: str, telefone: str, cfg: dict, voz: str, de
         t_cerebro = asyncio.create_task(cerebro_stream({
             "chamada_id": cid, "telefone": telefone, "quem": quem, "pedidos": pedidos,
             "mensagens": mensagens, "custo_acumulado_usd": custo}, fila_txt))
-        t_voz = asyncio.create_task(pipeline_voz(fila_txt, fila_audio, voz))
+        t_voz = asyncio.create_task(pipeline_voz(fila_txt, fila_audio, voz, t_ponte))
         ponte, t_ponte_som = (await t_ponte) if t_ponte else "", 0.0
         som_ponte = cache_tts.get(f"{voz}|{ponte}") if ponte else None
         if ponte and not som_ponte:
@@ -793,7 +829,7 @@ async def conversa(ch: Chamada, uid: str, telefone: str, cfg: dict, voz: str, de
         escalado = escalado or bool(r.get("escalado"))
         mensagens.extend(r.get("novas_mensagens") or [{"role": "assistant", "content": resposta}])
         pendente = resto(resposta, ouviu_so.removeprefix(ponte).strip()) if interrompido else ""
-        dito_total = ouviu_so if interrompido else f"{ponte} {resposta}".strip()
+        dito_total = ouviu_so or f"{ponte} {resposta}".strip()   # o que tocou mesmo (sem a palavra repetida)
         disse_antes = dito_total
         falas.append({"quem": "atendente", "texto": dito_total})
         asyncio.create_task(edge("voz-ferramentas", "fala", {"chamada_id": cid, "quem": "atendente",

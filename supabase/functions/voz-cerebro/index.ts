@@ -57,7 +57,7 @@ const FERRAMENTAS = [
   },
   {
     name: "procurar_loja",
-    description: "Procura uma loja ou restaurante da Bora pelo nome: tipo, se é parceira, se está disponível na app e horário.",
+    description: "Procura uma loja ou restaurante da Bora pelo nome, mesmo mal ouvido (procura nomes parecidos pelas letras e pelo som): tipo, se é parceira, se está disponível na app, horário e parecença.",
     strict: true,
     input_schema: {
       type: "object", properties: { nome: { type: "string", description: "Nome ou parte do nome da loja" } },
@@ -271,12 +271,24 @@ async function correrFerramenta(nome: string, inp: any, ctx: { telefone: string;
     return { pedidos: data ?? [] };
   }
   if (nome === "procurar_loja") {
+    // 27/11/2026: procura por nomes PARECIDOS (letras e som): o reconhecimento de voz escreve "Josemim" ou
+    // "Jovem" para "Jyosmi Sushi". voz_procurar_loja devolve as 5 mais parecidas com a parecença (0 a 1).
     const q = txt(inp?.nome, 80).replace(/[%_,()]/g, " ").trim();
     if (q.length < 2) return { erro: "nome curto" };
-    const { data } = await sb.from("restaurants").select("name,category,is_partner,coming_soon,business_hours,approval_status")
+    const { data, error } = await sb.rpc("voz_procurar_loja", { p_nome: q });
+    if (!error) {
+      return {
+        lojas: (data ?? []).map((r: Record<string, unknown>) => ({
+          nome: r.nome, tipo: r.tipo, parceira: !!r.parceira, disponivel_na_app: !!r.disponivel_na_app,
+          horario: r.horario ?? null, parecenca: r.parecenca,
+        })),
+        nota: "Os nomes vêm por parecença com o que ouviste. Se a parecença for menor que 1, confirma com a pessoa o nome certo antes de continuar.",
+      };
+    }
+    const { data: d2 } = await sb.from("restaurants").select("name,category,is_partner,coming_soon,business_hours,approval_status")
       .ilike("name", `%${q}%`).limit(5);
     return {
-      lojas: (data ?? []).map((r) => ({
+      lojas: (d2 ?? []).map((r) => ({
         nome: r.name, tipo: r.category, parceira: !!r.is_partner,
         disponivel_na_app: r.approval_status === "approved" && !r.coming_soon, horario: r.business_hours ?? null,
       })),

@@ -3,14 +3,16 @@
 Fala o protocolo AudioSocket do Asterisk (TCP, áudio slin 8 kHz mono, 20 ms por pacote):
   ouvir  -> deteção de fala (webrtcvad) -> Groq whisper-large-v3-turbo (pt)
   pensar -> Edge Function voz-cerebro (Claude Opus 5.5; ferramentas e regras lá dentro)
-  falar  -> edge-tts pt-PT (Raquel/Duarte) -> ffmpeg -> slin 8 kHz
+  falar  -> voz da Google (Gemini TTS, pt-PT, sempre a mesma voz feminina) -> ffmpeg -> slin 8 kHz
+            (recurso: edge-tts pt-PT Raquel, também feminina; nunca muda para voz de homem)
 e grava tudo pela Edge voz-ferramentas (chamada, falas, áudio no bucket privado, resumo, push).
 
 Porquê sem Pipecat: o Pipecat não tem transporte AudioSocket nativo e a VPS tem 1 CPU e pouca RAM;
 isto é a mesma cascata em ~400 linhas, sem modelos locais. Uma chamada de cada vez (VOZ_LINHAS).
 
 Ambiente (.env da central, nunca no git): VOZ_SENHA (cabeçalho x-voz-token), GROQ_API_KEY,
-SUPABASE_FN (https://<ref>.supabase.co/functions/v1), VOZ_PORTA (9092), VOZ_PASTA_CHAMADORES (/var/voz).
+SUPABASE_FN (https://<ref>.supabase.co/functions/v1), VOZ_PORTA (9092), VOZ_PASTA_CHAMADORES (/var/voz),
+GEMINI_TTS_KEY (chave Google da Bora, copiada de ficheiro para ficheiro na VPS), VOZ_GEMINI_TTS, VOZ_GEMINI_VOZ.
 """
 
 import array
@@ -44,7 +46,7 @@ PASTA_CHAMADORES = _env("VOZ_PASTA_CHAMADORES", "/var/voz")
 
 TAXA = 8000                 # slin 8 kHz
 PACOTE = 320                # 20 ms de 16 bits mono
-SILENCIO_FIM_MS = 600       # pausa que fecha uma frase
+SILENCIO_FIM_MS = 500       # pausa que fecha uma frase (27/11: 600 -> 500, "demora")
 SILENCIO_MUDO_S = 8         # ninguém fala -> o cérebro recebe "[silêncio]"
 INTERROMPER_MS = 500        # voz forte da pessoa por cima do atendente que o faz calar (barge-in)
 ENERGIA_INTERROMPER = 700   # RMS mínimo (int16) para um pacote contar como voz por cima (o eco é mais fraco)
@@ -125,6 +127,40 @@ async def ouvir_texto(pcm: bytes) -> str:
 
 
 VOZ_GOOGLE = {"nome": _env("VOZ_GOOGLE", "")}
+# 27/11/2026 (Danilo: "é uma pessoa só que atende", "demora"): a voz principal passa a ser a da Google
+# (Gemini TTS em stream). Medido na VPS: 1.º áudio 0,66 s e frase de 6 s pronta em 1,4 s, sem as falhas
+# da Microsoft (que obrigavam a trocar para a voz de homem e chegavam a 20 s).
+GEMINI_MODELO = _env("VOZ_GEMINI_TTS", "gemini-3.8-flash-lite-tts")
+GEMINI_VOZ = _env("VOZ_GEMINI_VOZ", "Kore")
+
+
+async def gemini_pcm(texto: str) -> bytes:
+    """Voz da Google pelo Gemini TTS (pt-PT), em stream; devolve slin 8 kHz."""
+    chave = _env("GEMINI_TTS_KEY")
+    corpo = {"contents": [{"parts": [{"text": texto}]}],
+             "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {
+                 "languageCode": "pt-PT", "voiceConfig": {"prebuiltVoiceConfig": {"voiceName": GEMINI_VOZ}}}}}
+    pcm24 = bytearray()
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODELO}:streamGenerateContent?alt=sse"
+    async with httpx.AsyncClient(timeout=httpx.Timeout(10, connect=3)) as c:
+        async with c.stream("POST", url, headers={"x-goog-api-key": chave}, json=corpo) as r:
+            if r.status_code != 200:
+                raise RuntimeError(f"gemini tts {r.status_code} {(await r.aread())[:150]!r}")
+            async for linha in r.aiter_lines():
+                if not linha.startswith("data:"):
+                    continue
+                d = json.loads(linha[5:])
+                for parte in (d.get("candidates") or [{}])[0].get("content", {}).get("parts", []):
+                    if "inlineData" in parte:
+                        pcm24.extend(base64.b64decode(parte["inlineData"]["data"]))
+    if not pcm24:
+        raise RuntimeError("gemini tts sem áudio")
+    p = await asyncio.create_subprocess_exec(
+        "ffmpeg", "-loglevel", "error", "-f", "s16le", "-ar", "24000", "-ac", "1", "-i", "pipe:0",
+        "-f", "s16le", "-ac", "1", "-ar", str(TAXA), "pipe:1",
+        stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE)
+    pcm, _ = await p.communicate(bytes(pcm24))
+    return pcm
 
 
 async def google_pcm(texto: str) -> bytes:
@@ -165,6 +201,15 @@ async def falar_pcm(texto: str, voz: str) -> bytes:
     chave = f"{voz}|{texto}"
     if chave in cache_tts:
         return cache_tts[chave]
+    if _env("GEMINI_TTS_KEY"):
+        for tentativa in (1, 2):
+            try:
+                pcm = await asyncio.wait_for(gemini_pcm(texto), 4 + len(texto) / 40)
+                if len(texto) < 200:
+                    cache_tts[chave] = pcm
+                return pcm
+            except Exception as e:  # noqa: BLE001 — tenta outra vez; à 2.ª cai para a Microsoft
+                LOG.warning("voz Google falhou (tentativa %s): %r", tentativa, e)
     if _env("GOOGLE_TTS_KEY"):
         try:
             pcm = await google_pcm(texto)
@@ -174,7 +219,7 @@ async def falar_pcm(texto: str, voz: str) -> bytes:
         except Exception as e:  # noqa: BLE001 — cai para o edge-tts
             LOG.warning("google tts falhou: %s", e)
     mp3, erro = b"", None
-    for v in [voz, voz, "pt-PT-DuarteNeural"]:
+    for v in [voz, voz, voz]:  # sempre a mesma voz (feminina): nunca troca para a do Duarte
         try:
             # Frases compridas demoram mais a sintetizar: o limite cresce com o texto (2,5 s + ~1 s por 70 letras).
             mp3 = await asyncio.wait_for(edge_mp3(texto, v), TTS_TIMEOUT_S + len(texto) / 70)

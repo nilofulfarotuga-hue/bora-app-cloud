@@ -31,6 +31,7 @@ import '../widgets/bora/bora.dart';
 import '../widgets/bora_assistant_fab.dart';
 import 'client/assistant/amigo_bora_entrada.dart';
 import '../widgets/home/checkin_diario_card.dart';
+import '../widgets/home/convite_categorias.dart';
 import '../widgets/home/meus_habituais.dart';
 import '../widgets/home/receita_do_dia_card.dart';
 import '../widgets/home/home_feed.dart';
@@ -782,13 +783,24 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
     // para o nome ter as suas duas linhas sem apertar a ilustracao.
     // O AMIGO (09/11/2026, m11-amigo-rosto): o mosaico "Amigo" com o rostinho
     // animado abre a grelha (amigo_mosaico_categorias no painel).
+    //
+    // O CONVITE (27/11/2026, home-categorias-convite): uma onda curta e rara
+    // faz os mosaicos darem um pulinho para convidar ao toque. O Amigo ocupa
+    // a primeira célula mas fica de fora (já tem o rostinho animado).
+    // home_convite_categorias no painel; ver widgets/home/convite_categorias.
     return ListenableBuilder(
       listenable: Listenable.merge([
         AssistantFlags.enabled,
         AssistantFlags.rostoAtivo,
         AssistantFlags.mosaico,
       ]),
-      builder: (context, _) => GridView.count(
+      builder: (context, _) {
+      final comAmigo = amigoMosaicoVisivel();
+      final inicio = comAmigo ? 1 : 0;
+      return ConviteCategorias(
+      colunas: 4,
+      total: inicio + tiles.length,
+      child: GridView.count(
       crossAxisCount: 4,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -800,8 +812,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
       mainAxisSpacing: Spacing.sm,
       childAspectRatio: 0.88,
       children: [
-        if (amigoMosaicoVisivel()) const AmigoMosaico(),
-        ...tiles.map((t) {
+        if (comAmigo) const AmigoMosaico(),
+        ...tiles.indexed.map((par) {
+        final (i, t) = par;
         // Semantics identifiers para testes E2E (Maestro): label → resource-id.
         const semanticsIds = {
           'Restaurantes': 'tile_restaurantes',
@@ -831,11 +844,14 @@ class _ClientHomeScreenState extends State<ClientHomeScreen>
           );
         }
         final id = semanticsIds[t.label];
-        if (id == null) return card;
-        return Semantics(identifier: id, child: card);
+        final mosaico = ConviteMosaico(indice: inicio + i, child: card);
+        if (id == null) return mosaico;
+        return Semantics(identifier: id, child: mosaico);
       }),
       ],
       ),
+      );
+      },
     );
   }
 

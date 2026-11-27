@@ -58,9 +58,11 @@ ALUCINACOES = re.compile(
     r"^(obrigad[oa]( por (assistir|ver))?|tchau|legendas?\b.*|.*amara\.org.*|inscreva-se.*|"
     r"subt[ií]tulos.*|m[uú]sica|\W*)$", re.I)
 MSG_OCUPADO = ("A linha está ocupada neste momento. Ligue dentro de momentos ou escreva para "
-               "suporte arroba boraguarda ponto com. Obrigado.")
+               "suporte arroba boraguarda ponto com. Obrigada.")
 MSG_DESLIGADO = ("Olá, ligou para a Bora. De momento não temos atendimento por telefone. "
-                 "Escreva para suporte arroba boraguarda ponto com e a equipa responde-lhe por escrito. Obrigado.")
+                 "Escreva para suporte arroba boraguarda ponto com e a equipa responde-lhe por escrito. Obrigada.")
+SAUDACAO = ("Olá, está a falar com a assistente virtual da Bora. "
+            "A chamada é gravada para qualidade. Em que posso ajudar?")
 NAO_GRAVAR = re.compile(r"n[aã]o (quero|aceito).{0,20}grava|sem grava|n[aã]o grave", re.I)
 
 # Tipos do AudioSocket.
@@ -269,6 +271,73 @@ async def falar_pcm(texto: str, voz: str) -> bytes:
     if len(texto) < 200:
         cache_tts[chave] = pcm
     return pcm
+
+
+# ─── Palavra-ponte (27/11/2026, ideia do Danilo: "o Gemini vai respondendo sem demora enquanto o Opus
+# prepara a resposta") ──────────────────────────────────────────────────────────────────────────────────
+# Medido na chamada das 10:43: a 1.ª voz saía 3 a 7 s depois de a pessoa acabar (Opus a pensar + voz da
+# frase inteira). Agora, mal chega o texto da pessoa, um modelo rápido (Gemini Flash-Lite, ~0,4 s) escolhe
+# a palavra curta que uma rececionista diria logo ("Percebo.", "Muito prazer.") e ela toca já, com o som
+# guardado em cache (sem esperar pela voz). Ao mesmo tempo o Opus prepara a resposta a sério e continua
+# a seguir. As palavras não dão informação nenhuma (nada de "claro" ou "sim"), para nunca chocarem com o
+# que o Opus vai dizer. Se o Gemini não responder a tempo, uma regra simples escolhe.
+PONTES = ["Certo.", "Muito bem.", "Percebo.", "Compreendo.", "Muito prazer.", "Obrigada.", "Ótimo.",
+          "Lamento imenso.", "Ah, certo."]
+PONTE_MODELOS = [m.strip() for m in _env("VOZ_PONTE_MODELOS", "gemini-3.5-flash-lite,gemini-3.1-flash-lite-preview").split(",") if m.strip()]
+PONTE_TIMEOUT_S = float(_env("VOZ_PONTE_TIMEOUT_S", "0.9"))
+NOTA_PONTE = ("[Nota da central: antes da tua resposta a pessoa já ouviu uma palavra curta de ligação dita por ti "
+              "(como «Certo.» ou «Percebo.»). Começa direto no conteúdo, sem palavra de ligação; a tua 1.ª frase "
+              "tem no máximo 10 palavras.]")
+_FECHO = re.compile(r"\b(obrigad[oa]|adeus|tchau|at[eé] logo|s[oó] isso|mais nada|[eé] tudo|bom dia|boa tarde|boa noite|ol[aá])\b", re.I)
+_QUEIXA = re.compile(r"problema|reclama|queix|atras|n[aã]o chegou|errad|fri[oa]|estragad|falt|mal |cancel|devolv|cobra", re.I)
+_SIM = re.compile(r"^\s*(sim|pode|ok|okay|est[aá] bem|exato|isso|certo|perfeito|pode ser)\b", re.I)
+
+
+def ponte_regra(texto: str, ultima: str) -> str:
+    if _FECHO.search(texto) and len(texto) < 60:
+        return ""
+    if _QUEIXA.search(texto):
+        p = "Compreendo."
+    elif _SIM.match(texto):
+        p = "Muito bem."
+    else:
+        p = "Percebo." if ultima != "Percebo." else "Certo."
+    return p if p != ultima else ("Certo." if p != "Certo." else "Ah, certo.")
+
+
+async def escolher_ponte(texto: str, antes: str, ultima: str) -> str:
+    """Devolve a palavra-ponte (ou "" para não dizer nada). Nunca demora mais que PONTE_TIMEOUT_S."""
+    if not _env("GEMINI_TTS_KEY") or not PONTE_MODELOS:
+        return ponte_regra(texto, ultima)
+    lista = " ".join(f"{i + 1} {p}" for i, p in enumerate(PONTES))
+    pedido = (f"Ao telefone, a assistente da Bora disse: «{antes[-300:]}»\nA pessoa respondeu: «{texto[:400]}»\n"
+              f"Escolhe a palavra curta que uma rececionista diz logo, antes de responder a sério: {lista}; 0 nenhuma.\n"
+              "5 só se a pessoa acabou de dizer o nome dela. 6 quando a pessoa deu um dado que lhe pediram (e-mail, "
+              "número, confirmação). 4 ou 8 para queixa ou problema. 2 ou 7 quando a pessoa diz que sim ou concorda. "
+              "1, 3 ou 9 para perguntas e pedidos. 0 se a pessoa se despede, só cumprimenta, ou não se percebe. "
+              f"Não escolhas «{ultima}». Responde só o número.")
+    try:
+        async with httpx.AsyncClient(timeout=PONTE_TIMEOUT_S) as c:
+            r = await asyncio.wait_for(c.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{PONTE_MODELOS[0]}:generateContent",
+                headers={"x-goog-api-key": _env("GEMINI_TTS_KEY")},
+                json={"contents": [{"parts": [{"text": pedido}]}],
+                      "generationConfig": {"maxOutputTokens": 4, "temperature": 0,
+                                           "thinkingConfig": {"thinkingLevel": "minimal"}}}), PONTE_TIMEOUT_S)
+        if r.status_code != 200:
+            if r.status_code in (400, 404):  # modelo não existe para esta chave: passa ao seguinte
+                PONTE_MODELOS.append(PONTE_MODELOS.pop(0))
+            raise RuntimeError(f"ponte {r.status_code}")
+        resp = "".join(pt.get("text", "") for pt in r.json()["candidates"][0]["content"]["parts"])
+        m = re.search(r"\d", resp)
+        n = int(m.group()) if m else -1
+        if n == 0:
+            return ""
+        if 1 <= n <= len(PONTES) and PONTES[n - 1] != ultima:
+            return PONTES[n - 1]
+    except Exception as e:  # noqa: BLE001 — sem Gemini a tempo, a regra escolhe
+        LOG.info("ponte por regra (%s)", str(e)[:80] or type(e).__name__)
+    return ponte_regra(texto, ultima)
 
 
 def frases(texto: str) -> list[str]:
@@ -533,8 +602,7 @@ async def conversa(ch: Chamada, uid: str, telefone: str, cfg: dict, voz: str, de
     asyncio.create_task(edge("voz-cerebro", "aquecer", {}, timeout=20))
     ab = await edge("voz-ferramentas", "abrir", {"telefone": telefone, "sip_call_id": uid, "motor": cfg.get("motor")})
     cid, quem, pedidos = ab.get("chamada_id"), ab.get("quem", {}), ab.get("pedidos", [])
-    saudacao = defs.get("voz_saudacao") or ("Olá, está a falar com o assistente virtual da Bora. "
-                                            "A chamada é gravada para qualidade. Em que posso ajudar?")
+    saudacao = defs.get("voz_saudacao") or SAUDACAO
     t_inicio = time.monotonic()
     await ch.tocar(await falar_pcm(saudacao, voz))
     await edge("voz-ferramentas", "fala", {"chamada_id": cid, "quem": "atendente", "texto": saudacao, "ms": 0})
@@ -542,6 +610,7 @@ async def conversa(ch: Chamada, uid: str, telefone: str, cfg: dict, voz: str, de
     mensagens, falas = [], [{"quem": "atendente", "texto": saudacao}]
     custo, escalado, consentiu, primeira_ms = 0.0, False, True, None
     interrompido, ouviu_so, pendente = False, "", ""
+    ultima_ponte, disse_antes, texto_pendente = "", saudacao, ""
     max_s = float(defs.get("voz_duracao_max_min") or 15) * 60
     while ch.aberta and time.monotonic() - t_inicio < max_s:
         pcm = await ch.ouvir_frase(SILENCIO_MUDO_S)
@@ -562,14 +631,21 @@ async def conversa(ch: Chamada, uid: str, telefone: str, cfg: dict, voz: str, de
                     if not interrompido:
                         interrompido, ouviu_so = False, ""
                 continue
+        if texto_pendente:                     # a pessoa falou por cima da ponte: junta as duas partes
+            texto, texto_pendente = f"{texto_pendente} {texto}", ""
         if NAO_GRAVAR.search(texto):
             consentiu = False
         falas.append({"quem": "cliente", "texto": texto})
         asyncio.create_task(edge("voz-ferramentas", "fala", {"chamada_id": cid, "quem": "cliente", "texto": texto,
                                                              "ms": int((t_fala - t_inicio) * 1000)}))
+        # Palavra-ponte: só quando a pessoa disse alguma coisa e o som já está em cache (tocar sem esperar).
+        t_ponte = (asyncio.create_task(escolher_ponte(texto, disse_antes, ultima_ponte))
+                   if pcm is not None else None)
         # Se a pessoa cortou o atendente, o cérebro sabe até onde ela ouviu (não repete tudo).
         para_cerebro = (f"[A pessoa interrompeu-te; só chegou a ouvir: «{ouviu_so}»] {texto}"
                         if interrompido else texto)
+        if t_ponte:
+            para_cerebro = f"{para_cerebro}\n{NOTA_PONTE}"
         mensagens.append({"role": "user", "content": para_cerebro})
         # O cérebro responde em stream: cada frase completa vai logo para a voz e é dita enquanto
         # ele ainda escreve a seguinte (ou corre uma ferramenta). Sem frases de espera fixas.
@@ -579,7 +655,25 @@ async def conversa(ch: Chamada, uid: str, telefone: str, cfg: dict, voz: str, de
             "chamada_id": cid, "telefone": telefone, "quem": quem, "pedidos": pedidos,
             "mensagens": mensagens, "custo_acumulado_usd": custo}, fila_txt))
         t_voz = asyncio.create_task(pipeline_voz(fila_txt, fila_audio, voz))
+        ponte, t_ponte_som = (await t_ponte) if t_ponte else "", 0.0
+        som_ponte = cache_tts.get(f"{voz}|{ponte}") if ponte else None
+        if ponte and not som_ponte:
+            ponte = ""                        # sem som em cache não se espera pela voz: segue sem ponte
+        if ponte:
+            ultima_ponte, t_ponte_som = ponte, time.monotonic()
+            LOG.info("ponte %r %d ms depois de a pessoa acabar", ponte, int((t_ponte_som - t_fala) * 1000))
+            if await ch.tocar(som_ponte):     # a pessoa falou por cima da ponte: cala-se e volta a ouvir
+                t_cerebro.cancel(); t_voz.cancel()
+                mensagens.pop()
+                falas.pop()                   # a fala da pessoa volta junta com o resto, na volta seguinte
+                texto_pendente = texto
+                interrompido, ouviu_so, pendente = False, "", ""
+                continue
         interrompido, ouviu_so, t_primeira = await tocar_fila(ch, fila_audio)
+        t_conteudo = t_primeira
+        if ponte:
+            ouviu_so = f"{ponte} {ouviu_so}".strip()
+            t_primeira = t_ponte_som
         if not t_voz.done():
             t_voz.cancel()
         r = await t_cerebro
@@ -589,12 +683,16 @@ async def conversa(ch: Chamada, uid: str, telefone: str, cfg: dict, voz: str, de
         custo += float(r.get("custo_usd") or 0)
         escalado = escalado or bool(r.get("escalado"))
         mensagens.extend(r.get("novas_mensagens") or [{"role": "assistant", "content": resposta}])
-        pendente = resto(resposta, ouviu_so) if interrompido else ""
-        falas.append({"quem": "atendente", "texto": ouviu_so if interrompido else resposta})
+        pendente = resto(resposta, ouviu_so.removeprefix(ponte).strip()) if interrompido else ""
+        dito_total = ouviu_so if interrompido else f"{ponte} {resposta}".strip()
+        disse_antes = dito_total
+        falas.append({"quem": "atendente", "texto": dito_total})
         asyncio.create_task(edge("voz-ferramentas", "fala", {"chamada_id": cid, "quem": "atendente",
-                                                             "texto": ouviu_so if interrompido else resposta,
+                                                             "texto": dito_total,
                                                              "ms": int((time.monotonic() - t_inicio) * 1000)}))
-        LOG.info("volta: 1.ª voz %s ms depois de a pessoa acabar", int((t_primeira - t_fala) * 1000) if t_primeira else "-")
+        LOG.info("volta: 1.ª voz %s ms, resposta do Opus %s ms depois de a pessoa acabar",
+                 int((t_primeira - t_fala) * 1000) if t_primeira else "-",
+                 int((t_conteudo - t_fala) * 1000) if t_conteudo else "-")
         if r.get("terminar") and not interrompido:
             break
 
@@ -618,6 +716,24 @@ async def conversa(ch: Chamada, uid: str, telefone: str, cfg: dict, voz: str, de
         "resumo": rs.get("resumo"), "etiquetas": rs.get("etiquetas") or [], "custo_usd": round(custo, 5),
         "audio_path": caminho, "primeira_palavra_ms": primeira_ms, "gravacao_consentida": consentiu})
     LOG.info("chamada %s fechada: %.4f USD, escalado=%s", cid, custo, escalado)
+    # 27/11/2026 ("tem que aprender com os erros"): o Opus revê a chamada e escreve lições para as próximas.
+    # Corre em fundo: a linha fica livre para a chamada seguinte.
+    if cid:
+        tarefa = asyncio.create_task(aprender(cid))
+        EM_FUNDO.add(tarefa)
+        tarefa.add_done_callback(EM_FUNDO.discard)
+
+
+EM_FUNDO: set = set()
+
+
+async def aprender(cid: str):
+    try:
+        r = await edge("voz-cerebro", "aprender", {"chamada_id": cid}, timeout=200)
+        LOG.info("aprender %s: nota %s, lições novas %s, reforçadas %s", cid, r.get("nota"),
+                 r.get("licoes_novas"), r.get("licoes_reforcadas") or r.get("erro"))
+    except Exception as e:  # noqa: BLE001
+        LOG.warning("aprender %s falhou: %s", cid, e)
 
 
 async def vigia_diario():
@@ -638,8 +754,8 @@ async def aquecer_frases():
             frases.insert(0, defs["voz_saudacao"])
     except Exception as e:  # noqa: BLE001
         LOG.warning("sem definições para aquecer: %s", e)
-    frases.insert(0, "Olá, está a falar com o assistente virtual da Bora. "
-                     "A chamada é gravada para qualidade. Em que posso ajudar?")
+    frases.insert(0, SAUDACAO)
+    frases.extend(PONTES)
     for f in frases:
         try:
             await falar_pcm(f, voz)

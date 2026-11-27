@@ -257,6 +257,71 @@ async def falar_pcm(texto: str, voz: str) -> bytes:
             return pcm
         except Exception as e:  # noqa: BLE001 — cai para o edge-tts
             LOG.warning("google tts falhou: %s", e)
+    pcm = await microsoft_pcm(texto, voz)
+    if len(texto) < 200:
+        cache_tts[chave] = pcm
+    return pcm
+
+
+# ─── Voz em fluxo (27/11/2026, "ainda tá demorando") ─────────────────────────────────────────────────────
+# Antes cada frase só começava a tocar quando a voz dela estava TODA pronta (0,6 a 1,5 s). Agora os
+# pedaços da Google passam logo por um ffmpeg em fluxo (24 kHz -> 8 kHz) e começam a tocar ao primeiro
+# pedaço (~0,3 s). A frase inteira fica em cache no fim, como antes.
+class SemSomAinda(RuntimeError):
+    """Falhou antes de sair som: pode tentar-se outro modelo."""
+
+
+async def gemini_fluxo(texto: str, modelo: str, saida: asyncio.Queue) -> bytes:
+    corpo = {"contents": [{"parts": [{"text": texto}]}],
+             "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {
+                 "languageCode": "pt-PT", "voiceConfig": {"prebuiltVoiceConfig": {"voiceName": GEMINI_VOZ}}}}}
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:streamGenerateContent?alt=sse"
+    p = await asyncio.create_subprocess_exec(
+        "ffmpeg", "-loglevel", "error", "-f", "s16le", "-ar", "24000", "-ac", "1", "-i", "pipe:0",
+        "-f", "s16le", "-ac", "1", "-ar", str(TAXA), "-flush_packets", "1", "pipe:1",
+        stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE)
+    tudo = bytearray()
+
+    async def ler():
+        while True:
+            b = await p.stdout.read(PACOTE * 5)   # pedaços de 100 ms
+            if not b:
+                return
+            tudo.extend(b)
+            await saida.put(b)
+
+    leitor = asyncio.create_task(ler())
+    recebeu = False
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10, connect=3)) as c:
+            async with c.stream("POST", url, headers={"x-goog-api-key": _env("GEMINI_TTS_KEY")}, json=corpo) as r:
+                if r.status_code != 200:
+                    raise SemSomAinda(f"gemini tts {r.status_code} {(await r.aread())[:150]!r}")
+                async for linha in r.aiter_lines():
+                    if not linha.startswith("data:"):
+                        continue
+                    d = json.loads(linha[5:])
+                    for parte in (d.get("candidates") or [{}])[0].get("content", {}).get("parts", []):
+                        if "inlineData" in parte:
+                            recebeu = True
+                            p.stdin.write(base64.b64decode(parte["inlineData"]["data"]))
+                            await p.stdin.drain()
+        if not recebeu:
+            raise SemSomAinda("gemini tts sem áudio")
+        p.stdin.close()
+        await leitor
+        await p.wait()
+        return bytes(tudo)
+    finally:
+        if p.returncode is None:
+            try:
+                p.kill()
+            except ProcessLookupError:
+                pass
+        leitor.cancel()
+
+
+async def microsoft_pcm(texto: str, voz: str) -> bytes:
     mp3 = b""
     for _ in (1, 2):  # sempre a mesma voz (feminina): nunca troca para a do Duarte
         mp3 = await edge_rapido(texto, voz)
@@ -268,9 +333,35 @@ async def falar_pcm(texto: str, voz: str) -> bytes:
         "ffmpeg", "-loglevel", "error", "-i", "pipe:0", "-f", "s16le", "-ac", "1", "-ar", str(TAXA), "pipe:1",
         stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE)
     pcm, _ = await p.communicate(bytes(mp3))
-    if len(texto) < 200:
-        cache_tts[chave] = pcm
     return pcm
+
+
+async def falar_fluxo(frase: str, voz: str, saida: asyncio.Queue):
+    """Enche a fila com o som da frase aos pedaços e acaba com None. Mesma voz e mesma rotação de
+    modelos do falar_pcm; se a Google falhar toda antes de sair som, usa a voz de reserva inteira."""
+    try:
+        agora = time.monotonic()
+        livres = [m for m in GEMINI_MODELOS if GEMINI_PAUSA.get(m, 0) <= agora]
+        for modelo in livres[:3]:
+            try:
+                pcm = await asyncio.wait_for(gemini_fluxo(frase, modelo, saida), 6 + len(frase) / 30)
+                if len(frase) < 200:
+                    cache_tts[f"{voz}|{frase}"] = pcm
+                return
+            except SemSomAinda as e:
+                quota = "429" in str(e)
+                GEMINI_PAUSA[modelo] = time.monotonic() + (60 if quota else 300)
+                LOG.warning("voz Google %s falhou (%s)", modelo, "quota do minuto" if quota else str(e)[:120])
+            except Exception as e:  # noqa: BLE001 — já tinha saído som (ou demorou demais): não repete
+                GEMINI_PAUSA[modelo] = time.monotonic() + 5
+                LOG.warning("voz Google %s parou a meio: %r", modelo, e)
+                return
+        try:
+            await saida.put(await microsoft_pcm(frase, voz))
+        except Exception as e:  # noqa: BLE001
+            LOG.warning("frase sem voz: %s", e)
+    finally:
+        await saida.put(None)
 
 
 # ─── Palavra-ponte (27/11/2026, ideia do Danilo: "o Gemini vai respondendo sem demora enquanto o Opus
@@ -441,12 +532,20 @@ async def pipeline_voz(fila_txt: asyncio.Queue, fila_audio: asyncio.Queue, voz: 
         if frase is None:
             await fila_audio.put(None)
             return
-        try:
-            pcm = await falar_pcm(frase, voz)
-        except Exception as e:  # noqa: BLE001 — uma frase sem voz não derruba a chamada
-            LOG.warning("frase sem voz: %s", e)
-            pcm = b""
-        await fila_audio.put((frase, pcm))
+        if f"{voz}|{frase}" in cache_tts or not (_env("VOZ_MOTOR_VOZ") == "google" and _env("GEMINI_TTS_KEY")):
+            try:
+                pcm = await falar_pcm(frase, voz)
+            except Exception as e:  # noqa: BLE001 — uma frase sem voz não derruba a chamada
+                LOG.warning("frase sem voz: %s", e)
+                pcm = b""
+            await fila_audio.put((frase, pcm))
+            continue
+        # Voz em fluxo: começa já a fazer o som desta frase e passa logo à seguinte (que também começa).
+        pedacos: asyncio.Queue = asyncio.Queue()
+        tarefa = asyncio.create_task(falar_fluxo(frase, voz, pedacos))
+        EM_FUNDO.add(tarefa)
+        tarefa.add_done_callback(EM_FUNDO.discard)
+        await fila_audio.put((frase, pedacos))
 
 
 async def tocar_fila(ch: "Chamada", fila_audio: asyncio.Queue) -> tuple[bool, str, float]:
@@ -458,12 +557,26 @@ async def tocar_fila(ch: "Chamada", fila_audio: asyncio.Queue) -> tuple[bool, st
         item = await fila_audio.get()
         if item is None:
             return False, " ".join(dito), t_primeira
-        frase, pcm = item
-        if not pcm:
+        frase, som = item
+        if isinstance(som, asyncio.Queue):    # voz em fluxo: toca cada pedaço mal chega
+            tocou = False
+            while (pedaco := await som.get()) is not None:
+                if not pedaco:
+                    continue
+                if not t_primeira:
+                    t_primeira = time.monotonic()
+                tocou = True
+                if await ch.tocar(pedaco):
+                    dito.append(frase + " [interrompido aqui]")
+                    return True, " ".join(dito), t_primeira
+            if tocou:
+                dito.append(frase)
+            continue
+        if not som:
             continue
         if not t_primeira:
             t_primeira = time.monotonic()
-        if await ch.tocar(pcm):
+        if await ch.tocar(som):
             dito.append(frase + " [interrompido aqui]")
             return True, " ".join(dito), t_primeira
         dito.append(frase)

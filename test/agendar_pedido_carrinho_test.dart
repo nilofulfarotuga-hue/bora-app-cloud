@@ -128,13 +128,17 @@ void main() {
       expect(c.agendamentoEmFalta, isFalse);
     });
 
-    test('festas, takeaway e favores continuam como dantes', () async {
+    test('takeaway e favores continuam como dantes; festas agendam desde 27/11', () async {
       await ligar(true);
+      // 27/11/2026 (ordem do Danilo, caso Sabores do Brasil): as Festas
+      // passaram a ter janelas — os itens "Na hora" marcam-se para quando a
+      // loja abrir (antes: não deixava adicionar nem agendar).
       final festas = await carrinho(festas: true);
       festas.addItem(item());
-      expect(festas.items, isEmpty);
-      expect(festas.lojaFechada, isTrue);
-      expect(festas.agendamentoDisponivel, isFalse);
+      expect(festas.items, hasLength(1));
+      expect(festas.lojaFechada, isFalse);
+      expect(festas.agendamentoDisponivel, isTrue);
+      expect(festas.agendamentoObrigatorio, isTrue);
 
       final takeaway = await carrinho(tipo: OrderServiceType.takeaway);
       expect(takeaway.lojaFechada, isTrue);

@@ -16,6 +16,23 @@
 library;
 
 const Map<String, String> kStringsEn = <String, String>{
+  // 27/11/2026 (loja-fechada-agendar-2026-11-27 — loja fechada deixa encher o
+  // carrinho e marcar). À mão; os mesmos pares estão em
+  // tool/l10n/traducoes/pt-en-43-loja-fechada-agendar.json.
+  'Esta loja está fechada agora. Volta às {0}. Podes marcar o teu pedido para mais tarde ou para outro dia.':
+      'This shop is closed right now. It\'s back at {0}. You can schedule your order for later or for another day.',
+  'Esta loja está fechada agora. Podes marcar o teu pedido para outro dia.':
+      'This shop is closed right now. You can schedule your order for another day.',
+  'Esta loja está fechada agora. Abre hoje às {0} e fecha às {1}. Podes marcar o teu pedido para hoje ou para outro dia.':
+      'This shop is closed right now. It opens today at {0} and closes at {1}. You can schedule your order for today or for another day.',
+  'Esta loja está fechada agora. Abre amanhã às {0} e fecha às {1}. Podes marcar o teu pedido para amanhã ou para outro dia.':
+      'This shop is closed right now. It opens tomorrow at {0} and closes at {1}. You can schedule your order for tomorrow or for another day.',
+  'Esta loja está fechada agora. Abre {0} às {1} e fecha às {2}. Podes marcar o teu pedido para {0} ou para outro dia.':
+      'This shop is closed right now. It opens {0} at {1} and closes at {2}. You can schedule your order for {0} or for another day.',
+  '{0} Volta ao carrinho e marca o pedido para quando a loja abrir.':
+      '{0} Go back to the cart and schedule the order for when the shop opens.',
+  '{0} Tenta quando abrir.': '{0} Try again when it opens.',
+  'A loja está fechada agora.': 'The shop is closed right now.',
   // 24/11/2026 (limpeza-cancelamento-app-2026-11-24 — só se paga a deslocação
   // com a profissional a caminho). À mão; os mesmos pares estão em
   // tool/l10n/traducoes/pt-en-42-limpeza-cancelamento-deslocacao.json.

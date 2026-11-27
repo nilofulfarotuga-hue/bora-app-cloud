@@ -70,9 +70,13 @@ void main() {
     expect(loja.faixaFechadaEm(_segunda2330), 'Fechado · abre segunda às 11:00');
   });
 
-  test('aberta não tem faixa; Festas e "Em breve" ficam com as faixas delas', () {
+  test('aberta não tem faixa; "Em breve" fica com a faixa dela; Festas fora de horas têm faixa', () {
     expect(_loja().fechadaParaClienteEm(_segunda1300), isFalse);
-    expect(_loja(categoria: BusinessCategory.festas).fechadaParaClienteEm(_segunda0655), isFalse);
+    // 27/11/2026 (ordem do Danilo): fora de horas as Festas também mostram que
+    // estão fechadas e quando abrem (os itens "Na hora" marcam-se para essa
+    // hora; a encomenda de festa segue com a data dela). Antes: nunca fechadas.
+    expect(_loja(categoria: BusinessCategory.festas).fechadaParaClienteEm(_segunda0655), isTrue);
+    expect(_loja(categoria: BusinessCategory.festas).fechadaParaClienteEm(_segunda1300), isFalse);
     expect(_loja(emBreve: true).fechadaParaClienteEm(_segunda0655), isFalse);
   });
 

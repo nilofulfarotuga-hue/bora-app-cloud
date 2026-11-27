@@ -58,10 +58,15 @@ class PedidoAgendado {
     this.itens = '',
     this.parceiro,
     this.tipoServico,
+    this.categoriaLoja,
   });
 
   final String id;
   final String estado;
+
+  /// Categoria da loja (`restaurant_category`, só no painel): `festas` = Sabores
+  /// do Brasil e outras casas de festa (27/11/2026).
+  final String? categoriaLoja;
 
   /// Loja parceira? (`is_partner_store`, só no painel; `null` = o servidor
   /// não disse.)
@@ -125,6 +130,7 @@ class PedidoAgendado {
       itens: partes.join(', '),
       parceiro: j['is_partner_store'] is bool ? j['is_partner_store'] as bool : null,
       tipoServico: j['service_type']?.toString(),
+      categoriaLoja: j['restaurant_category']?.toString(),
     );
   }
 }

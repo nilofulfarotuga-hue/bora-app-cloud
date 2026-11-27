@@ -26,9 +26,11 @@ class FaixaLojaFechada extends StatelessWidget {
     // Agendar (30/10/2026): se o servidor dá janelas a esta loja, o cliente
     // pode encomendar já, para quando abrir (só com "Agendar").
     final cart = context.watch<CartStore?>();
+    // 27/11/2026 (ordem do Danilo): diz quando abre, quando fecha e que se
+    // pode marcar para esse dia ou outro (encomenda de festa incluída).
     final agenda = cart != null &&
         cart.vendorRestaurantId == loja.id &&
-        cart.agendamentoObrigatorio;
+        (cart.agendamentoObrigatorio || cart.carrinhoEncomendaFesta);
     return Container(
       width: double.infinity,
       color: AppColors.textPrimary.withValues(alpha: 0.85),
@@ -52,7 +54,7 @@ class FaixaLojaFechada extends StatelessWidget {
                 ),
                 if (agenda)
                   Text(
-                    'Loja fechada: agenda para quando abrir'.tr,
+                    loja.avisoAgendar,
                     key: const Key('faixa-fechada-agendar'),
                     style: const TextStyle(color: Colors.white, fontSize: 13),
                   ),

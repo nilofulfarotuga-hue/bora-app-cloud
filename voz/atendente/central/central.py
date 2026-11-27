@@ -271,54 +271,47 @@ class SemSomAinda(RuntimeError):
     """Falhou antes de sair som: pode tentar-se outro modelo."""
 
 
+def decimar3(b: bytes) -> bytes:
+    """24 kHz -> 8 kHz: média de cada 3 amostras (filtro simples contra o chiado) e fica uma."""
+    a = array.array("h", b)
+    return array.array("h", ((a[i] + a[i + 1] + a[i + 2]) // 3 for i in range(0, len(a) - 2, 3))).tobytes()
+
+
 async def gemini_fluxo(texto: str, modelo: str, saida: asyncio.Queue) -> bytes:
+    """Os pedaços da Google chegam a partir de ~0,7 s e vão logo para a fila (de 100 em 100 ms de som).
+    Sem ffmpeg: o ffmpeg em pipe só soltava o som no fim da frase (medido 27/11)."""
     corpo = {"contents": [{"parts": [{"text": texto}]}],
              "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {
                  "languageCode": "pt-PT", "voiceConfig": {"prebuiltVoiceConfig": {"voiceName": GEMINI_VOZ}}}}}
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:streamGenerateContent?alt=sse"
-    p = await asyncio.create_subprocess_exec(
-        "ffmpeg", "-loglevel", "error", "-f", "s16le", "-ar", "24000", "-ac", "1", "-i", "pipe:0",
-        "-f", "s16le", "-ac", "1", "-ar", str(TAXA), "-flush_packets", "1", "pipe:1",
-        stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE)
-    tudo = bytearray()
-
-    async def ler():
-        while True:
-            b = await p.stdout.read(PACOTE * 5)   # pedaços de 100 ms
-            if not b:
-                return
-            tudo.extend(b)
-            await saida.put(b)
-
-    leitor = asyncio.create_task(ler())
-    recebeu = False
-    try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(10, connect=3)) as c:
-            async with c.stream("POST", url, headers={"x-goog-api-key": _env("GEMINI_TTS_KEY")}, json=corpo) as r:
-                if r.status_code != 200:
-                    raise SemSomAinda(f"gemini tts {r.status_code} {(await r.aread())[:150]!r}")
-                async for linha in r.aiter_lines():
-                    if not linha.startswith("data:"):
+    tudo, cru, pronto = bytearray(), b"", bytearray()
+    async with httpx.AsyncClient(timeout=httpx.Timeout(10, connect=3)) as c:
+        async with c.stream("POST", url, headers={"x-goog-api-key": _env("GEMINI_TTS_KEY")}, json=corpo) as r:
+            if r.status_code != 200:
+                raise SemSomAinda(f"gemini tts {r.status_code} {(await r.aread())[:150]!r}")
+            async for linha in r.aiter_lines():
+                if not linha.startswith("data:"):
+                    continue
+                d = json.loads(linha[5:])
+                for parte in (d.get("candidates") or [{}])[0].get("content", {}).get("parts", []):
+                    if "inlineData" not in parte:
                         continue
-                    d = json.loads(linha[5:])
-                    for parte in (d.get("candidates") or [{}])[0].get("content", {}).get("parts", []):
-                        if "inlineData" in parte:
-                            recebeu = True
-                            p.stdin.write(base64.b64decode(parte["inlineData"]["data"]))
-                            await p.stdin.drain()
-        if not recebeu:
-            raise SemSomAinda("gemini tts sem áudio")
-        p.stdin.close()
-        await leitor
-        await p.wait()
-        return bytes(tudo)
-    finally:
-        if p.returncode is None:
-            try:
-                p.kill()
-            except ProcessLookupError:
-                pass
-        leitor.cancel()
+                    cru += base64.b64decode(parte["inlineData"]["data"])
+                    n = len(cru) // 6 * 6             # grupos inteiros de 3 amostras de 16 bits
+                    pronto.extend(decimar3(cru[:n]))
+                    cru = cru[n:]
+                    m = len(pronto) // (PACOTE * 5) * (PACOTE * 5)
+                    if m:
+                        bloco = bytes(pronto[:m])
+                        del pronto[:m]
+                        tudo.extend(bloco)
+                        await saida.put(bloco)
+    if pronto:
+        tudo.extend(pronto)
+        await saida.put(bytes(pronto))
+    if not tudo:
+        raise SemSomAinda("gemini tts sem áudio")
+    return bytes(tudo)
 
 
 async def microsoft_pcm(texto: str, voz: str) -> bytes:

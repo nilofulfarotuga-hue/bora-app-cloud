@@ -18,6 +18,7 @@ import io
 import json
 import logging
 import os
+import random
 import re
 import struct
 import time
@@ -41,9 +42,12 @@ PASTA_CHAMADORES = _env("VOZ_PASTA_CHAMADORES", "/var/voz")
 
 TAXA = 8000                 # slin 8 kHz
 PACOTE = 320                # 20 ms de 16 bits mono
-SILENCIO_FIM_MS = 700       # pausa que fecha uma frase
+SILENCIO_FIM_MS = 600       # pausa que fecha uma frase
 SILENCIO_MUDO_S = 8         # ninguém fala -> o cérebro recebe "[silêncio]"
-FRASE_ESPERA = "Claro, deixe-me ver isso."
+INTERROMPER_MS = 240        # fala da pessoa por cima do atendente que o faz calar (barge-in)
+ESPERA_APOS_S = 3.0         # só se o cérebro demorar mais do que isto é que se diz uma frase curta
+# Ditas só quando o cérebro demora (procura longa), nunca a mesma duas vezes seguidas.
+FRASES_ESPERA = ["Um segundo.", "Deixe-me confirmar.", "Só um instante.", "Vou verificar, um momento."]
 MSG_OCUPADO = ("A linha está ocupada neste momento. Ligue dentro de momentos ou escreva para "
                "suporte arroba boraguarda ponto com. Obrigado.")
 MSG_DESLIGADO = ("Olá, ligou para a Bora. De momento não temos atendimento por telefone. "
@@ -114,6 +118,34 @@ async def falar_pcm(texto: str, voz: str) -> bytes:
     return pcm
 
 
+def frases(texto: str) -> list[str]:
+    return [p for p in re.split(r"(?<=[.!?])\s+", texto.strip()) if p]
+
+
+async def falar(ch: "Chamada", texto: str, voz: str) -> tuple[bool, str]:
+    """Fala frase a frase: a 1.ª começa logo e a seguinte prepara-se enquanto a outra toca.
+    Devolve (interrompido, o que a pessoa chegou a ouvir)."""
+    partes = frases(texto) or [texto]
+    dito: list[str] = []
+    ch.voz_seguida, ch.recente = 0, []
+    proxima = asyncio.create_task(falar_pcm(partes[0], voz))
+    for i, frase in enumerate(partes):
+        try:
+            pcm = await proxima
+        except Exception as e:  # noqa: BLE001 — uma frase sem voz não derruba a chamada
+            LOG.warning("frase sem voz: %s", e)
+            pcm = b""
+        if i + 1 < len(partes):
+            proxima = asyncio.create_task(falar_pcm(partes[i + 1], voz))
+        if pcm and await ch.tocar(pcm):
+            if i + 1 < len(partes):
+                proxima.cancel()
+            dito.append(frase + " [interrompido aqui]")
+            return True, " ".join(dito)
+        dito.append(frase)
+    return False, " ".join(dito)
+
+
 class Chamada:
     def __init__(self, leitor: asyncio.StreamReader, escritor: asyncio.StreamWriter):
         self.r, self.w = leitor, escritor
@@ -121,6 +153,9 @@ class Chamada:
         self.gravacao = bytearray()        # linha do tempo da chamada (quem fala, por ordem)
         self.aberta = True
         self.uuid = ""
+        self.pre_fala = bytearray()        # o que a pessoa já disse quando interrompeu o atendente
+        self.voz_seguida = 0               # contagem de voz por cima, contínua entre frases da mesma fala
+        self.recente: list[bytes] = []
 
     async def ler(self):
         try:
@@ -139,24 +174,39 @@ class Chamada:
         self.aberta = False
         await self.audio_entrada.put(b"")
 
-    async def tocar(self, pcm: bytes):
-        """Manda áudio ao Asterisk ao ritmo real (20 ms por pacote) e grava-o na linha do tempo."""
-        self.gravacao.extend(pcm)
+    async def tocar(self, pcm: bytes, interrompivel: bool = True) -> bool:
+        """Manda áudio ao Asterisk ao ritmo real (20 ms por pacote) e grava-o na linha do tempo.
+        Barge-in: se a pessoa falar por cima (INTERROMPER_MS de voz), o atendente cala-se logo e o que
+        ela já disse fica em pre_fala para a frase seguinte. Devolve True se foi interrompido."""
+        vad = webrtcvad.Vad(3)
         for i in range(0, len(pcm), PACOTE):
             if not self.aberta:
-                return
+                return False
             bloco = pcm[i:i + PACOTE].ljust(PACOTE, b"\x00")
             self.w.write(bytes([T_AUDIO]) + struct.pack(">H", len(bloco)) + bloco)
             await self.w.drain()
+            self.gravacao.extend(bloco)
             await asyncio.sleep(0.02)
-        # o que chegou enquanto o atendente falava não conta (sem interrupções nesta versão)
-        while not self.audio_entrada.empty():
-            self.audio_entrada.get_nowait()
+            while not self.audio_entrada.empty():
+                pac = self.audio_entrada.get_nowait()
+                if not pac:                       # a chamada acabou: devolve o aviso à fila
+                    await self.audio_entrada.put(b"")
+                    return False
+                self.recente = (self.recente + [pac])[-25:]
+                fala = len(pac) == PACOTE and vad.is_speech(pac, TAXA)
+                self.voz_seguida = self.voz_seguida + 1 if fala else max(0, self.voz_seguida - 1)
+                if interrompivel and self.voz_seguida * 20 >= INTERROMPER_MS:
+                    self.pre_fala = bytearray(b"".join(self.recente))
+                    self.voz_seguida, self.recente = 0, []
+                    return True
+        return False
 
     async def ouvir_frase(self, limite_s: float) -> bytes | None:
         """Junta pacotes até haver fala seguida de SILENCIO_FIM_MS de pausa. None = silêncio total."""
         vad = webrtcvad.Vad(2)
-        fala, ouviu, pausa_ms = bytearray(), False, 0
+        fala, ouviu, pausa_ms = bytearray(self.pre_fala), bool(self.pre_fala), 0
+        self.gravacao.extend(self.pre_fala)
+        self.pre_fala = bytearray()
         fim = time.monotonic() + limite_s
         while self.aberta:
             try:
@@ -237,6 +287,7 @@ async def conversa(ch: Chamada, uid: str, telefone: str, cfg: dict, voz: str, de
 
     mensagens, falas = [], [{"quem": "atendente", "texto": saudacao}]
     custo, escalado, consentiu, primeira_ms = 0.0, False, True, None
+    interrompido, ouviu_so, ultima_espera = False, "", ""
     max_s = float(defs.get("voz_duracao_max_min") or 15) * 60
     while ch.aberta and time.monotonic() - t_inicio < max_s:
         pcm = await ch.ouvir_frase(SILENCIO_MUDO_S)
@@ -251,29 +302,36 @@ async def conversa(ch: Chamada, uid: str, telefone: str, cfg: dict, voz: str, de
         falas.append({"quem": "cliente", "texto": texto})
         asyncio.create_task(edge("voz-ferramentas", "fala", {"chamada_id": cid, "quem": "cliente", "texto": texto,
                                                              "ms": int((t_fala - t_inicio) * 1000)}))
-        mensagens.append({"role": "user", "content": texto})
-        # A frase de espera toca enquanto o cérebro pensa (só se a pessoa disse alguma coisa).
+        # Se a pessoa cortou o atendente, o cérebro sabe até onde ela ouviu (não repete tudo).
+        para_cerebro = (f"[A pessoa interrompeu-te; só chegou a ouvir: «{ouviu_so}»] {texto}"
+                        if interrompido else texto)
+        mensagens.append({"role": "user", "content": para_cerebro})
         pensar = asyncio.create_task(edge("voz-cerebro", "responder", {
             "chamada_id": cid, "telefone": telefone, "quem": quem, "pedidos": pedidos,
             "mensagens": mensagens, "custo_acumulado_usd": custo}, timeout=60))
+        # Frase curta de espera SÓ se o cérebro demorar (procura longa) e nunca a mesma seguida.
         if pcm is not None:
-            try:  # a frase de espera nunca pode derrubar a chamada
-                pcm_espera = await falar_pcm(FRASE_ESPERA, voz)
-                if primeira_ms is None:
-                    primeira_ms = int((time.monotonic() - t_fala) * 1000)
-                await ch.tocar(pcm_espera)
-            except Exception as e:  # noqa: BLE001
-                LOG.warning("frase de espera sem voz: %s", e)
+            feito, _ = await asyncio.wait({pensar}, timeout=ESPERA_APOS_S)
+            if not feito:
+                frase_espera = random.choice([f for f in FRASES_ESPERA if f != ultima_espera])
+                ultima_espera = frase_espera
+                try:
+                    await ch.tocar(await falar_pcm(frase_espera, voz), interrompivel=False)
+                except Exception as e:  # noqa: BLE001 — a espera nunca derruba a chamada
+                    LOG.warning("frase de espera sem voz: %s", e)
         r = await pensar
         resposta = re.sub(r"\s+", " ", r.get("texto") or "").strip() or "Peço desculpa, pode repetir?"
         custo += float(r.get("custo_usd") or 0)
         escalado = escalado or bool(r.get("escalado"))
         mensagens.extend(r.get("novas_mensagens") or [{"role": "assistant", "content": resposta}])
-        falas.append({"quem": "atendente", "texto": resposta})
-        await ch.tocar(await falar_pcm(resposta, voz))
-        asyncio.create_task(edge("voz-ferramentas", "fala", {"chamada_id": cid, "quem": "atendente", "texto": resposta,
+        if primeira_ms is None and pcm is not None:
+            primeira_ms = int((time.monotonic() - t_fala) * 1000)
+        interrompido, ouviu_so = await falar(ch, resposta, voz)
+        falas.append({"quem": "atendente", "texto": ouviu_so if interrompido else resposta})
+        asyncio.create_task(edge("voz-ferramentas", "fala", {"chamada_id": cid, "quem": "atendente",
+                                                             "texto": ouviu_so if interrompido else resposta,
                                                              "ms": int((time.monotonic() - t_inicio) * 1000)}))
-        if r.get("terminar"):
+        if r.get("terminar") and not interrompido:
             break
 
     ch.desligar()
@@ -307,12 +365,13 @@ async def vigia_diario():
 
 
 async def aquecer_frases():
-    """Deixa a frase de espera já em cache (a voz da Microsoft falha ao acaso)."""
-    try:
-        await falar_pcm(FRASE_ESPERA, "pt-PT-RaquelNeural")
-        LOG.info("frase de espera em cache")
-    except Exception as e:  # noqa: BLE001
-        LOG.warning("sem cache da frase de espera: %s", e)
+    """Deixa as frases de espera já em cache (a voz da Microsoft falha ao acaso)."""
+    for f in FRASES_ESPERA:
+        try:
+            await falar_pcm(f, "pt-PT-RaquelNeural")
+        except Exception as e:  # noqa: BLE001
+            LOG.warning("sem cache da frase de espera %r: %s", f, e)
+    LOG.info("frases de espera em cache")
 
 
 async def principal():

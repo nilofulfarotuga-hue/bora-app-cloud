@@ -322,13 +322,16 @@ async def escolher_ponte(texto: str, antes: str, ultima: str) -> str:
                 f"https://generativelanguage.googleapis.com/v1beta/models/{PONTE_MODELOS[0]}:generateContent",
                 headers={"x-goog-api-key": _env("GEMINI_TTS_KEY")},
                 json={"contents": [{"parts": [{"text": pedido}]}],
-                      "generationConfig": {"maxOutputTokens": 4, "temperature": 0,
+                      "generationConfig": {"maxOutputTokens": 32, "temperature": 0,
                                            "thinkingConfig": {"thinkingLevel": "minimal"}}}), PONTE_TIMEOUT_S)
         if r.status_code != 200:
             if r.status_code in (400, 404):  # modelo não existe para esta chave: passa ao seguinte
                 PONTE_MODELOS.append(PONTE_MODELOS.pop(0))
             raise RuntimeError(f"ponte {r.status_code}")
-        resp = "".join(pt.get("text", "") for pt in r.json()["candidates"][0]["content"]["parts"])
+        cand = (r.json().get("candidates") or [{}])[0]
+        resp = "".join(pt.get("text", "") for pt in (cand.get("content") or {}).get("parts", []))
+        if not resp:
+            raise RuntimeError(f"ponte sem texto ({cand.get('finishReason')})")
         m = re.search(r"\d", resp)
         n = int(m.group()) if m else -1
         if n == 0:

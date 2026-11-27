@@ -12,7 +12,8 @@ isto é a mesma cascata em ~400 linhas, sem modelos locais. Uma chamada de cada 
 
 Ambiente (.env da central, nunca no git): VOZ_SENHA (cabeçalho x-voz-token), GROQ_API_KEY,
 SUPABASE_FN (https://<ref>.supabase.co/functions/v1), VOZ_PORTA (9092), VOZ_PASTA_CHAMADORES (/var/voz),
-GEMINI_TTS_KEY (chave Google da Bora, copiada de ficheiro para ficheiro na VPS), VOZ_GEMINI_TTS, VOZ_GEMINI_VOZ.
+GEMINI_TTS_KEY (chave Google da Bora, copiada de ficheiro para ficheiro na VPS), VOZ_GEMINI_TTS (lista de
+modelos separados por vírgula, por ordem de preferência), VOZ_GEMINI_VOZ.
 """
 
 import array
@@ -130,18 +131,25 @@ VOZ_GOOGLE = {"nome": _env("VOZ_GOOGLE", "")}
 # 27/11/2026 (Danilo: "é uma pessoa só que atende", "demora"): a voz principal passa a ser a da Google
 # (Gemini TTS em stream). Medido na VPS: 1.º áudio 0,66 s e frase de 6 s pronta em 1,4 s, sem as falhas
 # da Microsoft (que obrigavam a trocar para a voz de homem e chegavam a 20 s).
-GEMINI_MODELO = _env("VOZ_GEMINI_TTS", "gemini-3.8-flash-lite-tts")
+# A mesma voz (Kore) existe em vários modelos de voz da Google e cada modelo tem a sua própria quota por
+# minuto. Quando um responde 429 (quota do minuto), fica de lado 60 s e a frase vai logo para o seguinte:
+# a pessoa ouve sempre a mesma mulher, sem silêncio. Medido 27/11: 4 modelos respondem com a chave da Bora.
+GEMINI_MODELOS = [m.strip() for m in _env(
+    "VOZ_GEMINI_TTS",
+    "gemini-3.8-flash-lite-tts,gemini-3.8-flash-tts,gemini-3.1-flash-tts-preview,gemini-2.5-flash-preview-tts",
+).split(",") if m.strip()]
+GEMINI_PAUSA: dict[str, float] = {}  # modelo -> até quando fica de lado (time.monotonic)
 GEMINI_VOZ = _env("VOZ_GEMINI_VOZ", "Kore")
 
 
-async def gemini_pcm(texto: str) -> bytes:
+async def gemini_pcm(texto: str, modelo: str) -> bytes:
     """Voz da Google pelo Gemini TTS (pt-PT), em stream; devolve slin 8 kHz."""
     chave = _env("GEMINI_TTS_KEY")
     corpo = {"contents": [{"parts": [{"text": texto}]}],
              "generationConfig": {"responseModalities": ["AUDIO"], "speechConfig": {
                  "languageCode": "pt-PT", "voiceConfig": {"prebuiltVoiceConfig": {"voiceName": GEMINI_VOZ}}}}}
     pcm24 = bytearray()
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODELO}:streamGenerateContent?alt=sse"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:streamGenerateContent?alt=sse"
     async with httpx.AsyncClient(timeout=httpx.Timeout(10, connect=3)) as c:
         async with c.stream("POST", url, headers={"x-goog-api-key": chave}, json=corpo) as r:
             if r.status_code != 200:
@@ -226,15 +234,19 @@ async def falar_pcm(texto: str, voz: str) -> bytes:
     chave = f"{voz}|{texto}"
     if chave in cache_tts:
         return cache_tts[chave]
-    if _env("VOZ_MOTOR_VOZ") == "google" and _env("GEMINI_TTS_KEY"):  # só com faturação ativa (o grátis dá 429)
-        for tentativa in (1, 2):
+    if _env("VOZ_MOTOR_VOZ") == "google" and _env("GEMINI_TTS_KEY"):
+        agora = time.monotonic()
+        livres = [m for m in GEMINI_MODELOS if GEMINI_PAUSA.get(m, 0) <= agora]
+        for modelo in livres[:3]:
             try:
-                pcm = await asyncio.wait_for(gemini_pcm(texto), 4 + len(texto) / 40)
+                pcm = await asyncio.wait_for(gemini_pcm(texto, modelo), 4 + len(texto) / 40)
                 if len(texto) < 200:
                     cache_tts[chave] = pcm
                 return pcm
-            except Exception as e:  # noqa: BLE001 — tenta outra vez; à 2.ª cai para a Microsoft
-                LOG.warning("voz Google falhou (tentativa %s): %r", tentativa, e)
+            except Exception as e:  # noqa: BLE001 — passa logo ao modelo seguinte (mesma voz)
+                quota = "429" in str(e)
+                GEMINI_PAUSA[modelo] = time.monotonic() + (60 if quota else 5 if isinstance(e, asyncio.TimeoutError) else 300)
+                LOG.warning("voz Google %s falhou (%s)", modelo, "quota do minuto" if quota else repr(e)[:120])
     if _env("GOOGLE_TTS_KEY"):
         try:
             pcm = await google_pcm(texto)

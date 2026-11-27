@@ -176,7 +176,8 @@ async def falar_pcm(texto: str, voz: str) -> bytes:
     mp3, erro = b"", None
     for v in [voz, voz, "pt-PT-DuarteNeural"]:
         try:
-            mp3 = await asyncio.wait_for(edge_mp3(texto, v), TTS_TIMEOUT_S)
+            # Frases compridas demoram mais a sintetizar: o limite cresce com o texto (2,5 s + ~1 s por 70 letras).
+            mp3 = await asyncio.wait_for(edge_mp3(texto, v), TTS_TIMEOUT_S + len(texto) / 70)
         except Exception as e:  # noqa: BLE001 — falha ou demora: tenta logo a seguinte
             erro = e or "tempo esgotado"
             mp3 = b""

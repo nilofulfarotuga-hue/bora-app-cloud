@@ -11,7 +11,7 @@ REPO="https://github.com/nilofulfarotuga-hue/bora-app-cloud"
 RAIZ=/opt/voz
 PASTA="$RAIZ/voz/atendente"
 ZADARMA_HOSTS="sip.zadarma.com sipurifr.zadarma.com sipde.zadarma.com sipuriny.zadarma.com"
-ZADARMA_REDES="185.45.152.0/24 185.45.155.0/24 195.122.19.0/27"
+ZADARMA_REDES="185.45.152.0/24 185.45.154.0/24 185.45.155.0/24 195.122.19.0/27 31.31.222.192/27 15.235.128.64/28"
 
 [ "$(id -u)" = 0 ] || { echo "ERRO: correr como root"; exit 1; }
 

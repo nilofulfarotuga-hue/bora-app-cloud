@@ -41,7 +41,7 @@ function custoUsd(modelo: string, u: any): number {
     (u?.cache_read_input_tokens ?? 0) * p[2] + (u?.cache_creation_input_tokens ?? 0) * p[3]) / 1e6;
 }
 
-const LIVRO_PREFIXOS = ["livro-", "business-rules", "faq-", "playbook-", "regras-operacao", "atendimento-"];
+const LIVRO_PREFIXOS = ["atendimento-", "faq-"];
 const LIVRO_FORA = /pessoal|moradia|paa|financiamento|apoios|jai|danilo|saude|familia|irs|banco|divida|credito|arandelas|beunique|studio|conselho|conectores|claude|auditoria|faturacao|fiscal|stripe|contas-|acerto|chave|segredo|seguranca/i;
 
 // Ferramentas (ordem fixa: entra no prefixo da cache).
@@ -63,7 +63,7 @@ const FERRAMENTAS = [
   },
   {
     name: "procurar_no_livro",
-    description: "Procura nas regras e no conhecimento da Bora (livro comum) um assunto em 1 a 3 palavras-chave. Devolve trechos curtos.",
+    description: "Procura na ajuda da app e nas respostas do assistente da Bora (para clientes, estafetas e parceiros) um assunto em 1 a 3 palavras-chave. Devolve trechos curtos.",
     strict: true,
     input_schema: {
       type: "object", properties: { consulta: { type: "string", description: "Palavras-chave, ex.: reembolso, farmácia, reserva" } },
@@ -235,19 +235,32 @@ async function correrFerramenta(nome: string, inp: any, ctx: { telefone: string;
     };
   }
   if (nome === "procurar_no_livro") {
-    const q = txt(inp?.consulta, 80).replace(/[%_,()]/g, " ").trim();
+    // 27/11/2026: só conhecimento feito para o público (respostas do assistente da app, ajuda da app e
+    // páginas atendimento-/faq- do livro). As notas internas do livro (negócios, contas, vida pessoal)
+    // ficam de fora: o atendente fala com qualquer pessoa que ligue.
+    const q = txt(inp?.consulta, 80).replace(/[%_,()*.:"']/g, " ").replace(/\s+/g, " ").trim();
     if (q.length < 3) return { erro: "consulta curta" };
-    const { data } = await sb.from("claude_ai_memoria").select("pagina,conteudo")
-      .or(LIVRO_PREFIXOS.map((p) => `pagina.ilike.${p}*`).join(","))
-      .ilike("conteudo", `%${q}%`).limit(12);
-    const trechos = (data ?? [])
-      .filter((r) => !/\[PESSOAL\]/i.test(r.conteudo ?? "") && !LIVRO_FORA.test(r.pagina ?? ""))
-      .slice(0, 3)
-      .map((r) => {
-        const c = String(r.conteudo ?? "");
-        const i = Math.max(0, c.toLowerCase().indexOf(q.toLowerCase()) - 250);
-        return c.slice(i, i + 700);
-      });
+    const palavras = q.split(" ").filter((w) => w.length >= 3).slice(0, 4);
+    if (!palavras.length) return { erro: "consulta curta" };
+    const ou = (col: string) => palavras.map((w) => `${col}.ilike.*${w}*`).join(",");
+    const [ak, aj, pg] = await Promise.all([
+      sb.from("assistant_knowledge").select("title,content").eq("active", true).or(`${ou("content")},${ou("title")}`).limit(8),
+      sb.from("support_knowledge_chunks").select("section_title,chunk_text").eq("source_type", "ajuda").or(ou("chunk_text")).limit(8),
+      sb.from("claude_ai_memoria").select("pagina,conteudo")
+        .or(LIVRO_PREFIXOS.map((p) => `pagina.ilike.${p}*`).join(",")).limit(20),
+    ]);
+    const cands: { t: string; n: number }[] = [];
+    const conta = (t: string) => palavras.filter((w) => t.toLowerCase().includes(w.toLowerCase())).length;
+    for (const r of ak.data ?? []) { const t = `${r.title}: ${r.content}`; cands.push({ t, n: conta(t) + 0.5 }); }
+    for (const r of aj.data ?? []) { const t = String(r.chunk_text ?? ""); cands.push({ t, n: conta(t) }); }
+    for (const r of pg.data ?? []) {
+      if (/\[PESSOAL\]/i.test(r.conteudo ?? "") || LIVRO_FORA.test(r.pagina ?? "")) continue;
+      const c = String(r.conteudo ?? "");
+      const i = Math.max(0, c.toLowerCase().indexOf(palavras[0].toLowerCase()) - 250);
+      const t = c.slice(i, i + 700);
+      cands.push({ t, n: conta(t) });
+    }
+    const trechos = cands.filter((c) => c.n >= 1).sort((a, b) => b.n - a.n).slice(0, 4).map((c) => c.t.slice(0, 900));
     return { trechos: trechos.length ? trechos : ["nada encontrado"] };
   }
   if (nome === "passar_a_equipa") {
@@ -311,6 +324,23 @@ Deno.serve(async (req: Request) => {
       estado: d.escalado ? "escalado" : (o.estado === "escalado" ? "escalado" : "resolvido"),
       custo_usd: custoUsd(modelo, r.j?.usage),
     });
+  }
+
+  if (op === "aquecer") {
+    // 27/11/2026: a central chama isto ao atender, enquanto a saudação toca. Põe as ferramentas e o prompt
+    // fixo na cache do Claude (5 min), para a 1.ª resposta da chamada não pagar o arranque a frio (~2 s).
+    const modelo = String(def.voz_motor || "claude-opus-5-5");
+    const t0 = Date.now();
+    const corpo = {
+      model: modelo, max_tokens: 16, output_config: { effort: "low" },
+      tools: FERRAMENTAS,
+      system: [{ type: "text", text: PROMPT_FIXO, cache_control: { type: "ephemeral" } }],
+      messages: [{ role: "user", content: "Olá." }],
+    };
+    let r = await pedirClaude(corpo, modelo === "claude-opus-5-5");
+    if (r.status === 400 && /fallback/i.test(r.texto)) r = await pedirClaude(corpo, false);
+    await gastar(r.j?.model ?? modelo, r.j?.usage, Date.now() - t0, r.status === 200, r.status === 200 ? null : `${r.status} ${r.texto}`);
+    return json({ ok: r.status === 200, ms: Date.now() - t0, cache_lida: r.j?.usage?.cache_read_input_tokens ?? 0, cache_escrita: r.j?.usage?.cache_creation_input_tokens ?? 0 });
   }
 
   if (op !== "responder" && op !== "responder_stream") return json({ erro: `operacao desconhecida: ${op}` }, 400);

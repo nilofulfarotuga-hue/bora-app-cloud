@@ -451,6 +451,8 @@ async def atender(leitor: asyncio.StreamReader, escritor: asyncio.StreamWriter):
 
 
 async def conversa(ch: Chamada, uid: str, telefone: str, cfg: dict, voz: str, defs: dict):
+    # Enquanto a saudação toca, o cérebro põe o prompt na cache do Claude: a 1.ª resposta sai mais cedo.
+    asyncio.create_task(edge("voz-cerebro", "aquecer", {}, timeout=20))
     ab = await edge("voz-ferramentas", "abrir", {"telefone": telefone, "sip_call_id": uid, "motor": cfg.get("motor")})
     cid, quem, pedidos = ab.get("chamada_id"), ab.get("quem", {}), ab.get("pedidos", [])
     saudacao = defs.get("voz_saudacao") or ("Olá, está a falar com o assistente virtual da Bora. "
@@ -550,9 +552,19 @@ async def vigia_diario():
 
 async def aquecer_frases():
     """Deixa em cache as frases curtas que se repetem (a voz da Microsoft falha ao acaso)."""
-    for f in [MSG_OCUPADO, "Peço desculpa, não percebi bem. Pode repetir, por favor?"]:
+    voz, frases = "pt-PT-RaquelNeural", [MSG_OCUPADO, MSG_DESLIGADO, "Peço desculpa, não percebi bem. Pode repetir, por favor?"]
+    try:
+        defs = (await edge("voz-ferramentas", "config", {})).get("definicoes", {})
+        voz = defs.get("voz_voz") or voz
+        if defs.get("voz_saudacao"):
+            frases.insert(0, defs["voz_saudacao"])
+    except Exception as e:  # noqa: BLE001
+        LOG.warning("sem definições para aquecer: %s", e)
+    frases.insert(0, "Olá, está a falar com o assistente virtual da Bora. "
+                     "A chamada é gravada para qualidade. Em que posso ajudar?")
+    for f in frases:
         try:
-            await falar_pcm(f, "pt-PT-RaquelNeural")
+            await falar_pcm(f, voz)
         except Exception as e:  # noqa: BLE001
             LOG.warning("sem cache de %r: %s", f[:30], e)
     LOG.info("frases fixas em cache")

@@ -89,10 +89,22 @@ async def falar_pcm(texto: str, voz: str) -> bytes:
     if chave in cache_tts:
         return cache_tts[chave]
     import edge_tts  # carregado só quando é preciso
-    mp3 = bytearray()
-    async for parte in edge_tts.Communicate(texto, voz).stream():
-        if parte["type"] == "audio":
-            mp3.extend(parte["data"])
+    # O serviço da Microsoft falha ao acaso (~2 em 5 pedidos a 27/11/2026: NoAudioReceived).
+    # Tenta várias vezes e, no fim, com a voz masculina pt-PT; só desiste se todas falharem.
+    mp3, erro = bytearray(), None
+    for tentativa, v in enumerate([voz, voz, voz, voz, "pt-PT-DuarteNeural", "pt-PT-DuarteNeural"]):
+        mp3 = bytearray()
+        try:
+            async for parte in edge_tts.Communicate(texto, v).stream():
+                if parte["type"] == "audio":
+                    mp3.extend(parte["data"])
+        except Exception as e:  # noqa: BLE001 — qualquer falha do serviço conta como tentativa
+            erro = e
+        if mp3:
+            break
+        await asyncio.sleep(0.15 * (tentativa + 1))
+    if not mp3:
+        raise RuntimeError(f"edge-tts sem áudio depois de várias tentativas: {erro}")
     p = await asyncio.create_subprocess_exec(
         "ffmpeg", "-loglevel", "error", "-i", "pipe:0", "-f", "s16le", "-ac", "1", "-ar", str(TAXA), "pipe:1",
         stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE)
@@ -245,11 +257,13 @@ async def conversa(ch: Chamada, uid: str, telefone: str, cfg: dict, voz: str, de
             "chamada_id": cid, "telefone": telefone, "quem": quem, "pedidos": pedidos,
             "mensagens": mensagens, "custo_acumulado_usd": custo}, timeout=60))
         if pcm is not None:
-            espera = falar_pcm(FRASE_ESPERA, voz)
-            pcm_espera = await espera
-            if primeira_ms is None:
-                primeira_ms = int((time.monotonic() - t_fala) * 1000)
-            await ch.tocar(pcm_espera)
+            try:  # a frase de espera nunca pode derrubar a chamada
+                pcm_espera = await falar_pcm(FRASE_ESPERA, voz)
+                if primeira_ms is None:
+                    primeira_ms = int((time.monotonic() - t_fala) * 1000)
+                await ch.tocar(pcm_espera)
+            except Exception as e:  # noqa: BLE001
+                LOG.warning("frase de espera sem voz: %s", e)
         r = await pensar
         resposta = re.sub(r"\s+", " ", r.get("texto") or "").strip() or "Peço desculpa, pode repetir?"
         custo += float(r.get("custo_usd") or 0)
@@ -292,11 +306,21 @@ async def vigia_diario():
         await asyncio.sleep(24 * 3600)
 
 
+async def aquecer_frases():
+    """Deixa a frase de espera já em cache (a voz da Microsoft falha ao acaso)."""
+    try:
+        await falar_pcm(FRASE_ESPERA, "pt-PT-RaquelNeural")
+        LOG.info("frase de espera em cache")
+    except Exception as e:  # noqa: BLE001
+        LOG.warning("sem cache da frase de espera: %s", e)
+
+
 async def principal():
     # Só local: o Asterisk está na mesma máquina; ninguém de fora fala com a central.
     servidor = await asyncio.start_server(atender, _env("VOZ_ESCUTA", "127.0.0.1"), PORTA)
     LOG.info("central à escuta em %s", PORTA)
     asyncio.create_task(vigia_diario())
+    asyncio.create_task(aquecer_frases())
     async with servidor:
         await servidor.serve_forever()
 

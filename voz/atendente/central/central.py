@@ -194,6 +194,31 @@ async def edge_mp3(texto: str, v: str) -> bytes:
     return bytes(mp3)
 
 
+async def edge_rapido(texto: str, v: str) -> bytes:
+    """Pedido à Microsoft com reforço: se em 1,2 s não chegou, lança um 2.º igual e fica com o primeiro
+    que acabar (as falhas ao acaso a partir da VPS deixam de custar segundos). Devolve b"" se nada vier."""
+    limite = TTS_TIMEOUT_S + len(texto) / 70
+    tarefas = [asyncio.create_task(edge_mp3(texto, v))]
+    fim = time.monotonic() + limite
+    try:
+        feitas, _ = await asyncio.wait(tarefas, timeout=1.2)
+        for t in feitas:
+            if not t.exception() and t.result():
+                return t.result()
+        tarefas.append(asyncio.create_task(edge_mp3(texto, v)))
+        pendentes = {t for t in tarefas if not t.done()}
+        while pendentes and time.monotonic() < fim:
+            feitas, pendentes = await asyncio.wait(pendentes, timeout=max(0.05, fim - time.monotonic()),
+                                                   return_when=asyncio.FIRST_COMPLETED)
+            for t in feitas:
+                if not t.exception() and t.result():
+                    return t.result()
+        return b""
+    finally:
+        for t in tarefas:
+            t.cancel()
+
+
 async def falar_pcm(texto: str, voz: str) -> bytes:
     """Voz: Google TTS se houver chave; senão edge-tts (pt-PT). Cada tentativa tem TTS_TIMEOUT_S no
     máximo (a Microsoft falha ao acaso a partir da VPS e uma falha chegava a custar vários segundos).
@@ -201,7 +226,7 @@ async def falar_pcm(texto: str, voz: str) -> bytes:
     chave = f"{voz}|{texto}"
     if chave in cache_tts:
         return cache_tts[chave]
-    if _env("GEMINI_TTS_KEY"):
+    if _env("VOZ_MOTOR_VOZ") == "google" and _env("GEMINI_TTS_KEY"):  # só com faturação ativa (o grátis dá 429)
         for tentativa in (1, 2):
             try:
                 pcm = await asyncio.wait_for(gemini_pcm(texto), 4 + len(texto) / 40)
@@ -218,18 +243,13 @@ async def falar_pcm(texto: str, voz: str) -> bytes:
             return pcm
         except Exception as e:  # noqa: BLE001 — cai para o edge-tts
             LOG.warning("google tts falhou: %s", e)
-    mp3, erro = b"", None
-    for v in [voz, voz, voz]:  # sempre a mesma voz (feminina): nunca troca para a do Duarte
-        try:
-            # Frases compridas demoram mais a sintetizar: o limite cresce com o texto (2,5 s + ~1 s por 70 letras).
-            mp3 = await asyncio.wait_for(edge_mp3(texto, v), TTS_TIMEOUT_S + len(texto) / 70)
-        except Exception as e:  # noqa: BLE001 — falha ou demora: tenta logo a seguinte
-            erro = e or "tempo esgotado"
-            mp3 = b""
+    mp3 = b""
+    for _ in (1, 2):  # sempre a mesma voz (feminina): nunca troca para a do Duarte
+        mp3 = await edge_rapido(texto, voz)
         if mp3:
             break
     if not mp3:
-        raise RuntimeError(f"voz sem áudio depois de várias tentativas: {erro!r}")
+        raise RuntimeError("voz sem áudio depois de várias tentativas")
     p = await asyncio.create_subprocess_exec(
         "ffmpeg", "-loglevel", "error", "-i", "pipe:0", "-f", "s16le", "-ac", "1", "-ar", str(TAXA), "pipe:1",
         stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE)

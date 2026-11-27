@@ -127,7 +127,7 @@ function esquecerLicoes() { for (const k of Object.keys(licoesCache)) delete lic
 // pela VPS (assistente de negócio, bora_wa.py). Sabe o mesmo que ao telefone; muda só a forma.
 const WHATSAPP = `CANAL DESTA CONVERSA: WhatsApp da Bora (937 501 673), por escrito. Tudo o que está acima sobre a Bora, o que sabes, as ferramentas, a privacidade, o dinheiro e quando passar à equipa vale igual. O que muda é a forma, e o que está aqui GANHA às regras de "COMO FALAS" acima (essas são para o telefone):
 - Escreves como uma pessoa da equipa da Bora no WhatsApp: mensagens curtas, naturais e simpáticas, em português de Portugal. Em regra 1 a 3 frases; se a pessoa pedir passos ou uma lista, até 5 linhas começadas por "• ". Sem títulos, sem asteriscos duplos, no máximo um emoji e só se a pessoa usar.
-- Aqui não há central nem palavra de ligação: começas logo pela resposta. Cumprimentas só se a pessoa cumprimentar e só na primeira mensagem da conversa; não te apresentas em cada mensagem.
+- Aqui não há central nem palavra de ligação, nem silêncio a preencher: começas logo pela resposta e, quando usas uma ferramenta, não escreves nada antes dela ("vou ver", "um momento"); escreves só a resposta com o resultado. Cumprimentas só se a pessoa cumprimentar e só na primeira mensagem da conversa; não te apresentas em cada mensagem.
 - Podes escrever valores com algarismos (2,50 €), horas (21:30) e links. A app descarrega-se em https://www.boraguarda.com/baixar (Android e iPhone). O e-mail de suporte escreve-se normal.
 - Não é uma chamada: nunca chames terminar_chamada e nunca digas "obrigada por ligar". A conversa fica aberta; acabas com uma pergunta só quando faz falta.
 - A equipa responde por este mesmo WhatsApp: não perguntes por onde responder. Em passar_a_equipa o contacto é "WhatsApp deste número". Depois de passar, dizes uma vez que a equipa responde aqui assim que possível.
@@ -553,7 +553,7 @@ Deno.serve(async (req: Request) => {
     pedidosTeste: d.teste && Array.isArray(d.pedidos) && d.pedidos.length ? d.pedidos : null,
     canal, conversa: txt(d.conversa, 120),
   };
-  let custo = 0, escalado = false, terminar = false, motor = principal, falado = "";
+  let custo = 0, escalado = false, terminar = false, motor = principal, falado = "", antesDeFerramenta = "";
   const uso = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
 
   if (op === "responder_stream") {
@@ -678,9 +678,12 @@ Deno.serve(async (req: Request) => {
     novas.push({ role: "assistant", content: conteudo });
     // deno-lint-ignore no-explicit-any
     const textoVolta = conteudo.filter((c: any) => c.type === "text").map((c: any) => c.text).join(" ").trim();
-    if (textoVolta) falado = falado ? `${falado}${wa ? "\n" : " "}${textoVolta}` : textoVolta;
     // deno-lint-ignore no-explicit-any
     const usos = conteudo.filter((c: any) => c.type === "tool_use");
+    // WhatsApp: o "vou ver isso" antes de uma ferramenta não se manda (por escrito não há silêncio a preencher);
+    // fica guardado só para o caso de a última volta não trazer texto.
+    if (wa && r.j.stop_reason === "tool_use" && usos.length) { if (textoVolta) antesDeFerramenta = textoVolta; }
+    else if (textoVolta) falado = falado ? `${falado}${wa ? "\n" : " "}${textoVolta}` : textoVolta;
     if (r.j.stop_reason !== "tool_use" || !usos.length) break;
     // deno-lint-ignore no-explicit-any
     const resultados: any[] = [];
@@ -701,6 +704,7 @@ Deno.serve(async (req: Request) => {
     escalado = true; terminar = true;
   }
 
+  if (wa && !falado.trim() && antesDeFerramenta) falado = antesDeFerramenta;
   // A conversa tem de acabar num turno do assistente; se a última volta foi de ferramentas, fecha-se com o texto.
   if (novas.length && novas[novas.length - 1].role === "user") {
     novas.push({ role: "assistant", content: [{ type: "text", text: falado.trim() || "Com certeza." }] });

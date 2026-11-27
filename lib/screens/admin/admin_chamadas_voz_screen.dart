@@ -11,6 +11,8 @@
 //   admin_chamada_voz_marcar(p_id, p_estado, p_nota)         — auditado
 //   admin_voz_definir(p_key, p_value)                        — auditado
 //   tabela voz_definicoes (leitura só admin), bucket privado chamadas-voz.
+// 27/11/2026: cada chamada mostra a revisão automática (nota e falhas que o Opus encontrou) e o
+// botão "Lições" abre o que a atendente já aprendeu (admin_voz_licoes_screen.dart).
 // O aviso/push de cada chamada abre /admin/chamadas/<id>. Nada aqui mexe em dinheiro.
 
 import 'dart:async';
@@ -23,6 +25,7 @@ import '../../config/app_colors.dart';
 import '../../services/admin_export_service.dart';
 import '../../utils/hora_lisboa.dart';
 import 'admin_conversas_ao_vivo_screen.dart';
+import 'admin_voz_licoes_screen.dart';
 
 const String kRotaChamadasVoz = '/admin/chamadas';
 const String kPrefixoChamadaVoz = '/admin/chamadas/';
@@ -211,6 +214,11 @@ class _AdminChamadasVozScreenState extends State<AdminChamadasVozScreen> {
               icon: const Icon(Icons.forum),
               onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
                   builder: (_) => const AdminConversasAoVivoScreen()))),
+          IconButton(
+              tooltip: 'Lições que a atendente aprendeu',
+              icon: const Icon(Icons.school),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => const AdminVozLicoesScreen()))),
           IconButton(
               tooltip: 'Exportar CSV',
               icon: const Icon(Icons.download),
@@ -467,6 +475,7 @@ class _AdminChamadaVozScreenState extends State<AdminChamadaVozScreen> {
                     ),
                   ),
                 ),
+                if (c['revisao_ia'] is Map) _revisao(Map<String, dynamic>.from(c['revisao_ia'] as Map)),
                 Text('Transcrição (fala a fala)', style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: 6),
                 for (final f in (c['falas'] is List ? c['falas'] as List : const []))
@@ -498,6 +507,38 @@ class _AdminChamadaVozScreenState extends State<AdminChamadaVozScreen> {
                 ]),
               ],
             ),
+    );
+  }
+
+  /// Revisão automática da chamada (voz-cerebro op "aprender"): nota, o que correu bem e as falhas.
+  Widget _revisao(Map<String, dynamic> r) {
+    final falhas = r['falhas'] is List ? (r['falhas'] as List) : const [];
+    final novas = (r['licoes_novas'] as num?)?.toInt() ?? 0;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Revisão automática da IA${r['nota'] != null ? ' · nota ${r['nota']}/10' : ''}',
+                style: Theme.of(context).textTheme.titleSmall),
+            if ((r['correu_bem'] ?? '').toString().isNotEmpty) Text('Correu bem: ${r['correu_bem']}'),
+            for (final f in falhas) Text('• $f'),
+            const SizedBox(height: 6),
+            Row(children: [
+              Expanded(
+                child: Text(novas > 0 ? '$novas lição(ões) nova(s) aprendida(s) nesta chamada.' : 'Nenhuma lição nova.',
+                    style: const TextStyle(fontSize: 12, color: Colors.black54)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => const AdminVozLicoesScreen())),
+                child: const Text('Ver lições'),
+              ),
+            ]),
+          ],
+        ),
+      ),
     );
   }
 

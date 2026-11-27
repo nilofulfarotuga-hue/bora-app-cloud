@@ -138,6 +138,81 @@ async function pedirClaude(corpo: Record<string, any>, comFallback: boolean) {
   } finally { clearTimeout(t); }
 }
 
+// Versão em stream (27/11/2026): o texto sai à medida que o Claude o escreve, para a central começar
+// a falar a 1.ª frase antes de a resposta acabar. Reconstrói os blocos (texto, pensamento com
+// assinatura, tool_use) para a conversa seguir igual à versão sem stream.
+// deno-lint-ignore no-explicit-any
+async function abrirStream(corpo: Record<string, any>, comFallback: boolean) {
+  const chave = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!chave) throw new Error("sem ANTHROPIC_API_KEY");
+  const headers: Record<string, string> = {
+    "content-type": "application/json", "x-api-key": chave, "anthropic-version": "2023-06-01",
+  };
+  // deno-lint-ignore no-explicit-any
+  const c: Record<string, any> = { ...corpo, stream: true };
+  if (comFallback) { headers["anthropic-beta"] = "server-side-fallback-2026-07-01"; c.fallbacks = "default"; }
+  const r = await fetch(API, { method: "POST", headers, body: JSON.stringify(c) });
+  if (r.ok && r.body) return { ok: true, status: r.status, resp: r, texto: "" };
+  const texto = (await r.text()).slice(0, 400);
+  return { ok: false, status: r.status, resp: null, texto };
+}
+
+// deno-lint-ignore no-explicit-any
+async function lerStream(resp: Response, onTexto: (s: string) => void) {
+  const reader = resp.body!.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  // deno-lint-ignore no-explicit-any
+  const blocos: any[] = [];
+  const jsonParcial: Record<number, string> = {};
+  let modelo: string | null = null, stop: string | null = null;
+  // deno-lint-ignore no-explicit-any
+  const uso: any = {};
+  const limite = setTimeout(() => reader.cancel("demorou demais"), 30_000);
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n\n")) >= 0) {
+        const ev = buf.slice(0, i);
+        buf = buf.slice(i + 2);
+        const linha = ev.split("\n").find((l) => l.startsWith("data:"));
+        if (!linha) continue;
+        // deno-lint-ignore no-explicit-any
+        let d: any;
+        try { d = JSON.parse(linha.slice(5).trim()); } catch { continue; }
+        if (d.type === "message_start") {
+          modelo = d.message?.model ?? null;
+          Object.assign(uso, d.message?.usage ?? {});
+        } else if (d.type === "content_block_start") {
+          blocos[d.index] = { ...d.content_block };
+          if (d.content_block?.type === "tool_use") jsonParcial[d.index] = "";
+        } else if (d.type === "content_block_delta") {
+          const b = blocos[d.index] ?? (blocos[d.index] = { type: "text", text: "" });
+          const x = d.delta ?? {};
+          if (x.type === "text_delta") { b.text = (b.text ?? "") + x.text; onTexto(x.text); }
+          else if (x.type === "thinking_delta") b.thinking = (b.thinking ?? "") + x.thinking;
+          else if (x.type === "signature_delta") b.signature = (b.signature ?? "") + x.signature;
+          else if (x.type === "input_json_delta") jsonParcial[d.index] = (jsonParcial[d.index] ?? "") + x.partial_json;
+        } else if (d.type === "content_block_stop") {
+          const b = blocos[d.index];
+          if (b?.type === "tool_use") {
+            try { b.input = jsonParcial[d.index] ? JSON.parse(jsonParcial[d.index]) : {}; } catch { b.input = {}; }
+          }
+        } else if (d.type === "message_delta") {
+          stop = d.delta?.stop_reason ?? stop;
+          Object.assign(uso, d.usage ?? {});
+        } else if (d.type === "error") {
+          throw new Error(JSON.stringify(d.error ?? d).slice(0, 300));
+        }
+      }
+    }
+  } finally { clearTimeout(limite); }
+  return { blocos: blocos.filter(Boolean), modelo, stop, uso };
+}
+
 // deno-lint-ignore no-explicit-any
 async function correrFerramenta(nome: string, inp: any, ctx: { telefone: string; userId: string | null; chamadaId: string; teste: boolean; quem: string; pedidosTeste: unknown[] | null }) {
   if (nome === "ver_pedidos_de_quem_liga") {
@@ -238,7 +313,7 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  if (op !== "responder") return json({ erro: `operacao desconhecida: ${op}` }, 400);
+  if (op !== "responder" && op !== "responder_stream") return json({ erro: `operacao desconhecida: ${op}` }, 400);
 
   // Motor: Opus; Sonnet se o teto do dia passou (config) ou se o Opus falhar.
   const { data: gasto } = await sb.rpc("voz_gasto_hoje_usd");
@@ -269,6 +344,95 @@ Deno.serve(async (req: Request) => {
   };
   let custo = 0, escalado = false, terminar = false, motor = principal, falado = "";
   const uso = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
+
+  if (op === "responder_stream") {
+    // Linhas NDJSON: {"t":"texto","v":"..."} à medida que o Claude escreve; {"t":"pausa"} antes de
+    // correr ferramentas (a central fecha a frase que tem); {"t":"fim", ...} igual ao responder.
+    const enc = new TextEncoder();
+    const corpoStream = new ReadableStream({
+      async start(controller) {
+        const enviar = (o: unknown) => controller.enqueue(enc.encode(JSON.stringify(o) + "\n"));
+        try {
+          for (let volta = 0; volta < 5; volta++) {
+            const corpo = {
+              model: motor, max_tokens: 4000, output_config: { effort: "low" },
+              cache_control: { type: "ephemeral" },
+              tools: FERRAMENTAS,
+              system: [
+                { type: "text", text: PROMPT_FIXO, cache_control: { type: "ephemeral" } },
+                { type: "text", text: contexto },
+              ],
+              messages: [...mensagens, ...novas],
+            };
+            const t0 = Date.now();
+            let a = await abrirStream(corpo, motor === "claude-opus-5-5");
+            if (!a.ok && a.status === 400 && /fallback/i.test(a.texto)) a = await abrirStream(corpo, false);
+            if (!a.ok && motor !== reserva && volta === 0) {
+              await gastar(motor, null, Date.now() - t0, false, `${a.status} ${a.texto}`);
+              motor = reserva;
+              a = await abrirStream({ ...corpo, model: motor }, false);
+            }
+            if (!a.ok || !a.resp) {
+              await gastar(motor, null, Date.now() - t0, false, `${a.status} ${a.texto}`);
+              const desculpa = "Peço desculpa, estou com uma dificuldade técnica. Vou passar o seu caso à equipa, que lhe responde por escrito.";
+              enviar({ t: "texto", v: (falado ? " " : "") + desculpa });
+              falado = (falado ? falado + " " : "") + desculpa;
+              escalado = true;
+              break;
+            }
+            let primeiroDaVolta = true;
+            const r = await lerStream(a.resp, (delta) => {
+              const v = primeiroDaVolta && falado && !/\s$/.test(falado) ? " " + delta : delta;
+              primeiroDaVolta = false;
+              falado += v;
+              enviar({ t: "texto", v });
+            });
+            await gastar(r.modelo ?? motor, r.uso, Date.now() - t0, true, null);
+            for (const k of Object.keys(uso) as (keyof typeof uso)[]) uso[k] += Number(r.uso?.[k] ?? 0);
+            custo += custoUsd(r.modelo ?? motor, r.uso);
+            if (r.stop === "refusal") {
+              escalado = true;
+              const recusa = "Peço desculpa, nisso não posso ajudar. Vou passar o seu caso à equipa, que lhe responde por escrito.";
+              enviar({ t: "texto", v: " " + recusa });
+              falado = recusa;
+              break;
+            }
+            novas.push({ role: "assistant", content: r.blocos });
+            // deno-lint-ignore no-explicit-any
+            const usos = r.blocos.filter((b: any) => b.type === "tool_use");
+            if (r.stop !== "tool_use" || !usos.length) break;
+            enviar({ t: "pausa" });
+            // deno-lint-ignore no-explicit-any
+            const resultados: any[] = [];
+            for (const tu of usos) {
+              if (tu.name === "passar_a_equipa") escalado = true;
+              if (tu.name === "terminar_chamada") terminar = true;
+              const res = await correrFerramenta(tu.name, tu.input, ctx);
+              resultados.push({ type: "tool_result", tool_use_id: tu.id, content: JSON.stringify(res).slice(0, 6000) });
+            }
+            novas.push({ role: "user", content: resultados });
+            if (terminar && falado.trim()) break;
+          }
+          const tetoChamadaUsd = Number(def.voz_opus_teto_chamada_eur ?? 0.6) / 0.95;
+          if (Number(d.custo_acumulado_usd ?? 0) + custo >= tetoChamadaUsd && !terminar) {
+            const fecho = "Para não o fazer esperar mais, vou passar o seu caso à equipa, que lhe responde por escrito. Obrigado por ligar para a Bora.";
+            enviar({ t: "texto", v: " " + fecho });
+            falado = (falado ? falado + " " : "") + fecho;
+            escalado = true; terminar = true;
+          }
+          if (novas.length && novas[novas.length - 1].role === "user") {
+            novas.push({ role: "assistant", content: [{ type: "text", text: falado.trim() || "Com certeza." }] });
+          }
+          enviar({ t: "fim", texto: falado.replace(/\s+/g, " ").trim(), novas_mensagens: novas,
+                   custo_usd: Number(custo.toFixed(5)), uso, motor, escalado, terminar });
+        } catch (e) {
+          enviar({ t: "erro", v: String(e).slice(0, 300) });
+        }
+        controller.close();
+      },
+    });
+    return new Response(corpoStream, { headers: { "Content-Type": "application/x-ndjson", "Cache-Control": "no-cache" } });
+  }
 
   for (let volta = 0; volta < 5; volta++) {
     const corpo = {

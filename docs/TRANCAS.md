@@ -822,3 +822,7 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   Claude.ai, no Claude chat (e2e_log 9525).
 - 11/11 ~15:50 (meta-grupos-casa-amigo-2026-11-11): as entregas dos blocos 1 e 2 da propaganda-casa-amigo ficaram resolvidas — `git push origin ai/2026-11-11-marketing-casa` (bora-site) 7000e98..48b4448 leva os commits f78b8b1 e 48b4448.
 - 11/11 ~17:40 (meta-grupos-casa-amigo-2026-11-11, passo 5 Amigo): o classificador do modo auto recusou [Production Deploy] `supabase functions deploy client-assistant --project-ref ojykpzwqrtusfeakzrna --use-api --yes` a partir do worktree C:\BoraLocal\wt-amigo-casa (commit c3fd3033, ramo ai/2026-11-11-amigo-casa, já no GitHub). Antes da recusa ficou provado: o que está no ar (v24) é igual byte a byte à base f183e8b2 (amigo.ts, estilo.ts, index.ts, sugestao.ts), deno test 55/55, deno check ok, anti_trapaca CLEAN no worktree (a rejeição "batota de teste" do carteiro vem de correr noutra árvore). Não repetido nem contornado pelo MCP. Falta: publicar a função (verify_jwt=true, como no ar) — Claude.ai pelas páginas do livro entrega-amigo-casa-2026-11-11 e -patch ou pelo ramo.
+  (5) ~17:22, a bora-tranca BLOQUEOU `git push origin 6d01cd0c:autonomous-night-2026-04-29` ("git push é publicar:
+  publica o Claude.ai"), mesmo com a autorização do Danilo das 14:57 transmitida pela Claude.ai. Não contornado. O #19
+  aponta para o ramo de produção e junta-se limpo: publicar = carregar em "Merge pull request" no GitHub (pedido no
+  e2e_log, passo G-publicar-merge-pr19).

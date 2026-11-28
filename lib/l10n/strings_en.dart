@@ -5825,4 +5825,31 @@ const Map<String, String> kStringsEn = <String, String>{
   "Área aproximada (m²)": "Approximate area (m²)",
   "≈ {0} por mês": "≈ {0} per month",
   "≈ {0} por mês · pago este mês: {1}": "≈ {0} per month · paid this month: {1}",
+  // 28/11/2026 — passo "Falta só isto" (telemóvel de qualquer país + morada exata).
+  "Falta só isto": "Just one more thing",
+  "Para o estafeta te encontrar e falar contigo.":
+      "So the courier can find you and talk to you.",
+  "O teu telemóvel": "Your mobile number",
+  "A tua morada exata": "Your exact address",
+  "Rua e número da porta": "Street and door number",
+  "Andar e porta (opcional)": "Floor and flat (optional)",
+  "Indicações para o estafeta (opcional)": "Directions for the courier (optional)",
+  "Portão verde, tocar à campainha 3": "Green gate, ring bell 3",
+  "Confirma onde é a tua porta": "Confirm where your door is",
+  "Arrasta o pino ou toca no mapa até ficar em cima da tua porta.":
+      "Drag the pin or tap the map until it is right on your door.",
+  "Escreve a rua e o número da porta.": "Write the street and the door number.",
+  "Falta o número da porta (ex.: Rua do Comércio, 12).":
+      "The door number is missing (e.g.: Rua do Comércio, 12).",
+  "Número inválido para o país escolhido. Confirma o indicativo e o número.":
+      "Invalid number for the chosen country. Check the country code and the number.",
+  "O estafeta usa este número para te contactar (chamada ou WhatsApp) se precisar.":
+      "The courier uses this number to contact you (call or WhatsApp) if needed.",
+  "Indicativo do país": "Country code",
+  "Falta o teu telemóvel: o estafeta precisa dele para te contactar. Põe-no e tenta de novo.":
+      "Your mobile number is missing: the courier needs it to contact you. Add it and try again.",
+  "Falta a morada exata da entrega (rua e número da porta). Põe-na e tenta de novo.":
+      "The exact delivery address is missing (street and door number). Add it and try again.",
+  "Falta dizer onde está o carro (rua e número).":
+      "Tell us where the car is (street and number).",
 };

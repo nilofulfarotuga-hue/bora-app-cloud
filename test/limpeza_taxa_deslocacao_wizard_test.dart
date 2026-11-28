@@ -200,6 +200,7 @@ Future<_Limpezas> _chegaAoPasso2(WidgetTester t) async {
     child: _app(CleaningWizardScreen(
       agora: () => DateTime.utc(2026, 11, 19, 10),
       procurarMorada: _procura,
+      garantirContacto: _contactoOk,
     )),
   ));
   await t.pumpAndSettle();
@@ -224,6 +225,10 @@ Future<void> _escreveMorada(
   await t.pump(const Duration(seconds: 1));
   await t.pumpAndSettle();
 }
+
+/// O telemóvel do cliente é outro teste (telefone_internacional_test.dart);
+/// aqui a porta "Falta só isto" deixa sempre passar.
+Future<bool> _contactoOk(BuildContext _) async => true;
 
 void main() {
   testWidgets(
@@ -308,6 +313,7 @@ void main() {
       child: _app(CleaningWizardScreen(
         agora: () => DateTime.utc(2026, 11, 19, 10),
         procurarMorada: _procura,
+        garantirContacto: _contactoOk,
       )),
     ));
     await t.pumpAndSettle();
@@ -362,6 +368,7 @@ void main() {
       child: _app(CleaningWizardScreen(
         agora: () => DateTime.utc(2026, 11, 19, 10),
         procurarMorada: _procura,
+        garantirContacto: _contactoOk,
       )),
     ));
     await t.pumpAndSettle();

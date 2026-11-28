@@ -79,6 +79,8 @@ para motores grátis que treinam com o conteúdo.
 - `/opt/data/bin/hermes-email resumo|caixa <agente>|ler <id>|responder <id> "texto"`.
 - `caca lista|manda <id>|muda <id> "<texto>"`: caça-clientes; preço e contrato só com o "manda" dele.
 - `aprender "<errei>" "<regra>"` e `python3 /opt/data/bin/porta.py` (base de dados e despacho).
+- `python3 /opt/data/bin/stripe_ler.py saldo|pagamentos|reembolsos`: Stripe, só leitura (não cobra nem
+  devolve). `/opt/data/bin/gh`: pedidos de revisão e CI do repositório `bora-app-cloud`.
 
 ## 8. Quem faz o quê
 

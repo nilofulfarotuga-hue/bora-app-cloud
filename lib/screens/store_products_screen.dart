@@ -576,6 +576,17 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
                           _rpcQuery == _searchQuery.trim(),
                       termo: _searchQuery,
                       loja: widget.storeName,
+                      // 18/11/2026: mesmo critério dos botões do topo + loja aberta.
+                      farmacia: _farmaciaVisivel &&
+                              !(restaurantStore
+                                      .restaurantById(widget.restaurantId)
+                                      ?.fechadaParaCliente ??
+                                  false)
+                          ? FarmaciaDaPesquisa(
+                              restaurantId: widget.restaurantId,
+                              nome: widget.storeName,
+                            )
+                          : null,
                       localFallback: suggestions,
                       loadedProducts: products,
                       isPartnerStore: widget.isPartnerStore,
@@ -1903,6 +1914,7 @@ class _SuggestionsPanel extends StatelessWidget {
     required this.onPickSection,
     required this.onPickProduct,
     required this.isPartnerStore,
+    this.farmacia,
   });
 
   final List<Map<String, dynamic>> rpcRows;
@@ -1915,6 +1927,9 @@ class _SuggestionsPanel extends StatelessWidget {
   final ValueChanged<String> onPickSection;
   final ValueChanged<PartnerProduct> onPickProduct;
   final bool isPartnerStore;
+
+  /// 18/11/2026: farmácia aberta que recebe pedidos — "Pedir à farmácia" primeiro.
+  final FarmaciaDaPesquisa? farmacia;
 
   PartnerProduct? _resolveProduct(Map<String, dynamic> row) {
     final id = (row['id'] ?? '').toString();
@@ -1965,7 +1980,7 @@ class _SuggestionsPanel extends StatelessWidget {
       if (!rpcLoading && respondida) {
         return Container(
           color: Colors.white,
-          child: PesquisaSemResultado(termo: termo, loja: loja),
+          child: PesquisaSemResultado(termo: termo, loja: loja, farmacia: farmacia),
         );
       }
       return const SizedBox.shrink();

@@ -46,6 +46,9 @@ Nos Favores um estafeta faz um recado por ti: comprar alguma coisa numa loja, le
 ## Mercados e produtos ao quilo
 Nos mercados, os produtos ao quilo (fruta, carne, peixe) têm um preço estimado. O estafeta pesa e escreve o valor certo da etiqueta; pagas o valor real. Se ficar mais barato, a diferença volta para a tua carteira.
 
+## Farmácias: receita e pedidos especiais
+Nas farmácias parceiras há três botões no topo da loja. "Tenho receita": envias a foto da receita (ou o número e os códigos), assinas a autorização com o dedo e a farmácia diz se tem os medicamentos e quanto custam. "Não encontra o produto? Peça aqui": se o que procuras não aparece na loja, escreves o nome (podes juntar uma foto da caixa) e a farmácia confirma se tem e o preço. Também aparece o botão "Pedir à farmácia" quando pesquisas na loja e não encontras nada. Em ambos os casos só pagas depois de confirmares o valor; depois o estafeta vai buscar à farmácia e leva-te a casa. "Repetir todos os meses": depois de um pedido confirmado, a app avisa-te todos os meses para pedires outra vez. Em "Os meus pedidos à farmácia" vês o estado de cada pedido. A farmácia tem de estar aberta para receber o pedido.
+
 ## Reservas em restaurantes
 Para reservar mesa pagas 3 € adiantados. Quando chegas, o restaurante desconta 2 € na tua conta; o resto é a taxa da reserva. Podes cancelar sem custo até 2 horas antes da hora marcada. Se cancelares com menos de 2 horas ou não apareceres, os 3 € não são devolvidos.
 

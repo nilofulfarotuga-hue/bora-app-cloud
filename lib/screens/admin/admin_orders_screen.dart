@@ -10,6 +10,8 @@ import '../../services/pedido_origem_service.dart';
 import '../../widgets/admin/test_order_badge.dart';
 import '_admin_cancel_order_dialog.dart';
 import 'admin_order_detail_screen.dart';
+import '../../utils/hora_lisboa.dart'
+    show dataHoraLisboa, horaLisboa, instanteDeLisboa;
 import '../../utils/hora_lisboa_ext.dart';
 import '../../utils/euros.dart';
 
@@ -74,6 +76,9 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     ('takeaway', 'Takeaway'),
     ('errand', 'Favores'),
     ('festa', 'Festas (com data)'),
+    // 17/11/2026: a loja marcou quando fica pronto (até 14 dias) e o
+    // entregador só é chamado perto dessa hora.
+    ('loja_agendou', 'Agendados pela loja'),
   ];
 
   static const _origemOptions = <(String, String)>[
@@ -112,7 +117,9 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           'stripe_charge_cents, is_test_order, '
           // 10/11 pagar-na-loja: o que o entregador faz na loja
           'loja_pagamento_estado, loja_pagar_valor, is_purchase_finalized, '
-          'final_purchase_value');
+          'final_purchase_value, '
+          // 17/11/2026: "Pronto em" (hora prometida pela loja)
+          'ready_at_promised');
       var query = _statusFilter == 'all' ? base : base.eq('status', _statusFilter);
       if (_paymentFilter != 'all') {
         // 'mixed' covers any order with wallet OR tokens applied.
@@ -148,10 +155,21 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                   ini.add(const Duration(days: 1)).toIso8601String());
         }
       }
+      // 17/11/2026: agendados pela loja = com hora prometida e ainda em curso,
+      // pela ordem em que ficam prontos.
+      if (_serviceTypeFilter == 'loja_agendou') {
+        query = query
+            .not('ready_at_promised', 'is', null)
+            .not('status', 'in', '(delivered,cancelled,rejected)');
+      }
       // 'all' = sem filtro is_test_order.
       final data = _serviceTypeFilter == 'festa'
           ? await query.order('scheduled_for', ascending: true).limit(200)
-          : await query.order('created_at', ascending: false).limit(100);
+          : _serviceTypeFilter == 'loja_agendou'
+              ? await query
+                  .order('ready_at_promised', ascending: true)
+                  .limit(200)
+              : await query.order('created_at', ascending: false).limit(100);
       final lista = List<Map<String, dynamic>>.from(data);
       // Origem (app/whatsapp) dos pedidos visíveis, em lote. Se falhar
       // (tabela sem existir, sem permissão) devolve null e a lista fica como
@@ -310,6 +328,65 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     await _load();
   }
 
+  /// 17/11/2026 (paridade): o admin muda a hora em que o pedido fica pronto
+  /// (a que a loja marcou). Usa a mesma função do parceiro
+  /// (`partner_set_ready_at`, que aceita admin), com os mesmos limites: até
+  /// 14 dias nas lojas que não são de comida, 4 h nos restaurantes. O
+  /// entregador é chamado 8 min antes da hora nova.
+  Future<void> _mudarHoraPronto(Map<String, dynamic> o) async {
+    final id = o['id'] as String?;
+    if (id == null) return;
+    final hoje = horaLisboa(DateTime.now());
+    final primeiro = DateTime(hoje.year, hoje.month, hoje.day);
+    final ultimo = DateTime(hoje.year, hoje.month, hoje.day + 14);
+    final atual = DateTime.tryParse('${o['ready_at_promised'] ?? ''}');
+    final atualLisboa = atual == null ? hoje : horaLisboa(atual);
+    var inicial =
+        DateTime(atualLisboa.year, atualLisboa.month, atualLisboa.day);
+    if (inicial.isBefore(primeiro) || inicial.isAfter(ultimo)) {
+      inicial = primeiro;
+    }
+    final dia = await showDatePicker(
+      context: context,
+      initialDate: inicial,
+      firstDate: primeiro,
+      lastDate: ultimo,
+      helpText: 'Pronto em que dia? (hora de Lisboa)',
+    );
+    if (dia == null || !mounted) return;
+    final hora = await showTimePicker(
+      context: context,
+      initialTime:
+          TimeOfDay(hour: atualLisboa.hour, minute: atualLisboa.minute),
+      helpText: 'Pronto a que horas? (hora de Lisboa)',
+      builder: (ctx, child) => MediaQuery(
+        data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true),
+        child: child ?? const SizedBox.shrink(),
+      ),
+    );
+    if (hora == null || !mounted) return;
+    final instante = instanteDeLisboa(
+        DateTime(dia.year, dia.month, dia.day, hora.hour, hora.minute));
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final r = await Supabase.instance.client.rpc('partner_set_ready_at',
+          params: {
+            'p_order_id': id,
+            'p_ready_at': instante.toUtc().toIso8601String(),
+          });
+      final ok = r is Map && r['ok'] == true;
+      messenger.showSnackBar(SnackBar(
+        content: Text(ok
+            ? 'Hora alterada: pronto em ${dataHoraLisboa(instante.toIso8601String())} (hora de Lisboa).'
+            : 'Não foi possível alterar a hora: ${r is Map ? r['error'] : 'resposta inválida'}.'),
+      ));
+      if (ok) _load();
+    } catch (e) {
+      messenger.showSnackBar(
+          SnackBar(content: Text('Erro ao alterar a hora: $e')));
+    }
+  }
+
   /// Push the new full-screen detail (FASE 4 BUG 3 F1.D).
   void _openDetail(Map<String, dynamic> order) {
     final id = order['id'] as String?;
@@ -336,6 +413,8 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       'loja_situacao',
       'estafeta_paga_loja',
       'pago_de_fato_loja',
+      // 17/11 hora prometida pela loja
+      'pronto_em',
     ];
     final rows = _orders
         .map((o) => [
@@ -355,6 +434,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                       o['loja_pagamento_estado'] == 'pagar_loja'
                   ? (o['final_purchase_value'] ?? '')
                   : '',
+              o['ready_at_promised'] ?? '',
             ])
         .toList();
     final stamp = DateTime.now().toIso8601String().substring(0, 10);
@@ -779,6 +859,44 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                                                   color: Colors.green.shade800,
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.w600),
+                                            ),
+                                          ),
+                                        // 17/11/2026: "Pronto em" — hora que a
+                                        // loja prometeu (o entregador é chamado
+                                        // 8 min antes).
+                                        if (o['ready_at_promised'] != null)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                                top: 2),
+                                            child: Wrap(
+                                              crossAxisAlignment:
+                                                  WrapCrossAlignment.center,
+                                              spacing: 8,
+                                              children: [
+                                                Text(
+                                                  'Pronto em: ${dataHoraLisboa(o['ready_at_promised'])} (hora de Lisboa)',
+                                                  key: const Key(
+                                                      'admin_pronto_em'),
+                                                  style: const TextStyle(
+                                                      color: AppColors.primary,
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w700),
+                                                ),
+                                                if (status == 'preparing')
+                                                  TextButton.icon(
+                                                    key: const Key(
+                                                        'admin_mudar_pronto_em'),
+                                                    onPressed: () =>
+                                                        _mudarHoraPronto(o),
+                                                    icon: const Icon(
+                                                        Icons
+                                                            .edit_calendar_outlined,
+                                                        size: 16),
+                                                    label: const Text(
+                                                        'Mudar hora'),
+                                                  ),
+                                              ],
                                             ),
                                           ),
                                         Text(

@@ -3,6 +3,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/order_model.dart';
+import '../utils/fica_pronto.dart';
 
 /// Computes a rough ETA (minutes remaining) until the client receives the
 /// order. Uses haversine distance + average speed. Not meant to be precise —
@@ -118,6 +119,10 @@ class OrderEtaService {
         // (recalculada a cada chamada: já descontada do que passou) e depois a viagem.
         final pronto = order.readyAtPromised;
         if (pronto != null) {
+          // 17/11/2026: prometido para daqui a mais de 1 h (ex.: a A3 "fica
+          // pronto sexta às 15:00") — nada de "Chega em ~2900 min": o ecrã mostra
+          // o dia e a hora ([textoProntoLonge]).
+          if (prontoLonge(pronto, now ?? DateTime.now())) return null;
           final espera = pronto.difference(now ?? DateTime.now()).inSeconds / 60.0;
           return _round5(
               (km / avgSpeedKmh) * 60 + (espera > 0 ? espera : 0));
@@ -225,6 +230,21 @@ class OrderEtaService {
   static double? distanceKmBetween(LatLng? a, LatLng? b) {
     if (a == null || b == null) return null;
     return _distance.as(LengthUnit.Kilometer, a, b);
+  }
+
+  /// 17/11/2026: "Fica pronto sexta, 21/11, às 15:00" — a loja prometeu o
+  /// pedido para mais de 1 h à frente e o estafeta ainda não o levou. Null nos
+  /// outros casos (aí vale o "Chega em ~X min" de sempre).
+  static String? textoProntoLonge(OrderModel order, {DateTime? now}) {
+    if (order.status != OrderStatus.created &&
+        order.status != OrderStatus.preparing &&
+        order.status != OrderStatus.callingDriver) {
+      return null;
+    }
+    final agora = now ?? DateTime.now();
+    final pronto = order.readyAtPromised;
+    if (pronto == null || !prontoLonge(pronto, agora)) return null;
+    return textoFicaPronto(pronto, agora);
   }
 
   static String? label(OrderModel order, {LatLng? driverPos}) {

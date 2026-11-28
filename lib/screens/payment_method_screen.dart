@@ -49,6 +49,7 @@ import '../widgets/valor_com_risco.dart';
 import '../l10n/tr.dart';
 import '../widgets/mbway_espera_pedido_dialog.dart';
 import '../utils/euros.dart';
+import 'complete_profile_screen.dart' show garantirContactoDoCliente;
 
 /// Mensagem única do bloqueio de "Em breve" no pagamento (PT-PT).
 const String _kComingSoonPaymentMessage =
@@ -1247,6 +1248,14 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
     final agendar = _mensagemErroAgendamento(context.read<CartStore>());
     if (agendar != null) return agendar;
     final err = orderStore.lastCreateOrderError ?? '';
+    // 28/11/2026: o servidor recusa pedidos sem telemóvel ou sem morada exata
+    // (gatilho _a0_pedido_exige_contacto). Nunca o genérico.
+    if (err.contains('SEM_TELEFONE')) {
+      return 'Falta o teu telemóvel: o estafeta precisa dele para te contactar. Põe-no e tenta de novo.'.tr;
+    }
+    if (err.contains('SEM_MORADA') || err.contains('MISSING_DROPOFF_COORDS')) {
+      return 'Falta a morada exata da entrega (rua e número da porta). Põe-na e tenta de novo.'.tr;
+    }
     if (err.contains('delivery_distance_exceeded')) {
       final m = RegExp(r'>\s*(\d+(?:[.,]\d+)?)\s*km').firstMatch(err);
       final max = m?.group(1) ?? '15';
@@ -1487,6 +1496,17 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
     // Pre-flight: block payment if delivery address is not set.
     // This prevents charging the user and then failing at order creation.
     final cartStore = context.read<CartStore>();
+    // 28/11/2026 (Danilo 09:38): "não tem como fazer pedido sem telefone e sem
+    // morada". Também os Favores (que chegam aqui sem passar pelo carrinho):
+    // falta o telemóvel ou a morada exata → passo "Falta só isto", e volta-se
+    // aqui com tudo como estava. "Ir buscar" só precisa do telemóvel.
+    final contactoOk = await garantirContactoDoCliente(
+      context,
+      precisaMorada: !cartStore.isTakeaway,
+      exigirMoradaGuardada: false,
+      categoria: cartStore.errandSession != null ? 'favor' : 'pagamento',
+    );
+    if (!contactoOk || !context.mounted) return;
     // "Ir buscar": o cliente vai à loja — não há morada de entrega a exigir.
     if (!cartStore.isTakeaway &&
         (cartStore.deliveryLocation == null ||

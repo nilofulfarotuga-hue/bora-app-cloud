@@ -23,14 +23,14 @@ import 'cleaning_plan_screen.dart';
 
 /// PLANO DE LIMPEZA — criar (missão limpeza-planos-empresas-2026-11-28, Blocos C e D).
 ///
-/// [segment] 'casa': frequência (De 15 em 15 dias / Semanal [Popular] / Mais de uma vez por
-/// semana), horas por visita, barra "Preço por hora" a descer, preço por visita e "≈ por mês".
-/// [segment] 'empresa' (Bora Empresas): tipo de espaço, m², tarefas, mínimo 1 h, produtos
-/// incluídos, hora À ESCOLHA da empresa, nome, NIF, email de faturação e instruções de acesso.
+/// 28/11/2026 (redesenho didático, pedido do Danilo): uma pergunta por ecrã, com "Passo X de N",
+/// botão grande Continuar e Voltar. A opção escolhida fica verde cheio com um visto.
+///   casa (5):    a casa e as horas → frequência → dia, hora e início → morada → resumo e cartão
+///   empresa (6): espaço e tarefas → frequência e horas → dias e hora → morada → fatura → resumo
 ///
 /// Só com cartão. O preço vem SEMPRE do servidor (cleaning_plan_quote). Nada se cobra aqui:
-/// "Começar plano" cria o plano e guarda o cartão (SetupIntent); cada limpeza cobra-se 24 h
-/// antes, e só com a profissional confirmada.
+/// "Começar plano" cria o plano e guarda o cartão (SetupIntent); cada limpeza cobra-se na véspera,
+/// e só com a profissional confirmada. Só a apresentação mudou: as chamadas e as regras são as mesmas.
 class CleaningPlanWizardScreen extends StatefulWidget {
   const CleaningPlanWizardScreen({super.key, this.segment = 'casa', this.storeOverride, this.garantirContacto});
 
@@ -48,9 +48,19 @@ class CleaningPlanWizardScreen extends StatefulWidget {
   State<CleaningPlanWizardScreen> createState() => _CleaningPlanWizardScreenState();
 }
 
+/// Os passos de cada assistente, pela ordem.
+enum _Passo { casa, espaco, frequencia, quando, morada, fatura, resumo }
+
 class _CleaningPlanWizardScreenState extends State<CleaningPlanWizardScreen> {
   late final CleaningPlanStore _store = widget.storeOverride ?? CleaningPlanStore();
   bool get _empresa => widget.segment == 'empresa';
+
+  late final List<_Passo> _passos = _empresa
+      ? const [_Passo.espaco, _Passo.frequencia, _Passo.quando, _Passo.morada, _Passo.fatura, _Passo.resumo]
+      : const [_Passo.casa, _Passo.frequencia, _Passo.quando, _Passo.morada, _Passo.resumo];
+  int _i = 0;
+  _Passo get _passo => _passos[_i];
+  bool get _ultimo => _i == _passos.length - 1;
 
   // serviço
   late String _frequency = _empresa ? 'weekly_1' : 'weekly';
@@ -186,8 +196,55 @@ class _CleaningPlanWizardScreenState extends State<CleaningPlanWizardScreen> {
   }
 
   String get _horaTexto => '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}';
+  String get _dataTexto => '${_startDate.day.toString().padLeft(2, '0')}/${_startDate.month.toString().padLeft(2, '0')}';
 
   void _snack(String m) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+
+  // ── navegação ─────────────────────────────────────────────────────────────
+
+  /// O que falta neste passo (null = pode continuar).
+  String? _faltaNestePasso() {
+    switch (_passo) {
+      case _Passo.quando:
+        final (min, max) = _regraDias;
+        if (_days.length < min || _days.length > max) {
+          return min == max ? 'Escolhe {0} dia(s) da semana.'.trArgs([min]) : 'Escolhe entre {0} e {1} dias da semana.'.trArgs([min, max]);
+        }
+        return null;
+      case _Passo.morada:
+        return _streetCtrl.text.trim().isEmpty ? 'Falta a rua e o número.'.tr : null;
+      case _Passo.fatura:
+        if (_companyCtrl.text.trim().isEmpty) return 'Falta o nome da empresa.'.tr;
+        if (_nifCtrl.text.replaceAll(RegExp(r'\D'), '').length != 9) return 'O NIF tem de ter 9 algarismos.'.tr;
+        if (!_emailCtrl.text.contains('@')) return 'Falta o email de faturação.'.tr;
+        return null;
+      default:
+        return null;
+    }
+  }
+
+  void _continuar() {
+    final falta = _faltaNestePasso();
+    if (falta != null) {
+      _snack(falta);
+      return;
+    }
+    if (_ultimo) {
+      _comecar();
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() => _i++);
+  }
+
+  void _voltar() {
+    if (_i == 0) {
+      Navigator.of(context).maybePop();
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    setState(() => _i--);
+  }
 
   Future<void> _comecar() async {
     if (_busy) return;
@@ -260,299 +317,407 @@ class _CleaningPlanWizardScreenState extends State<CleaningPlanWizardScreen> {
     }
   }
 
+  // ── ecrã ──────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final q = _quote;
-    return Scaffold(
-      appBar: BoraScreenAppBar(title: _empresa ? 'Limpeza para empresas'.tr : 'Plano de limpeza'.tr),
-      body: ListView(
-        padding: const EdgeInsets.all(Spacing.lg),
-        children: [
-          if (_empresa) ..._blocoEmpresa() else ..._blocoCasa(),
-          const SizedBox(height: Spacing.lg),
-          _Titulo('Com que frequência?'.tr),
-          Wrap(
-            spacing: Spacing.sm,
-            runSpacing: Spacing.sm,
-            children: [
-              for (final e in (_empresa ? CleaningPlanLabels.empresaFrequencias : CleaningPlanLabels.casaFrequencias).entries)
-                ChoiceChip(
-                  key: Key('plano-freq-${e.key}'),
-                  label: Text(e.key == 'weekly' ? '${e.value.tr} · ${'Popular'.tr}' : e.value.tr),
-                  selected: _frequency == e.key,
-                  selectedColor: AppColors.primaryLight,
-                  onSelected: (_) => setState(() {
-                    _frequency = e.key;
-                    _ajustarDias();
-                    _mudou();
-                  }),
-                ),
-            ],
-          ),
-          if (q != null && q.ladder.isNotEmpty) ...[
-            const SizedBox(height: Spacing.md),
-            _BarraPrecoHora(ladder: q.ladder, escolhida: _frequency),
-          ],
-          const SizedBox(height: Spacing.lg),
-          _Titulo(_empresa ? 'Horas por visita (mínimo 1 h)'.tr : 'Horas por limpeza'.tr),
-          _Passo(
-            valor: '$_hours h',
-            menos: _hours > _minHours ? () => setState(() { _hours--; _mudou(); }) : null,
-            mais: _hours < 10 ? () => setState(() { _hours++; _mudou(); }) : null,
-          ),
-          if (!_empresa && CleaningPlanLabels.sugereEquipa(_homeSize)) ...[
-            const SizedBox(height: Spacing.sm),
-            SwitchListTile(
-              key: const Key('plano-equipa'),
-              contentPadding: EdgeInsets.zero,
-              value: _teamSize >= 2,
-              activeThumbColor: AppColors.primary,
-              title: Text('Vêm 2 profissionais e acabam em metade do tempo'.tr),
-              subtitle: Text('O preço por hora é o mesmo; cada uma recebe a sua parte.'.tr),
-              onChanged: (v) => setState(() {
-                _teamSize = v ? 2 : 1;
-                _hours = CleaningPlanLabels.horasSugeridas(_duracoes, _homeSize, _teamSize);
-                _mudou();
-              }),
+    return PopScope(
+      canPop: _i == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _voltar();
+      },
+      child: Scaffold(
+        appBar: BoraScreenAppBar(title: _empresa ? 'Limpeza para empresas'.tr : 'Plano de limpeza'.tr),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _Progresso(passo: _i + 1, total: _passos.length),
+            Expanded(
+              child: ListView(
+                key: ValueKey('plano-passo-${_passo.name}'),
+                padding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.sm, Spacing.lg, Spacing.xxl),
+                children: _conteudo(),
+              ),
             ),
           ],
-          const SizedBox(height: Spacing.lg),
-          _Titulo(_regraDias.$1 == _regraDias.$2 && _regraDias.$1 == 1 ? 'Que dia da semana?'.tr : 'Que dias da semana?'.tr),
-          Wrap(
-            spacing: Spacing.xs,
-            children: [
-              for (final d in CleaningPlanLabels.diasCurtos.entries)
-                FilterChip(
-                  key: Key('plano-dia-${d.key}'),
-                  label: Text(d.value.tr),
-                  selected: _days.contains(d.key),
-                  selectedColor: AppColors.primaryLight,
-                  onSelected: (sel) => setState(() {
-                    final (_, max) = _regraDias;
-                    if (sel) {
-                      if (max == 1) _days.clear();
-                      if (_days.length < max) _days.add(d.key);
-                    } else {
-                      _days.remove(d.key);
-                    }
-                    _mudou();
-                  }),
+        ),
+        bottomNavigationBar: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.sm, Spacing.lg, Spacing.md),
+            child: Row(children: [
+              if (_i > 0) ...[
+                SizedBox(
+                  height: 52,
+                  child: OutlinedButton(
+                    key: const Key('plano-voltar'),
+                    onPressed: _busy ? null : _voltar,
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.dividerStrong, width: 1.5),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Radii.md + 2)),
+                      padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
+                    ),
+                    child: Text('Voltar'.tr, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                  ),
                 ),
-            ],
-          ),
-          const SizedBox(height: Spacing.md),
-          Row(
-            children: [
+                const SizedBox(width: Spacing.sm),
+              ],
               Expanded(
-                child: OutlinedButton.icon(
-                  key: const Key('plano-hora'),
-                  icon: const Icon(Icons.schedule),
-                  label: Text('Hora: {0}'.trArgs([_horaTexto])),
-                  onPressed: () async {
-                    final t = await showTimePicker(context: context, initialTime: _time);
-                    if (t != null) setState(() => _time = t);
-                  },
+                child: BoraPrimaryButton(
+                  key: Key(_ultimo ? 'plano-comecar' : 'plano-continuar'),
+                  label: _ultimo ? 'Começar plano'.tr : 'Continuar'.tr,
+                  loading: _busy,
+                  onPressed: _ultimo && (_quote == null || _quoteLoading) ? null : _continuar,
                 ),
               ),
-              const SizedBox(width: Spacing.sm),
-              Expanded(
-                child: OutlinedButton.icon(
-                  key: const Key('plano-inicio'),
-                  icon: const Icon(Icons.event),
-                  label: Text('Começa: {0}'.trArgs(['${_startDate.day.toString().padLeft(2, '0')}/${_startDate.month.toString().padLeft(2, '0')}'])),
-                  onPressed: () async {
-                    final agora = DateTime.now();
-                    final d = await showDatePicker(
-                      context: context,
-                      initialDate: _startDate,
-                      firstDate: agora.add(const Duration(days: 2)),
-                      lastDate: agora.add(const Duration(days: 90)),
-                    );
-                    if (d != null) setState(() => _startDate = d);
-                  },
-                ),
-              ),
-            ],
-          ),
-          if (_empresa)
-            Padding(
-              padding: const EdgeInsets.only(top: Spacing.xs),
-              child: Text('A hora que a empresa quiser: antes de abrir, durante ou depois de fechar.'.tr,
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-            ),
-          const SizedBox(height: Spacing.lg),
-          _Titulo(_empresa ? 'Onde é a empresa?'.tr : 'Onde é a casa?'.tr),
-          AddressAutocompleteField(
-            controller: _streetCtrl,
-            labelText: 'Rua e número'.tr,
-            prefixIcon: const Icon(Icons.place),
-            confirmarAoSair: false,
-            onSelected: (morada, coords) {
-              setState(() => _coords = coords);
-              _mudou();
-            },
-            onChanged: (_) => _coords = null,
-          ),
-          const SizedBox(height: Spacing.sm),
-          Row(children: [
-            Expanded(flex: 3, child: TextField(controller: _cityCtrl, decoration: InputDecoration(labelText: 'Localidade'.tr), onChanged: (_) => _coords = null)),
-            const SizedBox(width: Spacing.sm),
-            Expanded(flex: 2, child: TextField(controller: _postalCtrl, decoration: InputDecoration(labelText: 'Código postal'.tr), onChanged: (_) => _coords = null)),
-          ]),
-          const SizedBox(height: Spacing.sm),
-          TextField(
-            controller: _notesCtrl,
-            maxLines: 2,
-            decoration: InputDecoration(labelText: 'Notas para a profissional (opcional)'.tr),
-          ),
-          if (_frequency != 'once') ...[
-            const SizedBox(height: Spacing.lg),
-            _Titulo('Como queres pagar?'.tr),
-            RadioGroup<String>(
-              groupValue: _billingMode,
-              onChanged: (v) => setState(() => _billingMode = v ?? 'per_visit'),
-              child: Column(children: [
-                RadioListTile<String>(
-                  key: const Key('plano-cobranca-visita'),
-                  contentPadding: EdgeInsets.zero,
-                  value: 'per_visit',
-                  title: Text('A cada limpeza'.tr),
-                  subtitle: Text('Cobramos 24 h antes de cada limpeza, e só com a profissional confirmada.'.tr),
-                ),
-                RadioListTile<String>(
-                  key: const Key('plano-cobranca-mes'),
-                  contentPadding: EdgeInsets.zero,
-                  value: 'monthly',
-                  title: Text('O mês de uma vez'.tr),
-                  subtitle: Text('No início de cada mês cobramos as limpezas desse mês já confirmadas. Até lá, cobramos cada limpeza 24 h antes.'.tr),
-                ),
-              ]),
-            ),
-          ],
-          const SizedBox(height: Spacing.lg),
-          _ResumoPreco(quote: q, loading: _quoteLoading, empresa: _empresa, erro: q == null ? _store.erro : null),
-          const SizedBox(height: Spacing.md),
-          const _LinhaCartao(),
-          const SizedBox(height: Spacing.md),
-          Text(
-            'Cancelas quando quiseres, sem taxa, em Limpeza → O meu plano. Saltar uma limpeza é grátis até 24 h antes.'.tr,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
-          ),
-          const SizedBox(height: 90),
-        ],
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.sm, Spacing.lg, Spacing.md),
-          child: BoraPrimaryButton(
-            key: const Key('plano-comecar'),
-            label: 'Começar plano'.tr,
-            loading: _busy,
-            onPressed: (q == null || _quoteLoading) ? null : _comecar,
+            ]),
           ),
         ),
       ),
     );
   }
 
-  List<Widget> _blocoCasa() => [
-        _Titulo('Que tamanho tem a casa?'.tr),
-        Wrap(
-          spacing: Spacing.sm,
-          children: [
-            for (final s in CleaningLabels.sizes.entries)
-              ChoiceChip(
+  List<Widget> _conteudo() => switch (_passo) {
+        _Passo.casa => _passoCasa(),
+        _Passo.espaco => _passoEspaco(),
+        _Passo.frequencia => _passoFrequencia(),
+        _Passo.quando => _passoQuando(),
+        _Passo.morada => _passoMorada(),
+        _Passo.fatura => _passoFatura(),
+        _Passo.resumo => _passoResumo(),
+      };
+
+  Widget _passoHoras({required String titulo, String? sugestao}) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _Pergunta(titulo),
+          if (sugestao != null) _Ajuda(sugestao),
+          _Passador(
+            valor: '$_hours h',
+            menos: _hours > _minHours ? () => setState(() { _hours--; _mudou(); }) : null,
+            mais: _hours < 10 ? () => setState(() { _hours++; _mudou(); }) : null,
+          ),
+        ],
+      );
+
+  List<Widget> _passoCasa() => [
+        _Titulo('Como é a tua casa?'.tr),
+        _Pergunta('Tamanho'.tr),
+        Row(children: [
+          for (final (i, s) in CleaningLabels.sizes.entries.indexed) ...[
+            if (i > 0) const SizedBox(width: Spacing.sm),
+            Expanded(
+              child: _Opcao(
                 key: Key('plano-tamanho-${s.key}'),
-                label: Text(s.value),
-                selected: _homeSize == s.key,
-                selectedColor: AppColors.primaryLight,
-                onSelected: (_) => setState(() {
+                titulo: s.value,
+                centrado: true,
+                escolhida: _homeSize == s.key,
+                onTap: () => setState(() {
                   _homeSize = s.key;
                   if (!CleaningPlanLabels.sugereEquipa(_homeSize)) _teamSize = 1;
                   _hours = CleaningPlanLabels.horasSugeridas(_duracoes, _homeSize, _teamSize);
                   _mudou();
                 }),
               ),
+            ),
           ],
-        ),
-        const SizedBox(height: Spacing.xs),
-        Text('Sugerimos {0} h para esta casa. Podes mudar.'.trArgs([CleaningPlanLabels.horasSugeridas(_duracoes, _homeSize, _teamSize)]),
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-        const SizedBox(height: Spacing.lg),
-        _Titulo('Produtos de limpeza'.tr),
-        Wrap(spacing: Spacing.sm, children: [
-          ChoiceChip(
-            label: Text('Tenho em casa'.tr),
-            selected: _productsBy == 'client',
-            selectedColor: AppColors.primaryLight,
-            onSelected: (_) => setState(() { _productsBy = 'client'; _mudou(); }),
-          ),
-          ChoiceChip(
-            label: Text('A profissional leva (+3 €)'.tr),
-            selected: _productsBy == 'cleaner',
-            selectedColor: AppColors.primaryLight,
-            onSelected: (_) => setState(() { _productsBy = 'cleaner'; _mudou(); }),
-          ),
         ]),
-      ];
-
-  List<Widget> _blocoEmpresa() => [
-        _Titulo('Que espaço é?'.tr),
-        Wrap(
-          spacing: Spacing.sm,
-          runSpacing: Spacing.xs,
-          children: [
-            for (final e in CleaningPlanLabels.espacos.entries)
-              ChoiceChip(
-                key: Key('plano-espaco-${e.key}'),
-                label: Text(e.value.tr),
-                selected: _spaceType == e.key,
-                selectedColor: AppColors.primaryLight,
-                onSelected: (_) => setState(() => _spaceType = e.key),
-              ),
-          ],
+        const SizedBox(height: Spacing.xxl),
+        _passoHoras(
+          titulo: 'Horas por limpeza'.tr,
+          sugestao: 'Sugerimos {0} h para esta casa. Podes mudar.'.trArgs([CleaningPlanLabels.horasSugeridas(_duracoes, _homeSize, _teamSize)]),
+        ),
+        if (CleaningPlanLabels.sugereEquipa(_homeSize)) ...[
+          const SizedBox(height: Spacing.md),
+          _Opcao(
+            key: const Key('plano-equipa'),
+            titulo: 'Vêm 2 profissionais'.tr,
+            subtitulo: 'Acabam em metade do tempo. O preço por hora é o mesmo.'.tr,
+            escolhida: _teamSize >= 2,
+            marcavel: true,
+            onTap: () => setState(() {
+              _teamSize = _teamSize >= 2 ? 1 : 2;
+              _hours = CleaningPlanLabels.horasSugeridas(_duracoes, _homeSize, _teamSize);
+              _mudou();
+            }),
+          ),
+        ],
+        const SizedBox(height: Spacing.xxl),
+        _Pergunta('Produtos de limpeza'.tr),
+        _Opcao(
+          key: const Key('plano-produtos-cliente'),
+          titulo: 'Tenho em casa'.tr,
+          escolhida: _productsBy == 'client',
+          onTap: () => setState(() { _productsBy = 'client'; _mudou(); }),
         ),
         const SizedBox(height: Spacing.sm),
+        _Opcao(
+          key: const Key('plano-produtos-profissional'),
+          titulo: 'A profissional leva (+3 €)'.tr,
+          escolhida: _productsBy == 'cleaner',
+          onTap: () => setState(() { _productsBy = 'cleaner'; _mudou(); }),
+        ),
+      ];
+
+  List<Widget> _passoEspaco() => [
+        _Titulo('Que espaço é?'.tr),
+        _Grelha(children: [
+          for (final e in CleaningPlanLabels.espacos.entries)
+            _Opcao(
+              key: Key('plano-espaco-${e.key}'),
+              titulo: e.value.tr,
+              grelha: true,
+              escolhida: _spaceType == e.key,
+              onTap: () => setState(() => _spaceType = e.key),
+            ),
+        ]),
+        const SizedBox(height: Spacing.lg),
         TextField(
           controller: _areaCtrl,
           keyboardType: TextInputType.number,
+          style: const TextStyle(fontSize: 16),
           decoration: InputDecoration(labelText: 'Área aproximada (m²)'.tr),
         ),
-        const SizedBox(height: Spacing.lg),
-        _Titulo('O que precisa?'.tr),
-        Wrap(
-          spacing: Spacing.sm,
-          runSpacing: Spacing.xs,
-          children: [
-            for (final t in CleaningPlanLabels.tarefas.entries)
-              FilterChip(
-                label: Text(t.value.tr),
-                selected: _tasks.contains(t.key),
-                selectedColor: AppColors.primaryLight,
-                onSelected: (sel) => setState(() => sel ? _tasks.add(t.key) : _tasks.remove(t.key)),
-              ),
-          ],
+        const SizedBox(height: Spacing.xxl),
+        _Pergunta('O que precisa?'.tr),
+        _Ajuda('Toca em tudo o que queres. Os produtos estão incluídos.'.tr),
+        _Grelha(children: [
+          for (final t in CleaningPlanLabels.tarefas.entries)
+            _Opcao(
+              key: Key('plano-tarefa-${t.key}'),
+              titulo: t.value.tr,
+              grelha: true,
+              escolhida: _tasks.contains(t.key),
+              marcavel: true,
+              onTap: () => setState(() => _tasks.contains(t.key) ? _tasks.remove(t.key) : _tasks.add(t.key)),
+            ),
+        ]),
+      ];
+
+  List<Widget> _passoFrequencia() {
+    final q = _quote;
+    final opcoes = _empresa ? CleaningPlanLabels.empresaFrequencias : CleaningPlanLabels.casaFrequencias;
+    final porHora = {for (final s in q?.ladder ?? const <CleaningPlanLadderStep>[]) s.frequency: s.clientCentsPerHour};
+    final umaVez = porHora['once'];
+    return [
+      _Titulo('Com que frequência?'.tr),
+      _Ajuda('Quanto mais vezes, mais barato fica cada hora.'.tr),
+      for (final e in opcoes.entries) ...[
+        _Opcao(
+          key: Key('plano-freq-${e.key}'),
+          titulo: e.value.tr,
+          subtitulo: _poupanca(umaVez, porHora[e.key]),
+          valor: porHora[e.key] == null ? null : CleaningPlanLabels.euroHora(porHora[e.key]!),
+          selo: e.key == 'weekly' ? 'Popular'.tr : null,
+          escolhida: _frequency == e.key,
+          onTap: () => setState(() {
+            _frequency = e.key;
+            _ajustarDias();
+            _mudou();
+          }),
         ),
-        const SizedBox(height: Spacing.xs),
-        Text('Os produtos estão incluídos: a profissional leva-os.'.tr,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+        const SizedBox(height: Spacing.sm),
+      ],
+      if (q == null && _quoteLoading)
+        const Padding(padding: EdgeInsets.all(Spacing.lg), child: Center(child: CircularProgressIndicator())),
+      if (_empresa) ...[
         const SizedBox(height: Spacing.lg),
-        _Titulo('Dados da empresa'.tr),
-        TextField(controller: _companyCtrl, decoration: InputDecoration(labelText: 'Nome da empresa'.tr)),
-        const SizedBox(height: Spacing.sm),
-        TextField(controller: _nifCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'NIF'.tr)),
-        const SizedBox(height: Spacing.sm),
-        TextField(controller: _emailCtrl, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: 'Email de faturação'.tr)),
-        const SizedBox(height: Spacing.sm),
+        _passoHoras(titulo: 'Horas por visita'.tr, sugestao: 'No mínimo 1 h.'.tr),
+      ],
+    ];
+  }
+
+  /// "Poupas 6,00 € por limpeza" face a "Uma vez" (só o preço por hora: deslocação e produtos são iguais).
+  String? _poupanca(int? umaVez, int? esta) {
+    if (umaVez == null || esta == null || esta >= umaVez) return null;
+    final cents = (umaVez - esta) * _hours * _teamSize;
+    return 'Poupas {0} por limpeza'.trArgs([CleaningLabels.euro(cents)]);
+  }
+
+  List<Widget> _passoQuando() {
+    final (min, max) = _regraDias;
+    return [
+      _Titulo(min == 1 && max == 1 ? 'Que dia da semana?'.tr : 'Que dias da semana?'.tr),
+      if (max > 1) _Ajuda(min == max ? 'Escolhe {0} dias.'.trArgs([min]) : 'Escolhe {0} ou mais dias.'.trArgs([min])),
+      Row(children: [
+        for (final (i, d) in CleaningPlanLabels.diasCurtos.entries.indexed) ...[
+          if (i > 0) const SizedBox(width: Spacing.xs),
+          Expanded(
+            child: _Opcao(
+              key: Key('plano-dia-${d.key}'),
+              titulo: d.value.tr,
+              centrado: true,
+              compacto: true,
+              escolhida: _days.contains(d.key),
+              onTap: () => setState(() {
+                if (_days.contains(d.key)) {
+                  _days.remove(d.key);
+                } else {
+                  if (max == 1) _days.clear();
+                  if (_days.length < max) _days.add(d.key);
+                }
+                _mudou();
+              }),
+            ),
+          ),
+        ],
+      ]),
+      const SizedBox(height: Spacing.xxl),
+      _Pergunta('A que horas?'.tr),
+      if (_empresa) _Ajuda('A que quiseres: antes de abrir, durante ou depois de fechar.'.tr),
+      _BotaoGrande(
+        key: const Key('plano-hora'),
+        icone: Icons.schedule,
+        texto: _horaTexto,
+        onTap: () async {
+          final t = await showTimePicker(context: context, initialTime: _time);
+          if (t != null) setState(() => _time = t);
+        },
+      ),
+      const SizedBox(height: Spacing.xxl),
+      _Pergunta('Quando começa?'.tr),
+      _BotaoGrande(
+        key: const Key('plano-inicio'),
+        icone: Icons.event,
+        texto: _dataTexto,
+        onTap: () async {
+          final agora = DateTime.now();
+          final d = await showDatePicker(
+            context: context,
+            initialDate: _startDate,
+            firstDate: agora.add(const Duration(days: 2)),
+            lastDate: agora.add(const Duration(days: 90)),
+          );
+          if (d != null) setState(() => _startDate = d);
+        },
+      ),
+    ];
+  }
+
+  List<Widget> _passoMorada() => [
+        _Titulo(_empresa ? 'Onde é a empresa?'.tr : 'Onde é a casa?'.tr),
+        AddressAutocompleteField(
+          controller: _streetCtrl,
+          labelText: 'Rua e número'.tr,
+          prefixIcon: const Icon(Icons.place),
+          confirmarAoSair: false,
+          onSelected: (morada, coords) {
+            setState(() => _coords = coords);
+            _mudou();
+          },
+          onChanged: (_) => _coords = null,
+        ),
+        const SizedBox(height: Spacing.md),
+        TextField(
+          controller: _cityCtrl,
+          style: const TextStyle(fontSize: 16),
+          decoration: InputDecoration(labelText: 'Localidade'.tr),
+          onChanged: (_) => _coords = null,
+        ),
+        const SizedBox(height: Spacing.md),
+        TextField(
+          controller: _postalCtrl,
+          style: const TextStyle(fontSize: 16),
+          decoration: InputDecoration(labelText: 'Código postal'.tr),
+          onChanged: (_) => _coords = null,
+        ),
+        const SizedBox(height: Spacing.md),
+        TextField(
+          controller: _notesCtrl,
+          maxLines: 2,
+          style: const TextStyle(fontSize: 16),
+          decoration: InputDecoration(labelText: 'Notas para a profissional (opcional)'.tr),
+        ),
+      ];
+
+  List<Widget> _passoFatura() => [
+        _Titulo('Dados para a fatura'.tr),
+        TextField(controller: _companyCtrl, style: const TextStyle(fontSize: 16), decoration: InputDecoration(labelText: 'Nome da empresa'.tr)),
+        const SizedBox(height: Spacing.md),
+        TextField(controller: _nifCtrl, keyboardType: TextInputType.number, style: const TextStyle(fontSize: 16), decoration: InputDecoration(labelText: 'NIF'.tr)),
+        const SizedBox(height: Spacing.md),
+        TextField(controller: _emailCtrl, keyboardType: TextInputType.emailAddress, style: const TextStyle(fontSize: 16), decoration: InputDecoration(labelText: 'Email de faturação'.tr)),
+        const SizedBox(height: Spacing.xxl),
+        _Pergunta('Como se entra?'.tr),
+        _Ajuda('Chave, código da porta… Só a profissional vê, e só no dia.'.tr),
         TextField(
           controller: _accessCtrl,
           maxLines: 2,
-          decoration: InputDecoration(
-            labelText: 'Como entrar (chave, código) — opcional'.tr,
-            helperText: 'Só a profissional vê, e só no dia da limpeza.'.tr,
-          ),
+          style: const TextStyle(fontSize: 16),
+          decoration: InputDecoration(labelText: 'Como entrar (opcional)'.tr),
         ),
       ];
+
+  List<Widget> _passoResumo() {
+    final q = _quote;
+    final dias = CleaningPlanLabels.dias((_days.toList()..sort()));
+    final freq = (_empresa ? CleaningPlanLabels.empresaFrequencias : CleaningPlanLabels.casaFrequencias)[_frequency] ?? _frequency;
+    final mensal = _empresa && _frequency != 'once' && _billingMode == 'monthly';
+    return [
+      _Titulo('Está tudo certo?'.tr),
+      Container(
+        key: const Key('plano-resumo-preco'),
+        padding: const EdgeInsets.all(Spacing.lg),
+        decoration: BoxDecoration(
+          color: AppColors.primaryWash,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: q == null
+            ? (_quoteLoading
+                ? const Center(child: CircularProgressIndicator())
+                : Text(_store.erro ?? 'Sem preço — verifica a ligação.'.tr, style: const TextStyle(fontSize: 16, color: AppColors.error)))
+            : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('{0} por limpeza'.trArgs([CleaningLabels.euro(q.totalPerVisitCents)]),
+                    key: const Key('plano-preco-visita'),
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: AppColors.primaryDark)),
+                if (q.frequency != 'once')
+                  Text('cerca de {0} limpezas por mês'.trArgs([q.visitsPerMonth.round() < 1 ? 1 : q.visitsPerMonth.round()]),
+                      key: const Key('plano-limpezas-mes'),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+              ]),
+      ),
+      const SizedBox(height: Spacing.lg),
+      _Linha(Icons.event_repeat, '${freq.tr} · $dias · $_horaTexto'),
+      _Linha(Icons.timelapse, _teamSize > 1 ? '{0} h · {1} profissionais'.trArgs([_hours, _teamSize]) : '{0} h por limpeza'.trArgs([_hours])),
+      if (_empresa || _productsBy == 'cleaner')
+        _Linha(Icons.cleaning_services, _empresa ? 'Produtos incluídos'.tr : 'A profissional leva os produtos'.tr),
+      if ((q?.travelFeeCents ?? 0) > 0)
+        _Linha(Icons.directions_car, 'Inclui {0} de deslocação'.trArgs([CleaningLabels.euro(q!.travelFeeCents)])),
+      if (_moradaEscrita.isNotEmpty) _Linha(Icons.place, _moradaEscrita),
+      _Linha(Icons.play_circle_outline, 'Começa a {0}'.trArgs([_dataTexto])),
+      const SizedBox(height: Spacing.lg),
+      if (_empresa && _frequency != 'once') ...[
+        _Opcao(
+          key: const Key('plano-mes-de-uma-vez'),
+          titulo: 'Prefiro pagar o mês de uma vez'.tr,
+          escolhida: _billingMode == 'monthly',
+          marcavel: true,
+          onTap: () => setState(() => _billingMode = _billingMode == 'monthly' ? 'per_visit' : 'monthly'),
+        ),
+        const SizedBox(height: Spacing.md),
+      ],
+      Container(
+        key: const Key('plano-linha-cartao'),
+        padding: const EdgeInsets.all(Spacing.md),
+        decoration: BoxDecoration(border: Border.all(color: AppColors.divider), borderRadius: BorderRadius.circular(12)),
+        child: Row(children: [
+          const Icon(Icons.credit_card, color: AppColors.primary),
+          const SizedBox(width: Spacing.md),
+          Expanded(
+            child: Text(
+              mensal
+                  ? 'Pagas no cartão no início de cada mês, só as limpezas com profissional confirmada.'.tr
+                  : 'Pagas no cartão na véspera de cada limpeza, só quando a profissional está confirmada.'.tr,
+              key: const Key('plano-como-pagas'),
+              style: const TextStyle(fontSize: 16, height: 1.35),
+            ),
+          ),
+        ]),
+      ),
+      const SizedBox(height: Spacing.md),
+      Text('Agora não pagas nada. Cancelas quando quiseres, sem taxa.'.tr,
+          style: const TextStyle(fontSize: 16, color: AppColors.textSecondary, height: 1.35)),
+    ];
+  }
 }
 
 /// Guarda o cartão de um plano: SetupIntent na Edge cleaning-plan → folha do cartão → grava.
@@ -588,150 +753,270 @@ Future<bool> guardarCartaoDoPlano(BuildContext context, CleaningPlanStore store,
   return store.confirmCardSetup(planId, setup['setupIntentId'] as String);
 }
 
+// ── peças do assistente ─────────────────────────────────────────────────────
+
+/// "Passo 2 de 5" e uma barra com um traço por passo.
+class _Progresso extends StatelessWidget {
+  const _Progresso({required this.passo, required this.total});
+  final int passo;
+  final int total;
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.md, Spacing.lg, Spacing.xs),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Passo {0} de {1}'.trArgs([passo, total]),
+              key: const Key('plano-passo'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+          const SizedBox(height: Spacing.sm),
+          Row(children: [
+            for (var i = 1; i <= total; i++) ...[
+              if (i > 1) const SizedBox(width: Spacing.xs),
+              Expanded(
+                child: Container(
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: i <= passo ? AppColors.primary : AppColors.divider,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+            ],
+          ]),
+        ]),
+      );
+}
+
 class _Titulo extends StatelessWidget {
   const _Titulo(this.texto);
   final String texto;
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: Spacing.sm),
-        child: Text(texto, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+        padding: const EdgeInsets.only(top: Spacing.md, bottom: Spacing.lg),
+        child: Text(texto, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, height: 1.2, color: AppColors.textPrimary)),
       );
 }
 
-class _Passo extends StatelessWidget {
-  const _Passo({required this.valor, required this.menos, required this.mais});
+class _Pergunta extends StatelessWidget {
+  const _Pergunta(this.texto);
+  final String texto;
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: Spacing.sm),
+        child: Text(texto, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+      );
+}
+
+class _Ajuda extends StatelessWidget {
+  const _Ajuda(this.texto);
+  final String texto;
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: Spacing.md),
+        child: Text(texto, style: const TextStyle(fontSize: 16, color: AppColors.textSecondary, height: 1.35)),
+      );
+}
+
+/// Uma opção grande para tocar. Escolhida = verde cheio, texto branco e um visto.
+class _Opcao extends StatelessWidget {
+  const _Opcao({
+    super.key,
+    required this.titulo,
+    required this.escolhida,
+    required this.onTap,
+    this.subtitulo,
+    this.valor,
+    this.selo,
+    this.centrado = false,
+    this.compacto = false,
+    this.marcavel = false,
+    this.grelha = false,
+  });
+  final String titulo;
+  final String? subtitulo;
+  final String? valor;
+  final String? selo;
+  final bool escolhida;
+  final bool centrado;
+  final bool compacto;
+  /// Liga/desliga (várias ao mesmo tempo): mostra uma caixa vazia quando não está escolhida.
+  final bool marcavel;
+  /// Numa grelha de 2 colunas: sem a bola à esquerda (o texto precisa da largura); escolhida
+  /// leva um visto pequeno no canto.
+  final bool grelha;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cor = escolhida ? Colors.white : AppColors.textPrimary;
+    final sub = escolhida ? Colors.white : AppColors.textSecondary;
+    final visto = Icon(
+      escolhida ? Icons.check_circle : (marcavel ? Icons.check_box_outline_blank : Icons.radio_button_unchecked),
+      color: escolhida ? Colors.white : AppColors.textSubtle,
+      size: 24,
+    );
+    return Semantics(
+      selected: escolhida,
+      button: true,
+      child: Material(
+        color: escolhida ? AppColors.primary : AppColors.card,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(compacto ? 10 : 14),
+          side: BorderSide(color: escolhida ? AppColors.primary : AppColors.dividerStrong, width: 1.5),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 56),
+            child: grelha
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.xs, Spacing.md),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Expanded(child: Text(titulo, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cor, height: 1.25))),
+                      SizedBox(
+                        width: 20,
+                        child: escolhida ? const Icon(Icons.check_circle, color: Colors.white, size: 20) : null,
+                      ),
+                    ]),
+                  )
+                : compacto
+                ? Center(
+                    child: Text(titulo,
+                        maxLines: 1,
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cor)),
+                  )
+                : Padding(
+                    padding: EdgeInsets.symmetric(horizontal: centrado ? Spacing.xs : Spacing.md, vertical: Spacing.md),
+                    child: centrado
+                        ? Center(
+                            child: Text(titulo,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: cor)),
+                          )
+                        : Row(children: [
+                            visto,
+                            const SizedBox(width: Spacing.md),
+                            Expanded(
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Wrap(spacing: Spacing.sm, runSpacing: Spacing.xs, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                                  Text(titulo, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: cor)),
+                                  if (selo != null)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: 2),
+                                      decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(Radii.pill)),
+                                      child: Text(selo!, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+                                    ),
+                                ]),
+                                if (subtitulo != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Text(subtitulo!, style: TextStyle(fontSize: 16, color: sub, height: 1.3)),
+                                  ),
+                              ]),
+                            ),
+                            if (valor != null) ...[
+                              const SizedBox(width: Spacing.sm),
+                              Text(valor!, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: cor)),
+                            ],
+                          ]),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Duas colunas de opções do mesmo tamanho.
+class _Grelha extends StatelessWidget {
+  const _Grelha({required this.children});
+  final List<Widget> children;
+  @override
+  Widget build(BuildContext context) {
+    final linhas = <Widget>[];
+    for (var i = 0; i < children.length; i += 2) {
+      linhas.add(Padding(
+        padding: const EdgeInsets.only(bottom: Spacing.sm),
+        child: IntrinsicHeight(
+          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Expanded(child: children[i]),
+            const SizedBox(width: Spacing.sm),
+            Expanded(child: i + 1 < children.length ? children[i + 1] : const SizedBox.shrink()),
+          ]),
+        ),
+      ));
+    }
+    return Column(children: linhas);
+  }
+}
+
+/// − 4 h + grande, logo debaixo da pergunta.
+class _Passador extends StatelessWidget {
+  const _Passador({required this.valor, required this.menos, required this.mais});
   final String valor;
   final VoidCallback? menos;
   final VoidCallback? mais;
+
+  Widget _botao(Key key, IconData icone, VoidCallback? onTap, String rotulo) => SizedBox(
+        width: 56,
+        height: 56,
+        child: IconButton.outlined(
+          key: key,
+          tooltip: rotulo,
+          onPressed: onTap,
+          iconSize: 28,
+          style: IconButton.styleFrom(side: const BorderSide(color: AppColors.dividerStrong, width: 1.5)),
+          icon: Icon(icone),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) => Row(children: [
-        IconButton.outlined(key: const Key('plano-horas-menos'), onPressed: menos, icon: const Icon(Icons.remove)),
-        SizedBox(
-          width: 72,
-          child: Text(valor, textAlign: TextAlign.center, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+        _botao(const Key('plano-horas-menos'), Icons.remove, menos, 'Menos uma hora'.tr),
+        Expanded(
+          child: Text(valor,
+              key: const Key('plano-horas'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
         ),
-        IconButton.outlined(key: const Key('plano-horas-mais'), onPressed: mais, icon: const Icon(Icons.add)),
+        _botao(const Key('plano-horas-mais'), Icons.add, mais, 'Mais uma hora'.tr),
       ]);
 }
 
-/// Barra "Preço por hora": desce com a frequência, a escolhida em destaque.
-class _BarraPrecoHora extends StatelessWidget {
-  const _BarraPrecoHora({required this.ladder, required this.escolhida});
-  final List<CleaningPlanLadderStep> ladder;
-  final String escolhida;
-
+class _BotaoGrande extends StatelessWidget {
+  const _BotaoGrande({super.key, required this.icone, required this.texto, required this.onTap});
+  final IconData icone;
+  final String texto;
+  final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) {
-    final maior = ladder.map((s) => s.clientCentsPerHour).fold<int>(1, (a, b) => b > a ? b : a);
-    return Container(
-      key: const Key('plano-barra-preco-hora'),
-      padding: const EdgeInsets.all(Spacing.md),
-      decoration: BoxDecoration(color: AppColors.primaryWash, borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Preço por hora'.tr, style: const TextStyle(fontWeight: FontWeight.w700)),
-          const SizedBox(height: Spacing.sm),
-          for (final s in ladder)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 3),
-              child: Row(children: [
-                SizedBox(width: 140, child: Text(s.label.tr, style: TextStyle(fontWeight: s.frequency == escolhida ? FontWeight.w700 : FontWeight.w400, fontSize: 13))),
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: LinearProgressIndicator(
-                      value: s.clientCentsPerHour / maior,
-                      minHeight: 10,
-                      backgroundColor: Colors.white,
-                      color: s.frequency == escolhida ? AppColors.primary : AppColors.primaryLight,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: Spacing.sm),
-                Text(CleaningPlanLabels.euroHora(s.clientCentsPerHour),
-                    style: TextStyle(fontWeight: s.frequency == escolhida ? FontWeight.w700 : FontWeight.w400, fontSize: 13)),
-              ]),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ResumoPreco extends StatelessWidget {
-  const _ResumoPreco({required this.quote, required this.loading, required this.empresa, this.erro});
-  final CleaningPlanQuote? quote;
-  final bool loading;
-  final bool empresa;
-  final String? erro;
-
-  @override
-  Widget build(BuildContext context) {
-    final q = quote;
-    if (q == null) {
-      return Padding(
-        padding: const EdgeInsets.all(Spacing.md),
-        child: loading
-            ? const Center(child: CircularProgressIndicator())
-            : Text(erro ?? 'Sem preço — verifica a ligação.'.tr, style: const TextStyle(color: AppColors.error)),
-      );
-    }
-    final linha = TextStyle(color: AppColors.textSecondary.withValues(alpha: loading ? 0.5 : 1));
-    return Container(
-      key: const Key('plano-resumo-preco'),
-      padding: const EdgeInsets.all(Spacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('{0} por limpeza'.trArgs([CleaningLabels.euro(q.totalPerVisitCents)]),
-              key: const Key('plano-preco-visita'),
-              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.primary)),
-          if (q.frequency != 'once')
-            Text('≈ {0} por mês'.trArgs([CleaningLabels.euro(q.approxMonthCents)]),
-                key: const Key('plano-preco-mes'),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-          const SizedBox(height: Spacing.sm),
-          Text('{0} × {1} h{2}'.trArgs([
-            CleaningPlanLabels.euroHora(q.clientCentsPerHour),
-            q.hours.round(),
-            q.teamSize > 1 ? ' × ${q.teamSize} ${'profissionais'.tr}' : '',
-          ]), style: linha),
-          if (q.productsCents > 0) Text('Produtos levados pela profissional: {0}'.trArgs([CleaningLabels.euro(q.productsCents)]), style: linha),
-          if (empresa) Text('Produtos incluídos.'.tr, style: linha),
-          if (q.travelFeeCents > 0)
-            Text('Taxa de deslocação: {0}'.trArgs([CleaningLabels.euro(q.travelFeeCents)]), style: linha),
-          if (q.frequency != 'once')
-            Text('Conta feita com {0} limpezas por mês, em média.'.trArgs([q.visitsPerMonth.toStringAsFixed(1).replaceAll('.', ',')]),
-                style: linha.copyWith(fontSize: 12)),
-        ],
-      ),
-    );
-  }
-}
-
-/// Regra de 22/09: o cartão vê-se antes de confirmar. No plano é só cartão.
-class _LinhaCartao extends StatelessWidget {
-  const _LinhaCartao();
-  @override
-  Widget build(BuildContext context) => Container(
-        key: const Key('plano-linha-cartao'),
-        padding: const EdgeInsets.all(Spacing.md),
-        decoration: BoxDecoration(border: Border.all(color: AppColors.divider), borderRadius: BorderRadius.circular(12)),
-        child: Row(children: [
-          const Icon(Icons.credit_card, color: AppColors.primary),
-          const SizedBox(width: Spacing.sm),
-          Expanded(
-            child: Text(
-              'Pagamento: cartão (os planos são só com cartão). A seguir escolhes ou juntas o cartão — não cobramos nada agora.'.tr,
-              style: const TextStyle(fontSize: 13, height: 1.35),
-            ),
+  Widget build(BuildContext context) => SizedBox(
+        height: 56,
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: onTap,
+          icon: Icon(icone, color: AppColors.primary),
+          label: Text(texto, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+          style: OutlinedButton.styleFrom(
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
+            side: const BorderSide(color: AppColors.dividerStrong, width: 1.5),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           ),
+        ),
+      );
+}
+
+class _Linha extends StatelessWidget {
+  const _Linha(this.icone, this.texto);
+  final IconData icone;
+  final String texto;
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: Spacing.xs),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icone, size: 22, color: AppColors.textSecondary),
+          const SizedBox(width: Spacing.md),
+          Expanded(child: Text(texto, style: const TextStyle(fontSize: 16, height: 1.35, color: AppColors.textPrimary))),
         ]),
       );
 }

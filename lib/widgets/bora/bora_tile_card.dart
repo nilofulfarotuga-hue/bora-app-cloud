@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../config/app_colors.dart';
 import '../../config/app_spacing.dart';
@@ -72,9 +73,8 @@ class BoraTileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return _ToqueMosaico(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(Radii.xl),
       child: Container(
         height: height,
         decoration: BoxDecoration(
@@ -262,6 +262,56 @@ class BoraTileCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Resposta ao toque do mosaico (27/11/2026, home-categorias-convite):
+/// ao pressionar encolhe para 0,96 em 120 ms (Cubic 0.23, 1, 0.32, 1) e volta
+/// a 1 ao largar; no toque, uma vibração curta (selectionClick). Sem som.
+/// Vale sempre, mesmo com o convite desligado no painel — é resposta ao
+/// toque, não convite. Com "reduzir animações" fica só a vibração.
+class _ToqueMosaico extends StatefulWidget {
+  const _ToqueMosaico({required this.onTap, required this.child});
+
+  final VoidCallback onTap;
+  final Widget child;
+
+  static const double escalaPremido = 0.96;
+  static const Duration duracao = Duration(milliseconds: 120);
+  static const Curve curva = Cubic(0.23, 1, 0.32, 1);
+
+  @override
+  State<_ToqueMosaico> createState() => _ToqueMosaicoState();
+}
+
+class _ToqueMosaicoState extends State<_ToqueMosaico> {
+  bool _premido = false;
+
+  void _aoTocar() {
+    HapticFeedback.selectionClick();
+    widget.onTap();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final semMovimento = MediaQuery.maybeDisableAnimationsOf(context) == true;
+    return AnimatedScale(
+      key: const Key('bora_tile_toque'),
+      scale: _premido && !semMovimento ? _ToqueMosaico.escalaPremido : 1.0,
+      duration: semMovimento ? Duration.zero : _ToqueMosaico.duracao,
+      curve: _ToqueMosaico.curva,
+      child: InkWell(
+        onTap: _aoTocar,
+        // Sem o "clique" de sistema do Android (Feedback.forTap): nas
+        // categorias não há som; a vibração é a nossa, acima.
+        enableFeedback: false,
+        onHighlightChanged: (v) {
+          if (v != _premido) setState(() => _premido = v);
+        },
+        borderRadius: BorderRadius.circular(Radii.xl),
+        child: widget.child,
       ),
     );
   }

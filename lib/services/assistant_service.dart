@@ -1137,6 +1137,11 @@ class AssistantFlags {
   /// `amigo_mosaico_categorias`: o mosaico "Amigo" no início das categorias.
   static final ValueNotifier<bool> mosaico = ValueNotifier<bool>(true);
 
+  /// `home_convite_categorias` (27/11/2026, home-categorias-convite): a onda
+  /// curta e rara que convida a tocar nas categorias da home. Sem a linha:
+  /// ligado (a chave nasceu a true).
+  static final ValueNotifier<bool> conviteCategorias = ValueNotifier<bool>(true);
+
   /// `amigo_voz_servidor_ativo` (pendências 09/11/2026): sem voz pt-PT no
   /// aparelho, o Amigo pede a voz à Edge amigo-voz. Sem a linha: desligado.
   static final ValueNotifier<bool> vozServidor = ValueNotifier<bool>(false);
@@ -1164,6 +1169,7 @@ class AssistantFlags {
         'amigo_voz_velocidade',
         'amigo_mosaico_categorias',
         'amigo_voz_servidor_ativo',
+        'home_convite_categorias',
       ]);
       aplicar({
         for (final l in (linhas as List).whereType<Map>())
@@ -1199,6 +1205,7 @@ class AssistantFlags {
     vozVelocidade.value = vel == null ? 1 : vel.clamp(0.5, 2.0).toDouble();
     mosaico.value = sim('amigo_mosaico_categorias', true);
     vozServidor.value = sim('amigo_voz_servidor_ativo', false);
+    conviteCategorias.value = sim('home_convite_categorias', true);
     _carregado = true;
   }
 
@@ -1215,5 +1222,6 @@ class AssistantFlags {
     vozVelocidade.value = 1;
     mosaico.value = true;
     vozServidor.value = false;
+    conviteCategorias.value = true;
   }
 }

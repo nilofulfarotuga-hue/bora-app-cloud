@@ -1,0 +1,41 @@
+﻿"nome","processos","privada_MB","em_RAM_MB","caminho"
+"claude","20","5491","2442","%USERPROFILE%\AppData\Roaming\npm\node_modules\@anthropic-ai\claude-code\bin\claude.exe"
+"chrome","23","4079","3363","C:\Program Files\Google\Chrome\Application\chrome.exe"
+"node","21","1504","586","C:\Program Files\nodejs\node.exe"
+"svchost","97","774","987","C:\Windows\system32\svchost.exe"
+"MsMpEng","1","657","689",
+"explorer","1","352","217","C:\Windows\Explorer.EXE"
+"mc-fw-host","2","348","282",
+"msedgewebview2","6","275","99","C:\Program Files (x86)\Microsoft\EdgeWebView\Application\157.0.4341.46\msedgewebview2.exe"
+"audiodg","1","261","38",
+"powershell","4","258","172","C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+"ElevocControlService","1","239","4",
+"WindowsTerminal","1","219","233","C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.25.3131.0_x64__8wekyb3d8bbwe\WindowsTerminal.exe"
+"dwm","1","207","83",
+"TiWorker","1","171","260",
+"tailscaled","2","153","151",
+"UDClientService","1","139","34",
+"SmartConnect","1","129","196","C:\Program Files\Lenovo\Ready For Assistant\SmartConnect.exe"
+"ctfmon","1","118","18",
+"Taskmgr","1","114","186",
+"StartMenuExperienceHost","1","112","47","C:\Windows\SystemApps\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\StartMenuExperienceHost.exe"
+"MessagingPlugin","1","100","18","C:\ProgramData\Lenovo\Udc\Hosts\x64\MessagingPlugin.exe"
+"pythonw","4","93","52","%USERPROFILE%\AppData\Local\Programs\Python\Python312\pythonw.exe"
+"cmd","19","87","52","C:\Windows\System32\cmd.exe"
+"WmiPrvSE","3","86","98",
+"SearchHost","1","69","28","C:\Windows\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\SearchHost.exe"
+"ShellExperienceHost","1","68","43","C:\Windows\SystemApps\ShellExperienceHost_cw5n1h2txyewy\ShellExperienceHost.exe"
+"tailscale-ipn","1","66","16","C:\Program Files\Tailscale\tailscale-ipn.exe"
+"mmc","2","63","116",
+"WhatsApp.Root","1","61","46","C:\Program Files\WindowsApps\5319275A.WhatsAppDesktop_2.2644.101.0_x64__cv1g1gvanyjgm\WhatsApp.Root.exe"
+"OneDrive","1","59","62","%USERPROFILE%\AppData\Local\Microsoft\OneDrive\OneDrive.exe"
+"OneDrive.Sync.Service","1","57","30","%USERPROFILE%\AppData\Local\Microsoft\OneDrive\26.212.1029.0006\OneDrive.Sync.Service.exe"
+"taskhostw","3","55","106","C:\Windows\system32\taskhostw.exe"
+"CoreTelemetryPlugin","1","52","5","C:\ProgramData\Lenovo\Udc\Hosts\x64\CoreTelemetryPlugin.exe"
+"cleanmgr","1","52","30",
+"conhost","34","50","158","C:\Windows\system32\conhost.exe"
+"AppProvisioningPlugin","1","50","4",
+"LNBITSSvc","1","47","10",
+"LenovoVantageService","1","47","44",
+"RtkAudUService64","3","47","11","C:\Windows\System32\DriverStore\FileRepository\realtekservice.inf_amd64_a112e46fc636d880\RtkAudUService64.exe"
+"FnHotkeyUtility","1","45","5","C:\Windows\System32\DriverStore\FileRepository\lenovofnandfunctionkeys.inf_amd64_5e21bf389d23855a\FnHotkeyUtility.exe"

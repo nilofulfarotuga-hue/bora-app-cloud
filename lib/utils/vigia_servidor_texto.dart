@@ -1,6 +1,6 @@
 // Vigia do servidor em português de gente (17/11/2026, missão
 // servidor-busca-leve-2026-11-17, B4). O servidor grava `quem` e `o_que` em
-// cada medição a partir da migração 20261117100400 (funções vigia_quem e
+// cada medição a partir da migração 20261128145114 (funções vigia_quem e
 // vigia_o_que); estas duas funções dão o mesmo texto às medições antigas, que
 // só têm o papel (role) e o SQL.
 library;

@@ -125,6 +125,8 @@ class CarwashStore extends ChangeNotifier {
     String pickupNotes = '',
     String notes = '',
     List<CarwashPhoto> photosClient = const [],
+    /// Prémio do check-in a usar (28/11/2026): o servidor valida o vale e desconta.
+    String? checkinValeId,
   }) async {
     _setBusy(true);
     try {
@@ -146,6 +148,7 @@ class CarwashStore extends ChangeNotifier {
           'p_pickup_notes': pickupNotes,
           'p_notes': notes,
           'p_photos_client': photosClient.map((p) => p.toJson()).toList(),
+          if (checkinValeId != null) 'p_checkin_vale_id': checkinValeId,
         }),
         // Se o servidor for lento mas o pedido PASSAR, repetir e apanhar a
         // guarda do servidor prova que já ficou criado — evita o cliente

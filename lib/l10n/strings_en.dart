@@ -5858,4 +5858,19 @@ const Map<String, String> kStringsEn = <String, String>{
       "The exact delivery address is missing (street and door number). Add it and try again.",
   "Falta dizer onde está o carro (rua e número).":
       "Tell us where the car is (street and number).",
+  // 28/11/2026 (prémios do check-in na marcação normal). À mão; os mesmos pares estão em
+  // tool/l10n/traducoes/pt-en-46-premios-marcacao.json.
+  "A pagar": "To pay",
+  "Com o prémio sobra tão pouco que só dá para pagar em dinheiro.": "With the reward, so little is left that it can only be paid in cash.",
+  "Guardas o prémio para outra vez.": "You keep the reward for another time.",
+  "Não pagas nada: o prémio cobre esta lavagem.": "You pay nothing: the reward covers this wash.",
+  "Não pagas nada: o prémio cobre esta limpeza.": "You pay nothing: the reward covers this cleaning.",
+  "O prémio paga a lavagem por fora. Pagas a diferença.": "The reward pays for the outside wash. You pay the difference.",
+  "O prémio paga {0} h de limpeza Standard. Pagas a diferença.": "The reward pays for {0} h of Standard cleaning. You pay the difference.",
+  "O teu prémio já não está disponível. Confirma outra vez sem o prémio.": "Your reward is no longer available. Confirm again without the reward.",
+  "O teu prémio já não está disponível. Pede outra vez sem o prémio.": "Your reward is no longer available. Order again without the reward.",
+  "Prémio do check-in": "Check-in reward",
+  "Tens uma lavagem por fora grátis (prémio do check-in)": "You have a free outside car wash (check-in reward)",
+  "Tens {0} h de limpeza grátis (prémio do check-in)": "You have {0} h of free cleaning (check-in reward)",
+  "Usar o meu prémio: menos {0}.": "Use my reward: {0} off.",
 };

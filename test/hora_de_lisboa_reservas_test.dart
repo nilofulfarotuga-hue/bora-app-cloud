@@ -101,6 +101,7 @@ class _Limpezas extends CleaningStore {
     String notes = '',
     String? requestedCleanerId,
     int teamSize = 1,
+    String? checkinValeId,
   }) async {
     criadas.add(scheduledAt);
     return null; // o ecrã pára aqui, sem pagar nem navegar

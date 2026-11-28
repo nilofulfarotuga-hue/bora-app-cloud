@@ -694,11 +694,52 @@ String textoEstadoVale(CheckinVale v) {
   }
 }
 
+/// Prémio de serviço (limpeza ou lavagem) por usar, para o banner "Usar o meu prémio" na
+/// marcação normal (28/11/2026, Bloco A). O valor vem do servidor
+/// (client_checkin_premio_servico_para_usar); a app só o mostra. O desconto real é o do servidor.
+class PremioServico {
+  const PremioServico({required this.valeId, required this.tipo, required this.valorCents, this.horas, this.validoAte, this.titulo});
+  final String valeId;
+  final String tipo; // limpeza | lavagem
+  final int valorCents;
+  final int? horas;
+  final DateTime? validoAte;
+  final String? titulo;
+
+  static PremioServico? fromJson(Object? j) {
+    if (j is! Map || j['vale_id'] == null) return null;
+    final m = j.cast<String, dynamic>();
+    return PremioServico(
+      valeId: '${m['vale_id']}',
+      tipo: '${m['tipo'] ?? ''}',
+      valorCents: (m['valor_cents'] as num?)?.toInt() ?? 0,
+      horas: (m['horas'] as num?)?.toInt(),
+      validoAte: m['valido_ate'] == null ? null : DateTime.tryParse('${m['valido_ate']}'),
+      titulo: m['titulo'] as String?,
+    );
+  }
+
+  /// Quanto o prémio desconta num total (nunca mais do que o total).
+  int descontoEm(int totalCents) => valorCents < totalCents ? valorCents : (totalCents < 0 ? 0 : totalCents);
+}
+
 class CheckinPremiosService {
   CheckinPremiosService._();
   static final CheckinPremiosService instance = CheckinPremiosService._();
 
   static const Duration _limite = Duration(seconds: 15);
+
+  /// Prémio de limpeza ou lavagem por usar (o que expira primeiro), ou null. Nunca rebenta.
+  Future<PremioServico?> servicoParaUsar(String tipo) async {
+    if (!temSessao()) return null;
+    try {
+      final res = await _db.rpc('client_checkin_premio_servico_para_usar', params: {'p_tipo': tipo}).timeout(_limite);
+      return PremioServico.fromJson(res);
+    } catch (e) {
+      debugPrint('[CheckinPremios] servicoParaUsar: $e');
+      return null;
+    }
+  }
 
   /// Último estado lido (o carrinho usa-o para mostrar "Tens um prémio").
   final ValueNotifier<CheckinPremiosEstado?> ultimo = ValueNotifier(null);

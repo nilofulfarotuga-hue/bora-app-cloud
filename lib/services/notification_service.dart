@@ -25,6 +25,7 @@ import '../screens/chat_screen.dart';
 import '../screens/farmacia/prescricao_estado_screen.dart';
 import '../screens/partner/farmacia/parceiro_prescricoes_screen.dart';
 import '../screens/notifications_screen.dart';
+import '../screens/shared/documentos_em_falta_screen.dart';
 import '../screens/order_details_screen.dart';
 import '../screens/partner/services/partner_agenda_screen.dart';
 import 'ajustes_peso_service.dart';
@@ -794,6 +795,9 @@ void _onLocalNotifTap(NotificationResponse response) {
       // pelo gancho único (PADRAO §1.14), não o sino.
       if (data['kind'] == kKindComprovativoAtividade) {
         unawaited(NotificationService.abrirComprovativoDoAviso());
+      } else if (data['kind'] == kKindDocumentosEmFalta) {
+        unawaited(NotificationService.abrirDocumentosEmFaltaDoAviso(
+            data['relatedId']?.toString() ?? 'driver'));
       } else {
         unawaited(NotificationService.instance.openInboxFromNotification());
       }
@@ -1687,6 +1691,14 @@ void _abrirTrabalhoDoPush(RemoteMessage msg) {
     unawaited(NotificationService.abrirComprovativoDoAviso());
     return;
   }
+  // [18/11/2026] Toque no push "Faltam documentos" aberto pelo sistema (app em
+  // segundo plano; no iPhone é sempre este caminho): a lista do que falta.
+  if (type == 'admin_message' &&
+      msg.data['kind']?.toString() == kKindDocumentosEmFalta) {
+    unawaited(NotificationService.abrirDocumentosEmFaltaDoAviso(
+        msg.data['relatedId']?.toString() ?? 'driver'));
+    return;
+  }
   final categoria = categoriaDaOfertaDeTrabalho(type) ??
       switch (type) {
         'cleaning_status' => 'limpeza',
@@ -2463,6 +2475,18 @@ class NotificationService {
         recurso: () => instance.openInboxFromNotification(),
       );
 
+  /// [18/11/2026] Toque no aviso "Faltam documentos" (painel → Pedir
+  /// documentos em falta): abre a lista do que falta desse papel, onde a
+  /// pessoa envia cada documento. Mesma espera do arranque a frio; se
+  /// desistir, abre o sino (onde o aviso também abre o ecrã).
+  static Future<void> abrirDocumentosEmFaltaDoAviso(String papel) =>
+      abrirComprovativoQuandoHouverNavegador(
+        pronto: () => navigatorKey.currentState != null,
+        abrir: () => navigatorKey.currentState?.push(MaterialPageRoute<void>(
+            builder: (_) => DocumentosEmFaltaScreen(papel: papel))),
+        recurso: () => instance.openInboxFromNotification(),
+      );
+
   /// Tocar num aviso do painel abre o ecrã certo, já no assunto certo.
   /// `ref` traz o assunto (ex.: `weekly_closeout_2026-08-30` → a semana).
   /// Registado no `main.dart`, ao nível da app — nunca dentro de um ecrã.
@@ -2759,6 +2783,10 @@ class NotificationService {
           // ele (como o sino) e, se desistir, abre o sino como antes.
           if (data['kind'] == kKindComprovativoAtividade) {
             unawaited(NotificationService.abrirComprovativoDoAviso());
+          } else if (data['kind'] == kKindDocumentosEmFalta) {
+            // [18/11/2026] "Faltam documentos": a lista do que falta.
+            unawaited(NotificationService.abrirDocumentosEmFaltaDoAviso(
+                data['relatedId']?.toString() ?? 'driver'));
           } else {
             unawaited(openInboxFromNotification());
           }

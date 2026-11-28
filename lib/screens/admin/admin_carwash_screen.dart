@@ -766,7 +766,12 @@ class _AbaLavadoresState extends State<_AbaLavadores> {
   /// aprovava com um toque, até a partir de recusado/suspenso).
   Future<void> _aprovar(Map<String, dynamic> l) async {
     // Adendo 3: avisa com mensagem clara (e o que o robô viu) se falta aprovar o comprovativo.
-    if (!await avisarSeAtividadePorAprovar(context, l)) return;
+    if (!await avisarSeAtividadePorAprovar(context, l,
+        papel: 'washer',
+        entidadeId: l['id']?.toString(),
+        aoAprovarComExcecao: _load)) {
+      return;
+    }
     if (!mounted) return;
     final falta =
         faltaDoPrestador('washer', l).map((f) => f.rotulo).toList();

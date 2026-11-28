@@ -14,6 +14,7 @@ import '../widgets/bora/bora_screen_app_bar.dart';
 import 'client/assistant/assistant_chat_screen.dart';
 import 'order_details_screen.dart';
 import 'shared/comprovativo_atividade_screen.dart';
+import 'shared/documentos_em_falta_screen.dart';
 
 import '../l10n/tr.dart';
 
@@ -88,6 +89,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       await _load();
       return;
     }
+    // [18/11/2026] "Faltam documentos na tua candidatura" (painel → Pedir
+    // documentos em falta) → a lista do que falta, onde se envia cada um.
+    // Avisos antigos (kind admin_push) com o mesmo título também abrem.
+    final papelDocs = papelDoAvisoDeDocumentos(n);
+    if (papelDocs != null) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => DocumentosEmFaltaScreen(papel: papelDocs)),
+      );
+      if (!mounted) return;
+      await _load();
+      return;
+    }
     // [15/11/2026 · conversas ao vivo] "A equipa Bora respondeu" → a conversa
     // do Amigo onde a equipa escreveu (related_id = id da conversa).
     if (n['kind'] == 'amigo_resposta') {
@@ -152,6 +167,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return Icons.euro;
       // [20/10/2026] Comprovativo de atividade nas Finanças.
       case 'provider_atividade':
+      case kKindDocumentosEmFalta:
         return Icons.description_outlined;
       // [31/10/2026] "Preço ajustado ao peso" (produto ao quilo pesado pelo
       // estafeta). Tocar abre o pedido, como as outras de pedido.

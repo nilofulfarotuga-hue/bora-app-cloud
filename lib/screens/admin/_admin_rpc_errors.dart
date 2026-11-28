@@ -53,6 +53,23 @@ String humanizeAdminRpcError(Object error) {
       return humanizeConformidadeIncompleta(msg);
     }
     if (msg.contains('atividade_por_aprovar')) return kErroAtividadePorAprovar;
+    // [18/11/2026] `admin_aprovar_prestador_excecao` e
+    // `admin_pedir_documentos_em_falta` / `admin_provider_atividade_decidir`.
+    if (msg.contains('motivo_excecao_curto')) {
+      return 'Escreva o motivo da exceção (mínimo 10 letras).';
+    }
+    if (msg.contains('prestador_nao_encontrado')) {
+      return 'Cadastro não encontrado. Atualize a lista.';
+    }
+    if (msg.contains('motivo_obrigatorio')) {
+      return 'Escreva o motivo (a pessoa vai ler).';
+    }
+    if (msg.contains('sem_documento')) {
+      return 'Esta pessoa ainda não enviou o comprovativo.';
+    }
+    if (msg.startsWith('cleaner_not_found')) {
+      return 'Profissional não encontrada. Atualize a lista.';
+    }
     // [01/11/2026 · B8] Gatilho `fn_suspensao_so_com_humano` e
     // `admin_suspender_prestador` (Diretiva 2024/2831): motivo ≥ 10 letras,
     // decisão de uma pessoa, sem pedido em curso.
@@ -161,9 +178,16 @@ String? _textoDosDetalhes(Object? detalhes) {
 /// [20/10/2026] Gatilho `fn_atividade_antes_de_ativar`: candidatura nova sem o
 /// comprovativo de atividade aprovado não passa a "aprovada".
 const String kErroAtividadePorAprovar =
-    'Falta aprovar o comprovativo de atividade desta pessoa (menu Sistema → '
-    'Comprovativo de atividade). Desligar o interruptor '
-    '(provider_atividade_obrigatoria) também libera a aprovação.';
+    'Falta aprovar o comprovativo de atividade desta pessoa. Abra a ficha e '
+    'toque em "Aprovar comprovativo", ou use "Aprovar mesmo assim (exceção do '
+    'admin)" com o motivo.';
+
+/// A função do servidor ainda não existe (migração por aplicar): o painel
+/// usa o caminho antigo em vez de falhar.
+bool funcaoAindaNaoInstalada(Object error) =>
+    error is PostgrestException &&
+    ((error.code ?? '') == 'PGRST202' ||
+        error.message.contains('Could not find the function'));
 
 /// O mesmo, para ecrãs que mostram o erro cru (`Erro: $e`).
 String? humanizeAtividadePorAprovar(Object error) =>

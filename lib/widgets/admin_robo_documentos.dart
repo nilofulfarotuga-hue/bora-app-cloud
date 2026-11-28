@@ -12,6 +12,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/app_colors.dart';
 import '../screens/admin/_admin_rpc_errors.dart';
 import '../services/robo_documentos.dart';
+import 'admin_documentos.dart'
+    show
+        abrirComprovativoAtividade,
+        aprovarComprovativoAtividade,
+        aprovarPrestadorComExcecao,
+        docTexto;
 
 Color _corDo(VereditoRobo v) =>
     v.ok ? AppColors.success : (v.errado ? AppColors.error : Colors.orange.shade800);
@@ -159,23 +165,82 @@ Future<bool> desfazerDecisaoDoRobo(
 }
 
 /// Antes de aprovar uma candidatura: se o servidor ia recusar (falta aprovar o
-/// comprovativo) avisa com mensagem clara e devolve false — assim nem se faz a
-/// chamada que dava 400. Devolve true quando pode seguir para a confirmação.
-Future<bool> avisarSeAtividadePorAprovar(BuildContext ctx, Map<String, dynamic> linha) async {
+/// comprovativo) avisa com mensagem clara — assim nem se faz a chamada que
+/// dava 400. Devolve true quando pode seguir para a confirmação.
+///
+/// [18/11/2026] Já não é um beco com "Entendi": a janela tem o botão para ver
+/// o comprovativo, para o aprovar ali mesmo (e seguir com a aprovação) e, com
+/// [papel] + [entidadeId], "Aprovar mesmo assim (exceção do admin)" (chama
+/// [aoAprovarComExcecao] depois de aprovar, para a lista recarregar).
+Future<bool> avisarSeAtividadePorAprovar(
+  BuildContext ctx,
+  Map<String, dynamic> linha, {
+  String? papel,
+  String? entidadeId,
+  VoidCallback? aoAprovarComExcecao,
+}) async {
   final bloqueio = bloqueioDaAtividade(linha);
   if (bloqueio == null) return true;
-  await showDialog<void>(
+  final a = linha['_atividade'];
+  final path = docTexto(a is Map ? a['documento_path'] : null);
+  final userId = linha['user_id']?.toString();
+  final nome = docTexto(linha['name']) ?? docTexto(linha['nome']) ?? 'esta pessoa';
+  final podeExcecao = papel != null && entidadeId != null;
+  final escolha = await showDialog<String>(
     context: ctx,
     builder: (dCtx) => AlertDialog(
       key: const Key('robo-atividade-por-aprovar'),
       title: const Text('Falta aprovar o comprovativo de atividade'),
       content: Text(bloqueio),
       actions: [
-        FilledButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Entendi')),
+        if (path != null)
+          TextButton.icon(
+            key: const Key('atividade-ver-comprovativo'),
+            onPressed: () => abrirComprovativoAtividade(dCtx, path),
+            icon: const Icon(Icons.visibility_outlined),
+            label: const Text('Ver comprovativo'),
+          ),
+        if (path != null && userId != null)
+          FilledButton.icon(
+            key: const Key('atividade-aprovar-comprovativo-agora'),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.success),
+            onPressed: () => Navigator.pop(dCtx, 'aprovar_comprovativo'),
+            icon: const Icon(Icons.verified_outlined),
+            label: const Text('Aprovar comprovativo agora'),
+          ),
+        if (podeExcecao)
+          OutlinedButton(
+            key: const Key('atividade-aprovar-excecao'),
+            onPressed: () => Navigator.pop(dCtx, 'excecao'),
+            child: const Text('Aprovar mesmo assim (exceção do admin)'),
+          ),
+        TextButton(onPressed: () => Navigator.pop(dCtx), child: const Text('Entendi')),
       ],
     ),
   );
-  return false;
+  if (!ctx.mounted) return false;
+  switch (escolha) {
+    case 'aprovar_comprovativo':
+      final ok = await aprovarComprovativoAtividade(ctx,
+          userId: userId!,
+          nome: nome,
+          nif: (a is Map ? a['nif'] : null)?.toString() ?? linha['nif']?.toString());
+      if (!ok) return false;
+      // A linha passa a saber que está aprovado: segue para a aprovação.
+      if (a is Map) {
+        try {
+          a['atividade_status'] = 'aprovada';
+        } catch (_) {/* mapa só de leitura: o servidor já sabe */}
+      }
+      return true;
+    case 'excecao':
+      final ok = await aprovarPrestadorComExcecao(ctx,
+          papel: papel!, id: entidadeId!, nome: nome);
+      if (ok) aoAprovarComExcecao?.call();
+      return false;
+    default:
+      return false;
+  }
 }
 
 /// O bloco a vermelho "O robô viu isto de errado" para pôr dentro dos

@@ -165,6 +165,11 @@ Future<void> _abrirExterno(BuildContext context, String urlOrPath) async {
   }
 }
 
+/// Abre o comprovativo de atividade (balde privado `provider-atividade`,
+/// endereço assinado de curta duração) por fora: serve para foto e PDF.
+Future<void> abrirComprovativoAtividade(BuildContext context, String path) =>
+    _abrirExterno(context, withPrivateBucketPrefix('provider-atividade', path));
+
 bool _ePdf(String urlOrPath) =>
     urlOrPath.toLowerCase().split('?').first.endsWith('.pdf');
 
@@ -431,6 +436,45 @@ class DocFaltaCaixa extends StatelessWidget {
 
 // ── Ações ────────────────────────────────────────────────────────────────────
 
+/// [18/11/2026] Resultado de um botão do painel numa janela por cima de tudo.
+/// O SnackBar ficava POR BAIXO da ficha (bottom sheet) e o Danilo achava que o
+/// botão "não fazia nada" (Shelen, 18/11 20:27-20:37: três pedidos enviados,
+/// nenhum visto). Uma janela abre sempre por cima da ficha.
+Future<void> avisoResultadoAdmin(
+  BuildContext ctx, {
+  required String titulo,
+  required String texto,
+  bool ok = true,
+  String? acaoExtra,
+  VoidCallback? onAcaoExtra,
+}) async {
+  if (!ctx.mounted) return;
+  await showDialog<void>(
+    context: ctx,
+    builder: (dCtx) => AlertDialog(
+      key: Key(ok ? 'admin-resultado-ok' : 'admin-resultado-erro'),
+      icon: Icon(ok ? Icons.check_circle : Icons.error_outline,
+          color: ok ? AppColors.success : AppColors.error, size: 40),
+      title: Text(titulo),
+      content: Text(texto),
+      actions: [
+        if (acaoExtra != null && onAcaoExtra != null)
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dCtx);
+              onAcaoExtra();
+            },
+            child: Text(acaoExtra),
+          ),
+        FilledButton(
+          onPressed: () => Navigator.pop(dCtx),
+          child: const Text('OK'),
+        ),
+      ],
+    ),
+  );
+}
+
 /// Frase que o prestador recebe (PT-PT). [quem]: "estafeta", "motorista",
 /// "profissional de limpeza", "lavador".
 String textoPedidoDocumentos(String quem, List<String> itens,
@@ -475,22 +519,38 @@ Future<void> pedirDocumentosEmFalta(
   );
   if (ok != true) return;
   final sb = Supabase.instance.client;
+  const titulo = 'Faltam documentos na tua candidatura';
   bool temAparelho = false;
   try {
-    final r = await sb.rpc('admin_send_push_notification', params: {
-      'p_recipient_type': tipoDestino,
-      'p_recipient_id': userId,
-      'p_title': 'Faltam documentos na tua candidatura',
-      'p_body': texto,
-      'p_data': {'tipo': 'documentos_em_falta'},
-    });
+    // [18/11/2026] Porta própria: o aviso abre o ecrã de pendências da pessoa
+    // (kind `documentos_em_falta`). Sem a função no servidor (migração por
+    // aplicar), usa a porta antiga, que já entrega o aviso e a notificação.
+    dynamic r;
+    try {
+      r = await sb.rpc('admin_pedir_documentos_em_falta', params: {
+        'p_user_id': userId,
+        'p_papel': tipoDestino,
+        'p_titulo': titulo,
+        'p_texto': texto,
+        'p_itens': itens,
+      });
+    } catch (e) {
+      if (!funcaoAindaNaoInstalada(e)) rethrow;
+      r = await sb.rpc('admin_send_push_notification', params: {
+        'p_recipient_type': tipoDestino,
+        'p_recipient_id': userId,
+        'p_title': titulo,
+        'p_body': texto,
+        'p_data': {'tipo': 'documentos_em_falta'},
+      });
+    }
     temAparelho = r is Map && r['fcm_token_found'] == true;
   } catch (e) {
     if (!ctx.mounted) return;
-    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-      content: Text(humanizeAdminRpcError(e)),
-      backgroundColor: AppColors.error,
-    ));
+    await avisoResultadoAdmin(ctx,
+        ok: false,
+        titulo: 'O pedido NÃO foi enviado',
+        texto: humanizeAdminRpcError(e));
     return;
   }
   try {
@@ -508,25 +568,25 @@ Future<void> pedirDocumentosEmFalta(
   }
   if (!ctx.mounted) return;
   final phone = telefone?.replaceAll(' ', '');
-  ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-    duration: const Duration(seconds: 8),
-    content: Text(temAparelho
-        ? 'Pedido enviado (aviso na app + notificação).'
-        : 'Aviso gravado na app, mas esta pessoa não tem notificações '
-            'ligadas. Manda também por SMS.'),
-    action: (phone == null || phone.isEmpty)
+  await avisoResultadoAdmin(
+    ctx,
+    titulo: 'Pedido enviado',
+    texto: temAparelho
+        ? 'A pessoa recebeu o aviso na app e a notificação no telemóvel. '
+            'Ao tocar, abre a lista do que falta, onde envia cada documento.'
+        : 'O aviso ficou gravado na app (no sino), mas esta pessoa não tem '
+            'notificações ligadas. Mande também por SMS.',
+    acaoExtra: (phone == null || phone.isEmpty) ? null : 'Mandar por SMS',
+    // `query` à mão: queryParameters troca os espaços por '+', que a app de
+    // SMS mostra tal e qual.
+    onAcaoExtra: (phone == null || phone.isEmpty)
         ? null
-        : SnackBarAction(
-            label: 'SMS',
-            // `query` à mão: queryParameters troca os espaços por '+',
-            // que a app de SMS mostra tal e qual.
-            onPressed: () => launchUrl(Uri(
+        : () => launchUrl(Uri(
               scheme: 'sms',
               path: phone,
               query: 'body=${Uri.encodeComponent(texto)}',
             )),
-          ),
-  ));
+  );
 }
 
 /// Aprova o comprovativo de atividade ali mesmo. Devolve true se aprovou.
@@ -564,20 +624,119 @@ Future<bool> aprovarComprovativoAtividade(
       'p_avisar': true,
     });
     if (ctx.mounted) {
-      ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-        content: Text('Comprovativo aprovado (a pessoa foi avisada).'),
-        backgroundColor: AppColors.success,
-      ));
+      await avisoResultadoAdmin(ctx,
+          titulo: 'Comprovativo aprovado',
+          texto: 'O comprovativo de $nome está aprovado e a pessoa foi avisada. '
+              'Já pode aprovar o cadastro.');
     }
     return true;
   } catch (e) {
     if (ctx.mounted) {
-      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-        content: Text(e.toString().contains('sem_documento')
-            ? 'Ainda não há comprovativo para aprovar.'
-            : humanizeAdminRpcError(e)),
-        backgroundColor: AppColors.error,
-      ));
+      await avisoResultadoAdmin(ctx,
+          ok: false,
+          titulo: 'O comprovativo NÃO foi aprovado',
+          texto: e.toString().contains('sem_documento')
+              ? 'Ainda não há comprovativo para aprovar.'
+              : humanizeAdminRpcError(e));
+    }
+    return false;
+  }
+}
+
+/// Motivo mínimo da exceção do admin (o servidor recusa abaixo disto).
+const int kMinLetrasMotivoExcecao = 10;
+
+/// [18/11/2026] "Aprovar mesmo assim (exceção do admin)": o Danilo já mandou
+/// aprovar gente sem o comprovativo aprovado (Felipe 16/11, Shelen 18/11 — à
+/// mão por SQL). Pede o motivo, aprova pela RPC
+/// `admin_aprovar_prestador_excecao` (a trava continua ligada para os outros)
+/// e grava quem e porquê. [papel]: driver, cleaner, washer, handyman ou
+/// service_provider; [id] é o id da linha desse papel. Devolve true se aprovou.
+Future<bool> aprovarPrestadorComExcecao(
+  BuildContext ctx, {
+  required String papel,
+  required String id,
+  required String nome,
+}) async {
+  final ctrl = TextEditingController();
+  String? erro;
+  final motivo = await showDialog<String>(
+    context: ctx,
+    builder: (dCtx) => StatefulBuilder(
+      builder: (dCtx, setLocal) => AlertDialog(
+        key: const Key('admin-excecao-dialogo'),
+        title: const Text('Aprovar mesmo assim (exceção do admin)'),
+        content: SizedBox(
+          width: 380,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Vai aprovar $nome sem o comprovativo de atividade aprovado. '
+                  'Fica registrado quem aprovou e porquê. A regra continua '
+                  'ligada para os outros cadastros.'),
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('admin-excecao-motivo'),
+                controller: ctrl,
+                autofocus: true,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Motivo (obrigatório, mínimo 10 letras)',
+                  hintText: 'Ex.: ordem do Danilo, comprovativo chega amanhã',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              if (erro != null) ...[
+                const SizedBox(height: 8),
+                Text(erro!,
+                    style: const TextStyle(
+                        color: AppColors.error, fontWeight: FontWeight.w700)),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dCtx),
+            child: const Text('Cancelar'),
+          ),
+          // Sempre ativo: um botão cinzento "não faz nada" aos olhos do
+          // Danilo. Sem motivo, diz o que falta em vez de ignorar o toque.
+          FilledButton(
+            key: const Key('admin-excecao-confirmar'),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.warning),
+            onPressed: () {
+              final t = ctrl.text.trim();
+              if (t.length < kMinLetrasMotivoExcecao) {
+                setLocal(() => erro =
+                    'Escreva o motivo com pelo menos $kMinLetrasMotivoExcecao letras.');
+                return;
+              }
+              Navigator.pop(dCtx, t);
+            },
+            child: const Text('Aprovar com exceção'),
+          ),
+        ],
+      ),
+    ),
+  );
+  if (motivo == null) return false;
+  try {
+    await Supabase.instance.client.rpc('admin_aprovar_prestador_excecao',
+        params: {'p_papel': papel, 'p_id': id, 'p_motivo': motivo});
+    if (ctx.mounted) {
+      await avisoResultadoAdmin(ctx,
+          titulo: 'Aprovado com exceção',
+          texto: '$nome está aprovado(a). Ficou registrado: "$motivo".');
+    }
+    return true;
+  } catch (e) {
+    if (ctx.mounted) {
+      await avisoResultadoAdmin(ctx,
+          ok: false,
+          titulo: 'NÃO foi aprovado',
+          texto: humanizeAdminRpcError(e));
     }
     return false;
   }

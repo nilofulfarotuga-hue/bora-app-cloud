@@ -5,6 +5,7 @@ import '../../config/app_colors.dart';
 import '../../services/minha_conta.dart';
 import '../../services/minha_conta_service.dart';
 import 'admin_driver_approval_screen.dart';
+import '_admin_rpc_errors.dart';
 
 /// PAINEL · ESTAFETAS — FILA E DOCUMENTOS (missão m2-estafeta-conta-fila-2026-11-08).
 ///
@@ -227,7 +228,7 @@ class _AdminEstafetasFilaScreenState extends State<AdminEstafetasFilaScreen> {
       _msg('Atividade de ${l.nome} marcada como confirmada.', ok: true);
       await _carregar();
     } catch (e) {
-      _msg('Erro: $e');
+      _msg(humanizeAdminRpcError(e));
     } finally {
       if (mounted) setState(() => _aAgir = null);
     }

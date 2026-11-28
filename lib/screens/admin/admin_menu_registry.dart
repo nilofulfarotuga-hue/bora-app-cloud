@@ -36,6 +36,7 @@ import 'admin_volta_screen.dart';
 import 'admin_category_mapping_screen.dart';
 import 'admin_cleaning_bookings_screen.dart';
 import 'admin_cleaning_cleaners_screen.dart';
+import 'admin_cleaning_plans_screen.dart';
 import 'admin_clients_screen.dart';
 import 'admin_complaints_screen.dart';
 import 'admin_bloqueios_screen.dart';
@@ -851,6 +852,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: const Color(0xFF0284C7),
       builder: () => const AdminCleaningBookingsScreen(),
       keywords: const ['curso', 'feitas', 'limpezas', 'marcadas'],
+    ),
+    AdminMenuItem(
+      id: 'limpeza_planos',
+      title: 'Planos de limpeza e Bora Empresas',
+      subtitle: 'Planos com cartão (casas e empresas): ver, pausar, retomar e cancelar; cobranças pagas, falhadas e devolvidas; tabela de preços por frequência; código de atividade das profissionais',
+      icon: Icons.event_repeat,
+      color: const Color(0xFF0D9488),
+      builder: () => const AdminCleaningPlansScreen(),
+      keywords: const ['planos', 'assinatura', 'empresas', 'cobrancas', 'cartao', 'precos', 'cae', 'atividade'],
     ),
     AdminMenuItem(
       id: 'limpeza_profissionais_de_limpeza',

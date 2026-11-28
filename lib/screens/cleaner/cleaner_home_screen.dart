@@ -28,6 +28,7 @@ import 'cleaner_availability_screen.dart';
 import '../ganhos_screen.dart';
 import '../../widgets/botao_rota.dart';
 import '../../widgets/guia_limpeza.dart';
+import '../../widgets/plano_limpeza_info_profissional.dart';
 import '../../widgets/ganho_de_hoje_card.dart';
 import '../../widgets/selo_serie_limpeza.dart';
 import '../../utils/hora_lisboa.dart';
@@ -883,6 +884,8 @@ class _AgendaCardState extends State<_AgendaCard> {
             ),
             // GUIA (15/10): o que fazer e o que levar nesta limpeza.
             GuiaLimpezaCaixa(booking: b),
+            // PLANOS (28/11): empresa, tarefas e acesso (só no dia).
+            PlanoLimpezaInfoProfissional(booking: b),
             // Badge de cobrança UNIFICADO (mesmo widget do delivery/TVDE):
             // dinheiro → cobrar o total; card/MB Way → já pago (não cobrar).
             const SizedBox(height: 6),

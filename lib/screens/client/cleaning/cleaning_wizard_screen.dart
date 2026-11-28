@@ -14,6 +14,7 @@ import '../../../stores/cleaning_store.dart';
 import '../../../utils/hora_lisboa.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/checkout_legal_notice.dart';
+import '../../complete_profile_screen.dart' show garantirContactoDoCliente;
 import 'cleaning_payment_flow.dart';
 import 'cleaning_tracking_screen.dart';
 
@@ -370,6 +371,11 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
       _snack(CleaningLabels.outOfAreaMessage(_quote!.maxDistanceKm));
       return;
     }
+    // 28/11/2026 (Danilo): sem telemóvel não há pedido. A morada já vem
+    // deste assistente; aqui só se garante o telemóvel ("Falta só isto").
+    final contactoOk =
+        await garantirContactoDoCliente(context, categoria: 'limpeza');
+    if (!contactoOk || !mounted) return;
     try {
       final loc = _addrCoords;
       final booking = await store.createBooking(

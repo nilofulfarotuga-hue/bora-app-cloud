@@ -12,6 +12,8 @@
 /// Textos em PT-PT — isto é app de cliente, não painel admin.
 library;
 
+import 'telefone_internacional.dart';
+
 /// Nome com pelo menos 3 letras (acentos contam; dígitos e sinais não).
 ///
 /// Devolve `null` quando é válido — a assinatura que o `TextFormField.validator`
@@ -79,5 +81,8 @@ String? validarNomePerfil(String? valor) {
 
 /// `true` quando a ficha tem contacto utilizável — o teste único que o ecrã de
 /// completar perfil e o checkout usam para decidir se ainda falta pedir dados.
+///
+/// 28/11/2026 (adendo do Danilo): o telemóvel vale de QUALQUER país
+/// (`telefone_internacional.dart`); os antigos sem indicativo leem-se como PT.
 bool contactoDoClienteCompleto({String? nome, String? telemovel}) =>
-    validarNomeCliente(nome) == null && validarTelemovelPt(telemovel) == null;
+    validarNomeCliente(nome) == null && telefoneGuardadoValido(telemovel);

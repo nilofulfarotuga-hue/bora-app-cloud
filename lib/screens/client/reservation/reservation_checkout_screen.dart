@@ -14,6 +14,7 @@ import '../../../services/saved_card_checkout.dart';
 import '../../../stores/reservation_store.dart';
 import '../../../widgets/bora/bora_screen_app_bar.dart';
 import '../../../widgets/checkout_legal_notice.dart';
+import '../../complete_profile_screen.dart' show garantirContactoDoCliente;
 import 'reservation_mbway_waiting_dialog.dart';
 import 'reservation_payment_method_sheet.dart';
 
@@ -98,6 +99,11 @@ class _ReservationCheckoutScreenState extends State<ReservationCheckoutScreen> {
 
   Future<void> _onConfirmAndPay() async {
     if (_processing) return;
+    // 28/11/2026 (Danilo): sem telemóvel não há reserva — o passo "Falta só
+    // isto" antes de escolher o pagamento (o servidor recusa SEM_TELEFONE).
+    final contactoOk =
+        await garantirContactoDoCliente(context, categoria: 'reserva');
+    if (!contactoOk || !mounted) return;
 
     // 1) Bottom sheet: escolha de método (Card | MBWay), sem Cash.
     final choice = await showModalBottomSheet<ReservationPaymentChoice>(

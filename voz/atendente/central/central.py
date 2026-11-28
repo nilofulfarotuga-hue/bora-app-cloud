@@ -64,6 +64,11 @@ MSG_DESLIGADO = ("Olá, ligou para a Bora. De momento não temos atendimento por
 SAUDACAO = ("Olá, está a falar com a assistente virtual da Bora. "
             "A chamada é gravada para qualidade. Em que posso ajudar?")
 NAO_GRAVAR = re.compile(r"n[aã]o (quero|aceito).{0,20}grava|sem grava|n[aã]o grave", re.I)
+# 27/11/2026 (chamada das 12:30: a pessoa disse só "E..." e a atendente respondeu "Ah, certo. Estou a ouvir"):
+# hesitação sozinha não é uma fala. Não responde; junta-a ao que a pessoa disser a seguir.
+HESITACAO = re.compile(
+    r"^\s*((e|é|eh|ã|ãh|ah|hum+|hm+|uh+|então|olha|pois|bem)\s*(\.\.\.|…))+\s*$"
+    r"|^\s*(eh|ãh?|hum+|hm+|uh+|ehm+|err+)\s*[.,!?…]*\s*$", re.I)
 
 # Tipos do AudioSocket.
 T_FIM, T_UUID, T_AUDIO, T_ERRO = 0x00, 0x01, 0x10, 0xFF
@@ -775,6 +780,10 @@ async def conversa(ch: Chamada, uid: str, telefone: str, cfg: dict, voz: str, de
                     pendente = resto(pendente, dito) if interrompido else ""
                     if not interrompido:
                         interrompido, ouviu_so = False, ""
+                continue
+            if HESITACAO.match(texto):
+                LOG.info("hesitação, continua a ouvir: %r", texto)
+                texto_pendente = f"{texto_pendente} {texto}".strip()
                 continue
         if texto_pendente:                     # a pessoa falou por cima da ponte: junta as duas partes
             texto, texto_pendente = f"{texto_pendente} {texto}", ""

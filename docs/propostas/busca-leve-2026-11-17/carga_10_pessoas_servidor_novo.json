@@ -1,0 +1,73 @@
+{
+  "pessoas": 10,
+  "segundos_pedidos": 180,
+  "segundos_reais": 192,
+  "inicio": "2026-11-17T08:31:15.754Z",
+  "parou": false,
+  "motivo": null,
+  "total": {
+    "pedidos": 347,
+    "p50": 189,
+    "p95": 1044,
+    "max": 2779,
+    "falhas": 0,
+    "erros_5xx": 0,
+    "estados": {}
+  },
+  "pesquisas": {
+    "pedidos": 232,
+    "p50": 157,
+    "p95": 1068,
+    "max": 2779,
+    "falhas": 0,
+    "erros_5xx": 0,
+    "estados": {}
+  },
+  "por_tipo": {
+    "pagina_inicial": {
+      "pedidos": 10,
+      "p50": 147,
+      "p95": 286,
+      "max": 286,
+      "falhas": 0,
+      "erros_5xx": 0,
+      "estados": {}
+    },
+    "loja_pagina1": {
+      "pedidos": 39,
+      "p50": 197,
+      "p95": 244,
+      "max": 251,
+      "falhas": 0,
+      "erros_5xx": 0,
+      "estados": {}
+    },
+    "search_products": {
+      "pedidos": 65,
+      "p50": 967,
+      "p95": 1097,
+      "max": 1583,
+      "falhas": 0,
+      "erros_5xx": 0,
+      "estados": {}
+    },
+    "cliente_pesquisar": {
+      "pedidos": 167,
+      "p50": 128,
+      "p95": 344,
+      "max": 2779,
+      "falhas": 0,
+      "erros_5xx": 0,
+      "estados": {}
+    },
+    "continente_pagina": {
+      "pedidos": 66,
+      "p50": 198,
+      "p95": 229,
+      "max": 445,
+      "falhas": 0,
+      "erros_5xx": 0,
+      "estados": {}
+    }
+  }
+}

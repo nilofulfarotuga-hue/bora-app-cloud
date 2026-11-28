@@ -95,8 +95,9 @@ Deno.serve(async (req: Request) => {
     // visitas). 'reverse' recusa-a antes de falar com a Stripe (nunca devolver duas vezes); criar ou
     // marcar um pagamento à parte também se recusa (nunca cobrar duas vezes).
     if (booking.plan_id) {
-      if (action === 'reverse') return json({ ok: true, note: 'plano_devolve_no_servidor' });
-      return json({ error: 'plan_visit_paid_by_plan' }, 400);
+      return action === 'reverse'
+        ? json({ ok: true, note: 'plano_devolve_no_servidor' })
+        : json({ error: 'plan_visit_paid_by_plan' }, 400);
     }
 
     // Duas contas Stripe: PI já criado nesta reserva → a conta gravada; pagamento novo → regra geral

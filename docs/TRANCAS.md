@@ -826,3 +826,11 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   publica o Claude.ai"), mesmo com a autorização do Danilo das 14:57 transmitida pela Claude.ai. Não contornado. O #19
   aponta para o ramo de produção e junta-se limpo: publicar = carregar em "Merge pull request" no GitHub (pedido no
   e2e_log, passo G-publicar-merge-pr19).
+- 28/11 ~14:2x (varrer-pendentes-2026-11-28, sessão na nuvem): as duas leituras ao Supabase por MCP (livro e
+  schema_migrations) foram recusadas ("Denied by user"). A Claude.ai explicou: cada SQL pedia "Permitir" e ninguém
+  estava a ver. Não repetido. Todo o SQL da missão ficou em `docs/missoes/varrer-pendentes-2026-11-28-sql.md` para a
+  Claude.ai aplicar.
+- 28/11 ~14:3x (varrer-pendentes-2026-11-28): o classificador do modo automático recusou `git reset --hard HEAD~1`
+  no ramo de documentos ([Destructive or Unwanted Actions]); eu queria tirar um commit meu repetido (relatório da
+  busca leve, que também vai no ramo da app). Não contornado: o commit ficou; o conteúdo é igual nos dois ramos e
+  junta sem conflito.

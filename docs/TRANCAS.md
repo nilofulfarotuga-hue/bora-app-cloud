@@ -542,6 +542,9 @@ envio git passou nas sessões novas (a orquestradora, aberta antes, continuou co
 
 <!-- 11/11/2026: blocos dos ramos ai/2026-11-05-modo-automatico-seguro e ai/2026-11-08-m10-radar, juntados à mão (missão fechar-tudo-2026-11-11) -->
 ## 05/11/2026 — modo automático seguro
+
+## 05/11/2026 — modo automático seguro
+
 Três recusas da bora-tranca, todas corretas e nenhuma contornada: escrever `~/.claude/hooks/trava-modo-automatico.mjs`
 (zona `.claude/hooks/**`), escrever `.github/workflows/revisao.yml` (zona dos workflows) e, pela mesma lista, os
 settings, que nem se tentaram. Ficou tudo pronto em `docs/propostas/modo-automatico/`, ligado por um duplo clique do
@@ -774,3 +777,11 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   GitHub ou uma sessão com a tranca aberta pelo Danilo. Sem ele, os restaurantes PARCEIROS fechados (Boom, Goola,
   Sabores de Casa, Keli) continuam a recusar no fim os pedidos com hora marcada e as encomendas de festa.
   e2e_log fluxo loja-fechada-agendar-2026-11-27, passo B1-tranca.
+
+Defeito novo, provado em sessões reais: o `allow` do `tool.check` da tranca passa por cima do "não" de outro gancho
+`PreToolUse`. Com a trava nova sozinha, o `Read` e o `cat` de um `.env` falso passaram, apesar de ela ter recusado. Só
+o `deny` dos settings e a tranca sem aprovar é que travam. Corrigido no remendo `guardas-ramo-ai.patch`, por aplicar.
+
+Atualização de 06/11/2026: remendos aplicados pelo Danilo (05/11 às 20:37 e 06/11 às 05:15). A tranca deixou de
+perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy são recusados logo, menos as cópias
+`bkp_`. Um "Permitir" passava por cima da trava, provado num remoto falso. A tabela de cima é anterior a isto.

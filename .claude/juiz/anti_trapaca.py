@@ -29,7 +29,7 @@ Exit: 0 = LIMPO (aceita) · 1 = ATENÇÃO (precisa olho humano) · 2 = REJEITA (
 
 Uso:
   python .claude/juiz/anti_trapaca.py [--base REF] [--head REF] [--task fix] [--json]
-  # base default = merge-base com 'main'. head default = working tree (não commitado).
+  # base default = merge-base com 'autonomous-night-2026-04-29' (main só se esse faltar). head default = working tree (não commitado).
 """
 from __future__ import annotations
 import argparse
@@ -290,9 +290,17 @@ def coverage_delta(base: str, head: str | None):
     return (b, h)
 
 
+# O ramo de produção é autonomous-night-2026-04-29; o main parou a 28/09 e dava achados velhos
+# (decisão da Claude.ai, 15/11/2026 18:58). O main fica só como último recurso.
+BASES = ["origin/autonomous-night-2026-04-29", "autonomous-night-2026-04-29", "main"]
+
+
 def default_base() -> str:
-    mb = run_git(["merge-base", "main", "HEAD"]).strip()
-    return mb or "HEAD"
+    for ref in BASES:
+        mb = run_git(["merge-base", ref, "HEAD"]).strip()
+        if mb:
+            return mb
+    return "HEAD"
 
 
 def render_human(r: dict) -> str:
@@ -327,7 +335,7 @@ def render_human(r: dict) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Juiz — chão determinístico anti-trapaça")
-    ap.add_argument("--base", default=None, help="ref base (default: merge-base main HEAD)")
+    ap.add_argument("--base", default=None, help="ref base (default: merge-base autonomous-night-2026-04-29 HEAD)")
     ap.add_argument("--head", default=None, help="ref cabeça (default: working tree)")
     ap.add_argument("--task", default="feature", choices=["feature", "fix"],
                     help="tipo de tarefa; 'fix' ativa deteção de conserto-fantasma")

@@ -1,0 +1,15 @@
+{
+  "contas": [
+    {
+      "conta": "exemplo",
+      "nome": "Nome da personagem",
+      "descricao": "quem é e de que fala, numa frase",
+      "lingua": "pt-BR",
+      "produto": "o que o produto é, sem link (ou 'sem produto')",
+      "youtube": "@handle.do.canal",
+      "facebook_page_id": "000000000000000",
+      "texto_fixado": "Pergunta simples + 'o link está no perfil do canal: toca no nome'. Aprovado pelo Juiz e pelo Refinador.",
+      "anuncio_meta": false
+    }
+  ]
+}

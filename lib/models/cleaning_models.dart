@@ -262,6 +262,11 @@ class CleaningBooking {
   /// (`cleaning_cancel_grace_minutes`) cancelam sem taxa (31/10/2026).
   final DateTime? createdAt;
 
+  /// Plano de limpeza (28/11/2026): a visita pertence a um plano (só cartão, cobrada
+  /// 24 h antes com a profissional confirmada). null nas reservas de sempre.
+  final String? planId;
+  bool get isPlanVisit => planId != null;
+
   const CleaningBooking({
     required this.id,
     required this.clientUserId,
@@ -309,6 +314,7 @@ class CleaningBooking {
     this.doneAt,
     this.completedAt,
     this.createdAt,
+    this.planId,
   });
 
   factory CleaningBooking.fromSupabase(Map<String, dynamic> m) {
@@ -362,6 +368,7 @@ class CleaningBooking {
       doneAt: ts(m['done_at']),
       completedAt: ts(m['completed_at']),
       createdAt: ts(m['created_at']),
+      planId: m['plan_id'] as String?,
     );
   }
 

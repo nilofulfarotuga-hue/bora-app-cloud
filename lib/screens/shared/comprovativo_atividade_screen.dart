@@ -346,6 +346,12 @@ class _ComprovativoAtividadeScreenState
       children: [
         _CartaoEstado(estado: e),
         const SizedBox(height: 16),
+        // 28/11/2026 (missão limpeza-planos, Bloco E): quem faz limpezas tem de ter o código
+        // de atividade certo. A lista aceite vive no servidor (cleaner_activity_codes).
+        if (e.papeis.contains('limpeza') || e.papeis.contains('cleaner')) ...[
+          const _CodigoLimpeza(),
+          const SizedBox(height: 16),
+        ],
         if (e.podeEnviar) ..._formulario(e),
         const SizedBox(height: 16),
         const _ComoAbrir(),
@@ -491,6 +497,44 @@ class _CartaoEstado extends StatelessWidget {
                 Text(estado.explicacao),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bloco E (28/11/2026): o código de atividade de quem faz limpezas.
+/// Fonte: docs/pesquisa/limpeza-codigo-atividade-2026-11-28.md.
+class _CodigoLimpeza extends StatelessWidget {
+  const _CodigoLimpeza();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('atividade-codigo-limpeza'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.info.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.info.withValues(alpha: 0.35)),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Para fazer limpezas: o código da atividade',
+              style: TextStyle(fontWeight: FontWeight.w700)),
+          SizedBox(height: 6),
+          Text(
+            'Nas Finanças, a tua atividade tem de ter o código CAE 81210 '
+            '«Atividades de limpeza geral em edifícios». Serve para casas, lojas e '
+            'escritórios.\n'
+            'Se já tens atividade aberta com outro código (por exemplo o 1519 '
+            '«Outros prestadores de serviços»), acrescenta o 81210. É grátis: no '
+            'Portal das Finanças vai a «Todos os Serviços» → «Atividade» → '
+            '«Declaração de Alterações» e junta o código 81210.\n'
+            'Depois envia aqui o comprovativo de início ou de alteração de atividade. '
+            'Nós confirmamos o nome, o NIF e o código.',
           ),
         ],
       ),

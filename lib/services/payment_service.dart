@@ -425,6 +425,39 @@ class PaymentService {
     }
   }
 
+  /// Planos de limpeza (28/11/2026): GUARDA o cartão sem cobrar nada (SetupIntent com mandato
+  /// para cobranças sem o cliente presente). A folha mostra os cartões já guardados quando o
+  /// servidor manda a chave efémera. Completa em sucesso; lança em cancelamento/recusa.
+  Future<void> saveCardWithSetupIntent({
+    required String setupIntentClientSecret,
+    String? customerId,
+    String? ephemeralKey,
+    String? publishableKey,
+    String? referenciaId,
+  }) async {
+    if (kIsWeb) {
+      throw StateError('Guardar o cartão para o plano faz-se na app do telemóvel.');
+    }
+    await apresentarFolhaCartao(
+      SetupPaymentSheetParameters(
+        setupIntentClientSecret: setupIntentClientSecret,
+        customerId: (customerId != null && ephemeralKey != null) ? customerId : null,
+        customerEphemeralKeySecret: (customerId != null && ephemeralKey != null) ? ephemeralKey : null,
+        merchantDisplayName: 'BORA APP',
+        style: ThemeMode.system,
+        billingDetailsCollectionConfiguration: const BillingDetailsCollectionConfiguration(
+          name: CollectionMode.always,
+          email: CollectionMode.never,
+          phone: CollectionMode.never,
+          address: AddressCollectionMode.never,
+        ),
+      ),
+      vertical: 'limpeza_plano',
+      referenciaId: referenciaId,
+      publishableKey: publishableKey,
+    );
+  }
+
   /// Confirma pagamento off-session ja criado pela Edge Fn (cartao guardado).
   /// Se [requiresAction] for true, abre PaymentSheet para resolver 3DS challenge.
   /// Caso contrario retorna true (PI ja foi succeeded server-side).

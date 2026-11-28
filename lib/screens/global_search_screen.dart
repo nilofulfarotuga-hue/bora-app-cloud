@@ -20,9 +20,12 @@ import '../stores/services_store.dart';
 import '../stores/tvde_store.dart';
 import '../utils/cozinhas.dart';
 import '../utils/home_destino.dart';
+import '../utils/lupa_sugestoes.dart';
 import '../utils/pesquisa_atalhos.dart';
+import '../utils/pesquisa_lupa.dart';
 import '../widgets/bora/bora_screen_app_bar.dart';
 import '../widgets/bora/coming_soon.dart';
+import '../widgets/lupa_sugestoes_painel.dart';
 import '../widgets/pesquisa_sem_resultado.dart';
 import 'client/services/provider_detail_screen.dart';
 import 'restaurants_screen.dart' show RestaurantTile;
@@ -120,7 +123,9 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
     });
     _debounce?.cancel();
     _registo.aoEscrever(v);
-    if (v.trim().length < 2) {
+    // 17/11 (lupa-sugestoes): com 1-2 letras mostram-se as sugestões
+    // (LupaSugestoesPainel); a pesquisa completa só a partir de 3 letras.
+    if (modoDaLupa(v) != ModoLupa.pesquisa) {
       setState(() {
         _lojas = const [];
         _produtos = const [];
@@ -129,7 +134,9 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
       });
       return;
     }
-    _debounce = Timer(const Duration(milliseconds: 300), () => _procurar(v));
+    // 17/11 (servidor-busca-leve): sai quando a pessoa pára 400 ms; a resposta
+    // da mesma pesquisa nos últimos 5 min vem da memória (HomeFeedService).
+    _debounce = Timer(kEsperaLupa, () => _procurar(v));
   }
 
   /// Regista a pesquisa para o painel "KPIs de pesquisa" (client_search_history
@@ -241,7 +248,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
                       onChanged: _mudou,
                       onSubmitted: (v) {
                         _debounce?.cancel();
-                        if (v.trim().length >= 2) {
+                        if (modoDaLupa(v) == ModoLupa.pesquisa) {
                           _registar();
                           _procurar(v);
                         }
@@ -268,7 +275,11 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
             ),
           ),
           Expanded(
-            child: _q.trim().length < 2 ? _sugestoes() : _resultados(),
+            child: switch (modoDaLupa(_q)) {
+              ModoLupa.vazio => _sugestoes(),
+              ModoLupa.sugestoes => _sugestoesDaLupa(),
+              ModoLupa.pesquisa => _resultados(),
+            },
           ),
         ],
       ),
@@ -350,6 +361,70 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
         ],
       ],
     );
+  }
+
+  // ─── 1-2 letras: sugestões (lupa-sugestoes 17/11) ──────────────────────
+
+  Widget _sugestoesDaLupa() {
+    // Os atalhos (motorista, limpeza…) continuam à mão, como nos resultados.
+    final tvde = context.watch<TvdeStore>().mostrarBoraMotorista;
+    final casa = context.watch<CasaStore>().enabled;
+    final atalhos = _atalhos
+        .where((k) => (k != 'motorista' || tvde) && (k != 'casa' || casa))
+        .toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (atalhos.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+                Spacing.lg, Spacing.sm, Spacing.lg, 0),
+            child: Wrap(
+              spacing: Spacing.sm,
+              runSpacing: Spacing.sm,
+              children: [
+                for (final k in atalhos)
+                  ActionChip(
+                    avatar: Icon(_iconeAtalho(k), size: 18),
+                    label: Text(categoriasDestino[k]!.tr),
+                    onPressed: () {
+                      _registar();
+                      abrirCategoria(context, k);
+                    },
+                  ),
+              ],
+            ),
+          ),
+        Expanded(
+          child: LupaSugestoesPainel(
+            texto: _q,
+            aoEscolher: _escolherSugestao,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Tocou numa sugestão: loja → abre a loja; o resto → pesquisa completa
+  /// com esse texto, já, sem esperar.
+  void _escolherSugestao(SugestaoLupa s) {
+    if (s.tipo == TipoSugestao.loja) {
+      final id = s.ref ?? s.restaurantId;
+      final store = context.read<RestaurantStore>();
+      for (final r in store.restaurants) {
+        if (r.id == id) {
+          _registo.registarJa(s.texto);
+          abrirLoja(context, r);
+          return;
+        }
+      }
+    }
+    _usarTermo(s.texto);
+    _debounce?.cancel();
+    if (modoDaLupa(s.texto) == ModoLupa.pesquisa) {
+      _registar();
+      _procurar(s.texto);
+    }
   }
 
   // ─── Resultados ────────────────────────────────────────────────────────

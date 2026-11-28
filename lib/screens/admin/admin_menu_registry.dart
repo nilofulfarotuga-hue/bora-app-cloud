@@ -5,6 +5,7 @@ import '../../utils/search_text.dart' show normalizarPesquisa;
 
 import 'admin_order_edits_screen.dart';
 import 'admin_pesquisas_sem_resultado_screen.dart';
+import 'admin_lupa_sugestoes_screen.dart';
 import 'admin_ajustes_peso_screen.dart';
 import 'admin_filas_estafetas_screen.dart';
 import 'admin_favor_diferencas_screen.dart';
@@ -1162,6 +1163,17 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.indigo,
       builder: () => const AdminPesquisasSemResultadoScreen(),
       keywords: const ['pesquisa', 'busca', 'sinonimo', 'sinonimos', 'sem resultado', 'nao achou', 'procuram', 'lupa'],
+    ),
+    // [17/11, lupa-sugestoes] O que a lupa sugere com 1-2 letras (tabela
+    // lupa_sugestoes): ver, recalcular, esconder e ligar/desligar.
+    AdminMenuItem(
+      id: 'clientes_lupa_sugestoes',
+      title: 'Sugestões da lupa',
+      subtitle: 'O que a lupa mostra com 1 ou 2 letras (palavras, produtos, seções e lojas); ver o peso, recalcular agora, esconder uma sugestão e ligar/desligar',
+      icon: Icons.manage_search,
+      color: Colors.indigo,
+      builder: () => const AdminLupaSugestoesScreen(),
+      keywords: const ['lupa', 'sugestao', 'sugestoes', 'pesquisa', 'busca', 'autocompletar', 'letra', 'prefixo'],
     ),
     AdminMenuItem(
       id: 'clientes_filtros_de_descoberta',

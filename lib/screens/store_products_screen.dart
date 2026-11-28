@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -15,7 +13,10 @@ import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/cart_feedback.dart';
+import '../utils/lupa_sugestoes.dart';
+import '../utils/pesquisa_lupa.dart';
 import '../utils/pesquisa_resultados.dart';
+import '../widgets/lupa_sugestoes_painel.dart';
 import '../widgets/pesquisa_sem_resultado.dart';
 import '../widgets/bora/bora_product_card.dart';
 import '../widgets/bora/maior_18.dart';
@@ -59,7 +60,16 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   // B2 (20/10): o que se procura na loja também conta no painel "KPIs de pesquisa".
   final RegistoPesquisa _registo = RegistoPesquisa();
   // RPC-backed search (robust to accents/case via server-side normalization).
-  Timer? _rpcDebounce;
+  // 17/11 (servidor-busca-leve): pesquisa quando a pessoa pára 400 ms, só
+  // conta a última resposta, e a mesma pesquisa nos últimos 5 min (em
+  // qualquer loja aberta depois) vem da memória do telemóvel.
+  static final MemoriaPesquisa<List<Map<String, dynamic>>> _memoriaPesquisa =
+      MemoriaPesquisa<List<Map<String, dynamic>>>();
+  late final LupaAgendada<List<Map<String, dynamic>>> _lupa =
+      LupaAgendada<List<Map<String, dynamic>>>(
+    buscar: _pedirAoServidor,
+    memoria: _memoriaPesquisa,
+  );
   List<Map<String, dynamic>> _rpcRows = const [];
   bool _rpcLoading = false;
   // m11 (09/11): o texto da última pesquisa que o servidor respondeu — só
@@ -79,8 +89,9 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   // O botão grande "Tenho receita" já saiu do ecrã → o chip fica na barra fina.
   bool _botaoReceitaEscondido = false;
 
-  /// Com 2+ letras a lista dá lugar aos resultados do servidor.
-  bool get _emPesquisa => _searchQuery.trim().length >= 2;
+  /// Com 1+ letras a lista dá lugar à lupa: sugestões com 1-2 letras
+  /// (lupa-sugestoes 17/11), resultados do servidor a partir de 3.
+  bool get _emPesquisa => modoDaLupa(_searchQuery) != ModoLupa.vazio;
 
   // ── Normalise: remove accents + lowercase ──────────────────────────────────
   String _normalize(String text) {
@@ -124,7 +135,7 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   void dispose() {
     _cart?.removeListener(_aoMudarCarrinho);
     PesquisaAprendizagem.instance.sairDoEcra();
-    _rpcDebounce?.cancel();
+    _lupa.dispose();
     _registo.dispose();
     _searchController.dispose();
     _scroll.removeListener(_aoRolar);
@@ -220,6 +231,7 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   void _limparPesquisa({String? categoria}) {
     final antes = _emPesquisa;
     _searchController.clear();
+    _lupa.parar();
     setState(() {
       _searchQuery = '';
       _rpcRows = const [];
@@ -229,10 +241,12 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
     if (antes) _aposMudarModo();
   }
 
-  void _scheduleRpcSearch(String query) {
-    _rpcDebounce?.cancel();
+  void _scheduleRpcSearch(String query, {bool ja = false}) {
     final q = query.trim();
-    if (q.length < 2) {
+    // 1-2 letras: as sugestões (LupaSugestoesPainel) tratam de tudo; a
+    // pesquisa completa só a partir de 3 (lupa-sugestoes 17/11).
+    if (modoDaLupa(q) != ModoLupa.pesquisa) {
+      _lupa.parar();
       if (_rpcRows.isNotEmpty || _rpcLoading) {
         setState(() {
           _rpcRows = const [];
@@ -241,50 +255,86 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
       }
       return;
     }
-    _rpcDebounce = Timer(const Duration(milliseconds: 350), () {
-      _runRpcSearch(q);
-    });
-  }
+    void aoComecar() {
+      if (mounted) setState(() => _rpcLoading = true);
+    }
 
-  Future<void> _runRpcSearch(String query) async {
-    if (!mounted) return;
-    setState(() => _rpcLoading = true);
-    try {
-      // A pesquisa corre no servidor sobre a loja INTEIRA (867 produtos na
-      // Farmácia da Sé), não só sobre o que está carregado. Tempo limite
-      // (PADRAO 3.15.5): se o servidor não responder, cai no catch abaixo.
-      final rows = await Supabase.instance.client.rpc(
-        'search_products',
-        params: {
-          'query_text': query,
-          'p_restaurant_id': widget.restaurantId,
-          'max_results': 50,
-        },
-      ).timeout(const Duration(seconds: 12));
-      if (!mounted) return;
-      final linhas = rows is List
-          ? List<Map<String, dynamic>>.from(
-              rows.whereType<Map<String, dynamic>>(),
-            )
-          : const <Map<String, dynamic>>[];
-      setState(() {
-        _rpcRows = linhas;
-        _rpcLoading = false;
-        _rpcQuery = query;
-      });
-      if (separarResultadosPesquisa(linhas).produtos.isEmpty) {
-        PesquisaAprendizagem.instance
-            .semResultado(query, restaurantId: widget.restaurantId);
-      } else {
-        PesquisaAprendizagem.instance.comResultado();
-      }
-    } catch (_) {
+    void aoFalhar(Object _) {
       if (!mounted) return;
       setState(() {
         _rpcRows = const [];
         _rpcLoading = false;
         _rpcQuery = null;
       });
+    }
+
+    final chave = chaveDaPesquisa(q, loja: widget.restaurantId);
+    if (ja) {
+      _lupa.agora(q, chave,
+          aoComecar: aoComecar,
+          aoChegar: (linhas) => _mostrarResultados(q, linhas),
+          aoFalhar: aoFalhar);
+      return;
+    }
+    _lupa.escrever(q, chave,
+        aoComecar: aoComecar,
+        aoChegar: (linhas) => _mostrarResultados(q, linhas),
+        aoFalhar: aoFalhar);
+  }
+
+  /// Tocou numa sugestão (1-2 letras): secção → abre a secção da loja; o
+  /// resto → pesquisa completa com esse texto, já, sem esperar.
+  void _escolherSugestao(SugestaoLupa s) {
+    _registo.registarJa(s.texto);
+    if (s.tipo == TipoSugestao.seccao) {
+      _limparPesquisa(categoria: _capitalize(s.ref ?? s.texto));
+      return;
+    }
+    final t = s.texto;
+    final antes = _emPesquisa;
+    _searchController.value = TextEditingValue(
+      text: t,
+      selection: TextSelection.collapsed(offset: t.length),
+    );
+    setState(() => _searchQuery = t);
+    if (antes != _emPesquisa) _aposMudarModo();
+    _scheduleRpcSearch(t, ja: true);
+  }
+
+  /// A pesquisa corre no servidor sobre a loja INTEIRA (867 produtos na
+  /// Farmácia da Sé), não só sobre o que está carregado. Tempo limite
+  /// (PADRAO 3.15.5): se o servidor não responder, a lupa chama o aoFalhar.
+  Future<List<Map<String, dynamic>>> _pedirAoServidor(String query) async {
+    final rows = await Supabase.instance.client.rpc(
+      'search_products',
+      params: {
+        'query_text': query,
+        'p_restaurant_id': widget.restaurantId,
+        'max_results': 50,
+      },
+    ).timeout(const Duration(seconds: 12));
+    // Imutável: a mesma lista fica na memória e pode voltar a ser mostrada.
+    return rows is List
+        ? List<Map<String, dynamic>>.unmodifiable(
+            rows.whereType<Map<String, dynamic>>(),
+          )
+        : const <Map<String, dynamic>>[];
+  }
+
+  void _mostrarResultados(String query, List<Map<String, dynamic>> linhas) {
+    if (!mounted) return;
+    setState(() {
+      _rpcRows = linhas;
+      _rpcLoading = false;
+      _rpcQuery = query;
+    });
+    // Com menos de 3 letras o servidor só devolve secções: não é "sem resultado".
+    if (letrasDaPesquisa(query) < kLetrasProdutos) return;
+    if (separarResultadosPesquisa(linhas).produtos.isEmpty) {
+      PesquisaAprendizagem.instance
+          .semResultado(query, restaurantId: widget.restaurantId);
+    } else {
+      PesquisaAprendizagem.instance.comResultado();
     }
   }
 
@@ -551,7 +601,15 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
                 if (emPesquisa)
                   SliverFillRemaining(
                     hasScrollBody: true,
-                    child: _SuggestionsPanel(
+                    // 17/11 (lupa-sugestoes): com 1-2 letras, as sugestões
+                    // desta loja (palavras, produtos, secções), como a Glovo.
+                    child: modoDaLupa(_searchQuery) == ModoLupa.sugestoes
+                        ? LupaSugestoesPainel(
+                            texto: _searchQuery,
+                            restaurantId: widget.restaurantId,
+                            aoEscolher: _escolherSugestao,
+                          )
+                        : _SuggestionsPanel(
                       rpcRows: _rpcRows,
                       rpcLoading: _rpcLoading,
                       respondida: _rpcQuery != null &&

@@ -23,6 +23,7 @@ import '../services/payment_service.dart';
 import '../services/pricing_service.dart';
 import '../services/small_order_fee.dart';
 import '../utils/religar_com_espera.dart';
+import '../utils/loja_fechada_pedido.dart';
 import 'driver_store.dart';
 import 'restaurant_store.dart';
 
@@ -604,9 +605,18 @@ class OrderStore extends ChangeNotifier {
         )
         .toList();
 
-    if (isPartnerStore && serviceType == OrderServiceType.restaurant) {
-      final restaurant = _restaurantStore?.restaurantByName(vendorName);
-      if (restaurant != null && !restaurant.isOpenNow()) return null;
+    // 27/11/2026: só trava "para agora" (sem hora marcada e sem encomenda de
+    // festa); com a razão, para o ecrã dizer quando abre.
+    lastCreateOrderError = null;
+    if (isPartnerStore &&
+        serviceType == OrderServiceType.restaurant &&
+        lojaFechadaTravaPedidoDoCarrinho(
+          loja: _restaurantStore?.restaurantByName(vendorName),
+          itens: items,
+          categoriaDoProduto: _restaurantStore?.productCategoryById,
+        )) {
+      lastCreateOrderError = 'STORE_CLOSED';
+      return null;
     }
 
     final cartInput = <String, dynamic>{
@@ -912,14 +922,20 @@ class OrderStore extends ChangeNotifier {
 
     // Uma razão antiga (de uma tentativa anterior) nunca fica no ecrã.
     lastCreateOrderError = null;
-    if (isPartnerStore && serviceType == OrderServiceType.restaurant) {
-      final restaurant = _restaurantStore?.restaurantByName(vendorName);
-      if (restaurant != null && !restaurant.isOpenNow()) {
-        // 11/11/2026 (Farmácia da Sé às 21:23): sem razão, o ecrã mostrava o
-        // genérico "Não foi possível criar o pedido". Diz-se que está fechada.
-        lastCreateOrderError = 'STORE_CLOSED';
-        return false;
-      }
+    if (isPartnerStore &&
+        serviceType == OrderServiceType.restaurant &&
+        // 27/11/2026 (Sabores do Brasil às 21:38): só trava "para agora" — com
+        // hora marcada no carrinho ou encomenda de festa, a loja fechada agora
+        // não trava (o servidor volta a decidir: STORE_CLOSED).
+        lojaFechadaTravaPedidoDoCarrinho(
+          loja: _restaurantStore?.restaurantByName(vendorName),
+          itens: items,
+          categoriaDoProduto: _restaurantStore?.productCategoryById,
+        )) {
+      // 11/11/2026 (Farmácia da Sé às 21:23): sem razão, o ecrã mostrava o
+      // genérico "Não foi possível criar o pedido". Diz-se que está fechada.
+      lastCreateOrderError = 'STORE_CLOSED';
+      return false;
     }
 
     // ── Cash limit guard (UX only — backend trigger is the source of truth) ─

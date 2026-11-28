@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Amigo Bora">
+  <!-- Amigo Bora (08/11/2026): fonte do avatar. A app usa amigo_bora.png (1x/2x/3x), gerado a partir deste desenho. -->
+  <circle cx="256" cy="256" r="256" fill="#16A34A"/>
+  <rect x="102" y="133" width="308" height="215" rx="72" fill="#FFFFFF"/>
+  <polygon points="164,346 154,410 236,346" fill="#FFFFFF"/>
+  <circle cx="184" cy="240" r="28" fill="#F97316"/>
+  <circle cx="256" cy="240" r="28" fill="#F97316"/>
+  <circle cx="328" cy="240" r="28" fill="#F97316"/>
+  <polygon points="410,69 424,99 454,113 424,127 410,157 396,127 366,113 396,99" fill="#FFFFFF"/>
+</svg>

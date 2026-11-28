@@ -93,7 +93,7 @@ class _AdminAmigoRostoSecaoState extends State<AdminAmigoRostoSecao> {
         };
       }
     } catch (e) {
-      debugPrint('[AdminAmigoRosto] home_convite_categorias: $e');
+      debugPrint('[AdminAmigoRosto] home_convite_categorias falhou ($e)');
     }
     return v;
   }

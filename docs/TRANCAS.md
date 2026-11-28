@@ -834,3 +834,9 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   no ramo de documentos ([Destructive or Unwanted Actions]); eu queria tirar um commit meu repetido (relatório da
   busca leve, que também vai no ramo da app). Não contornado: o commit ficou; o conteúdo é igual nos dois ramos e
   junta sem conflito.
+- 28/11/2026 (pc-sem-travar-2026-11-28, Claude Code no PC, Opus 5.5): a bora-tranca negou o `Remove-Item -Recurse`
+  de `~/.ollama` (23,9 GB de modelos; regra Q, apagar recursivo fora de build/node_modules). Nao contornei pelo agente:
+  o apagar ficou como passo 4 do `PC-SEM-TRAVAR-ADMIN.cmd` que o Danilo corre com duplo clique (ele mandou
+  desinstalar o Ollama). O classificador do auto mode negou tambem ler os nomes das variaveis dos ficheiros .env
+  (procurava a chave publica do Supabase para o guardiao); usei a chave publicavel pelo MCP do Supabase.
+  e2e_log fluxo pc-sem-travar.

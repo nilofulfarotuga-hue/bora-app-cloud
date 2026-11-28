@@ -6,8 +6,11 @@ import '../config/app_colors.dart';
 import '../config/app_spacing.dart';
 import '../l10n/tr.dart';
 import '../utils/contact_validators.dart';
+import '../utils/telefone_internacional.dart';
+import '../widgets/campo_telefone_internacional.dart';
 import '../widgets/bora/bora_primary_button.dart';
 import '../widgets/terms_gate.dart';
+import 'client/falta_so_isto_screen.dart';
 import 'client_login_screen.dart';
 
 /// Ecrã de completar contacto do cliente — nome e telemóvel.
@@ -40,6 +43,7 @@ class CompleteProfileScreen extends StatefulWidget {
 
 class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _campoTel = GlobalKey<CampoTelefoneInternacionalState>();
   late final TextEditingController _nameController;
   late final TextEditingController _phoneController;
   bool _aGuardar = false;
@@ -67,8 +71,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
     final authStore = context.read<AuthStore>();
     final erro = await authStore.updateClientContact(
       name: _nameController.text.trim(),
-      // Grava os 9 dígitos nacionais — mesma forma que o registo usa.
-      phone: normalizarTelemovelPt(_phoneController.text) ??
+      // 28/11/2026: qualquer país, sempre em formato internacional (+351…).
+      phone: _campoTel.currentState?.internacional ??
+          telefoneInternacional(_phoneController.text, kPaisTelefonePorDefeito.iso) ??
           _phoneController.text.trim(),
     );
 
@@ -139,15 +144,13 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                     validator: (v) => validarNomeCliente(v)?.tr,
                   ),
                   const SizedBox(height: Spacing.md),
-                  TextFormField(
+                  CampoTelefoneInternacional(
+                    key: _campoTel,
                     controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      labelText: 'Telemóvel'.tr,
-                      hintText: '912345678',
-                      prefixIcon: const Icon(Icons.phone_rounded),
-                    ),
-                    validator: (v) => validarTelemovelPt(v)?.tr,
+                    inicial: context.read<AuthStore>().currentClient?.phone,
+                    helperText:
+                        'O estafeta usa este número para te contactar (chamada ou WhatsApp) se precisar.'
+                            .tr,
                   ),
                   const SizedBox(height: Spacing.xl),
                   BoraPrimaryButton(
@@ -181,7 +184,18 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 /// no fim o contacto está completo. É este o teste único que o checkout, as
 /// reservas, a limpeza e as corridas chamam — uma porta só, para não haver
 /// quatro regras diferentes a divergir.
-Future<bool> garantirContactoDoCliente(BuildContext context) async {
+///
+/// 28/11/2026 (ordem do Danilo 09:38): "não tem como fazer pedido sem telefone
+/// e sem morada". Com [precisaMorada] (há entrega), depois do nome abre o
+/// passo "Falta só isto" quando falta o telemóvel ou a morada exata
+/// ([exigirMoradaGuardada]: também uma morada guardada, como a Glovo). O
+/// carrinho fica como estava.
+Future<bool> garantirContactoDoCliente(
+  BuildContext context, {
+  bool precisaMorada = false,
+  bool exigirMoradaGuardada = true,
+  String categoria = 'pedido',
+}) async {
   var client = context.read<AuthStore>().currentClient;
   if (client == null) {
     // Sem conta (visitante, 26/10): nunca mais um botão mudo. Abre "Entrar ou
@@ -204,14 +218,21 @@ Future<bool> garantirContactoDoCliente(BuildContext context) async {
     return false;
   }
   if (!context.mounted) return false;
-  if (contactoDoClienteCompleto(nome: client.name, telemovel: client.phone)) {
-    return true;
+  // Sem nome: o ecrã de sempre (nome + telemóvel).
+  if (validarNomeCliente(client.name) != null) {
+    final ok = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => const CompleteProfileScreen(bloqueante: true),
+      ),
+    );
+    if (ok != true || !context.mounted) return false;
   }
-  final ok = await Navigator.of(context).push<bool>(
-    MaterialPageRoute(
-      fullscreenDialog: true,
-      builder: (_) => const CompleteProfileScreen(bloqueante: true),
-    ),
+  // Telemóvel e morada: o passo "Falta só isto" (só abre se faltar algo).
+  return FaltaSoIsto.garantir(
+    context,
+    precisaMorada: precisaMorada,
+    exigirMoradaGuardada: exigirMoradaGuardada,
+    categoria: categoria,
   );
-  return ok ?? false;
 }

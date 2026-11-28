@@ -37,6 +37,7 @@ import 'admin_category_mapping_screen.dart';
 import 'admin_cleaning_bookings_screen.dart';
 import 'admin_cleaning_cleaners_screen.dart';
 import 'admin_clients_screen.dart';
+import 'admin_clientes_contacto_screen.dart';
 import 'admin_complaints_screen.dart';
 import 'admin_bloqueios_screen.dart';
 import 'admin_folgas_screen.dart';
@@ -950,6 +951,15 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.indigo,
       builder: () => const AdminClientsScreen(),
       keywords: const ['banir', 'clientes', 'historico', 'listar', 'suspender'],
+    ),
+    AdminMenuItem(
+      id: 'clientes_sem_contacto',
+      title: 'Clientes sem telefone ou morada',
+      subtitle: 'Quem não consegue pedir por falta de telefone ou morada (SEM_TELEFONE / SEM_MORADA): quem parou no "Falta só isto", ligar ou WhatsApp, pôr o telefone',
+      icon: Icons.contact_phone_outlined,
+      color: Colors.teal,
+      builder: () => const AdminClientesContactoScreen(),
+      keywords: const ['telefone', 'morada', 'sem_telefone', 'sem_morada', 'falta so isto', 'contacto', 'whatsapp', 'estrangeiro'],
     ),
     AdminMenuItem(
       id: 'clientes_avaliacoes',

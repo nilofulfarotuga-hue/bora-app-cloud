@@ -854,8 +854,12 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                       // nome/telemóvel válidos, o cliente é bloqueado aqui
                       // antes de seguir para pagamento (ver
                       // garantirContactoDoCliente em complete_profile_screen.dart).
-                      final contactoOk =
-                          await garantirContactoDoCliente(context);
+                      // 28/11/2026 (Danilo): sem telemóvel e sem morada
+                      // exata não há pedido — o passo "Falta só isto".
+                      final contactoOk = await garantirContactoDoCliente(
+                          context,
+                          precisaMorada: !cartStore.isTakeaway,
+                          categoria: 'carrinho');
                       if (!contactoOk || !context.mounted) return;
                       if (eraConvidado) {
                         await cartStore.relerAgendamento();

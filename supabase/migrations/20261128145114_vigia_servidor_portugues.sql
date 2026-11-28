@@ -106,6 +106,8 @@ begin
     select s.queryid, s.userid, s.dbid, sum(s.total_exec_time), sum(s.calls)::bigint, min(s.query)
       from extensions.pg_stat_statements s
      where s.queryid is not null
+       -- 23/11: esperas (pg_sleep) nao gastam processador; contavam como carga e davam alarme falso
+       and s.query !~* 'pg_sleep'
      group by s.queryid, s.userid, s.dbid;
 
   -- canais de tempo real por conta e tabela (a assinatura do defeito de 16/11)

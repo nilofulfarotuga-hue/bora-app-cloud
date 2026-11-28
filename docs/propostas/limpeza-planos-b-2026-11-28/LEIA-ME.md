@@ -6,6 +6,18 @@ Claude.ai, por MCP, com o autorizo do Danilo de 28/11/2026 (09:25, 10:28, 11:43)
 
 Segue à letra a página do livro `limpeza-planos-b-especificacao-2026-11-28`.
 
+## Estado (28/11/2026, fim da tarde)
+
+- **APLICADO pela Claude.ai:** `20261128161413_limpeza_planos_b_2026_11_28` (= `migracao.sql` do commit 7417c463,
+  md5 b4862924) e `20261128161521_limpeza_planos_b_fechar_permissoes` (as funções internas e do robô ficavam com
+  EXECUTE para `authenticated` por causa dos privilégios por defeito do Supabase). As duas estão em `supabase/migrations/`.
+  Provas 13/13 no servidor. Edge publicadas a partir de 7417c463.
+- `migracao.sql` desta pasta já tira também `authenticated` no ciclo das permissões (provado num Postgres com os
+  privilégios por defeito do Supabase: antes da correção a P12 falhava, depois 13/13).
+- `provas.sql` dá telemóvel aos clientes da prova (desde 28/11 10:19 não há reserva sem telemóvel, SEM_TELEFONE).
+- App: o assistente do plano pede o telemóvel (`garantirContactoDoCliente`) antes de `cleaning_plan_create`.
+- Falta: os 2 eventos novos no webhook da Stripe da empresa (sem permissão de escrita no conector; são só a rede).
+
 ## O que há aqui
 
 | ficheiro | o quê |

@@ -1717,7 +1717,9 @@ BEGIN
     'public.admin_list_cleaning_plan_charges(text)',
     'public.admin_cleaning_plan_set_status(uuid, text, text)']
   LOOP
-    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon', f);
+    -- também authenticated: o Supabase dá EXECUTE a authenticated por defeito às funções novas
+    -- (achado da Claude.ai a 28/11, corrigido no ar em 20261128161521); as da app voltam logo abaixo.
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', f);
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', f);
   END LOOP;
 END $g$;

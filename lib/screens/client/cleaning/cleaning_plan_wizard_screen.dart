@@ -18,6 +18,7 @@ import '../../../stores/cart_store.dart';
 import '../../../stores/cleaning_plan_store.dart';
 import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/bora/bora.dart';
+import '../../complete_profile_screen.dart' show garantirContactoDoCliente;
 import 'cleaning_plan_screen.dart';
 
 /// PLANO DE LIMPEZA — criar (missão limpeza-planos-empresas-2026-11-28, Blocos C e D).
@@ -31,12 +32,17 @@ import 'cleaning_plan_screen.dart';
 /// "Começar plano" cria o plano e guarda o cartão (SetupIntent); cada limpeza cobra-se 24 h
 /// antes, e só com a profissional confirmada.
 class CleaningPlanWizardScreen extends StatefulWidget {
-  const CleaningPlanWizardScreen({super.key, this.segment = 'casa', this.storeOverride});
+  const CleaningPlanWizardScreen({super.key, this.segment = 'casa', this.storeOverride, this.garantirContacto});
 
   final String segment;
 
   @visibleForTesting
   final CleaningPlanStore? storeOverride;
+
+  /// Porta do telemóvel antes de criar o plano (28/11/2026). Só os testes a trocam;
+  /// em produção é sempre [garantirContactoDoCliente].
+  @visibleForTesting
+  final Future<bool> Function(BuildContext context)? garantirContacto;
 
   @override
   State<CleaningPlanWizardScreen> createState() => _CleaningPlanWizardScreenState();
@@ -199,6 +205,12 @@ class _CleaningPlanWizardScreenState extends State<CleaningPlanWizardScreen> {
       if (_nifCtrl.text.replaceAll(RegExp(r'\D'), '').length != 9) return _snack('O NIF tem de ter 9 algarismos.'.tr);
       if (!_emailCtrl.text.contains('@')) return _snack('Falta o email de faturação.'.tr);
     }
+    // 28/11/2026 (Danilo): sem telemóvel não há pedido. As visitas do plano são reservas de
+    // limpeza, e o servidor recusa-as sem o telemóvel do cliente (SEM_TELEFONE) quando o cartão
+    // fica guardado e o plano gera as limpezas. Por isso pede-se ANTES de criar o plano.
+    final contactoOk = await (widget.garantirContacto?.call(context) ??
+        garantirContactoDoCliente(context, categoria: 'limpeza'));
+    if (!contactoOk || !mounted) return;
     setState(() => _busy = true);
     try {
       await _resolverMorada();

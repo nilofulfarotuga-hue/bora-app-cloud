@@ -37,6 +37,9 @@ DECLARE c1 uuid := gen_random_uuid(); c2 uuid := gen_random_uuid(); u1 uuid := g
 BEGIN
   INSERT INTO auth.users (id, email) VALUES (c1, 'prova-plano-casa@exemplo.pt'), (c2, 'prova-plano-empresa@exemplo.pt'),
                                             (u1, 'prova-pro-1@exemplo.pt'), (u2, 'prova-pro-2@exemplo.pt');
+  -- desde 28/11 10:19 não há reserva sem telemóvel do cliente (SEM_TELEFONE): os clientes da prova têm um
+  INSERT INTO public.users (id, phone) VALUES (c1, '+351912345678'), (c2, '+351912345679')
+  ON CONFLICT (id) DO UPDATE SET phone = EXCLUDED.phone;
   INSERT INTO cleaners (user_id, name, approval_status, is_active, service_radius_km, rating_avg, cleanings_done)
   VALUES (u1, 'Prova Ana', 'approved', true, 50, 5, 10) RETURNING id INTO k1;
   INSERT INTO cleaners (user_id, name, approval_status, is_active, service_radius_km, rating_avg, cleanings_done)

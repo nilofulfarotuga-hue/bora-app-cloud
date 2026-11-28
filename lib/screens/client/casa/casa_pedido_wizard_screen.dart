@@ -17,6 +17,7 @@ import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/auto_address_hint.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/checkout_legal_notice.dart';
+import '../../complete_profile_screen.dart' show garantirContactoDoCliente;
 import 'casa_meus_pedidos_screen.dart';
 import 'casa_pagamento_flow.dart';
 import 'casa_pedido_screen.dart';
@@ -327,6 +328,11 @@ class _CasaPedidoWizardScreenState extends State<CasaPedidoWizardScreen> {
     final store = context.read<CasaStore>();
     final quando = _quando;
     if (quando == null) return;
+    // 28/11/2026 (Danilo): sem telemóvel não há pedido. A morada já vem
+    // deste assistente; aqui só se garante o telemóvel ("Falta só isto").
+    final contactoOk =
+        await garantirContactoDoCliente(context, categoria: 'casa');
+    if (!contactoOk || !mounted) return;
     try {
       var pedido = await store.criarPedido(
         servico: _servico,

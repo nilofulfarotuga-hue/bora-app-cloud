@@ -129,6 +129,8 @@ import {
 import { afinarFala, podeOutroCarrinho, textosDoAssistente, ultimasMensagens } from './estilo.ts';
 // 11/11/2026 (amigo-casa, "Conserta o amigo"): Casa e Manutenção com os preços da tabela e a ligação que a abre.
 import { casaParaModelo, deixaCasa, eTrabalhoDeCasa, semFraseDeMesa } from './casa.ts';
+// 28/11/2026 (ordem do Danilo 09:38): sem morada ou sem telemóvel não há pedido; o Amigo diz o que falta.
+import { type Escolhido, eRespostaGenerica, type FaltaContacto, notaFaltaContacto, oQueFalta, textoFaltaContacto } from './contacto.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -990,7 +992,7 @@ Deno.serve(async (req: Request) => {
         .eq('active', true).order('updated_at', { ascending: false }).limit(40);
       if (error || !data) return '';
       const licoes = (data as Json[]).filter((r) => r.kind === 'licao').slice(0, 20)
-        .map((r) => `- Lição: ${limparTexto(r.question, 160)} → ${limparTexto(r.answer, 200)}`);
+        .map((r) => `- Lição: ${limparTexto(r.question, 160)} → ${limparTexto(r.answer, 500)}`);
       const respostas = (data as Json[]).filter((r) => r.kind === 'resposta').slice(0, 15)
         .map((r) => `- P: ${limparTexto(r.question, 160)}\n  R: ${limparTexto(r.answer, 500)}`);
       return [...licoes, ...respostas].join('\n').slice(0, 7000);
@@ -1150,6 +1152,25 @@ Deno.serve(async (req: Request) => {
     return out;
   }
 
+  // 28/11/2026: o que falta para pedir (morada / telemóvel) e o que o Amigo já escolheu, para o dizer na
+  // resposta em vez da frase genérica.
+  let faltaContacto = null as FaltaContacto | null; // mudado dentro das ferramentas (closure)
+  let telefoneEmFalta: boolean | null = null;
+  const escolhidosSemDados: Escolhido[] = [];
+  const precosVistos = new Map<string, { nome: string; loja: string; preco: number | null }>();
+  async function semTelefone(): Promise<boolean> {
+    if (telefoneEmFalta !== null) return telefoneEmFalta;
+    try {
+      const { data } = await userClient.rpc('cliente_dados_em_falta', {});
+      telefoneEmFalta = data?.ok === true && data.falta_telefone === true;
+    } catch { telefoneEmFalta = false; } // sem a função no ar: segue como antes
+    return telefoneEmFalta;
+  }
+  function marcarFalta(f: Partial<FaltaContacto>) {
+    faltaContacto = { morada: (faltaContacto?.morada ?? false) || f.morada === true, telefone: (faltaContacto?.telefone ?? false) || f.telefone === true };
+    if (!acoes.some((a) => a.tipo === 'completar_dados')) acoes.push({ tipo: 'completar_dados', rotulo: 'Pôr os meus dados', destino: 'Onde ponho a minha morada e o meu telemóvel?' }); // a app nova abre o passo "Falta só isto"; a antiga envia o destino como pergunta
+  }
+
   async function clientDropoff(): Promise<{ lat: number | null; lng: number | null }> {
     if (dropoffLat !== null && dropoffLng !== null) return { lat: dropoffLat, lng: dropoffLng };
     const { data } = await adminClient.from('client_addresses').select('lat, lng, is_default, updated_at')
@@ -1207,6 +1228,7 @@ Deno.serve(async (req: Request) => {
           const produtos = parceiroPrimeiro<Json>(deParceiros, daBusca).slice(0, limit + deParceiros.length);
           for (const p of produtos) {
             produtosVistos.push({ product_id: p.product_id, nome: String(p.nome ?? ''), loja: String(p.loja ?? ''), restaurant_id: p.restaurant_id, parceiro: p.parceiro === true, aberta: p.aberta ?? null });
+            precosVistos.set(String(p.product_id), { nome: String(p.nome ?? ''), loja: String(p.loja ?? ''), preco: typeof p.preco === 'number' ? p.preco : (p.preco != null && !isNaN(Number(p.preco)) ? Number(p.preco) : null) });
           }
           // 18/11/2026 (farmacia-peca-aqui): medicamento que a farmácia parceira aberta não tem no catálogo →
           // o pedido especial à farmácia vem PRIMEIRO; a não-parceira (ex.: Wells) só por baixo.
@@ -1269,9 +1291,18 @@ Deno.serve(async (req: Request) => {
           const { data, error } = await userClient.rpc('assistant_basket_quote', { p_input: input });
           if (error) return { ok: false, error: error.message };
           if (!data?.ok) {
-            if (data?.error === 'SEM_MORADA') return { ok: true, data: { erro: 'SEM_MORADA', nota: 'O cliente não tem morada guardada. Pede-lhe para definir a morada de entrega na home (ícone de localização) e volta a tentar.' } };
+            if (data?.error === 'SEM_MORADA') {
+              // 28/11/2026: diz o que falta (morada e, se for o caso, telemóvel) e mostra o que já viu.
+              const f = { morada: true, telefone: await semTelefone() };
+              marcarFalta(f);
+              for (const v of precosVistos.values()) escolhidosSemDados.push({ ...v, quantidade: 1 });
+              return { ok: true, data: { erro: f.telefone ? 'SEM_MORADA_E_SEM_TELEFONE' : 'SEM_MORADA', falta: f, produtos_ja_vistos: [...precosVistos.values()].slice(0, 8), nota: notaFaltaContacto(f) } };
+            }
             return { ok: false, error: data?.error ?? 'erro no quote' };
           }
+          // 28/11/2026: o cesto mostra-se, mas sem telemóvel o pedido não sai — diz-se já o que falta.
+          const semTelCesto = await semTelefone();
+          if (semTelCesto) marcarFalta({ telefone: true });
           propostas = (data.proposals ?? []) as Json[];
           veioDoCesto = true;
           divisao = data.split ?? null;
@@ -1286,6 +1317,7 @@ Deno.serve(async (req: Request) => {
               favor: favorPreco ? { disponivel: favorPreco.available, taxa_normal_eur: favorPreco.normal_fee, taxa_expresso_eur: favorPreco.express_fee } : null,
               nota: data.note ?? null,
               regra: 'As lojas vêm ordenadas: primeiro as que têm TODOS os artigos, da mais barata à mais cara. Só chamas "mais barata" à primeira da lista. Uma loja com artigos em falta pode ter total menor, mas não é comparável: se a mencionares, diz o que lhe falta.',
+              ...(semTelCesto ? { erro_dados: 'SEM_TELEFONE', nota_dados: notaFaltaContacto({ morada: false, telefone: true }) } : {}),
             },
           };
         }
@@ -1305,10 +1337,36 @@ Deno.serve(async (req: Request) => {
             p_dropoff_lat: dropoffLat, p_dropoff_lng: dropoffLng, p_apartment: apartment,
           });
           if (error) return { ok: false, error: error.message };
-          if (!data?.ok) return { ok: false, error: data?.error ?? 'erro' };
+          if (!data?.ok) {
+            if (data?.error === 'SEM_MORADA') {
+              // 28/11/2026 (caso da Lena): o carrinho não se monta sem morada, mas o que escolheu mostra-se.
+              const f = { morada: true, telefone: await semTelefone() };
+              marcarFalta(f);
+              const escolhidos: Escolhido[] = [];
+              const semPreco = items.filter((i: Json) => !precosVistos.has(String(i.product_id))).map((i: Json) => String(i.product_id));
+              const doCatalogo = new Map<string, { nome: string; loja: string; preco: number | null }>();
+              if (semPreco.length > 0) {
+                // Produtos que não passaram pelas pesquisas desta volta (ex.: do histórico): só o nome.
+                const { data: prods } = await adminClient.from('products').select('id, name').in('id', semPreco.slice(0, 40));
+                for (const p of (prods ?? []) as Json[]) doCatalogo.set(String(p.id), { nome: String(p.name ?? ''), loja: '', preco: null });
+              }
+              for (const i of items) {
+                const v = precosVistos.get(String(i.product_id)) ?? doCatalogo.get(String(i.product_id));
+                if (v) escolhidos.push({ ...v, quantidade: num(i.quantity, 1) });
+              }
+              escolhidosSemDados.push(...escolhidos);
+              return { ok: true, data: { erro: f.telefone ? 'SEM_MORADA_E_SEM_TELEFONE' : 'SEM_MORADA', falta: f, escolhidos, nota: notaFaltaContacto(f) } };
+            }
+            return { ok: false, error: data?.error ?? 'erro' };
+          }
           carrinhosSoltos++;
           const prop = { ...data, coverage_pct: 100, missing_items: [], savings_cents: 0, rank: propostas.length + 1, kind: 'single' };
           propostas = [...propostas, prop];
+          // 28/11/2026: o carrinho mostra-se, mas sem telemóvel o pedido não sai — diz-se já o que falta.
+          if (await semTelefone()) {
+            marcarFalta({ telefone: true });
+            return { ok: true, data: { ...compactProposal(prop), erro_dados: 'SEM_TELEFONE', nota_dados: notaFaltaContacto({ morada: false, telefone: true }) } };
+          }
           return { ok: true, data: compactProposal(prop) };
         }
         case 'get_usual_basket': {
@@ -1580,7 +1638,7 @@ Deno.serve(async (req: Request) => {
             .filter((l: LinhaOutra) => l.query.length > 0);
           if (linhas.length === 0) return { ok: false, error: 'itens vazios' };
           const bq = await runTool('basket_quote', { items: linhas.map((l) => ({ query: l.query, quantity: l.quantity })) });
-          if (!bq.ok || bq.data?.erro === 'SEM_MORADA') return bq;
+          if (!bq.ok || String(bq.data?.erro ?? '').startsWith('SEM_MORADA')) return bq;
           const t = Number(args.total_outra_eur);
           const totalOutra = Number.isFinite(t) && t > 0 && t < 10000 ? Math.round(t * 100) : null;
           montarComparacao(app, totalOutra, linhas, 'escrito');
@@ -1677,7 +1735,8 @@ Deno.serve(async (req: Request) => {
   const precisaDeAcao = (): boolean => s.personality && !hasImage && pedeAcao(userMessage) &&
     !pedeCasa && !ferramentasUsadas.has('casa_servicos') &&
     propostas.length === 0 && favores.length === 0 && !comparacao &&
-    !acoes.some((a) => ACOES_DE_COMPRA.has(a.tipo)) && ![...ferramentasUsadas].some((n) => FERRAMENTAS_AJUDA.has(n));
+    !acoes.some((a) => ACOES_DE_COMPRA.has(a.tipo)) && ![...ferramentasUsadas].some((n) => FERRAMENTAS_AJUDA.has(n)) &&
+    !faltaContacto?.morada; // 28/11/2026: sem morada a compra não acaba num carrinho — diz-se o que falta
   // Texto que o modelo escreve no MESMO turno em que chama só ferramentas "leves" (botão, memória,
   // lição, lacuna) é a resposta em si — guarda-se e junta-se ao fecho, senão perdia-se a 1.ª frase.
   const FERRAMENTAS_LEVES = new Set(['suggest_action', 'remember', 'forget', 'learn_lesson', 'report_gap']);
@@ -1714,7 +1773,7 @@ Deno.serve(async (req: Request) => {
       });
       const lidoDe = appNome ? `do carrinho da ${appNome}` : naFoto;
       const resumoLista = ex.items.map((i) => `${i.quantity > 1 ? i.quantity + '× ' : ''}${i.query}`).join(', ');
-      if (bq.ok && bq.data?.erro === 'SEM_MORADA') {
+      if (bq.ok && String(bq.data?.erro ?? '').startsWith('SEM_MORADA')) {
         listaExtraida = ex.items;
         if (typeof ex.total_outra_app_cents === 'number') comparacaoPendenteNova = { app: appNome, total_outra_app_cents: ex.total_outra_app_cents };
         finalText = `Li ${ex.items.length} artigo${ex.items.length === 1 ? '' : 's'} ${lidoDe}: ${resumoLista}. Para comparar com a entrega incluída preciso da tua morada: define-a na home (ícone de localização) e toca em "Está certo, compara as lojas".`;
@@ -1818,7 +1877,7 @@ Deno.serve(async (req: Request) => {
       tokensClaudeIn += r.usage.input_tokens + r.usage.cache_read_input_tokens + r.usage.cache_creation_input_tokens; tokensClaudeOut += r.usage.output_tokens;
       if (r.toolUses.length === 0) {
         const text = r.texto.trim();
-        if (propostas.length === 0 && mentionsCart(text) && !nudged) {
+        if (propostas.length === 0 && mentionsCart(text) && !nudged && !faltaContacto?.morada) {
           nudged = true;
           console.warn('[ASSISTENTE] (claude) carrinho prometido sem propose_cart — a corrigir');
           textoAntesDaNota = text;
@@ -1913,7 +1972,7 @@ Deno.serve(async (req: Request) => {
     }
     const text = parts.map((p: Json) => p.text ?? '').join('').trim();
     // Guarda: manda tocar no carrinho mas não criou carrinho → obriga a criar.
-    if (propostas.length === 0 && mentionsCart(text) && !nudged) {
+    if (propostas.length === 0 && mentionsCart(text) && !nudged && !faltaContacto?.morada) {
       nudged = true;
       console.warn('[ASSISTENTE] carrinho prometido sem propose_cart — a corrigir');
       textoAntesDaNota = text;
@@ -1995,7 +2054,15 @@ Deno.serve(async (req: Request) => {
       finalText = 'Encontrei opções, mas não consegui montar o carrinho desta vez. Diz-me "monta o carrinho" e eu tento outra vez.';
     }
   }
-  if (handoff && !acoes.some((a) => a.tipo === 'suporte_humano')) acoes.push({ tipo: 'suporte_humano', rotulo: 'Falar com o suporte', destino: null });
+  // 28/11/2026 (Danilo 09:38, caso da Lena): falta morada ou telemóvel → a resposta diz exatamente o que falta
+  // e mostra o que já escolheu; nunca a frase genérica, nunca "toca em Encher o carrinho" sem carrinho.
+  if (!geminiError && faltaContacto && (eRespostaGenerica(finalText) ||
+      (faltaContacto.morada && propostas.length === 0 && /encher o carrinho/i.test(finalText)))) {
+    finalText = textoFaltaContacto(faltaContacto, escolhidosSemDados.length > 0 ? escolhidosSemDados : [...precosVistos.values()].map((v) => ({ ...v, quantidade: 1 })));
+  } else if (!geminiError && faltaContacto && !/morada|telem[oó]vel/i.test(finalText)) {
+    finalText = `${finalText}\n\nPara fechar o pedido só falta ${oQueFalta(faltaContacto)}: toca em "Pôr os meus dados".`;
+  }
+  if (handoff &&!acoes.some((a) => a.tipo === 'suporte_humano')) acoes.push({ tipo: 'suporte_humano', rotulo: 'Falar com o suporte', destino: null });
 
   // ── 18/11/2026 (farmacia-peca-aqui): parceiro primeiro. Se nesta volta a pesquisa ofereceu a farmácia
   // parceira e o modelo não pôs o botão, põe-se em código; o pedido à farmácia vai sempre à frente. As

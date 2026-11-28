@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
 
+import '../../../auth/auth_store.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../config/maps_config.dart';
@@ -16,6 +17,8 @@ import '../../../stores/carwash_store.dart';
 import '../../../stores/session_store.dart';
 import '../../../utils/euros.dart';
 import '../../../utils/safe_image_picker.dart';
+import '../../../utils/telefone_internacional.dart';
+import '../../complete_profile_screen.dart' show garantirContactoDoCliente;
 import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/checkout_legal_notice.dart';
 import 'carwash_payment_flow.dart';
@@ -83,6 +86,10 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
       _colorCtrl.text = antiga.carColor;
       _phoneCtrl.text = antiga.clientPhone;
       _pickupNotesCtrl.text = antiga.pickupNotes;
+    }
+    // 28/11/2026: o telemóvel do perfil já vem escrito (não se pede duas vezes).
+    if (_phoneCtrl.text.trim().isEmpty) {
+      _phoneCtrl.text = context.read<AuthStore>().currentClient?.phone ?? '';
     }
     WidgetsBinding.instance.addPostFrameCallback((_) => _preencherMoradaSozinho());
   }
@@ -266,6 +273,19 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
       return;
     }
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    // 28/11/2026 (Danilo): sem telemóvel válido não há pedido. Se o número
+    // escrito aqui não se percebe, garante-se o do perfil (qualquer país,
+    // passo "Falta só isto") — o servidor usa esse quando o daqui não vale.
+    if (!telefoneGuardadoValido(_phoneCtrl.text)) {
+      _submitting = true;
+      final contactoOk =
+          await garantirContactoDoCliente(context, categoria: 'lavagem');
+      _submitting = false;
+      if (!contactoOk || !mounted) return;
+      final doPerfil = context.read<AuthStore>().currentClient?.phone;
+      if (telefoneGuardadoValido(doPerfil)) _phoneCtrl.text = doPerfil!;
+    }
+    if (!mounted) return;
     setState(() => _submitting = true);
     final store = context.read<CarwashStore>();
     try {
@@ -333,7 +353,12 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
       return 'Cartão e MB WAY ainda não disponíveis nesta categoria. Pode pagar em dinheiro na entrega.'.tr;
     }
     if (raw.contains('plate_required')) return 'Falta a matrícula do carro.'.tr;
-    if (raw.contains('phone_required')) return 'Falta o seu telemóvel.'.tr;
+    if (raw.contains('phone_required') || raw.contains('SEM_TELEFONE')) {
+      return 'Falta o seu telemóvel.'.tr;
+    }
+    if (raw.contains('SEM_MORADA')) {
+      return 'Falta dizer onde está o carro (rua e número).'.tr;
+    }
     if (raw.contains('scheduled_in_the_past')) {
       return 'Essa hora já passou. Escolha outra.'.tr;
     }

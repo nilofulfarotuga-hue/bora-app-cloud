@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
@@ -5,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../../config/app_colors.dart';
 import '../../../config/app_spacing.dart';
 import '../../../config/maps_config.dart';
+import '../../../services/checkin_premios_service.dart';
 import '../../../services/place_autocomplete_service.dart';
 import '../../../widgets/address_autocomplete_field.dart';
 import '../../../widgets/card_mandate_notice.dart';
@@ -31,7 +34,13 @@ class CleaningWizardScreen extends StatefulWidget {
       this.repeatOf,
       this.agora,
       this.procurarMorada,
-      this.garantirContacto});
+      this.garantirContacto,
+      this.premioParaUsar});
+
+  /// Prémio do check-in por usar (28/11/2026). Só os testes o trocam; em produção é
+  /// [CheckinPremiosService.servicoParaUsar]('limpeza').
+  @visibleForTesting
+  final Future<PremioServico?> Function()? premioParaUsar;
 
   /// Porta do telemóvel antes de confirmar (28/11/2026). Só os testes a
   /// trocam; em produção é sempre [garantirContactoDoCliente].
@@ -120,6 +129,31 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
   String? _requestedCleanerId; // null = primeira disponível
   String _paymentMethod = 'cash';
 
+  // Prémio do check-in (28/11/2026, caso Divan): entra na marcação normal, ligado por defeito.
+  PremioServico? _premio;
+  bool _usarPremio = true;
+
+  /// Quanto o prémio desconta no total deste orçamento (o servidor é que decide de verdade).
+  int get _descontoPremio {
+    final p = _premio, q = _quote;
+    if (p == null || !_usarPremio || q == null) return 0;
+    return p.descontoEm(q.totalCents);
+  }
+
+  int get _aPagarCents => (_quote?.totalCents ?? 0) - _descontoPremio;
+  bool get _premioCobreTudo => _descontoPremio > 0 && _aPagarCents <= 0;
+
+  /// Resto de 1 a 49 cêntimos: o cartão e o MB Way não aceitam (mínimo da Stripe), só dinheiro.
+  bool get _restoSoDinheiro => _descontoPremio > 0 && _aPagarCents > 0 && _aPagarCents < 50;
+
+  /// O método que vai para o servidor: com o prémio a cobrir tudo, 'card' (o servidor marca 'premio'
+  /// e não se cobra nada); sem cartão ligado, dinheiro a 0 €.
+  String _metodoEfetivo(CleaningStore store) {
+    if (_premioCobreTudo) return store.stripeEnabled ? 'card' : 'cash';
+    if (_restoSoDinheiro) return 'cash';
+    return _paymentMethod;
+  }
+
   /// Trava de re-entrada LOCAL do botão de avançar (PADRAO_BORA 3.13).
   ///
   /// O "Cancelar/Voltar" já tinha sido solto do `busy` global (ver nota na
@@ -161,6 +195,10 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
       store.refreshStripeEnabled();
       _prefillAddress();
       _refreshQuote();
+      unawaited((widget.premioParaUsar?.call() ?? CheckinPremiosService.instance.servicoParaUsar('limpeza'))
+          .then((p) {
+        if (mounted && p != null) setState(() => _premio = p);
+      }));
       final lead = await store.getSettingInt('cleaning_min_lead_hours', 12);
       final minH = await store.getSettingInt('cleaning_min_hours', 2);
       final maxPros =
@@ -395,7 +433,7 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
         scheduledAt: scheduled,
         recurrence: _recurrence,
         productsBy: _productsBy,
-        paymentMethod: _paymentMethod,
+        paymentMethod: _metodoEfetivo(store),
         addressStreet: _streetCtrl.text.trim(),
         addressCity: _cityCtrl.text.trim(),
         addressPostal: _postalCtrl.text.trim(),
@@ -404,13 +442,15 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
         notes: _notesCtrl.text.trim(),
         requestedCleanerId: _requestedCleanerId,
         teamSize: _equipa,
+        checkinValeId: _descontoPremio > 0 ? _premio?.valeId : null,
       );
       if (!mounted || booking == null) return;
 
       // Pagamento online ("vai" 2026-07-05): cartão retém já; MB Way cobra já.
       // Se falhar/abandonar, a reserva fica 'unpaid' e o tracking mostra o
       // banner "Pagar agora" para retomar.
-      if (_paymentMethod != 'cash') {
+      // Pago pelo prémio (método 'premio') ou em dinheiro: não há nada a cobrar aqui.
+      if (booking.paymentMethod == 'card' || booking.paymentMethod == 'mbway') {
         final paid = await CleaningPaymentFlow.pay(context, store, booking);
         if (!mounted) return;
         if (!paid) {
@@ -427,7 +467,13 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
     } catch (e) {
       final msg = e.toString();
       String friendly = 'Não foi possível criar a reserva. Tenta de novo.'.tr;
-      if (msg.contains('lead_time_too_short')) {
+      if (msg.contains('checkin_premio_resto_so_dinheiro')) {
+        friendly = 'Com o prémio sobra tão pouco que só dá para pagar em dinheiro.'.tr;
+      } else if (msg.contains('checkin_premio_')) {
+        // o vale já foi usado, expirou ou não é deste cliente: tira-se o prémio do ecrã
+        setState(() => _premio = null);
+        friendly = 'O teu prémio já não está disponível. Confirma outra vez sem o prémio.'.tr;
+      } else if (msg.contains('lead_time_too_short')) {
         friendly = 'A limpeza tem de ser agendada com mais antecedência.'.tr;
       } else if (msg.contains('card_mbway_not_yet_enabled')) {
         friendly =
@@ -984,30 +1030,56 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
             ),
         ],
         const SizedBox(height: Spacing.lg),
+        if (_premio != null) ...[
+          _PremioCartao(
+            premio: _premio!,
+            usar: _usarPremio,
+            diferenca: _usarPremio && _cleaningType != 'standard',
+            onMudar: (v) => setState(() => _usarPremio = v),
+          ),
+          const SizedBox(height: Spacing.lg),
+        ],
         _sectionTitle('Pagamento'.tr),
+        if (_premioCobreTudo)
+          Container(
+            key: const Key('limpeza_premio_cobre_tudo'),
+            width: double.infinity,
+            padding: const EdgeInsets.all(Spacing.md),
+            decoration: BoxDecoration(color: AppColors.primaryWash, borderRadius: BorderRadius.circular(Radii.lg)),
+            child: Text('Não pagas nada: o prémio cobre esta limpeza.'.tr,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.primaryDark)),
+          )
+        else ...[
+        if (_restoSoDinheiro)
+          Padding(
+            padding: const EdgeInsets.only(bottom: Spacing.sm),
+            child: Text('Com o prémio sobra tão pouco que só dá para pagar em dinheiro.'.tr,
+                style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+          ),
         _PaymentOption(
           icon: Icons.euro,
           label: 'Dinheiro (no local)'.tr,
-          selected: _paymentMethod == 'cash',
+          selected: _paymentMethod == 'cash' || _restoSoDinheiro,
           enabled: true,
           onTap: () => setState(() => _paymentMethod = 'cash'),
         ),
         _PaymentOption(
           icon: Icons.credit_card,
           label: store.stripeEnabled ? 'Cartão' : 'Cartão — brevemente',
-          selected: _paymentMethod == 'card',
-          enabled: store.stripeEnabled,
+          selected: _paymentMethod == 'card' && !_restoSoDinheiro,
+          enabled: store.stripeEnabled && !_restoSoDinheiro,
           onTap: () => setState(() => _paymentMethod = 'card'),
         ),
         _PaymentOption(
           icon: Icons.phone_iphone,
           label: store.stripeEnabled ? 'MB Way' : 'MB Way — brevemente',
-          selected: _paymentMethod == 'mbway',
-          enabled: store.stripeEnabled,
+          selected: _paymentMethod == 'mbway' && !_restoSoDinheiro,
+          enabled: store.stripeEnabled && !_restoSoDinheiro,
           onTap: () => setState(() => _paymentMethod = 'mbway'),
         ),
         // Mandato PSD2 — só no cartão e só até o 1.º ficar guardado.
-        if (_paymentMethod == 'card') const CardMandateNotice(),
+        if (_paymentMethod == 'card' && !_restoSoDinheiro) const CardMandateNotice(),
+        ],
         const SizedBox(height: Spacing.lg),
         _sectionTitle('Resumo'.tr),
         Container(
@@ -1052,10 +1124,12 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
                         quote.teamSize,
                         CleaningLabels.euro(quote.travelFeeCents)
                       ])),
+                if (_descontoPremio > 0)
+                  _summaryRow('Prémio do check-in'.tr, '- ${CleaningLabels.euro(_descontoPremio)}'),
                 const Divider(height: Spacing.lg),
-                _summaryRow('Total'.tr, CleaningLabels.euro(quote.totalCents),
+                _summaryRow(_descontoPremio > 0 ? 'A pagar'.tr : 'Total'.tr, CleaningLabels.euro(_aPagarCents),
                     bold: true),
-                if (_paymentMethod == 'cash' && quote.shares.isNotEmpty)
+                if (_paymentMethod == 'cash' && _descontoPremio == 0 && quote.shares.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: Spacing.xs),
                     child: Text(
@@ -1090,8 +1164,11 @@ class _CleaningWizardScreenState extends State<CleaningWizardScreen> {
                   _summaryRow(
                       CleaningLabels.travelFeeLabel(quote.travelDistanceKm),
                       '+ ${CleaningLabels.euro(quote.travelFeeCents)}'),
+                // Prémio do check-in (28/11/2026): o servidor desconta o mesmo valor.
+                if (_descontoPremio > 0)
+                  _summaryRow('Prémio do check-in'.tr, '- ${CleaningLabels.euro(_descontoPremio)}'),
                 const Divider(height: Spacing.lg),
-                _summaryRow('Total'.tr, CleaningLabels.euro(quote.totalCents),
+                _summaryRow(_descontoPremio > 0 ? 'A pagar'.tr : 'Total'.tr, CleaningLabels.euro(_aPagarCents),
                     bold: true),
               ],
             ],
@@ -1403,4 +1480,53 @@ class _PaymentOption extends StatelessWidget {
       ),
     );
   }
+}
+
+/// "Tens 2 h de limpeza grátis (prémio do check-in)" — ligado por defeito (28/11/2026).
+class _PremioCartao extends StatelessWidget {
+  const _PremioCartao({required this.premio, required this.usar, required this.diferenca, required this.onMudar});
+  final PremioServico premio;
+  final bool usar;
+  final bool diferenca;
+  final ValueChanged<bool> onMudar;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        key: const Key('limpeza_premio_checkin'),
+        padding: const EdgeInsets.all(Spacing.md),
+        decoration: BoxDecoration(
+          color: AppColors.primaryWash,
+          borderRadius: BorderRadius.circular(Radii.lg),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.card_giftcard, color: AppColors.primary),
+            const SizedBox(width: Spacing.sm),
+            Expanded(
+              child: Text(
+                'Tens {0} h de limpeza grátis (prémio do check-in)'.trArgs([premio.horas ?? 2]),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+              ),
+            ),
+            Switch(
+              key: const Key('limpeza_premio_usar'),
+              value: usar,
+              activeThumbColor: AppColors.primary,
+              onChanged: onMudar,
+            ),
+          ]),
+          Text(
+            usar ? 'Usar o meu prémio: menos {0}.'.trArgs([CleaningLabels.euro(premio.valorCents)]) : 'Guardas o prémio para outra vez.'.tr,
+            style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          ),
+          if (diferenca)
+            Padding(
+              padding: const EdgeInsets.only(top: Spacing.xs),
+              child: Text('O prémio paga {0} h de limpeza Standard. Pagas a diferença.'.trArgs([premio.horas ?? 2]),
+                  key: const Key('limpeza_premio_diferenca'),
+                  style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+            ),
+        ]),
+      );
 }

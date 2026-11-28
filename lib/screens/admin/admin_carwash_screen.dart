@@ -438,6 +438,10 @@ Future<void> _abrirDetalhe(
               ? 'Prêmio do check-in (Bora paga)'
               : d['payment_method'].toString()),
           _kv('Total', '${((d['total_cents'] as num) / 100).toStringAsFixed(2)} €'),
+          // Prêmio do check-in (28/11/2026): já descontado no total; o lavador recebe o mesmo.
+          if (((d['checkin_premio_cents'] as num?) ?? 0) > 0)
+            _kv('Prêmio do check-in usado',
+                '${((d['checkin_premio_cents'] as num) / 100).toStringAsFixed(2)} € (custo para a Bora)'),
           _kv('Repasse ao lavador',
               '${((d['washer_earnings_cents'] as num) / 100).toStringAsFixed(2)} €'),
           _kv('Comissão Bora',

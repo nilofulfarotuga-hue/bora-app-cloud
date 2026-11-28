@@ -473,6 +473,15 @@ class _CartaoDados extends StatelessWidget {
                 _ => 'Dinheiro'.tr,
               }),
           const Divider(height: Spacing.xl),
+          // Prémio do check-in (28/11/2026): já descontado no total.
+          if (b.checkinPremioCents > 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: Spacing.sm),
+              child: Row(children: [
+                Expanded(child: Text('Prémio do check-in'.tr)),
+                Text('- ${eur(b.checkinPremioCents / 100.0)}'),
+              ]),
+            ),
           Row(
             children: [
               Expanded(

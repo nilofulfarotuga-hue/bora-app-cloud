@@ -229,6 +229,8 @@ class CleaningStore extends ChangeNotifier {
     String notes = '',
     String? requestedCleanerId,
     int teamSize = 1,
+    /// Prémio do check-in a usar (28/11/2026): o servidor valida o vale e desconta.
+    String? checkinValeId,
   }) async {
     _setBusy(true);
     try {
@@ -256,6 +258,8 @@ class CleaningStore extends ChangeNotifier {
         'p_requested_cleaner_id': requestedCleanerId,
         // Só vai com equipa: o servidor antigo não conhece o parâmetro.
         if (teamSize > 1) 'p_team_size': teamSize,
+        // Só vai com o prémio: sem ele, a chamada é igual à de sempre.
+        if (checkinValeId != null) 'p_checkin_vale_id': checkinValeId,
       }), trabalho: TrabalhoEmCurso.limpeza);
       final booking = CleaningBooking.fromSupabase(_asMap(res));
       _tracked = booking;

@@ -1070,6 +1070,8 @@ class _DetailsCard extends StatelessWidget {
             if (b.travelFeeCents > 0)
               _row(CleaningLabels.travelFeeLabel(b.travelDistanceKm),
                   '+ {0} × {1}'.trArgs([b.teamSize, CleaningLabels.euro(b.travelFeeCents)])),
+            if (b.checkinPremioCents > 0)
+              _row('Prémio do check-in'.tr, '- ${CleaningLabels.euro(b.checkinPremioCents)}'),
             _row('Total'.tr, CleaningLabels.euro(b.clientTotalCents), bold: true),
           ] else ...[
           _row('Base'.tr, CleaningLabels.euro(b.baseCents)),
@@ -1085,6 +1087,9 @@ class _DetailsCard extends StatelessWidget {
           if (b.travelFeeCents > 0)
             _row(CleaningLabels.travelFeeLabel(b.travelDistanceKm),
                 '+ ${CleaningLabels.euro(b.travelFeeCents)}'),
+          // Prémio do check-in (28/11/2026): já descontado no total que o cliente paga.
+          if (b.checkinPremioCents > 0)
+            _row('Prémio do check-in'.tr, '- ${CleaningLabels.euro(b.checkinPremioCents)}'),
           _row('Total'.tr, CleaningLabels.euro(b.totalCents), bold: true),
           ],
         ],

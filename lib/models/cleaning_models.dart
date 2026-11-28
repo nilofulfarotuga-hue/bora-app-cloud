@@ -267,6 +267,11 @@ class CleaningBooking {
   final String? planId;
   bool get isPlanVisit => planId != null;
 
+  /// Prémio do check-in descontado nesta marcação (28/11/2026). 0 = sem prémio.
+  /// O total (totalCents) já vem com o prémio descontado; a Bora paga a diferença.
+  final int checkinPremioCents;
+  final String? checkinValeId;
+
   const CleaningBooking({
     required this.id,
     required this.clientUserId,
@@ -315,6 +320,8 @@ class CleaningBooking {
     this.completedAt,
     this.createdAt,
     this.planId,
+    this.checkinPremioCents = 0,
+    this.checkinValeId,
   });
 
   factory CleaningBooking.fromSupabase(Map<String, dynamic> m) {
@@ -369,6 +376,8 @@ class CleaningBooking {
       completedAt: ts(m['completed_at']),
       createdAt: ts(m['created_at']),
       planId: m['plan_id'] as String?,
+      checkinPremioCents: i(m['checkin_premio_cents']),
+      checkinValeId: m['checkin_vale_id'] as String?,
     );
   }
 

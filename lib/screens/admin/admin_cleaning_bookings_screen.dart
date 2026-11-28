@@ -690,6 +690,18 @@ class _BookingCard extends StatelessWidget {
                       fontWeight: FontWeight.w600),
                 ),
               ),
+            // Prêmio do check-in (28/11/2026): já descontado no total do cliente; a profissional
+            // recebe as horas todas e a Bora fica com a taxa menos o prêmio.
+            if (((data['checkin_premio_cents'] as num?) ?? 0) > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  'Prêmio do check-in usado: ${_euro(data['checkin_premio_cents'])} '
+                  '(custo para a Bora: ${_euro(data['checkin_premio_cents'])}; cliente paga ${_euro(data['total_cents'])})',
+                  key: const Key('admin_limpeza_premio_checkin'),
+                  style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600),
+                ),
+              ),
             if ((data['recurrence'] as String? ?? 'single') != 'single')
               Padding(
                 padding: const EdgeInsets.only(top: 2),

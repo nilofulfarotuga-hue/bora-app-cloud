@@ -10,6 +10,7 @@ import '../../../config/app_spacing.dart';
 import '../../../config/maps_config.dart';
 import '../../../models/carwash_models.dart';
 import '../../../services/auto_address.dart';
+import '../../../services/checkin_premios_service.dart';
 import '../../../widgets/bora/bora_bottom_action_bar.dart';
 import '../../../services/carwash_upload_service.dart';
 import '../../../services/location_service.dart';
@@ -38,7 +39,13 @@ class CarwashRequestScreen extends StatefulWidget {
     required this.serviceType,
     required this.quote,
     this.repeatOf,
+    this.premioParaUsar,
   });
+
+  /// Prémio do check-in por usar (28/11/2026). Só os testes o trocam; em produção é
+  /// [CheckinPremiosService.servicoParaUsar]('lavagem').
+  @visibleForTesting
+  final Future<PremioServico?> Function()? premioParaUsar;
 
   final CarwashServiceType serviceType;
   final CarwashQuote? quote;
@@ -92,6 +99,28 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
       _phoneCtrl.text = context.read<AuthStore>().currentClient?.phone ?? '';
     }
     WidgetsBinding.instance.addPostFrameCallback((_) => _preencherMoradaSozinho());
+    (widget.premioParaUsar?.call() ?? CheckinPremiosService.instance.servicoParaUsar('lavagem')).then((p) {
+      if (mounted && p != null) setState(() => _premio = p);
+    });
+  }
+
+  // Prémio do check-in (28/11/2026): uma lavagem por fora grátis, ligado por defeito.
+  PremioServico? _premio;
+  bool _usarPremio = true;
+  int get _descontoPremio {
+    final p = _premio, q = widget.quote;
+    if (p == null || !_usarPremio || q == null) return 0;
+    return p.descontoEm(q.totalCents);
+  }
+
+  int get _aPagarCents => (widget.quote?.totalCents ?? 0) - _descontoPremio;
+  bool get _premioCobreTudo => _descontoPremio > 0 && _aPagarCents <= 0;
+  bool get _restoSoDinheiro => _descontoPremio > 0 && _aPagarCents > 0 && _aPagarCents < 50;
+
+  String _metodoEfetivo(CarwashStore store) {
+    if (_premioCobreTudo) return store.stripeEnabled ? 'card' : 'cash';
+    if (_restoSoDinheiro) return 'cash';
+    return _payment;
   }
 
   /// Preenche a morada sem o cliente tocar em nada.
@@ -299,10 +328,11 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
         addressStreet: _addressCtrl.text.trim(),
         lat: _lat,
         lng: _lng,
-        paymentMethod: _payment,
+        paymentMethod: _metodoEfetivo(store),
         carMakeModel: _carCtrl.text.trim(),
         carColor: _colorCtrl.text.trim(),
         pickupNotes: _pickupNotesCtrl.text.trim(),
+        checkinValeId: _descontoPremio > 0 ? _premio?.valeId : null,
       );
       if (booking == null || !mounted) return;
 
@@ -323,7 +353,8 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
       // pedido por trás (lição de 31/07). Se o pagamento falhar, o pedido fica
       // por pagar e o cliente pode tentar de novo no ecrã de acompanhamento.
       if (!mounted) return;
-      if (booking.paymentMethod != 'cash') {
+      // Pago pelo prémio (método 'premio') ou em dinheiro: nada a cobrar aqui.
+      if (booking.paymentMethod == 'card' || booking.paymentMethod == 'mbway') {
         await CarwashPaymentFlow.pay(context, store, booking);
       }
 
@@ -343,6 +374,13 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
   /// O servidor fala em códigos; o cliente merece português.
   /// Nunca se mostra o código cru.
   String _erroPt(String raw) {
+    if (raw.contains('checkin_premio_resto_so_dinheiro')) {
+      return 'Com o prémio sobra tão pouco que só dá para pagar em dinheiro.'.tr;
+    }
+    if (raw.contains('checkin_premio_')) {
+      if (mounted) setState(() => _premio = null);
+      return 'O teu prémio já não está disponível. Pede outra vez sem o prémio.'.tr;
+    }
     if (raw.contains('out_of_service_area')) {
       return 'Ainda não fazemos recolha nessa zona.'.tr;
     }
@@ -604,7 +642,59 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
             const SizedBox(height: Spacing.lg),
 
             // ── PAGAMENTO ────────────────────────────────────────────────────
+            if (_premio != null) ...[
+              Container(
+                key: const Key('lavagem_premio_checkin'),
+                padding: const EdgeInsets.all(Spacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryWash,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    const Icon(Icons.card_giftcard, color: AppColors.primary),
+                    const SizedBox(width: Spacing.sm),
+                    Expanded(
+                      child: Text('Tens uma lavagem por fora grátis (prémio do check-in)'.tr,
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    ),
+                    Switch(
+                      key: const Key('lavagem_premio_usar'),
+                      value: _usarPremio,
+                      activeThumbColor: AppColors.primary,
+                      onChanged: (v) => setState(() => _usarPremio = v),
+                    ),
+                  ]),
+                  Text(
+                    _usarPremio
+                        ? 'Usar o meu prémio: menos {0}.'.trArgs([eur(_premio!.valorCents / 100.0)])
+                        : 'Guardas o prémio para outra vez.'.tr,
+                    style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                  ),
+                  if (_usarPremio && widget.serviceType != CarwashServiceType.exterior)
+                    Padding(
+                      padding: const EdgeInsets.only(top: Spacing.xs),
+                      child: Text('O prémio paga a lavagem por fora. Pagas a diferença.'.tr,
+                          key: const Key('lavagem_premio_diferenca'),
+                          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+                    ),
+                ]),
+              ),
+              const SizedBox(height: Spacing.lg),
+            ],
             _Titulo('Pagamento'.tr),
+            if (_premioCobreTudo)
+              Padding(
+                key: const Key('lavagem_premio_cobre_tudo'),
+                padding: const EdgeInsets.only(bottom: Spacing.sm),
+                child: Text('Não pagas nada: o prémio cobre esta lavagem.'.tr,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.primaryDark)),
+              )
+            else ...[
+            if (_restoSoDinheiro)
+              Text('Com o prémio sobra tão pouco que só dá para pagar em dinheiro.'.tr,
+                  style: const TextStyle(fontSize: 14, color: AppColors.textSecondary)),
             RadioListTile<String>(
               contentPadding: EdgeInsets.zero,
               value: 'cash',
@@ -618,7 +708,7 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
               contentPadding: EdgeInsets.zero,
               value: 'card',
               groupValue: _payment,
-              onChanged: store.stripeEnabled
+              onChanged: store.stripeEnabled && !_restoSoDinheiro
                   ? (v) => setState(() => _payment = v!)
                   : null,
               title: Text('Cartão'.tr),
@@ -631,7 +721,7 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
               contentPadding: EdgeInsets.zero,
               value: 'mbway',
               groupValue: _payment,
-              onChanged: store.stripeEnabled
+              onChanged: store.stripeEnabled && !_restoSoDinheiro
                   ? (v) => setState(() => _payment = v!)
                   : null,
               title: Text('MB WAY'.tr),
@@ -640,6 +730,7 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
                   : 'Disponível brevemente'),
               secondary: const Icon(Icons.phone_iphone),
             ),
+            ],
 
             if (q != null) ...[
               const SizedBox(height: Spacing.lg),
@@ -649,19 +740,30 @@ class _CarwashRequestScreenState extends State<CarwashRequestScreen> {
                   color: AppColors.primaryWash,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text('Total a pagar'.tr,
-                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                child: Column(children: [
+                  // Prémio do check-in (28/11/2026): o servidor desconta o mesmo valor.
+                  if (_descontoPremio > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: Spacing.xs),
+                      child: Row(children: [
+                        Expanded(child: Text('Prémio do check-in'.tr)),
+                        Text('- ${eur(_descontoPremio / 100.0)}', key: const Key('lavagem_premio_linha')),
+                      ]),
                     ),
-                    Text(eur(q.totalEur),
-                        style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.primary)),
-                  ],
-                ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text('Total a pagar'.tr,
+                            style: const TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                      Text(eur(_aPagarCents / 100.0),
+                          style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primary)),
+                    ],
+                  ),
+                ]),
               ),
               const SizedBox(height: Spacing.xs),
               Text('Recolha e entrega incluídas. Sem taxas por cima.'.tr,

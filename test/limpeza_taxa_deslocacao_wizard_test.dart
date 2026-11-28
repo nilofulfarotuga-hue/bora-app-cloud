@@ -150,6 +150,7 @@ class _Limpezas extends CleaningStore {
     String notes = '',
     String? requestedCleanerId,
     int teamSize = 1,
+    String? checkinValeId,
   }) async {
     coordsDaReserva
         .add(lat == null || lng == null ? null : ll.LatLng(lat, lng));

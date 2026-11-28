@@ -8,6 +8,8 @@ import '../../../stores/cleaning_store.dart';
 import '../../../utils/hora_lisboa.dart';
 import '../../../widgets/bora/bora.dart';
 import '../../../widgets/selo_serie_limpeza.dart';
+import 'cleaning_plan_screen.dart';
+import 'cleaning_plan_wizard_screen.dart';
 import 'cleaning_tracking_screen.dart';
 import 'cleaning_wizard_screen.dart';
 
@@ -46,10 +48,53 @@ class _CleaningBookingsScreenState extends State<CleaningBookingsScreen> {
     await store.carregarSeries();
   }
 
-  void _openWizard() {
+  /// 28/11/2026 (planos): primeiro escolhe-se "Uma vez", "Plano (mais barato)" ou
+  /// "Limpeza para empresas". "Uma vez" é o assistente de sempre, sem mudanças.
+  Future<void> _openWizard() async {
+    final escolha = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+            key: const Key('limpeza-escolha-uma-vez'),
+            leading: const Icon(Icons.cleaning_services, color: AppColors.primary),
+            title: Text('Uma vez'.tr),
+            subtitle: Text('Cartão, MB Way ou dinheiro.'.tr),
+            onTap: () => Navigator.pop(ctx, 'uma_vez'),
+          ),
+          ListTile(
+            key: const Key('limpeza-escolha-plano'),
+            leading: const Icon(Icons.event_repeat, color: AppColors.primary),
+            title: Text('Plano (mais barato)'.tr),
+            subtitle: Text('De 15 em 15 dias ou todas as semanas, desde 9,80 €/h. Só cartão, cancelas quando quiseres.'.tr),
+            onTap: () => Navigator.pop(ctx, 'plano'),
+          ),
+          ListTile(
+            key: const Key('limpeza-escolha-empresa'),
+            leading: const Icon(Icons.storefront, color: AppColors.primary),
+            title: Text('Limpeza para empresas'.tr),
+            subtitle: Text('Lojas, escritórios, clínicas, cafés. À hora que quiseres, desde 12 €/h, produtos incluídos.'.tr),
+            onTap: () => Navigator.pop(ctx, 'empresa'),
+          ),
+          const SizedBox(height: Spacing.sm),
+        ]),
+      ),
+    );
+    if (!mounted || escolha == null) return;
+    final Widget destino = switch (escolha) {
+      'plano' => const CleaningPlanWizardScreen(segment: 'casa'),
+      'empresa' => const CleaningPlanWizardScreen(segment: 'empresa'),
+      _ => const CleaningWizardScreen(),
+    };
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => destino));
+    _recarregar();
+  }
+
+  void _openPlan() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const CleaningWizardScreen()),
+      MaterialPageRoute(builder: (_) => const CleaningPlanScreen()),
     ).then((_) => _recarregar());
   }
 
@@ -96,7 +141,17 @@ class _CleaningBookingsScreenState extends State<CleaningBookingsScreen> {
     final past = store.pastBookings;
 
     return Scaffold(
-      appBar: BoraScreenAppBar(title: 'Limpeza da casa'.tr),
+      appBar: BoraScreenAppBar(
+        title: 'Limpeza da casa'.tr,
+        actions: [
+          TextButton.icon(
+            key: const Key('limpeza-o-meu-plano'),
+            onPressed: _openPlan,
+            icon: const Icon(Icons.event_repeat),
+            label: Text('O meu plano'.tr),
+          ),
+        ],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : store.bookings.isEmpty

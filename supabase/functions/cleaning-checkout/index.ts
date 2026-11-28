@@ -90,6 +90,16 @@ Deno.serve(async (req: Request) => {
     if (bErr || !booking) return json({ error: 'booking_not_found' }, 404);
     if (booking.client_user_id !== user.id) return json({ error: 'booking_not_yours' }, 403);
 
+    // v5 (28/11/2026, planos de limpeza — PROPOSTA): uma visita de PLANO paga-se e devolve-se SÓ pelo
+    // servidor (cleaning-plan-charge / cleaning_plan_refunds; um PaymentIntent do mês paga várias
+    // visitas). 'reverse' recusa-a antes de falar com a Stripe (nunca devolver duas vezes); criar ou
+    // marcar um pagamento à parte também se recusa (nunca cobrar duas vezes).
+    if (booking.plan_id) {
+      return action === 'reverse'
+        ? json({ ok: true, note: 'plano_devolve_no_servidor' })
+        : json({ error: 'plan_visit_paid_by_plan' }, 400);
+    }
+
     // Duas contas Stripe: PI já criado nesta reserva → a conta gravada; pagamento novo → regra geral
     // (app antiga → pessoal; stripe_contas_v2 + interruptor 'empresa' + chave → empresa).
     const temPi = typeof booking.stripe_payment_intent_id === 'string' && booking.stripe_payment_intent_id.startsWith('pi_');

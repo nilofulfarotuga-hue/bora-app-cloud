@@ -279,6 +279,21 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
     }
   }
 
+  /// 28/11/2026 (balcao-real): balcão real do não-parceiro (RPC
+  /// admin_preco_balcao_real). O preço do cliente não muda.
+  Future<void> _editBalcaoReal(Map<String, dynamic> p) async {
+    final saved = await showAdminPrecoBalcaoRealDialog(
+      context,
+      productId: p['id'] as String,
+      productName: (p['name'] as String?) ?? '—',
+    );
+    if (saved && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Balcão real gravado (o cliente continua a pagar o '
+              'mesmo) ✅')));
+    }
+  }
+
   Future<void> _resetPhoto(Map<String, dynamic> p) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -536,6 +551,14 @@ class _AdminCatalogProductsScreenState extends State<_AdminCatalogProductsScreen
                             icon: const Icon(Icons.edit),
                             onPressed: () => _editPrice(p),
                           ),
+                          if (p['is_partner'] != true)
+                            IconButton(
+                              tooltip: 'Preço de balcão real (último talão) — '
+                                  'só o estafeta vê',
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(Icons.receipt_long_outlined),
+                              onPressed: () => _editBalcaoReal(p),
+                            ),
                           IconButton(
                             tooltip: 'Venda ao peso (preço por kg)',
                             icon: Icon(Icons.scale_outlined,

@@ -55,6 +55,15 @@ class CartItem {
   double? get basePriceWithOptions =>
       basePrice == null ? null : basePrice! + optionsPriceAdd;
 
+  /// 28/11/2026 (missão balcao-real, pedido KFC 14658088): preço de balcão
+  /// REAL de uma unidade, SEM as opções, lido no último talão quando saiu
+  /// mais barato que o catálogo. Carimbado pelo SERVIDOR no item ao criar o
+  /// pedido (trigger `zzzzz_orders_carimba_balcao_real`, só não-parceiro).
+  /// Só ecrã do estafeta ([precoBalcaoUnidade]): o preço do cliente, o
+  /// reembolso e os ganhos não o leem. Volta no [toJson] para o estafeta não
+  /// o apagar ao gravar o estado das compras.
+  final double? balcaoReal;
+
   /// Opções para exibição: com preço quando o servidor as gravou (histórico
   /// de pedidos), senão as escolhas locais (carrinho pré-checkout).
   List<SelectedOption> get displayOptions =>
@@ -102,6 +111,7 @@ class CartItem {
     this.ageRestricted = false,
     this.variableWeight = false,
     this.depositUnits = 0,
+    this.balcaoReal,
   })  : assert(productId.isNotEmpty, 'CartItem.productId vazio'),
         assert(!productId.contains(' '),
             'CartItem.productId com espaço — parece nome ($productId)'),
@@ -139,6 +149,7 @@ class CartItem {
     this.ageRestricted = false,
     this.variableWeight = false,
     this.depositUnits = 0,
+    this.balcaoReal,
   });
 
   /// Cart dedup key. Two lines with different option selections are distinct.
@@ -156,6 +167,7 @@ class CartItem {
         'purchaseStatus': purchaseStatus,
         if (actualPrice != null) 'actualPrice': actualPrice,
         if (basePrice != null) 'basePrice': basePrice,
+        if (balcaoReal != null) 'balcaoReal': balcaoReal,
         if (ageRestricted) 'age_restricted': true,
         if (variableWeight) 'variable_weight': true,
         // Sempre presente, mesmo a 0: é o sinal ao servidor (ver [depositUnits]).
@@ -183,6 +195,7 @@ class CartItem {
       purchaseStatus: json['purchaseStatus'] as String? ?? 'pending',
       actualPrice: (json['actualPrice'] as num?)?.toDouble(),
       basePrice: (json['basePrice'] as num?)?.toDouble(),
+      balcaoReal: (json['balcaoReal'] as num?)?.toDouble(),
       ageRestricted: json['age_restricted'] == true,
       variableWeight: json['variable_weight'] == true,
       depositUnits: unidadesDepositoDaLinha(json),

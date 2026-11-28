@@ -259,3 +259,207 @@ class _AdminProductPricesDialogState extends State<_AdminProductPricesDialog> {
     return double.tryParse(normalized);
   }
 }
+
+// ─────────────── Preço de balcão real (não-parceiro, 28/11/2026) ───────────
+//
+// Missão balcao-real (pedido KFC 14658088): quando o talão sai MAIS BARATO que
+// o catálogo, o robô grava `products.preco_balcao_real` (só o estafeta vê; o
+// cliente continua a pagar o mesmo). Aqui o Danilo vê o valor e a data do
+// último talão e pode pôr ou tirar à mão pela RPC `admin_preco_balcao_real`
+// (vazio/0 = tirar; tem de ser menor que o preço do catálogo).
+
+/// Erros da RPC `admin_preco_balcao_real` em português.
+String erroBalcaoRealPt(Object? erro, {double? preco}) => switch (erro) {
+      'balcao_real_tem_de_ser_menor_que_o_preco' =>
+        'O balcão real tem de ser MENOR que o preço do catálogo'
+            '${preco == null ? '' : ' (€${preco.toStringAsFixed(2)})'}. '
+            'Se o talão saiu mais caro, edite o preço normal.',
+      'not_found' => 'Produto não encontrado.',
+      _ => 'Não deu: ${erro ?? 'erro desconhecido'}',
+    };
+
+/// Abre o diálogo do balcão real. Devolve `true` quando gravou.
+Future<bool> showAdminPrecoBalcaoRealDialog(
+  BuildContext context, {
+  required String productId,
+  required String productName,
+}) async {
+  final saved = await showDialog<bool>(
+    context: context,
+    builder: (_) => _AdminPrecoBalcaoRealDialog(
+        productId: productId, productName: productName),
+  );
+  return saved == true;
+}
+
+class _AdminPrecoBalcaoRealDialog extends StatefulWidget {
+  const _AdminPrecoBalcaoRealDialog(
+      {required this.productId, required this.productName});
+
+  final String productId;
+  final String productName;
+
+  @override
+  State<_AdminPrecoBalcaoRealDialog> createState() =>
+      _AdminPrecoBalcaoRealDialogState();
+}
+
+class _AdminPrecoBalcaoRealDialogState
+    extends State<_AdminPrecoBalcaoRealDialog> {
+  final _ctrl = TextEditingController();
+  bool _loading = true;
+  bool _saving = false;
+  String? _error;
+  double? _preco;
+  double? _real;
+  DateTime? _em;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final r = await Supabase.instance.client
+          .from('products')
+          .select('price, preco_balcao_real, preco_balcao_real_em')
+          .eq('id', widget.productId)
+          .maybeSingle();
+      if (!mounted) return;
+      setState(() {
+        _preco = (r?['price'] as num?)?.toDouble();
+        _real = (r?['preco_balcao_real'] as num?)?.toDouble();
+        _em = DateTime.tryParse('${r?['preco_balcao_real_em'] ?? ''}')
+            ?.toLocal();
+        _ctrl.text = _real == null ? '' : _real!.toStringAsFixed(2);
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Erro ao ler o produto: $e';
+      });
+    }
+  }
+
+  Future<void> _gravar({required bool tirar}) async {
+    final raw = _ctrl.text.trim().replaceAll(',', '.');
+    final valor = tirar || raw.isEmpty ? null : double.tryParse(raw);
+    if (!tirar && raw.isNotEmpty && valor == null) {
+      setState(() => _error = 'Valor inválido.');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final r = await Supabase.instance.client.rpc('admin_preco_balcao_real',
+          params: {'p_product_id': widget.productId, 'p_valor': valor});
+      if (!mounted) return;
+      final m = r is Map ? Map<String, dynamic>.from(r) : <String, dynamic>{};
+      if (m['ok'] == true) {
+        Navigator.pop(context, true);
+        return;
+      }
+      setState(() {
+        _saving = false;
+        _error = erroBalcaoRealPt(m['error'],
+            preco: (m['preco'] as num?)?.toDouble() ?? _preco);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = 'Erro ao salvar: $e';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final em = _em;
+    final quando = em == null
+        ? ''
+        : ' · ${em.day.toString().padLeft(2, '0')}/'
+            '${em.month.toString().padLeft(2, '0')}/${em.year} '
+            '${em.hour.toString().padLeft(2, '0')}:'
+            '${em.minute.toString().padLeft(2, '0')}';
+    return AlertDialog(
+      title: Text('Balcão real — ${widget.productName}'),
+      content: _loading
+          ? const SizedBox(
+              height: 60, child: Center(child: CircularProgressIndicator()))
+          : SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Preço do catálogo (products.price, base do preço do '
+                    'cliente): ${_preco == null ? '—' : '€${_preco!.toStringAsFixed(2)}'}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _real == null
+                        ? 'Preço de balcão real (último talão): nenhum — o '
+                            'estafeta vê o preço do catálogo.'
+                        : 'Preço de balcão real (último talão): '
+                            '€${_real!.toStringAsFixed(2)}$quando',
+                    style: const TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _ctrl,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Novo balcão real (€) — só o estafeta vê',
+                      helperText: 'Tem de ser menor que o preço do catálogo. '
+                          'Vazio = tirar.',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'O cliente continua a pagar o mesmo. Muda só o valor '
+                    '"ao balcão" que o estafeta vê na lista de compras.',
+                    style: TextStyle(fontSize: 12, color: AppColors.textSubtle),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 8),
+                    Text(_error!,
+                        style: const TextStyle(
+                            color: AppColors.error, fontSize: 12)),
+                  ],
+                ],
+              ),
+            ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        if (_real != null)
+          TextButton(
+            onPressed: _saving || _loading ? null : () => _gravar(tirar: true),
+            child: const Text('Tirar'),
+          ),
+        FilledButton(
+          onPressed: _saving || _loading ? null : () => _gravar(tirar: false),
+          child: Text(_saving ? 'Salvando…' : 'Salvar'),
+        ),
+      ],
+    );
+  }
+}

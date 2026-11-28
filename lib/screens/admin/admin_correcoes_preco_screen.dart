@@ -15,6 +15,38 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../config/app_colors.dart';
 
+/// 28/11/2026 (missão balcao-real): estado `estafeta` = o talão saiu mais
+/// barato e a correção vale só para o preço de balcão que o estafeta vê
+/// (`products.preco_balcao_real`); o preço do cliente não baixa.
+const textoCorrigidoSoEstafeta =
+    'Corrigido só para o estafeta (o cliente continua a pagar o mesmo)';
+
+/// Nome em PT-BR de cada situação de `catalog_price_updates.status`.
+String rotuloSituacaoCorrecao(String status) => switch (status) {
+      'pending' => 'Pendente',
+      'applied' => 'Aplicada pelo robô',
+      'approved' => 'Aprovada',
+      'rejected' => 'Rejeitada',
+      'reverted' => 'Revertida',
+      'estafeta' => 'Só estafeta',
+      _ => status,
+    };
+
+/// Mensagem depois de aprovar/reverter. Aprovar uma proposta MAIS BARATA
+/// devolve `so_estafeta: true` (RPC `admin_approve_catalog_price_update`):
+/// só o estafeta passa a ver o valor novo.
+String textoRespostaCorrecao(Map<String, dynamic> r, String feito) {
+  if (r['so_estafeta'] == true) {
+    final b = (r['balcao_real'] as num?)?.toDouble();
+    return '$textoCorrigidoSoEstafeta'
+        '${b == null ? '' : ' — balcão €${b.toStringAsFixed(2)}'} ✅';
+  }
+  if (r.containsKey('balcao_real') && r['balcao_real'] == null) {
+    return 'Balcão real tirado: o estafeta volta a ver o preço normal ✅';
+  }
+  return '$feito ✅';
+}
+
 class AdminCorrecoesPrecoScreen extends StatefulWidget {
   const AdminCorrecoesPrecoScreen({super.key});
 
@@ -147,7 +179,8 @@ class _AbaCorrecoesState extends State<_AbaCorrecoes> {
       final r = await _supabase
           .rpc(rpc, params: {'p_update_id': linha['id']}) as Map<String, dynamic>;
       if (r['ok'] == true) {
-        messenger.showSnackBar(SnackBar(content: Text('$feito ✅')));
+        messenger.showSnackBar(
+            SnackBar(content: Text(textoRespostaCorrecao(r, feito))));
         await _carregar();
       } else {
         messenger.showSnackBar(
@@ -190,6 +223,9 @@ class _AbaCorrecoesState extends State<_AbaCorrecoes> {
                     DropdownMenuItem(value: 'pending', child: Text('Pendentes')),
                     DropdownMenuItem(value: 'applied', child: Text('Aplicadas')),
                     DropdownMenuItem(value: 'approved', child: Text('Aprovadas')),
+                    DropdownMenuItem(
+                        value: 'estafeta',
+                        child: Text('Só para o estafeta')),
                     DropdownMenuItem(value: 'rejected', child: Text('Rejeitadas')),
                     DropdownMenuItem(value: 'reverted', child: Text('Revertidas')),
                     DropdownMenuItem(value: 'todos', child: Text('Todas')),
@@ -267,7 +303,8 @@ class _AbaCorrecoesState extends State<_AbaCorrecoes> {
                   ),
                 ),
                 Chip(
-                  label: Text(status, style: const TextStyle(fontSize: 11)),
+                  label: Text(rotuloSituacaoCorrecao(status),
+                      style: const TextStyle(fontSize: 11)),
                   visualDensity: VisualDensity.compact,
                 ),
               ],
@@ -281,6 +318,12 @@ class _AbaCorrecoesState extends State<_AbaCorrecoes> {
                 color: subiu ? Colors.red.shade700 : Colors.green.shade800,
               ),
             ),
+            if (status == 'estafeta')
+              Text(textoCorrigidoSoEstafeta,
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.green.shade800)),
             const SizedBox(height: 4),
             Text('Loja: ${l['restaurant_id'] ?? '—'}',
                 style: const TextStyle(fontSize: 12)),
@@ -321,7 +364,9 @@ class _AbaCorrecoesState extends State<_AbaCorrecoes> {
                       label: const Text('Rejeitar'),
                     ),
                   ],
-                  if (status == 'applied' || status == 'approved')
+                  if (status == 'applied' ||
+                      status == 'approved' ||
+                      status == 'estafeta')
                     OutlinedButton.icon(
                       onPressed: () => _acao('admin_revert_catalog_price_update',
                           l, 'Preço revertido'),

@@ -11,14 +11,26 @@
 //     verificado aqui no servidor antes de tudo — também numa nova tentativa.
 //  2. Novas tentativas são seguras. Reserva já 'rejected_refunded' (a 1.ª chamada rejeitou mas a
 //     resposta perdeu-se, ou a devolução falhou): a RPC não se chama outra vez e só se devolve o
-//     que ainda faltar. A chave reserva-recusa-<id> impede a Stripe de devolver duas vezes.
+//     que ainda faltar (a lista de devoluções da Stripe diz quanto; ver o ponto 5 para a chave).
 //  3. O pagamento e o valor vêm da Stripe, não das colunas da reserva: a RLS
 //     reservations_client_owner deixa o CLIENTE alterar prepayment_pi e prepayment_cents da
 //     própria reserva. Só conta o pagamento com metadata.purpose='reservation_prepayment' e
 //     metadata.reservation_id = esta reserva (gravados pelo servidor ao criar o pagamento), e
 //     devolve-se no máximo o que esse pagamento recebeu, menos o que já foi devolvido.
-//  4. Se a devolução não sair, a equipa é avisada no painel (notify_admin_event): o parceiro
+//  4. Se a devolução não sair, a equipa é avisada no painel E no telemóvel
+//     (notify_admin_urgent_push: linha no painel + push urgente, um por reserva): o parceiro
 //     não tem como a refazer.
+//  5. Revisão do Juiz da Claude.ai (15/11, 17:2x), o mesmo conserto do admin-cancel-reservation —
+//     chave de idempotência POR TENTATIVA: reserva-recusa-<id>-<n.º de devoluções que a Stripe já
+//     lista para o pagamento>. Com a chave fixa reserva-recusa-<id>, uma devolução que saiu
+//     'failed'/'canceled' e era tentada de novo em 24 h com o mesmo valor recebia da Stripe a
+//     resposta GUARDADA da 1.ª ('succeeded') e o parceiro lia "a devolução já foi pedida" sem
+//     dinheiro nenhum a mexer. Agora a tentativa seguinte já vê a falhada na lista, usa outra
+//     chave e cria uma devolução NOVA. Se mesmo assim a Stripe responder com uma devolução que já
+//     estava na lista, é uma resposta repetida: vale o estado da lista e nada saiu agora
+//     (resultado failed, a equipa vê).
+//  6. Erro ao criar a devolução: relê-se a lista antes de dar o alarme. Se já não falta nada
+//     (saiu e só a resposta se perdeu), é already_refunded e ninguém é avisado à toa.
 //
 // Sem rede: o index.ts liga isto ao Supabase e à Stripe; o logica_test.ts usa falsos.
 
@@ -37,7 +49,7 @@ const DEVOLUCAO_CONTA = new Set(['succeeded', 'pending', 'requires_action']);
 
 export type ResultadoDevolucao =
   | 'succeeded' // devolução pedida agora à Stripe
-  | 'already_refunded' // já não havia nada por devolver (nova tentativa)
+  | 'already_refunded' // já não havia nada por devolver (nova tentativa, ou resposta perdida)
   | 'not_applicable' // reserva sem pré-pagamento
   | 'not_paid' // o pagamento nunca foi cobrado: nada a devolver
   | 'failed'; // não saiu: a equipa é avisada e trata
@@ -115,7 +127,19 @@ export interface Devolucao {
   motivo: string | null;
   /** Mensagem da Stripe, só para o registo (nunca vai para a app do parceiro). */
   erro: string | null;
+  /** Estado REAL da devolução na Stripe (succeeded, pending, failed…), quando há uma só em causa. */
+  estadoStripe: string | null;
 }
+
+const SEM_DEVOLUCAO: Devolucao = {
+  resultado: 'not_applicable',
+  cents: 0,
+  conta: null,
+  refundId: null,
+  motivo: null,
+  erro: null,
+  estadoStripe: null,
+};
 
 function inteiro(v: unknown): number {
   return Math.trunc(Number(v ?? 0)) || 0;
@@ -133,9 +157,17 @@ export function lerPedido(
   return { reservationId: id.toLowerCase(), motivo: motivo || null };
 }
 
-/** A chave pedida pela Claude.ai: a mesma reserva nunca gera duas devoluções na Stripe. */
-export function chaveIdempotencia(reservaId: string): string {
-  return `reserva-recusa-${reservaId}`;
+/**
+ * Chave de idempotência de UMA tentativa: reserva-recusa-<id>-<n>, com n = quantas devoluções a
+ * Stripe já lista para o pagamento (todas, também as 'failed'/'canceled'). Duas chamadas que veem
+ * a mesma lista (duplo toque, resposta perdida) dão a mesma chave e a Stripe faz uma devolução
+ * só; depois de uma devolução falhada, a lista cresce e a nova tentativa cria outra a sério.
+ * Limite conhecido (o mesmo do admin-cancel-reservation): se a Stripe guardou um ERRO para a
+ * chave (ex.: 500) e a lista não cresceu, as novas tentativas nas 24 h seguintes recebem o mesmo
+ * erro — falha segura (failed + aviso à equipa), nunca um "devolvido" falso.
+ */
+export function chaveIdempotencia(reservaId: string, devolucoesVistas: number): string {
+  return `reserva-recusa-${reservaId}-${Math.max(0, Math.trunc(devolucoesVistas) || 0)}`;
 }
 
 /** Erro da RPC partner_decide_reservation → código HTTP e código para a app. */
@@ -173,26 +205,49 @@ export function centsPorDevolver(
   return { recebido, jaDevolvido, falta: Math.max(0, recebido - jaDevolvido) };
 }
 
+/**
+ * Depois de um erro ao criar a devolução: relê a lista da Stripe. Se já não falta nada por
+ * devolver (normalmente: a devolução saiu e só a resposta se perdeu), devolve o already_refunded
+ * a responder; se ainda falta, ou se nem a lista se consegue ler, null (fica o erro original).
+ * (= admin-cancel-reservation)
+ */
+async function jaNaoFaltaNada(
+  s: StripeDaReserva,
+  pi: string,
+  pagamento: PagamentoStripe,
+  antes: DevolucaoStripe[],
+): Promise<Pick<Devolucao, 'resultado' | 'cents' | 'refundId' | 'estadoStripe' | 'motivo'> | null> {
+  try {
+    const lista = await s.listarDevolucoes(pi);
+    const { jaDevolvido, falta } = centsPorDevolver(pagamento, lista);
+    if (falta > 0) return null;
+    const nova = lista.find((d) =>
+      !antes.some((a) => a.id === d.id) && DEVOLUCAO_CONTA.has(String(d.status ?? ''))
+    );
+    return {
+      resultado: 'already_refunded',
+      cents: jaDevolvido,
+      refundId: nova?.id ?? null,
+      estadoStripe: nova ? String(nova.status ?? '') || null : null,
+      motivo: 'resposta_perdida',
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
 /** Devolve o pré-pagamento da reserva. Nunca lança: o que falhar volta em `resultado`. */
 export async function devolverPrePagamento(
   reserva: Reserva,
   deps: Pick<Dependencias, 'stripe'>,
 ): Promise<Devolucao> {
-  const base: Devolucao = {
-    resultado: 'not_applicable',
-    cents: 0,
-    conta: null,
-    refundId: null,
-    motivo: null,
-    erro: null,
-  };
   const pi = String(reserva.prepayment_pi ?? '').trim();
   if (!pi) {
     // Como no admin ('no_payment_intent'): sem pagamento na Stripe não há o que devolver aqui.
     // Se a reserva diz que houve pré-pagamento, a equipa tem de ver.
     return inteiro(reserva.prepayment_cents) > 0
-      ? { ...base, resultado: 'failed', motivo: 'no_payment_intent' }
-      : base;
+      ? { ...SEM_DEVOLUCAO, resultado: 'failed', motivo: 'no_payment_intent' }
+      : SEM_DEVOLUCAO;
   }
   let conta: string | null = null;
   try {
@@ -201,26 +256,72 @@ export async function devolverPrePagamento(
     const pagamento = await s.lerPagamento(pi);
     const valido = validarPagamento(reserva.id, pagamento);
     if (valido === 'pi_mismatch' || valido === 'payment_processing') {
-      return { ...base, conta, resultado: 'failed', motivo: valido };
+      return { ...SEM_DEVOLUCAO, conta, resultado: 'failed', motivo: valido };
     }
     if (valido === 'not_paid') {
-      return { ...base, conta, resultado: 'not_paid', motivo: `pi_${pagamento.status}` };
+      return { ...SEM_DEVOLUCAO, conta, resultado: 'not_paid', motivo: `pi_${pagamento.status}` };
     }
-    const { jaDevolvido, falta } = centsPorDevolver(pagamento, await s.listarDevolucoes(pi));
+    const lista = await s.listarDevolucoes(pi);
+    const { jaDevolvido, falta } = centsPorDevolver(pagamento, lista);
     if (falta <= 0) {
-      return { ...base, conta, resultado: 'already_refunded', cents: jaDevolvido };
+      return { ...SEM_DEVOLUCAO, conta, resultado: 'already_refunded', cents: jaDevolvido };
     }
-    const refund = await s.devolver(pi, falta, chaveIdempotencia(reserva.id), {
-      purpose: 'reservation_partner_reject',
-      reservation_id: reserva.id,
-    });
-    if (refund.status === 'failed' || refund.status === 'canceled') {
-      return { ...base, conta, resultado: 'failed', motivo: `refund_${refund.status}`, refundId: refund.id };
+    let refund: DevolucaoStripe;
+    try {
+      refund = await s.devolver(pi, falta, chaveIdempotencia(reserva.id, lista.length), {
+        purpose: 'reservation_partner_reject',
+        reservation_id: reserva.id,
+      });
+    } catch (e) {
+      // Pode ter saído e só a resposta se ter perdido: antes do alarme, a lista diz a verdade.
+      const depois = await jaNaoFaltaNada(s, pi, pagamento, lista);
+      if (depois) {
+        return {
+          ...SEM_DEVOLUCAO,
+          ...depois,
+          conta,
+          erro: e instanceof Error ? e.message : String(e), // só para o registo
+        };
+      }
+      throw e;
     }
-    return { ...base, conta, resultado: 'succeeded', cents: falta, refundId: refund.id };
+    const repetida = lista.find((d) => d.id === refund.id);
+    if (repetida) {
+      // A Stripe devolveu a resposta GUARDADA de um pedido antigo com esta chave: nada saiu agora.
+      // Vale o estado da lista (o de hoje), não o da resposta repetida. Com a lista certa não
+      // acontece (a chave muda quando a lista cresce); se acontecer, a equipa vê.
+      const naLista = String(repetida.status ?? '');
+      return {
+        ...SEM_DEVOLUCAO,
+        conta,
+        resultado: 'failed',
+        motivo: DEVOLUCAO_CONTA.has(naLista) ? 'refund_replay' : `refund_${naLista || 'desconhecido'}`,
+        refundId: refund.id,
+        estadoStripe: naLista || null,
+      };
+    }
+    const estado = String(refund.status ?? '');
+    if (estado === 'failed' || estado === 'canceled') {
+      return {
+        ...SEM_DEVOLUCAO,
+        conta,
+        resultado: 'failed',
+        motivo: `refund_${estado}`,
+        refundId: refund.id,
+        estadoStripe: estado,
+      };
+    }
+    return {
+      ...SEM_DEVOLUCAO,
+      conta,
+      resultado: 'succeeded',
+      cents: falta,
+      refundId: refund.id,
+      estadoStripe: estado || null,
+    };
   } catch (e) {
     return {
-      ...base,
+      ...SEM_DEVOLUCAO,
       conta,
       resultado: 'failed',
       motivo: 'stripe_error',
@@ -254,6 +355,7 @@ export function linhaDeRegisto(a: {
       refund_reason: d.motivo,
       stripe_account: d.conta,
       refund_id: d.refundId,
+      refund_status: d.estadoStripe,
       refund_amount: d.cents / 100,
       stripe_error: d.erro,
       prepayment_cents: inteiro(a.reserva.prepayment_cents),
@@ -273,6 +375,8 @@ const PISTA_PARA_A_EQUIPA: Record<string, string> = {
     'o pagamento gravado na reserva não é o desta reserva (pode ter sido alterado); conferir antes de reembolsar',
   no_payment_intent: 'a reserva não tem pagamento gravado; conferir se o cliente pagou',
   payment_processing: 'o pagamento ainda está em processamento; reembolsar quando concluir',
+  refund_replay:
+    'a Stripe respondeu com um reembolso antigo e nada saiu agora; conferir os reembolsos na Stripe antes de repetir',
 };
 
 /** Aviso no painel quando a devolução não saiu: o parceiro não a consegue refazer. */
@@ -284,12 +388,17 @@ export function avisoDeFalha(reserva: Reserva, d: Devolucao): AvisoEquipa {
     resumo: `Reserva #${reserva.id.slice(0, 8)}: o parceiro recusou e o reembolso de ${euros(cents)} ` +
       `ao cliente não foi feito — ${pista}.`,
     detalhes: {
+      origem: 'partner-reject-reservation',
       restaurant_id: reserva.restaurant_id,
       motivo: d.motivo,
       stripe_account: d.conta,
       stripe_error: d.erro,
+      refund_id: d.refundId,
+      refund_status: d.estadoStripe,
       prepayment_pi: reserva.prepayment_pi,
       prepayment_cents: inteiro(reserva.prepayment_cents),
+      // notify_admin_urgent_push: um push por reserva (sem isto, cada aviso novo tapava o anterior).
+      push_ref: `${TIPO_AVISO}:${reserva.id}`,
     },
   };
 }

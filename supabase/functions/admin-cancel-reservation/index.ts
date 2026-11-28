@@ -12,12 +12,13 @@
 //     cliente (in-app) e regista a ação. Já cancelada → idempotent=true.
 //  4. Com direito a devolução (>= janela, ou nova tentativa de uma 'cancelled_refunded'): reserva lida
 //     com a chave do servidor → PaymentIntent conferido na Stripe (metadata desta reserva,
-//     succeeded) → refunds.create do que falta, idempotencyKey admin-cancel-rsv-<id>, na conta
-//     onde entrou (reservations.stripe_account, _shared/stripe_contas.ts).
-//  5. admin_audit_log 'reservation_cancel_complete'; se a devolução não saiu, aviso no painel
-//     (notify_admin_event 'reservation_refund_failed').
+//     succeeded) → refunds.create do que falta, idempotencyKey admin-cancel-rsv-<id>-<n> (n =
+//     devoluções que a Stripe já lista para o pagamento: uma chave por tentativa, ver logica.ts),
+//     na conta onde entrou (reservations.stripe_account, _shared/stripe_contas.ts).
+//  5. admin_audit_log 'reservation_cancel_complete'; se a devolução não saiu, aviso urgente à
+//     equipa (notify_admin_urgent_push 'reservation_refund_failed': linha no painel + push).
 //  6. Resposta como na v21: { success, idempotent, reservation_id, new_status | previous_status,
-//     message?, refund: { result, stripe_id, amount, error, amount_cents, reason } }.
+//     message?, refund: { result, stripe_id, amount, error, amount_cents, reason, stripe_status } }.
 //
 // Segredos, só por Deno.env: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SECRET_KEYS ou
 // SUPABASE_SERVICE_ROLE_KEY (secretKey), STRIPE_SECRET_KEY e STRIPE_SECRET_KEY_EMPRESA
@@ -113,9 +114,11 @@ Deno.serve(async (req) => {
       if (error) throw new Error(error.message);
     },
     async avisarEquipa(aviso) {
-      const { error } = await admin.rpc('notify_admin_event', {
+      // notify_admin_urgent_push(p_event_type, p_summary, p_entity_type, p_entity_id, p_payload,
+      // p_deep_link) — lida no servidor a 15/11: grava a linha pelo notify_admin_event (sempre
+      // 'high') e manda o push urgente (notify-admin-urgent, agrupado por payload.push_ref).
+      const { error } = await admin.rpc('notify_admin_urgent_push', {
         p_event_type: TIPO_AVISO,
-        p_severity: 'high',
         p_summary: aviso.resumo,
         p_entity_type: 'reservation',
         p_entity_id: aviso.reservaId,

@@ -11,6 +11,7 @@ import '../models/order_model.dart' show PaymentMethod;
 import '../services/tip_service.dart';
 import '../services/wallet_service.dart';
 import '../services/weight_portions.dart';
+import '../auth/auth_store.dart';
 import '../stores/cart_store.dart';
 import '../stores/order_store.dart';
 import '../stores/restaurant_store.dart';
@@ -332,6 +333,18 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text('Escolhe a hora da entrega'.tr)));
+  }
+
+  /// 27/11/2026: loja fechada sem como marcar a hora (agendamento desligado
+  /// ou loja sem janelas). Diz quando abre — nunca um botão mudo.
+  void _mostrarLojaFechadaSemHora() {
+    final aviso = context.read<CartStore>().avisoLojaFechada.trim();
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        key: const Key('snack-loja-fechada-sem-hora'),
+        content: Text(aviso.isNotEmpty ? aviso : 'A loja está fechada agora.'.tr),
+      ));
   }
 
   Future<void> _comTravaPagamento(Future<void> Function() accao) async {
@@ -829,7 +842,14 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                   ? null
                   : cartStore.agendamentoEmFalta
                   ? _mostrarAgendamentoEmFalta
+                  : cartStore.fechadaSemHora
+                  ? _mostrarLojaFechadaSemHora
                   : () => _comTravaPagamento(() async {
+                      // 27/11/2026 (regra 6): o convidado que entra na conta
+                      // a meio do pedido volta a ler o agendamento e as
+                      // janelas desta loja; o carrinho mantém-se.
+                      final eraConvidado =
+                          context.read<AuthStore>().currentClient == null;
                       // BLOCO C.3 (2026-09-05) — porta única de contacto: sem
                       // nome/telemóvel válidos, o cliente é bloqueado aqui
                       // antes de seguir para pagamento (ver
@@ -837,6 +857,14 @@ class _CheckoutPanelState extends State<_CheckoutPanel> {
                       final contactoOk =
                           await garantirContactoDoCliente(context);
                       if (!contactoOk || !context.mounted) return;
+                      if (eraConvidado) {
+                        await cartStore.relerAgendamento();
+                        if (!context.mounted) return;
+                        if (cartStore.agendamentoEmFalta) {
+                          _mostrarAgendamentoEmFalta();
+                          return;
+                        }
+                      }
 
                       cartStore.setWalletApplied(
                           _useWalletBalance ? walletAppliedCents : 0);

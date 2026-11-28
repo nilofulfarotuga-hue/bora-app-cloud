@@ -17,6 +17,7 @@ import '../../config/app_colors.dart';
 import '../../services/agendar_pedido.dart';
 import '../../services/agendar_pedido_service.dart';
 import '_admin_rpc_errors.dart';
+import 'admin_order_detail_screen.dart';
 
 /// Filtro da lista do painel.
 enum FiltroAgendados { todos, parceiros, naoParceiros }
@@ -314,7 +315,12 @@ class _AdminPedidosAgendadosScreenState extends State<AdminPedidosAgendadosScree
   Widget _etiqueta(PedidoAgendado p) {
     final parceiro = p.parceiro;
     if (parceiro == null) return const SizedBox.shrink();
-    final loja = p.tipoServico == 'storeShopping' ? ' · Mercado/loja' : '';
+    final loja = p.tipoServico == 'storeShopping'
+        ? ' · Mercado/loja'
+        // 27/11/2026: casa de festas (encomenda de festa ou "Na hora" marcado).
+        : p.categoriaLoja == 'festas'
+            ? ' · Festas'
+            : '';
     final cor = parceiro ? AppColors.primaryDark : AppColors.textSecondary;
     return Container(
       key: Key('agendado-etiqueta-${p.id}'),
@@ -375,6 +381,12 @@ class _AdminPedidosAgendadosScreenState extends State<AdminPedidosAgendadosScree
           ],
         ),
         isThreeLine: true,
+        // 27/11/2026: tocar abre o pedido (ver tudo, mudar a hora das festas,
+        // passar a estafeta, cancelar) — autoridade total do Danilo.
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => AdminOrderDetailScreen(orderId: p.id),
+        )),
       ),
     );
   }

@@ -1266,13 +1266,32 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
     }
     // 11/11/2026: loja parceira fora do horário (a app trava antes do servidor).
     if (err.contains('STORE_CLOSED')) {
-      return 'A loja está fechada agora. Tenta quando abrir.'.tr;
+      return _mensagemLojaFechada(context.read<CartStore>());
     }
     if (err.contains('TAKEAWAY_NOT_ENABLED') ||
         err.contains('TAKEAWAY_REQUIRES_PARTNER')) {
       return 'Esta loja não aceita "Ir buscar". Escolhe entrega.'.tr;
     }
     return 'Não foi possível criar o pedido. Tente novamente.'.tr;
+  }
+
+  /// 27/11/2026 (caso Sabores do Brasil): loja fechada e pedido "para agora".
+  /// Diz quando abre (o aviso da loja) e o que fazer — voltar ao carrinho e
+  /// marcar a hora, quando a loja aceita agendamento. Nunca o genérico.
+  String _mensagemLojaFechada(CartStore cart) {
+    final aviso = cart.avisoLojaFechada.trim().isNotEmpty
+        ? cart.avisoLojaFechada.trim()
+        : 'A loja está fechada agora.'.tr;
+    // Só manda marcar quem ainda não marcou (com hora marcada ou encomenda de
+    // festa, "volta e marca" seria uma frase errada).
+    final jaMarcou =
+        AgendarPedidoEstado.instance.escolhaPara(cart.vendorRestaurantId) ||
+            cart.carrinhoEncomendaFesta;
+    if (cart.agendamentoDisponivel && !jaMarcou) {
+      return '{0} Volta ao carrinho e marca o pedido para quando a loja abrir.'
+          .trArgs([aviso]);
+    }
+    return '{0} Tenta quando abrir.'.trArgs([aviso]);
   }
 
   /// A frase para o cliente quando a hora marcada foi recusada antes de criar
@@ -1654,7 +1673,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen>
         setState(() => _isProcessing = false);
         messenger.showSnackBar(SnackBar(
             content: Text(_mensagemErroAgendamento(cartStore) ??
-                'Não foi possível iniciar o pagamento. Tente novamente.'.tr)));
+                // 27/11/2026: loja fechada (o travão da app diz porquê).
+                ((orderStore.lastCreateOrderError ?? '').contains('STORE_CLOSED')
+                    ? _mensagemLojaFechada(cartStore)
+                    : 'Não foi possível iniciar o pagamento. Tente novamente.'.tr))));
         return;
       }
 

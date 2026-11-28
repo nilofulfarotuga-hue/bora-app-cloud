@@ -765,3 +765,12 @@ perguntar: `git push` fora de `ai/`, migrations, mudanças de estrutura e deploy
   um ajudante (subagente) para a parte do painel admin ("Auto-Mode Bypass"; o pedido incluía ecrãs de dinheiro só
   para esconder rótulos TVDE). Não repeti nem contornei a delegação: fiz eu essa parte, só texto e visibilidade,
   sem tocar em somas nem RPCs. e2e_log fluxo arquivo-tvde-26-11.
+- 27/11/2026 (loja-fechada-agendar-2026-11-27, Claude Code na nuvem, Opus 5.5): a tranca negou o Edit em
+  `lib/stores/order_store.dart` (deny em `.claude/settings.json`; zona vermelha "order_store.dart
+  (finalizePurchase)") e depois a cópia do ficheiro para o rascunho, para preparar o diff. Não contornei. A regra
+  nova do travão "loja fechada" ficou num ficheiro livre (`lib/utils/loja_fechada_pedido.dart`, testado) e o
+  remendo de 3 sítios, só a condição do travão, está em
+  `docs/propostas/loja-fechada-agendar-2026-11-27/order_store_patch.md`. Destrava: a Claude.ai aplica-o pelo
+  GitHub ou uma sessão com a tranca aberta pelo Danilo. Sem ele, os restaurantes PARCEIROS fechados (Boom, Goola,
+  Sabores de Casa, Keli) continuam a recusar no fim os pedidos com hora marcada e as encomendas de festa.
+  e2e_log fluxo loja-fechada-agendar-2026-11-27, passo B1-tranca.

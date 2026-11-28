@@ -336,6 +336,10 @@ Future<void> openRestaurantBusiness(
     vendorFechada: business.emPausa() ||
         (!business.isOpenNow() &&
             !business.belongsTo(BusinessCategory.festas)),
+    // 27/11/2026 (Sabores do Brasil às 21:38): fora de horas também nas
+    // Festas — deixa encher o carrinho, mas os itens "Na hora" marcam-se para
+    // quando a loja abrir (a encomenda de festa segue com a data dela).
+    vendorForaDeHoras: business.emPausa() || !business.isOpenNow(),
     vendorAvisoFechada: business.avisoLojaFechada,
     pickupLocation: pickupLocation,
     pickupStreet: business.address,

@@ -44,7 +44,6 @@ class _AgendarPedidoNoCarrinhoState extends State<AgendarPedidoNoCarrinho> {
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartStore>();
-    if (!cart.agendamentoDisponivel) return const SizedBox.shrink();
     final id = cart.vendorRestaurantId;
     if (id == null) return const SizedBox.shrink();
     // A loja ainda pode não estar na lista (mercado aberto por outro caminho):
@@ -52,12 +51,69 @@ class _AgendarPedidoNoCarrinhoState extends State<AgendarPedidoNoCarrinho> {
     // — os dias vêm então só do servidor. Sem isto, numa loja fechada o
     // "Finalizar pedido" ficava à espera de uma hora que não dava para escolher.
     final loja = context.watch<RestaurantStore>().restaurantById(id);
-    return AgendarPedidoSeletor(
+    // 27/11/2026 (ordem do Danilo): com a loja fechada, o carrinho diz logo
+    // quando abre e que se pode marcar para esse dia ou outro.
+    final aviso = cart.lojaFechadaAgora && cart.items.isNotEmpty
+        ? AvisoLojaFechadaCarrinho(
+            texto: (cart.agendamentoDisponivel || cart.carrinhoEncomendaFesta) &&
+                    loja != null
+                ? loja.avisoAgendar
+                : cart.avisoLojaFechada,
+          )
+        : null;
+    if (!cart.agendamentoDisponivel) return aviso ?? const SizedBox.shrink();
+    final seletor = AgendarPedidoSeletor(
       key: ValueKey('agendar-$id'),
       restaurantId: id,
       horas: loja?.businessHours ?? _semHorario,
       pausaAte: loja?.pausaAte,
       lojaFechadaAgora: cart.lojaFechadaAgora,
+    );
+    if (aviso == null) return seletor;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [aviso, seletor],
+    );
+  }
+}
+
+/// 27/11/2026: a caixa do carrinho com a frase da loja fechada (quando abre,
+/// quando fecha e que se pode marcar). Bem visível, sem laranja (o laranja do
+/// ecrã é o botão de finalizar).
+class AvisoLojaFechadaCarrinho extends StatelessWidget {
+  const AvisoLojaFechadaCarrinho({super.key, required this.texto});
+
+  final String texto;
+
+  @override
+  Widget build(BuildContext context) {
+    if (texto.trim().isEmpty) return const SizedBox.shrink();
+    return Container(
+      key: const Key('aviso-loja-fechada-carrinho'),
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.schedule, color: AppColors.primaryDark, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              texto,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

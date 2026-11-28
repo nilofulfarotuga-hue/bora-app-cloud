@@ -641,17 +641,53 @@ class RestaurantModel {
 
   /// 26/10 (melhorias-paridade, item 4 — regra do Danilo de 27/08): a loja
   /// está fechada PARA O CLIENTE? Entra-se e vê-se tudo (capa, categorias,
-  /// produtos, preços, opções); só não se mete no carrinho. "Em breve" tem a
-  /// faixa dele e as Festas (fora de pausa) aceitam encomendas: não contam.
+  /// produtos, preços, opções). "Em breve" tem a faixa dele: não conta.
+  ///
+  /// 27/11/2026 (caso Sabores do Brasil às 21:38, ordem do Danilo): as Festas
+  /// também contam fora de horas — os itens "Na hora" marcam-se para quando a
+  /// loja abrir. A encomenda de festa continua a não ser travada (o carrinho
+  /// trata-a à parte, `CartStore.carrinhoEncomendaFesta`).
   bool fechadaParaClienteEm(DateTime instante) {
     if (comingSoon) return false;
     if (emPausa(instante)) return true;
     if (!isOnline) return true; // desligada pelo parceiro, Festas incluídas
-    if (belongsTo(BusinessCategory.festas)) return false;
     return !isOpenNow(instante);
   }
 
   bool get fechadaParaCliente => fechadaParaClienteEm(DateTime.now());
+
+  /// 27/11/2026 (ordem do Danilo): a frase da loja fechada quando se pode
+  /// marcar o pedido — diz quando abre, quando fecha esse dia, e que se pode
+  /// marcar para esse dia ou para outro. Horas do relógio de Lisboa e do
+  /// horário real da loja (a mesma próxima abertura do aviso e do servidor).
+  String avisoAgendarEm(DateTime instante) {
+    if (emPausa(instante)) {
+      return 'Esta loja está fechada agora. Volta às {0}. Podes marcar o teu pedido para mais tarde ou para outro dia.'
+          .trArgs([pausaVoltaAs]);
+    }
+    final prox = proximaAbertura(instante);
+    if (prox == null) {
+      return 'Esta loja está fechada agora. Podes marcar o teu pedido para outro dia.'.tr;
+    }
+    final agora = paredeLisboa(instante);
+    final dia = businessHours
+        .diaEm(DateTime.utc(agora.year, agora.month, agora.day + prox.emDias));
+    final abre = prox.hora;
+    final fecha = dia.close;
+    if (prox.emDias == 0) {
+      return 'Esta loja está fechada agora. Abre hoje às {0} e fecha às {1}. Podes marcar o teu pedido para hoje ou para outro dia.'
+          .trArgs([abre, fecha]);
+    }
+    if (prox.emDias == 1) {
+      return 'Esta loja está fechada agora. Abre amanhã às {0} e fecha às {1}. Podes marcar o teu pedido para amanhã ou para outro dia.'
+          .trArgs([abre, fecha]);
+    }
+    final nomeDia = _diasPt[prox.weekday - 1].tr;
+    return 'Esta loja está fechada agora. Abre {0} às {1} e fecha às {2}. Podes marcar o teu pedido para {0} ou para outro dia.'
+        .trArgs([nomeDia, abre, fecha]);
+  }
+
+  String get avisoAgendar => avisoAgendarEm(DateTime.now());
 
   static const _diasPt = [
     'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado', 'domingo'

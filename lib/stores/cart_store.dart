@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/cart_item.dart';
 import '../models/order_model.dart';
 import '../models/partner_product.dart' show kCentimosPorEmbalagemVolta;
+import '../models/restaurant_model.dart' show kFestasPrateleiraEncomenda;
 import '../config/business_rules.dart' show BRTokens;
 import '../services/agendar_pedido_service.dart';
 import '../services/assistant_service.dart';
@@ -109,6 +110,17 @@ class CartStore extends ChangeNotifier {
   bool _vendorFechada = false;
   String _vendorAvisoFechada = '';
 
+  /// 27/11/2026: a loja não serve pedidos PARA AGORA (fora de horas ou em
+  /// pausa). Igual a [_vendorFechada] em todas as lojas menos nas Festas, que
+  /// fora de horas deixam encher o carrinho (encomenda) mas os itens "Na
+  /// hora" marcam-se para quando a loja abrir.
+  bool _vendorForaDeHoras = false;
+
+  /// 27/11/2026: a prateleira (`products.category`) de um produto do carrinho.
+  /// Ligado no arranque à [RestaurantStore.productCategoryById]; serve para
+  /// saber se o carrinho de Festas leva encomenda de festa.
+  String? Function(String productId)? categoriaDoProduto;
+
   /// Data/hora escolhida para a encomenda de festa (mínimo: dia seguinte).
   /// NULL = pedido imediato ("Na hora"). Enviada ao servidor no checkout.
   DateTime? _festasQuando;
@@ -176,6 +188,19 @@ class CartStore extends ChangeNotifier {
       unawaited(e.verificarLoja(id));
     }
     notifyListeners();
+  }
+
+  /// 27/11/2026 (regra 6): o convidado entrou na conta a meio do pedido. A
+  /// configuração e as janelas desta loja voltam a ser lidas (antes podiam ter
+  /// falhado sem conta); o carrinho fica como estava.
+  Future<void> relerAgendamento() async {
+    final e = AgendarPedidoEstado.instance;
+    await e.carregarConfig(forcar: true);
+    final id = _vendorRestaurantId;
+    if (_lojaPodeAgendar && id != null) {
+      await e.verificarLoja(id, forcar: true);
+    }
+    if (!_libertado) notifyListeners();
   }
 
   /// Agendar pedidos (30/10/2026): pergunta ao servidor se a loja desta sessão
@@ -478,16 +503,35 @@ class CartStore extends ChangeNotifier {
   /// o `_vendorFechada` de sempre.
   bool get lojaFechada => _vendorFechada && !agendamentoDisponivel;
 
-  /// A loja está fechada AGORA (sem contar com o agendamento).
-  bool get lojaFechadaAgora => _vendorFechada;
+  /// A loja está fechada AGORA (sem contar com o agendamento). Nas Festas
+  /// (27/11/2026) conta também fora de horas, para os itens "Na hora".
+  bool get lojaFechadaAgora => _vendorForaDeHoras;
+
+  /// 27/11/2026: o carrinho de Festas leva um item da prateleira de encomenda
+  /// (`Para festa (encomenda)`)? Então segue o fluxo da data de festa (mínimo
+  /// dia seguinte) e nunca é travado pela loja fechada; carrinho misto = festa
+  /// (regra de 25/08). Sem a ligação às prateleiras, vale a data de festa já
+  /// escolhida.
+  bool get carrinhoEncomendaFesta {
+    if (!_vendorIsFestas) return false;
+    final cat = categoriaDoProduto;
+    if (cat == null) return _festasQuando != null;
+    return _items.any((i) => cat(i.productId) == kFestasPrateleiraEncomenda);
+  }
+
+  /// 27/11/2026: a loja está fechada, não é encomenda de festa e não há como
+  /// marcar a hora (interruptor desligado ou loja sem janelas). O "Finalizar"
+  /// mostra o aviso da loja em vez de ir para o pagamento.
+  bool get fechadaSemHora =>
+      _vendorForaDeHoras && !carrinhoEncomendaFesta && !agendamentoDisponivel;
 
   /// O tipo de compra que PODE ter agendamento: entrega de restaurante ou de
-  /// loja/mercado (parceira ou não), nunca festas, "em breve", favores,
-  /// envios nem recolha. Quem decide se há mesmo é o servidor (janelas).
+  /// loja/mercado (parceira ou não), nunca "em breve", favores, envios nem
+  /// recolha. Quem decide se há mesmo é o servidor (janelas). Festas desde
+  /// 27/11/2026 (os itens "Na hora"; a encomenda de festa tem a data dela).
   bool get _lojaPodeAgendar =>
       (_serviceType == OrderServiceType.restaurant ||
           _serviceType == OrderServiceType.storeShopping) &&
-      !_vendorIsFestas &&
       !_vendorComingSoon &&
       _vendorRestaurantId != null;
 
@@ -498,12 +542,15 @@ class CartStore extends ChangeNotifier {
       _lojaPodeAgendar &&
       AgendarPedidoEstado.instance.lojaTemJanelas(_vendorRestaurantId) == true;
 
-  /// Interruptor ligado E loja que aceita agendamento.
+  /// Interruptor ligado E loja que aceita agendamento (e não é encomenda de
+  /// festa, que marca o dia no ecrã dela).
   bool get agendamentoDisponivel =>
-      lojaAgendavel && AgendarPedidoEstado.instance.ligado;
+      lojaAgendavel &&
+      AgendarPedidoEstado.instance.ligado &&
+      !carrinhoEncomendaFesta;
 
   /// Loja fechada agora + agendamento ligado: o cliente TEM de escolher uma hora.
-  bool get agendamentoObrigatorio => _vendorFechada && agendamentoDisponivel;
+  bool get agendamentoObrigatorio => _vendorForaDeHoras && agendamentoDisponivel;
 
   /// Falta escolher a janela (o "Finalizar pedido" espera).
   bool get agendamentoEmFalta =>
@@ -1221,6 +1268,9 @@ class CartStore extends ChangeNotifier {
     String? vendorName,
     String? vendorRestaurantId,
     bool vendorFechada = false,
+    // 27/11/2026: fora de horas para pedidos PARA AGORA. Por omissão igual a
+    // [vendorFechada]; nas Festas a página da loja passa-o à parte.
+    bool? vendorForaDeHoras,
     String vendorAvisoFechada = '',
     String? pickupStreet,
     String? pickupCity,
@@ -1253,6 +1303,7 @@ class CartStore extends ChangeNotifier {
     }
     _vendorRestaurantId = vendorRestaurantId;
     _vendorFechada = vendorFechada;
+    _vendorForaDeHoras = vendorForaDeHoras ?? vendorFechada;
     _vendorAvisoFechada = vendorAvisoFechada;
     // Agendar pedidos (C5 + 30/10): a configuração pode ainda não ter sido
     // lida, e quem diz se esta loja tem janelas é o servidor.
@@ -1664,6 +1715,9 @@ class CartStore extends ChangeNotifier {
   /// Marca a hora no servidor antes de criar o pedido. false = não criar (a
   /// hora escolhida não ficou marcada; o pedido nasceria "para agora").
   Future<bool> _prepararAgendamento() async {
+    // 27/11/2026: a encomenda de festa marca o dia no ecrã dela
+    // (festas_set_schedule); uma janela escolhida antes não segue com ela.
+    if (carrinhoEncomendaFesta) AgendarPedidoEstado.instance.limpar();
     _erroAgendamento = await AgendarPedidoEstado.instance.prepararAntesDeCriar(
       restaurantId: _vendorRestaurantId,
       tipo: _serviceType,

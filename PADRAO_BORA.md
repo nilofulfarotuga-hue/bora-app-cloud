@@ -475,6 +475,16 @@ nenhum, porque isso não existe.
 > Guardado por `test/loja_hora_lisboa_test.dart`. **Gémeos que ainda divergem:** a app não lê
 > os dias fechados (`business_hours.special_dates`) que o servidor lê, e o servidor não lê o
 > `is_online` que a app lê.
+> **Cicatriz (27/11, Sabores do Brasil às 21:38, ordem do Danilo):** com o agendamento ligado a
+> regra passou a ser "encher o carrinho e marcar": a loja fechada deixa encher o carrinho (com ou
+> sem conta), a página da loja e o carrinho dizem "abre amanhã às X e fecha às Y, podes marcar
+> para amanhã ou outro dia" (`RestaurantModel.avisoAgendar`), e o seletor abre na 1.ª janela. As
+> Festas também agendam os itens "Na hora"; a encomenda de festa nunca é travada (data própria).
+> A cliente foi travada no ÚLTIMO passo pelo travão da app em `order_store.dart`, que não olhava
+> para a hora marcada; a regra certa está em `lib/utils/loja_fechada_pedido.dart` e o remendo do
+> `order_store.dart` (zona trancada) em `docs/propostas/loja-fechada-agendar-2026-11-27/`.
+> Guardado por `test/loja_fechada_agendar_test.dart`. Lição: um travão novo no servidor tem gémeo
+> na app — os dois mudam juntos.
 
 ### 1.28 A categoria nova aparece na lupa e pode ser destino de uma faixa da home
 

@@ -942,7 +942,14 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           create: (_) => DriverStore(),
         ),
         ChangeNotifierProvider<RestaurantStore>(
-          create: (_) => RestaurantStore(),
+          create: (context) {
+            final store = RestaurantStore();
+            // 27/11/2026: o carrinho de Festas sabe se leva encomenda de festa
+            // pela prateleira dos produtos.
+            context.read<CartStore>().categoriaDoProduto =
+                store.productCategoryById;
+            return store;
+          },
         ),
         ChangeNotifierProvider<ReservationStore>(
           create: (_) => ReservationStore(),

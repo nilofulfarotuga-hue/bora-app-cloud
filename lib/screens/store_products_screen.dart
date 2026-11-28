@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -15,6 +13,7 @@ import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/cart_feedback.dart';
+import '../utils/pesquisa_lupa.dart';
 import '../utils/pesquisa_resultados.dart';
 import '../widgets/pesquisa_sem_resultado.dart';
 import '../widgets/bora/bora_product_card.dart';
@@ -59,7 +58,16 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   // B2 (20/10): o que se procura na loja também conta no painel "KPIs de pesquisa".
   final RegistoPesquisa _registo = RegistoPesquisa();
   // RPC-backed search (robust to accents/case via server-side normalization).
-  Timer? _rpcDebounce;
+  // 17/11 (servidor-busca-leve): pesquisa quando a pessoa pára 400 ms, só
+  // conta a última resposta, e a mesma pesquisa nos últimos 5 min (em
+  // qualquer loja aberta depois) vem da memória do telemóvel.
+  static final MemoriaPesquisa<List<Map<String, dynamic>>> _memoriaPesquisa =
+      MemoriaPesquisa<List<Map<String, dynamic>>>();
+  late final LupaAgendada<List<Map<String, dynamic>>> _lupa =
+      LupaAgendada<List<Map<String, dynamic>>>(
+    buscar: _pedirAoServidor,
+    memoria: _memoriaPesquisa,
+  );
   List<Map<String, dynamic>> _rpcRows = const [];
   bool _rpcLoading = false;
   // m11 (09/11): o texto da última pesquisa que o servidor respondeu — só
@@ -124,7 +132,7 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   void dispose() {
     _cart?.removeListener(_aoMudarCarrinho);
     PesquisaAprendizagem.instance.sairDoEcra();
-    _rpcDebounce?.cancel();
+    _lupa.dispose();
     _registo.dispose();
     _searchController.dispose();
     _scroll.removeListener(_aoRolar);
@@ -220,6 +228,7 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   void _limparPesquisa({String? categoria}) {
     final antes = _emPesquisa;
     _searchController.clear();
+    _lupa.parar();
     setState(() {
       _searchQuery = '';
       _rpcRows = const [];
@@ -230,9 +239,9 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   }
 
   void _scheduleRpcSearch(String query) {
-    _rpcDebounce?.cancel();
     final q = query.trim();
     if (q.length < 2) {
+      _lupa.parar();
       if (_rpcRows.isNotEmpty || _rpcLoading) {
         setState(() {
           _rpcRows = const [];
@@ -241,50 +250,59 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
       }
       return;
     }
-    _rpcDebounce = Timer(const Duration(milliseconds: 350), () {
-      _runRpcSearch(q);
-    });
+    // Com 2 letras o servidor devolve só as secções; produtos a partir de 3.
+    _lupa.escrever(
+      q,
+      chaveDaPesquisa(q, loja: widget.restaurantId),
+      aoComecar: () {
+        if (mounted) setState(() => _rpcLoading = true);
+      },
+      aoChegar: (linhas) => _mostrarResultados(q, linhas),
+      aoFalhar: (_) {
+        if (!mounted) return;
+        setState(() {
+          _rpcRows = const [];
+          _rpcLoading = false;
+          _rpcQuery = null;
+        });
+      },
+    );
   }
 
-  Future<void> _runRpcSearch(String query) async {
+  /// A pesquisa corre no servidor sobre a loja INTEIRA (867 produtos na
+  /// Farmácia da Sé), não só sobre o que está carregado. Tempo limite
+  /// (PADRAO 3.15.5): se o servidor não responder, a lupa chama o aoFalhar.
+  Future<List<Map<String, dynamic>>> _pedirAoServidor(String query) async {
+    final rows = await Supabase.instance.client.rpc(
+      'search_products',
+      params: {
+        'query_text': query,
+        'p_restaurant_id': widget.restaurantId,
+        'max_results': 50,
+      },
+    ).timeout(const Duration(seconds: 12));
+    // Imutável: a mesma lista fica na memória e pode voltar a ser mostrada.
+    return rows is List
+        ? List<Map<String, dynamic>>.unmodifiable(
+            rows.whereType<Map<String, dynamic>>(),
+          )
+        : const <Map<String, dynamic>>[];
+  }
+
+  void _mostrarResultados(String query, List<Map<String, dynamic>> linhas) {
     if (!mounted) return;
-    setState(() => _rpcLoading = true);
-    try {
-      // A pesquisa corre no servidor sobre a loja INTEIRA (867 produtos na
-      // Farmácia da Sé), não só sobre o que está carregado. Tempo limite
-      // (PADRAO 3.15.5): se o servidor não responder, cai no catch abaixo.
-      final rows = await Supabase.instance.client.rpc(
-        'search_products',
-        params: {
-          'query_text': query,
-          'p_restaurant_id': widget.restaurantId,
-          'max_results': 50,
-        },
-      ).timeout(const Duration(seconds: 12));
-      if (!mounted) return;
-      final linhas = rows is List
-          ? List<Map<String, dynamic>>.from(
-              rows.whereType<Map<String, dynamic>>(),
-            )
-          : const <Map<String, dynamic>>[];
-      setState(() {
-        _rpcRows = linhas;
-        _rpcLoading = false;
-        _rpcQuery = query;
-      });
-      if (separarResultadosPesquisa(linhas).produtos.isEmpty) {
-        PesquisaAprendizagem.instance
-            .semResultado(query, restaurantId: widget.restaurantId);
-      } else {
-        PesquisaAprendizagem.instance.comResultado();
-      }
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _rpcRows = const [];
-        _rpcLoading = false;
-        _rpcQuery = null;
-      });
+    setState(() {
+      _rpcRows = linhas;
+      _rpcLoading = false;
+      _rpcQuery = query;
+    });
+    // Com menos de 3 letras o servidor só devolve secções: não é "sem resultado".
+    if (letrasDaPesquisa(query) < kLetrasProdutos) return;
+    if (separarResultadosPesquisa(linhas).produtos.isEmpty) {
+      PesquisaAprendizagem.instance
+          .semResultado(query, restaurantId: widget.restaurantId);
+    } else {
+      PesquisaAprendizagem.instance.comResultado();
     }
   }
 
@@ -558,6 +576,17 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
                           _rpcQuery == _searchQuery.trim(),
                       termo: _searchQuery,
                       loja: widget.storeName,
+                      // 18/11/2026: mesmo critério dos botões do topo + loja aberta.
+                      farmacia: _farmaciaVisivel &&
+                              !(restaurantStore
+                                      .restaurantById(widget.restaurantId)
+                                      ?.fechadaParaCliente ??
+                                  false)
+                          ? FarmaciaDaPesquisa(
+                              restaurantId: widget.restaurantId,
+                              nome: widget.storeName,
+                            )
+                          : null,
                       localFallback: suggestions,
                       loadedProducts: products,
                       isPartnerStore: widget.isPartnerStore,
@@ -1885,6 +1914,7 @@ class _SuggestionsPanel extends StatelessWidget {
     required this.onPickSection,
     required this.onPickProduct,
     required this.isPartnerStore,
+    this.farmacia,
   });
 
   final List<Map<String, dynamic>> rpcRows;
@@ -1897,6 +1927,9 @@ class _SuggestionsPanel extends StatelessWidget {
   final ValueChanged<String> onPickSection;
   final ValueChanged<PartnerProduct> onPickProduct;
   final bool isPartnerStore;
+
+  /// 18/11/2026: farmácia aberta que recebe pedidos — "Pedir à farmácia" primeiro.
+  final FarmaciaDaPesquisa? farmacia;
 
   PartnerProduct? _resolveProduct(Map<String, dynamic> row) {
     final id = (row['id'] ?? '').toString();
@@ -1947,7 +1980,7 @@ class _SuggestionsPanel extends StatelessWidget {
       if (!rpcLoading && respondida) {
         return Container(
           color: Colors.white,
-          child: PesquisaSemResultado(termo: termo, loja: loja),
+          child: PesquisaSemResultado(termo: termo, loja: loja, farmacia: farmacia),
         );
       }
       return const SizedBox.shrink();

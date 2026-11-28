@@ -175,7 +175,8 @@ Future<_Limpezas> _abreAssistente(WidgetTester t, DateTime agora) async {
       ChangeNotifierProvider<CleaningStore>.value(value: store),
       ChangeNotifierProvider<CartStore>(create: (_) => CartStore()),
     ],
-    child: _app(CleaningWizardScreen(agora: () => agora)),
+    child: _app(CleaningWizardScreen(
+        agora: () => agora, garantirContacto: _contactoOk)),
   ));
   await t.pumpAndSettle();
   await t.tap(find.text('Continuar')); // passo 1 → passo 2
@@ -190,6 +191,10 @@ Future<void> _preencheMorada(WidgetTester t) async {
   await t.enterText(campos.at(1), 'Guarda');
   await t.pump();
 }
+
+/// O telemóvel do cliente é outro teste (telefone_internacional_test.dart);
+/// aqui a porta "Falta só isto" deixa sempre passar.
+Future<bool> _contactoOk(BuildContext _) async => true;
 
 void main() {
   group('assistente da limpeza — escolha em hora de Lisboa', () {

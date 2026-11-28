@@ -346,3 +346,92 @@ export function abertaPeloHorario(hours: Json, d: Date): { aberta: boolean; fech
   }
   return { aberta, fecha_em_minutos: aberta ? falta : null };
 }
+
+// ─── Farmácia parceira primeiro (18/11/2026, missão farmacia-peca-aqui-18-11) ─────────────────────────
+// Caso real: a cliente procurou "vomidrine" na Farmácia da Sé (parceira), não havia no catálogo, e o Amigo
+// propôs um carrinho na Wells (não-parceira). Regra do Danilo: "primeiro é o parceiro, depois as outras".
+// Quando a farmácia parceira aberta não tem o produto no catálogo, o Amigo oferece primeiro o pedido
+// especial à farmácia (ela confirma se tem e o preço; só se paga depois) e só por baixo a não-parceira.
+
+/** Uma farmácia parceira aberta agora que recebe pedidos especiais (farmacia_botoes_visiveis). */
+export interface FarmaciaParceira { restaurant_id: string; nome: string }
+
+/** Produto de uma pesquisa, com o que interessa para esta regra. */
+export interface ProdutoDaBusca { restaurant_id?: string | null; parceiro?: boolean | null; categoria?: string | null }
+
+export const ACAO_PEDIR_FARMACIA = 'pedir_farmacia';
+
+// Palavras que dizem "isto é coisa de farmácia" (sem acentos, minúsculas). Só palavras sem dois sentidos:
+// "gotas" (de chocolate), "saquetas" (de chá), "pensos" (higiénicos), "receita" (de cozinha) e "vitamina"
+// (de fruta) ficam de fora de propósito (Juiz, 18/11).
+const PALAVRAS_FARMACIA = [
+  'remedio', 'remedios', 'medicamento', 'medicamentos', 'farmacia', 'comprimido', 'comprimidos', 'capsula',
+  'capsulas', 'xarope', 'pomada', 'efervescente', 'antigripal', 'gripe', 'constipacao', 'febre',
+  'dor de cabeca', 'dor de garganta', 'dor de barriga', 'dor de dentes', 'enjoo', 'enjoos', 'vomito', 'vomitos',
+  'nausea', 'nauseas', 'diarreia', 'azia', 'tosse', 'antialergico', 'anti-histaminico', 'paracetamol',
+  'ibuprofeno', 'ben-u-ron', 'benuron', 'brufen', 'aspirina', 'vomidrine', 'dramamine', 'buscopan', 'strepsils',
+  'griponal', 'antibiotico', 'termometro', 'teste de gravidez', 'ligadura', 'probiotico', 'colirio',
+];
+
+function semAcentosF(s: unknown): string {
+  return String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+/** O que a pessoa pediu parece um medicamento ou produto de farmácia? */
+export function pareceFarmacia(texto: string): boolean {
+  const t = ` ${semAcentosF(texto).replace(/[^a-z0-9\- ]+/g, ' ').replace(/\s+/g, ' ')} `;
+  return PALAVRAS_FARMACIA.some((p) => t.includes(` ${p} `) || t.includes(` ${p}s `));
+}
+
+/** destino da ação pedir_farmacia: "restaurant_id|termo" (o termo sem "|", até 80 letras). */
+export function destinoPedirFarmacia(restaurantId: string, termo: string): string {
+  const t = String(termo ?? '').replace(/\|/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+  return `${restaurantId}|${t}`;
+}
+
+/** Lê o destino de pedir_farmacia. Nulo se não tiver loja. */
+export function lerDestinoPedirFarmacia(destino: unknown): { restaurant_id: string; termo: string } | null {
+  const s = String(destino ?? '');
+  const i = s.indexOf('|');
+  const id = (i < 0 ? s : s.slice(0, i)).trim();
+  if (!id || !/^[a-z0-9][a-z0-9_-]{1,80}$/i.test(id)) return null;
+  return { restaurant_id: id, termo: (i < 0 ? '' : s.slice(i + 1)).trim() };
+}
+
+/**
+ * Deve o Amigo oferecer o pedido à farmácia parceira? Sim quando há uma farmácia parceira aberta que recebe
+ * pedidos E nenhum produto da pesquisa é dessa (ou de outra) farmácia parceira E (a pesquisa trouxe
+ * produtos de farmácias não-parceiras, ou não trouxe nada e o termo parece de farmácia).
+ * Devolve a farmácia (a primeira da lista) ou nulo.
+ */
+export function farmaciaParaPedir(o: {
+  produtos: ProdutoDaBusca[]; farmacias: FarmaciaParceira[]; termo: string;
+}): FarmaciaParceira | null {
+  const f = o.farmacias[0];
+  if (!f) return null;
+  const idsParceiras = new Set(o.farmacias.map((x) => x.restaurant_id));
+  const daParceira = o.produtos.some((p) => p.restaurant_id && idsParceiras.has(p.restaurant_id));
+  if (daParceira) return null; // a farmácia parceira tem no catálogo: propõe-se lá (regra 3b)
+  const deFarmaciaNaoParceira = o.produtos.some((p) => p.categoria === 'pharmacy' && p.parceiro !== true);
+  if (deFarmaciaNaoParceira) return f;
+  // Nada encontrado, ou só noutras lojas (supermercado…): a farmácia só se o termo é de farmácia.
+  return pareceFarmacia(o.termo) ? f : null;
+}
+
+/** O pedido à farmácia parceira vai SEMPRE à frente dos outros botões (parceiro primeiro). */
+export function pedirFarmaciaPrimeiro<T extends { tipo?: string }>(acoes: T[]): T[] {
+  const primeiro = acoes.filter((a) => a?.tipo === ACAO_PEDIR_FARMACIA);
+  return [...primeiro, ...acoes.filter((a) => a?.tipo !== ACAO_PEDIR_FARMACIA)];
+}
+
+/**
+ * As apps antigas (sem pedir_farmacia) recebem "abrir_loja" da farmácia: lá está o botão
+ * "Não encontra o produto? Peça aqui". Nunca recebem um botão que não sabem abrir.
+ */
+export function acaoParaApp(a: { tipo: string; rotulo: string; destino: string | null }, suporta: boolean,
+  nomeFarmacia?: string | null): { tipo: string; rotulo: string; destino: string | null } {
+  if (a.tipo !== ACAO_PEDIR_FARMACIA || suporta) return a;
+  const d = lerDestinoPedirFarmacia(a.destino);
+  if (!d) return a;
+  return { tipo: 'abrir_loja', rotulo: `Abrir a ${nomeFarmacia || 'farmácia'}`.slice(0, 40), destino: d.restaurant_id };
+}

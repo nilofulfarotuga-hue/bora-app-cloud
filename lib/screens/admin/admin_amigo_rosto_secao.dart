@@ -76,7 +76,26 @@ class _AdminAmigoRostoSecaoState extends State<AdminAmigoRostoSecao> {
   Future<Map<String, dynamic>?> _carregarSupabase(int dias) async {
     final r = await Supabase.instance.client
         .rpc('admin_amigo_rosto_overview', params: {'p_dias': dias});
-    return r is Map ? Map<String, dynamic>.from(r) : null;
+    if (r is! Map) return null;
+    final v = Map<String, dynamic>.from(r);
+    // Convite nas categorias (27/11/2026): a chave não vem no resumo do
+    // Amigo; lê-se direto e junta-se aos interruptores desta secção.
+    try {
+      final linha = await Supabase.instance.client
+          .from('platform_settings')
+          .select('value')
+          .eq('key', 'home_convite_categorias')
+          .maybeSingle();
+      if (linha != null) {
+        v['interruptores'] = {
+          ...Map<String, dynamic>.from((v['interruptores'] as Map?) ?? const {}),
+          'home_convite_categorias': linha['value'],
+        };
+      }
+    } catch (e) {
+      debugPrint('[AdminAmigoRosto] home_convite_categorias falhou ($e)');
+    }
+    return v;
   }
 
   Future<void> _load() async {
@@ -139,6 +158,8 @@ class _AdminAmigoRostoSecaoState extends State<AdminAmigoRostoSecao> {
     final ativo = it['amigo_rosto_ativo'] != false;
     final vozPadrao = it['amigo_voz_ligada_por_defeito'] != false;
     final mosaico = it['amigo_mosaico_categorias'] != false;
+    final convite = it['home_convite_categorias'] != false &&
+        it['home_convite_categorias']?.toString() != 'false';
     final vel = _velocidade ??
         (num.tryParse('${it['amigo_voz_velocidade'] ?? 1}')?.toDouble() ?? 1).clamp(0.5, 2.0);
     final podeGravar = !_semServidor && !_carregando;
@@ -290,6 +311,15 @@ class _AdminAmigoRostoSecaoState extends State<AdminAmigoRostoSecao> {
           subtitle: const Text('O rostinho animado no início da grelha de categorias da home.'),
           value: mosaico,
           onChanged: podeGravar ? (x) => _gravar('amigo_mosaico_categorias', x) : null,
+        ),
+        SwitchListTile(
+          key: const Key('admin-home-convite-categorias'),
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Convite nas categorias do início (animação) (home_convite_categorias)'),
+          subtitle: const Text(
+              '(faz as categorias da tela inicial darem um pulinho de vez em quando para convidar o cliente a tocar)'),
+          value: convite,
+          onChanged: podeGravar ? (x) => _gravar('home_convite_categorias', x) : null,
         ),
         Text('Velocidade da voz (amigo_voz_velocidade): ${vel.toStringAsFixed(2)}',
             style: const TextStyle(fontSize: 13)),

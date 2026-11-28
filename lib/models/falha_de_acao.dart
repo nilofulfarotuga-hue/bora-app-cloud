@@ -166,6 +166,16 @@ String mensagemDeFalhaDeAcao(
   if (_tem(txt, _semRede)) {
     return 'Sem ligação à internet. Verifica a rede e tenta outra vez.';
   }
+  // 28/11/2026: o servidor recusa sem telemóvel ou sem morada exata
+  // (gatilhos _a0_pedido_exige_contacto / trg_00a_exige_contacto).
+  if (txt.contains('SEM_TELEFONE')) {
+    return 'Falta o teu telemóvel: precisamos dele para te contactar. Põe-no '
+        'no teu perfil e tenta outra vez.';
+  }
+  if (txt.contains('SEM_MORADA')) {
+    return 'Falta a morada exata (rua e número da porta). Põe-na e tenta '
+        'outra vez.';
+  }
 
   return 'Não consegui concluir. Verifica ${trabalho.comMinuscula} e tenta '
       'outra vez.';

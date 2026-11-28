@@ -1247,9 +1247,8 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                 // [Web 07/10/2026] Só no navegador e só até a permissão
                 // estar dada: regista o token em partner_push_tokens.
                 const WebPushCard(role: 'partner'),
-                // 11/11/2026 (farmácias): receitas e pedidos especiais, com toque
-                // persistente enquanto houver algum por responder. Só farmácias.
-                FarmaciaReceitasCartao(restaurant: currentRestaurant),
+                // 11/11/2026 (farmácias): o cartão das receitas e pedidos especiais
+                // passou a 18/11 para o topo fixo (topoFixo, no fim desta lista).
                 // 17/11/2026 (A3 Guarda): impressões e personalizados, com toque persistente
                 // enquanto houver algum por responder. Só lojas com o serviço ligado.
                 ImpressaoPedidosCartao(restaurant: currentRestaurant),
@@ -1436,7 +1435,10 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
                 ),
                 // Agendar pedidos (C5, 29/10/2026): só aparece com o interruptor ligado.
                 PartnerAgendadosAtalho(restaurant: widget.restaurant),
-          ]),
+          ],
+              // 18/11/2026 (adendo 2, Farmácia da Sé): receitas e pedidos especiais
+              // presos no topo do separador Pedidos — sempre à vista, sem puxar o ecrã.
+              topoFixo: FarmaciaReceitasCartao(restaurant: currentRestaurant)),
           // ── Separador "Menu" ───────────────────────────────────────────
           // O antigo "Gerir produtos": o ecrã dos produtos inteiro, com a sua
           // barra de título e o seu botão "+". Só se monta na 1.ª visita.
@@ -1591,17 +1593,26 @@ class _PartnerDashboardScreenState extends State<PartnerDashboardScreen> {
 
   /// Bloco F (10/11/2026): a moldura de cada separador — a mesma da página
   /// única de antes (margem de 16 e a rolar).
-  Widget _paginaDoSeparador(List<Widget> filhos) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: filhos,
-            ),
-          ),
-        ),
-      );
+  /// [topoFixo] (18/11/2026) fica preso por cima da parte que rola.
+  Widget _paginaDoSeparador(List<Widget> filhos, {Widget? topoFixo}) {
+    final rola = SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: filhos,
+      ),
+    );
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: topoFixo == null
+            ? rola
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [topoFixo, Expanded(child: rola)],
+              ),
+      ),
+    );
+  }
 
   /// BUG-UI-04 (2026-05-20) — Bottom sheet com pedidos finalizados
   /// (delivered / cancelled / rejected). Lista vem já ordenada

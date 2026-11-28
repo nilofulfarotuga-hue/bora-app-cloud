@@ -15,6 +15,7 @@ import '../../../widgets/bora/bora_screen_app_bar.dart';
 import '../../../widgets/bora/coming_soon.dart';
 import '../../../widgets/checkout_legal_notice.dart';
 import '../../../widgets/services/staff_avatar.dart';
+import '../../complete_profile_screen.dart' show garantirContactoDoCliente;
 import '../reservation/reservation_payment_method_sheet.dart';
 import 'appointment_mbway_waiting_dialog.dart';
 import 'booking_success_screen.dart';
@@ -347,6 +348,11 @@ class _BookingFlowScreenState extends State<BookingFlowScreen> {
     }
     final staffId = _resolvedStaffId;
     if (staffId == null) return;
+    // 28/11/2026 (Danilo): sem telemóvel não há marcação — o passo "Falta só
+    // isto" antes de escolher o pagamento (o servidor recusa SEM_TELEFONE).
+    final contactoOk =
+        await garantirContactoDoCliente(context, categoria: 'marcacao');
+    if (!contactoOk || !mounted) return;
 
     // M7: paridade com reservas — escolha Cartão | MBWay, NUNCA dinheiro.
     final choice = await showModalBottomSheet<ReservationPaymentChoice>(

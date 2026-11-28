@@ -1,0 +1,16 @@
+# Gestor de comunidade 24h — linhas para o crontab do ROOT no HOST da VPS (como o emerson-fila.sh),
+# que corre os scripts dentro do contentor como hermes. Horas em UTC (o cron do Debian não lê
+# CRON_TZ): Lisboa = UTC no inverno; no horário de verão (29/03-25/10) tirar 1 hora.
+# Instalar só depois de: tabelas redes_* aplicadas, cofre preenchido e ronda.py --ensaio provado.
+# Antes de ligar: confirmar que a VPS aguenta (17/11 19:18: carga 10,9, swap 1,2/2 GB).
+H="docker exec -u hermes hermes-agent-fvnc-hermes-agent-1 bash -lc"
+# De 30 em 30 min das 06:00 às 23:30; de 2 em 2 h de noite (minutos irregulares de propósito).
+7,37 6-23 * * *  $H 'cd /opt/data/ferramentas/comunidade-24h && flock -n /tmp/comunidade-ronda.lock timeout 1500 python3 ronda.py >> /opt/data/missoes/comunidade-cron.log 2>&1'
+13 0,2,4 * * *   $H 'cd /opt/data/ferramentas/comunidade-24h && flock -n /tmp/comunidade-ronda.lock timeout 1500 python3 ronda.py >> /opt/data/missoes/comunidade-cron.log 2>&1'
+# 09:00 números; 21:00 resumo pelo porteiro (texto + voz). Preencher o comando do porteiro ANTES de instalar.
+2 9 * * *        $H 'cd /opt/data/ferramentas/comunidade-24h && timeout 900 python3 metricas.py >> /opt/data/missoes/comunidade-cron.log 2>&1'
+0 21 * * *       $H 'cd /opt/data/ferramentas/comunidade-24h && COMUNIDADE_PORTEIRO_CMD="__CONFIRMAR_SINTAXE_DO_PORTEIRO__" timeout 300 python3 resumo.py >> /opt/data/missoes/comunidade-cron.log 2>&1'
+# Autorizações do YouTube pendentes: de 2 em 2 min vai buscar códigos ao PC (só se houver pendentes).
+*/2 * * * *      $H 'cd /opt/data/ferramentas/comunidade-24h && ls /opt/data/cofre/youtube/pendente-*.json >/dev/null 2>&1 && timeout 100 python3 yt_oauth.py apanhar >> /opt/data/missoes/comunidade-cron.log 2>&1'
+# 10:00 estudo do radar_videos/playbook_redes e domingo experiências: são tarefas de raciocínio,
+# vão pelo relógio do Hermes (agentes_estado, agente "redes", com a alma em /opt/data/missoes), não por aqui.

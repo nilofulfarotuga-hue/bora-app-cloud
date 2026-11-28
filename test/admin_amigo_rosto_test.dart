@@ -112,4 +112,46 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(seconds: 1));
   });
+
+  testWidgets('convite nas categorias (27/11): o interruptor aparece com a explicação e grava a chave',
+      (tester) async {
+    tester.view.physicalSize = const Size(1000, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final gravados = <String, Object>{};
+    var convite = true;
+    await tester.pumpWidget(_app(AdminAmigoRostoSecao(
+      voz: AmigoVoz(motor: _Voz()),
+      carregar: (_) async => {
+        'interruptores': {'home_convite_categorias': convite},
+      },
+      gravar: (k, v) async {
+        gravados[k] = v;
+        convite = v == true;
+      },
+    )));
+    await tester.pump(const Duration(milliseconds: 300));
+    final interruptor = find.byKey(const Key('admin-home-convite-categorias'));
+    expect(interruptor, findsOneWidget);
+    expect(find.textContaining('Convite nas categorias do início (animação)'), findsOneWidget);
+    expect(
+        find.text('(faz as categorias da tela inicial darem um pulinho de vez em quando '
+            'para convidar o cliente a tocar)'),
+        findsOneWidget);
+    expect(tester.widget<SwitchListTile>(interruptor).value, isTrue);
+
+    await tester.ensureVisible(interruptor);
+    await tester.tap(interruptor);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(gravados['home_convite_categorias'], false);
+    expect(tester.widget<SwitchListTile>(interruptor).value, isFalse);
+
+    await tester.tap(interruptor);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(gravados['home_convite_categorias'], true);
+    expect(tester.widget<SwitchListTile>(interruptor).value, isTrue);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 1));
+  });
 }

@@ -37,6 +37,7 @@ import 'admin_category_mapping_screen.dart';
 import 'admin_cleaning_bookings_screen.dart';
 import 'admin_cleaning_cleaners_screen.dart';
 import 'admin_clients_screen.dart';
+import 'admin_clientes_contacto_screen.dart';
 import 'admin_complaints_screen.dart';
 import 'admin_bloqueios_screen.dart';
 import 'admin_folgas_screen.dart';
@@ -952,6 +953,15 @@ List<AdminMenuSection> adminMenuSections() => [
       keywords: const ['banir', 'clientes', 'historico', 'listar', 'suspender'],
     ),
     AdminMenuItem(
+      id: 'clientes_sem_contacto',
+      title: 'Clientes sem telefone ou morada',
+      subtitle: 'Quem não consegue pedir por falta de telefone ou morada (SEM_TELEFONE / SEM_MORADA): quem parou no "Falta só isto", ligar ou WhatsApp, pôr o telefone',
+      icon: Icons.contact_phone_outlined,
+      color: Colors.teal,
+      builder: () => const AdminClientesContactoScreen(),
+      keywords: const ['telefone', 'morada', 'sem_telefone', 'sem_morada', 'falta so isto', 'contacto', 'whatsapp', 'estrangeiro'],
+    ),
+    AdminMenuItem(
       id: 'clientes_avaliacoes',
       title: 'Avaliações',
       subtitle: 'Ver as avaliações, achar quem tem nota baixa e sinalizar avaliações com problema ou denúncia',
@@ -1268,6 +1278,16 @@ List<AdminMenuSection> adminMenuSections() => [
       color: Colors.green,
       builder: () => const AdminFarmaciasScreen(abaInicial: 1),
       keywords: const ['receita', 'prescricao', 'prescrição', 'farmacia', 'farmácia', 'medicamento', 'tenho receita', 'pedido especial', 'csv'],
+    ),
+    // 18/11/2026 (farmacia-peca-aqui): o que os clientes pediram às farmácias fora do catálogo.
+    AdminMenuItem(
+      id: 'farmacias_pedidos_especiais',
+      title: 'Pedidos especiais das farmácias',
+      subtitle: 'Ver o que os clientes pediram fora do catálogo ("Não encontra o produto? Peça aqui"), o estado, a resposta da farmácia e quanto tempo demorou a responder',
+      icon: Icons.manage_search,
+      color: Colors.green,
+      builder: () => const AdminFarmaciasScreen(abaInicial: 3),
+      keywords: const ['pedido livre', 'pedido especial', 'peça aqui', 'peca aqui', 'farmacia', 'farmácia', 'nao encontra', 'não encontra', 'tempo de resposta'],
     ),
     AdminMenuItem(
       id: 'parceiros_alergenos',

@@ -7,6 +7,7 @@ import '../../../models/cleaning_models.dart';
 import '../../../stores/cleaning_store.dart';
 import '../../../utils/hora_lisboa.dart';
 import '../../../widgets/bora/bora.dart';
+import '../../../widgets/escolha_tipo_limpeza.dart';
 import '../../../widgets/selo_serie_limpeza.dart';
 import 'cleaning_plan_screen.dart';
 import 'cleaning_plan_wizard_screen.dart';
@@ -51,34 +52,15 @@ class _CleaningBookingsScreenState extends State<CleaningBookingsScreen> {
   /// 28/11/2026 (planos): primeiro escolhe-se "Uma vez", "Plano (mais barato)" ou
   /// "Limpeza para empresas". "Uma vez" é o assistente de sempre, sem mudanças.
   Future<void> _openWizard() async {
+    // 28/11/2026 (redesenho didático): três cartões grandes, com o preço grande.
     final escolha = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (ctx) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(
-            key: const Key('limpeza-escolha-uma-vez'),
-            leading: const Icon(Icons.cleaning_services, color: AppColors.primary),
-            title: Text('Uma vez'.tr),
-            subtitle: Text('Cartão, MB Way ou dinheiro.'.tr),
-            onTap: () => Navigator.pop(ctx, 'uma_vez'),
-          ),
-          ListTile(
-            key: const Key('limpeza-escolha-plano'),
-            leading: const Icon(Icons.event_repeat, color: AppColors.primary),
-            title: Text('Plano (mais barato)'.tr),
-            subtitle: Text('De 15 em 15 dias ou todas as semanas, desde 9,80 €/h. Só cartão, cancelas quando quiseres.'.tr),
-            onTap: () => Navigator.pop(ctx, 'plano'),
-          ),
-          ListTile(
-            key: const Key('limpeza-escolha-empresa'),
-            leading: const Icon(Icons.storefront, color: AppColors.primary),
-            title: Text('Limpeza para empresas'.tr),
-            subtitle: Text('Lojas, escritórios, clínicas, cafés. À hora que quiseres, desde 12 €/h, produtos incluídos.'.tr),
-            onTap: () => Navigator.pop(ctx, 'empresa'),
-          ),
-          const SizedBox(height: Spacing.sm),
-        ]),
+        child: SingleChildScrollView(
+          child: EscolhaTipoLimpeza(onEscolha: (k) => Navigator.pop(ctx, k)),
+        ),
       ),
     );
     if (!mounted || escolha == null) return;

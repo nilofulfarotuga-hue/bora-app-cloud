@@ -13,8 +13,10 @@ import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/cart_feedback.dart';
+import '../utils/lupa_sugestoes.dart';
 import '../utils/pesquisa_lupa.dart';
 import '../utils/pesquisa_resultados.dart';
+import '../widgets/lupa_sugestoes_painel.dart';
 import '../widgets/pesquisa_sem_resultado.dart';
 import '../widgets/bora/bora_product_card.dart';
 import '../widgets/bora/maior_18.dart';
@@ -87,8 +89,9 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
   // O botão grande "Tenho receita" já saiu do ecrã → o chip fica na barra fina.
   bool _botaoReceitaEscondido = false;
 
-  /// Com 2+ letras a lista dá lugar aos resultados do servidor.
-  bool get _emPesquisa => _searchQuery.trim().length >= 2;
+  /// Com 1+ letras a lista dá lugar à lupa: sugestões com 1-2 letras
+  /// (lupa-sugestoes 17/11), resultados do servidor a partir de 3.
+  bool get _emPesquisa => modoDaLupa(_searchQuery) != ModoLupa.vazio;
 
   // ── Normalise: remove accents + lowercase ──────────────────────────────────
   String _normalize(String text) {
@@ -238,9 +241,11 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
     if (antes) _aposMudarModo();
   }
 
-  void _scheduleRpcSearch(String query) {
+  void _scheduleRpcSearch(String query, {bool ja = false}) {
     final q = query.trim();
-    if (q.length < 2) {
+    // 1-2 letras: as sugestões (LupaSugestoesPainel) tratam de tudo; a
+    // pesquisa completa só a partir de 3 (lupa-sugestoes 17/11).
+    if (modoDaLupa(q) != ModoLupa.pesquisa) {
       _lupa.parar();
       if (_rpcRows.isNotEmpty || _rpcLoading) {
         setState(() {
@@ -250,23 +255,50 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
       }
       return;
     }
-    // Com 2 letras o servidor devolve só as secções; produtos a partir de 3.
-    _lupa.escrever(
-      q,
-      chaveDaPesquisa(q, loja: widget.restaurantId),
-      aoComecar: () {
-        if (mounted) setState(() => _rpcLoading = true);
-      },
-      aoChegar: (linhas) => _mostrarResultados(q, linhas),
-      aoFalhar: (_) {
-        if (!mounted) return;
-        setState(() {
-          _rpcRows = const [];
-          _rpcLoading = false;
-          _rpcQuery = null;
-        });
-      },
+    void aoComecar() {
+      if (mounted) setState(() => _rpcLoading = true);
+    }
+
+    void aoFalhar(Object _) {
+      if (!mounted) return;
+      setState(() {
+        _rpcRows = const [];
+        _rpcLoading = false;
+        _rpcQuery = null;
+      });
+    }
+
+    final chave = chaveDaPesquisa(q, loja: widget.restaurantId);
+    if (ja) {
+      _lupa.agora(q, chave,
+          aoComecar: aoComecar,
+          aoChegar: (linhas) => _mostrarResultados(q, linhas),
+          aoFalhar: aoFalhar);
+      return;
+    }
+    _lupa.escrever(q, chave,
+        aoComecar: aoComecar,
+        aoChegar: (linhas) => _mostrarResultados(q, linhas),
+        aoFalhar: aoFalhar);
+  }
+
+  /// Tocou numa sugestão (1-2 letras): secção → abre a secção da loja; o
+  /// resto → pesquisa completa com esse texto, já, sem esperar.
+  void _escolherSugestao(SugestaoLupa s) {
+    _registo.registarJa(s.texto);
+    if (s.tipo == TipoSugestao.seccao) {
+      _limparPesquisa(categoria: _capitalize(s.ref ?? s.texto));
+      return;
+    }
+    final t = s.texto;
+    final antes = _emPesquisa;
+    _searchController.value = TextEditingValue(
+      text: t,
+      selection: TextSelection.collapsed(offset: t.length),
     );
+    setState(() => _searchQuery = t);
+    if (antes != _emPesquisa) _aposMudarModo();
+    _scheduleRpcSearch(t, ja: true);
   }
 
   /// A pesquisa corre no servidor sobre a loja INTEIRA (867 produtos na
@@ -569,7 +601,15 @@ class _StoreProductsScreenState extends State<StoreProductsScreen> {
                 if (emPesquisa)
                   SliverFillRemaining(
                     hasScrollBody: true,
-                    child: _SuggestionsPanel(
+                    // 17/11 (lupa-sugestoes): com 1-2 letras, as sugestões
+                    // desta loja (palavras, produtos, secções), como a Glovo.
+                    child: modoDaLupa(_searchQuery) == ModoLupa.sugestoes
+                        ? LupaSugestoesPainel(
+                            texto: _searchQuery,
+                            restaurantId: widget.restaurantId,
+                            aoEscolher: _escolherSugestao,
+                          )
+                        : _SuggestionsPanel(
                       rpcRows: _rpcRows,
                       rpcLoading: _rpcLoading,
                       respondida: _rpcQuery != null &&

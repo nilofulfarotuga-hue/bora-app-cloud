@@ -244,7 +244,7 @@ void main() {
     });
     test('a migração mexe na trava sem a desligar', () {
       final m = _ler(
-          'supabase/migrations/20261118210000_painel_aprovacoes_excecao_e_pedir_docs.sql');
+          'supabase/migrations/20261128145223_painel_aprovacoes_excecao_e_pedir_docs.sql');
       expect(m, contains("RAISE EXCEPTION 'atividade_por_aprovar'"));
       expect(m, contains("current_setting('bora.excecao_atividade', true)"));
       expect(m, contains('public.is_admin()'));

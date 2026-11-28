@@ -68,7 +68,13 @@ class _AdminCleaningCleanersScreenState
   Future<void> _review(Map<String, dynamic> c, String action) async {
     // Adendo 3: se o servidor ia recusar por falta do comprovativo aprovado, avisa já, com
     // mensagem clara (e o que o robô viu), em vez de deixar a chamada falhar com 400.
-    if (action == 'approve' && !await avisarSeAtividadePorAprovar(context, c)) return;
+    if (action == 'approve' &&
+        !await avisarSeAtividadePorAprovar(context, c,
+            papel: 'cleaner',
+            entidadeId: c['id']?.toString(),
+            aoAprovarComExcecao: _refresh)) {
+      return;
+    }
     if (!mounted) return;
     final needsReason = action == 'reject' || action == 'suspend';
     final reasonCtrl = TextEditingController();

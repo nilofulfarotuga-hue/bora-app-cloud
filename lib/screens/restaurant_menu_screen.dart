@@ -23,9 +23,11 @@ import '../stores/cart_store.dart';
 import '../stores/favorite_store.dart';
 import '../stores/restaurant_store.dart';
 import '../utils/cart_feedback.dart';
+import '../utils/lupa_sugestoes.dart';
 import '../utils/pesquisa_lupa.dart';
 import '../utils/pesquisa_resultados.dart';
 import '../widgets/aviso_da_loja.dart';
+import '../widgets/lupa_sugestoes_painel.dart';
 import '../widgets/pesquisa_sem_resultado.dart';
 import '../widgets/bora/bora.dart';
 import '../widgets/bora/maior_18.dart';
@@ -205,9 +207,10 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
     super.dispose();
   }
 
-  void _scheduleRpcSearch(String query) {
+  void _scheduleRpcSearch(String query, {bool ja = false}) {
     final q = query.trim();
-    // Menos de 3 letras: o menu fica como está (o servidor só daria secções).
+    // Menos de 3 letras: sugestões do menu (LupaSugestoesPainel, 17/11); a
+    // pesquisa completa só a partir de 3.
     if (letrasDaPesquisa(q) < kLetrasProdutos) {
       _lupa.parar();
       if (_rpcRows.isNotEmpty || _rpcLoading) {
@@ -218,35 +221,54 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
       }
       return;
     }
-    _lupa.escrever(
-      q,
-      chaveDaPesquisa(q, loja: widget.restaurantId),
-      aoComecar: () {
-        if (mounted) setState(() => _rpcLoading = true);
-      },
-      aoChegar: (produtos) {
-        if (!mounted) return;
-        setState(() {
-          _rpcRows = produtos;
-          _rpcLoading = false;
-          _rpcQuery = q;
-        });
-        if (produtos.isEmpty) {
-          PesquisaAprendizagem.instance
-              .semResultado(q, restaurantId: widget.restaurantId);
-        } else {
-          PesquisaAprendizagem.instance.comResultado();
-        }
-      },
-      aoFalhar: (_) {
-        if (!mounted) return;
-        setState(() {
-          _rpcRows = const [];
-          _rpcLoading = false;
-          _rpcQuery = null;
-        });
-      },
+    void aoComecar() {
+      if (mounted) setState(() => _rpcLoading = true);
+    }
+
+    void aoChegar(List<Map<String, dynamic>> produtos) {
+      if (!mounted) return;
+      setState(() {
+        _rpcRows = produtos;
+        _rpcLoading = false;
+        _rpcQuery = q;
+      });
+      if (produtos.isEmpty) {
+        PesquisaAprendizagem.instance
+            .semResultado(q, restaurantId: widget.restaurantId);
+      } else {
+        PesquisaAprendizagem.instance.comResultado();
+      }
+    }
+
+    void aoFalhar(Object _) {
+      if (!mounted) return;
+      setState(() {
+        _rpcRows = const [];
+        _rpcLoading = false;
+        _rpcQuery = null;
+      });
+    }
+
+    final chave = chaveDaPesquisa(q, loja: widget.restaurantId);
+    if (ja) {
+      _lupa.agora(q, chave,
+          aoComecar: aoComecar, aoChegar: aoChegar, aoFalhar: aoFalhar);
+      return;
+    }
+    _lupa.escrever(q, chave,
+        aoComecar: aoComecar, aoChegar: aoChegar, aoFalhar: aoFalhar);
+  }
+
+  /// Tocou numa sugestão (1-2 letras): pesquisa completa com esse texto, já.
+  void _escolherSugestao(SugestaoLupa s) {
+    final t = s.texto;
+    _searchController.value = TextEditingValue(
+      text: t,
+      selection: TextSelection.collapsed(offset: t.length),
     );
+    setState(() => _searchQuery = t);
+    _registo.registarJa(t);
+    _scheduleRpcSearch(t, ja: true);
   }
 
   /// Só os produtos, pela ordem do servidor (m11, 09/11: exato > começa > …).
@@ -629,6 +651,15 @@ class _RestaurantMenuScreenState extends State<RestaurantMenuScreen>
                             );
                           },
                         ),
+            ),
+          ] else if (modoDaLupa(_searchQuery) == ModoLupa.sugestoes) ...[
+            // ── 1-2 letras: sugestões do menu (lupa-sugestoes 17/11) ────
+            Expanded(
+              child: LupaSugestoesPainel(
+                texto: _searchQuery,
+                restaurantId: widget.restaurantId,
+                aoEscolher: _escolherSugestao,
+              ),
             ),
           ] else ...[
             // ── Browse mode: reservar mesa + normal menu ────────────────

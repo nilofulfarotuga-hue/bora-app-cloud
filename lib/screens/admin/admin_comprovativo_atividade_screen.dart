@@ -21,6 +21,7 @@ import '../../services/admin_export_service.dart';
 import '../../services/robo_documentos.dart';
 import '../../services/robo_documentos_service.dart';
 import '../../services/tvde_visibilidade.dart';
+import '../../widgets/admin_documentos.dart' show avisoResultadoAdmin;
 import '../../widgets/admin_robo_documentos.dart';
 import 'admin_robo_documentos_screen.dart';
 import '../../utils/hora_lisboa_ext.dart';
@@ -357,13 +358,16 @@ class _AdminComprovativoAtividadeScreenState
         'pedir_de_novo' => 'Pedido de novo envio feito (a pessoa foi avisada).',
         _ => 'Marcado em análise.',
       });
-      if (mounted) Navigator.of(context).maybePop();
       await _carregar();
     } catch (e) {
+      if (!mounted) return;
       final s = e.toString();
-      _msg(s.contains('sem_documento')
-          ? 'Ainda não há documento para aprovar. Use "Pedir de novo" ou "Enviar lembrete".'
-          : humanizeAdminRpcError(e));
+      await avisoResultadoAdmin(context,
+          ok: false,
+          titulo: 'Não foi feito',
+          texto: s.contains('sem_documento')
+              ? 'Ainda não há documento para aprovar. Use "Pedir de novo" ou "Enviar lembrete".'
+              : humanizeAdminRpcError(e));
     }
   }
 
@@ -451,6 +455,14 @@ class _AdminComprovativoAtividadeScreenState
     );
   }
 
+  /// [18/11/2026] Fecha a folha da pessoa ANTES da ação: a confirmação e o
+  /// resultado (SnackBar) ficavam por baixo da folha e o botão parecia não
+  /// fazer nada.
+  void _fecharEDepois(BuildContext folhaCtx, Future<void> Function() acao) {
+    Navigator.of(folhaCtx).pop();
+    acao();
+  }
+
   void _abrirPessoa(Map<String, dynamic> l) {
     final temDoc = l['tem_documento'] == true;
     final estado = l['atividade_status']?.toString() ?? 'por_enviar';
@@ -521,7 +533,7 @@ class _AdminComprovativoAtividadeScreenState
                         ? FilledButton.styleFrom(backgroundColor: AppColors.error)
                         : null,
                     onPressed: temDoc && estado != 'aprovada'
-                        ? () => _decidir(l, 'aprovar')
+                        ? () => _fecharEDepois(ctx, () => _decidir(l, 'aprovar'))
                         : null,
                     icon: const Icon(Icons.check),
                     label: Text(vereditoDe(l, 'provider_atividade.documento_path')?.errado == true
@@ -530,25 +542,26 @@ class _AdminComprovativoAtividadeScreenState
                   ),
                   OutlinedButton.icon(
                     onPressed: temDoc && estado != 'recusada'
-                        ? () => _decidir(l, 'recusar')
+                        ? () => _fecharEDepois(ctx, () => _decidir(l, 'recusar'))
                         : null,
                     icon: const Icon(Icons.close),
                     label: const Text('Recusar'),
                   ),
                   OutlinedButton.icon(
-                    onPressed: () => _decidir(l, 'pedir_de_novo'),
+                    onPressed: () =>
+                        _fecharEDepois(ctx, () => _decidir(l, 'pedir_de_novo')),
                     icon: const Icon(Icons.refresh),
                     label: const Text('Pedir de novo'),
                   ),
                   OutlinedButton.icon(
                     onPressed: estado == 'em_analise'
                         ? null
-                        : () => _decidir(l, 'em_analise'),
+                        : () => _fecharEDepois(ctx, () => _decidir(l, 'em_analise')),
                     icon: const Icon(Icons.hourglass_top),
                     label: const Text('Marcar em análise'),
                   ),
                   OutlinedButton.icon(
-                    onPressed: () => _lembrar(l),
+                    onPressed: () => _fecharEDepois(ctx, () => _lembrar(l)),
                     icon: const Icon(Icons.notifications_active_outlined),
                     label: const Text('Enviar lembrete'),
                   ),

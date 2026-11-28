@@ -2455,6 +2455,8 @@ const Map<String, String> kStringsEn = <String, String>{
       'Bora Tokens',
   'Buscar no menu...':
       'Search the menu...',
+  'Escreve mais letras para ver todos os produtos.':
+      'Type more letters to see all products.',
   'Buscar produtos...':
       'Search products...',
   'COBERTO PELO PLANO — não cobrar':

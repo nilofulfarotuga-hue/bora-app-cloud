@@ -1,0 +1,257 @@
+// supabase/functions/create-appointment-payment-intent/logica.ts
+//
+// Conserto P0 do Juiz da Claude.ai (15/11/2026 18:42; "Autorizo tudo" do Danilo às 15:15).
+//
+// O problema da v4 (no ar até hoje): o cliente Supabase era criado com a chave secreta MAS com o
+// cabeçalho Authorization do cliente, por isso o `update({ deposit_pi, stripe_account })` depois
+// de criar o PaymentIntent corria como `authenticated` e o erro era ignorado. Com a guarda
+// proposta para appointments (docs/propostas/fechar-tudo-15-11/appointments_guarda.PROPOSTA.sql)
+// esse update deixa de passar e a marcação paga ficaria sem o pagamento gravado.
+//
+// O que muda (v5):
+//  1. Quem chama é identificado pelo token do pedido (admin.auth.getUser(token)); sem sessão
+//     válida = 401. A marcação continua a ser LIDA em nome do cliente (RLS ap_select, como na v4:
+//     a de outra pessoa dá 404) e a confirmação de dono (client_user_id = utilizador → senão 403)
+//     e de estado ('pending_payment' → senão 409) ficam iguais.
+//  2. A escrita do deposit_pi/stripe_account vai por um cliente com a chave do servidor SEM o
+//     Authorization do cliente (service_role), e só grava se a marcação ainda for deste cliente e
+//     ainda estiver 'pending_payment' (o relógio pode tê-la expirado entretanto).
+//  3. Se gravar falhar (erro ou 0 linhas), cancela-se o PaymentIntent e devolve-se 500
+//     save_deposit_pi_failed. Se o cancelamento falhar, a equipa é avisada.
+//  4. A chave de idempotência por omissão é fixa por marcação (`appt_<id>`): uma nova tentativa
+//     depois de um PI cancelado recebia da Stripe a resposta GUARDADA da 1.ª (o PI cancelado).
+//     Agora, quando a Stripe diz que a resposta é repetida (Idempotent-Replayed) e esse PI já
+//     está 'canceled', cria-se um PI novo com a chave `appt_<id>_r<instante>`.
+// Igual à v4: guarda "Em breve", nunca cobrar valor por omissão (deposit_cents inválido/<50 →
+// 400 invalid_charge_amount), metadata kind='appointment', conta Stripe de _shared/stripe_contas.ts,
+// corpo da resposta de sucesso.
+//
+// Revisão do Juiz ao commit 6e4ed0ce (risco de cobrar duas vezes; "Autorizo tudo" do Danilo):
+//  5. Antes de criar, lê-se o PI já gravado na marcação (deposit_pi). Se não está cancelado
+//     (requires_payment_method, requires_action, processing, succeeded...), devolve-se ESSE PI
+//     com o client_secret dele: um PI de cartão à espera da folha de pagamento continua pagável,
+//     por isso criar outro deixava dois PI pagáveis na mesma marcação.
+//  6. A chave da nova tentativa deixa de ter o instante (`_r<agora>` mudava a cada pedido). Agora
+//     é FIXA: `appt_<id>_after_<deposit_pi ou PI repetido>`; se essa também devolver um PI
+//     cancelado, segue para `appt_<id>_after_<esse PI>` (no máximo 5 vezes).
+//  7. Estado errado → 409 com o código fixo `invalid_status` (sem o estado em texto).
+//
+// Sem rede: o index.ts liga isto ao Supabase e à Stripe; o logica_test.ts usa falsos.
+
+import { COMING_SOON_BOOKING_MSG, comingSoonResponseBody } from '../_shared/coming_soon.ts';
+
+export type Resposta = { status: number; corpo: Record<string, unknown> };
+
+export interface IntentCriado {
+  id: string;
+  client_secret: string | null;
+  status?: string;
+  /** A Stripe respondeu com a resposta guardada de um pedido anterior com a mesma chave. */
+  repetido?: boolean;
+}
+
+export interface Marcacao {
+  id: string;
+  client_user_id: string | null;
+  provider_id: string | null;
+  deposit_cents: unknown;
+  status: string | null;
+  deposit_pi?: string | null;
+}
+
+export interface CorpoMarcacao {
+  appointment_id?: string;
+  idempotency_key?: string;
+  stripe_contas_v2?: boolean | string;
+}
+
+export interface StripePronta {
+  conta: string;
+  criarIntent(params: Record<string, unknown>, chave: string): Promise<IntentCriado>;
+  estadoIntent(id: string): Promise<string>;
+  /** Um PI já existente (id, client_secret, estado). */
+  lerIntent(id: string): Promise<IntentCriado>;
+  cancelarIntent(id: string): Promise<void>;
+}
+
+export interface Dependencias {
+  utilizadorDoToken(token: string): Promise<{ id: string } | null>;
+  /** Lida em nome do cliente (RLS). null = não existe ou não a pode ver. */
+  lerMarcacao(id: string): Promise<Marcacao | null>;
+  parceiroEmBreve(providerId: string | null): Promise<boolean>;
+  prepararStripe(body: CorpoMarcacao): Promise<StripePronta>;
+  /** UPDATE com a chave do servidor; null se gravou 1 linha, senão a mensagem do erro. */
+  gravarPi(marcacaoId: string, clienteId: string, piId: string, conta: string): Promise<string | null>;
+  respostaConta(conta: string): Record<string, unknown>;
+  avisarEquipa(resumo: string, detalhes: Record<string, unknown>): Promise<void>;
+  agora(): number;
+}
+
+export function tokenBearer(cabecalho: string | null | undefined): string {
+  const h = cabecalho ?? '';
+  return /^bearer\s+/i.test(h) ? h.replace(/^bearer\s+/i, '').trim() : '';
+}
+
+/** Igual à v3/v4: número inteiro >= 50, senão null (nunca se cobra um valor por omissão). */
+export function centsValidos(raw: unknown): number | null {
+  const cents = typeof raw === 'number' ? raw : Number.parseInt(String(raw ?? ''), 10);
+  return Number.isInteger(cents) && cents >= 50 ? cents : null;
+}
+
+function mensagem(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
+const ORIGEM = 'create-appointment-payment-intent';
+
+/** Estados de um PI de cartão que já não se pode pagar: só estes levam a um PI novo. */
+export const ESTADOS_MORTOS = new Set(['canceled']);
+
+/** Máximo de chaves `_after_` seguidas (cada uma devolveu um PI morto) antes de desistir. */
+export const MAX_CHAVES_APOS = 5;
+
+/**
+ * Cria o PI com a chave base; se a Stripe devolver um PI repetido e morto, tenta a chave FIXA
+ * `<base>_after_<anterior ou PI repetido>` e, se essa também estiver morta, `<base>_after_<esse>`.
+ */
+async function criarSemReaproveitarMorto(
+  stripe: StripePronta,
+  params: Record<string, unknown>,
+  chaveBase: string,
+  anterior: string | null,
+): Promise<IntentCriado> {
+  let intent = await stripe.criarIntent(params, chaveBase);
+  let depois = anterior ?? intent.id;
+  for (let i = 0; intent.repetido && ESTADOS_MORTOS.has(await stripe.estadoIntent(intent.id)); i++) {
+    if (i >= MAX_CHAVES_APOS) throw new Error(`demasiados PI mortos seguidos (ultimo ${intent.id})`);
+    intent = await stripe.criarIntent(params, `${chaveBase}_after_${depois}`);
+    depois = intent.id;
+  }
+  return intent;
+}
+
+export async function tratar(
+  cabecalhoAuth: string | null,
+  body: CorpoMarcacao,
+  deps: Dependencias,
+): Promise<Resposta> {
+  const token = tokenBearer(cabecalhoAuth);
+  const user = token ? await deps.utilizadorDoToken(token) : null;
+  if (!user) return { status: 401, corpo: { error: 'auth required' } };
+
+  if (!body || !body.appointment_id) return { status: 400, corpo: { error: 'missing appointment_id' } };
+
+  const appt = await deps.lerMarcacao(body.appointment_id);
+  if (!appt) return { status: 404, corpo: { error: 'appointment not found' } };
+  if (appt.client_user_id !== user.id) return { status: 403, corpo: { error: 'not your appointment' } };
+  if (appt.status !== 'pending_payment') {
+    return { status: 409, corpo: { error: 'invalid_status' } };
+  }
+
+  if (await deps.parceiroEmBreve(appt.provider_id)) {
+    return { status: 409, corpo: comingSoonResponseBody(COMING_SOON_BOOKING_MSG) };
+  }
+
+  const cents = centsValidos(appt.deposit_cents);
+  if (cents === null) {
+    console.error(`[${ORIGEM}] invalid_charge_amount:`,
+      `appointment=${appt.id}`, `deposit_cents=${JSON.stringify(appt.deposit_cents)}`);
+    return {
+      status: 400,
+      corpo: {
+        error: 'invalid_charge_amount',
+        message: 'A marcação não tem um valor válido para cobrar.',
+        appointment_id: appt.id,
+      },
+    };
+  }
+
+  // Juiz 19:27: a chave e sempre do servidor; a do cliente nao a substitui.
+  const chaveBase = `appt_${appt.id}`;
+  const stripe = await deps.prepararStripe(body);
+  const conta = stripe.conta;
+  const params = {
+    amount: cents,
+    currency: 'eur',
+    payment_method_types: ['card'],
+    metadata: {
+      kind: 'appointment',
+      appointment_id: appt.id,
+      provider_id: appt.provider_id,
+      purpose: 'appointment_deposit',
+      bora_conta: conta,
+    },
+  };
+
+  const sucesso = (pi: IntentCriado): Resposta => ({
+    status: 200,
+    corpo: {
+      appointment_id: appt.id,
+      paymentIntentId: pi.id,
+      clientSecret: pi.client_secret,
+      amount_cents: cents,
+      ...deps.respostaConta(conta),
+    },
+  });
+
+  const anterior = appt.deposit_pi ?? null;
+  let intent: IntentCriado;
+  try {
+    if (anterior) {
+      // Juiz (6e4ed0ce): o PI já gravado manda. Enquanto não estiver cancelado, é esse que vale.
+      const atual = await stripe.lerIntent(anterior);
+      if (!ESTADOS_MORTOS.has(atual.status ?? '')) {
+        console.log(`[${ORIGEM}] PI anterior ainda vivo, devolvido:`, anterior, `status=${atual.status}`);
+        return sucesso(atual);
+      }
+    }
+    intent = await criarSemReaproveitarMorto(stripe, params, chaveBase, anterior);
+  } catch (stripeErr) {
+    // Revisão do Juiz (15/11 19:27): o texto da Stripe fica só no log; a marcação fica
+    // pending_payment e o cliente recebe um código genérico.
+    console.error(`[${ORIGEM}] stripe failed:`, mensagem(stripeErr));
+    return { status: 500, corpo: { error: 'payment_intent_failed' } };
+  }
+
+  let falha: string | null;
+  try {
+    falha = await deps.gravarPi(appt.id, user.id, intent.id, conta);
+  } catch (e) {
+    falha = mensagem(e);
+  }
+
+  if (falha) {
+    let cancelado = true;
+    let erroCancelar: string | null = null;
+    try {
+      await stripe.cancelarIntent(intent.id);
+    } catch (e) {
+      cancelado = false;
+      erroCancelar = mensagem(e);
+    }
+    if (!cancelado) {
+      try {
+        await deps.avisarEquipa(
+          `Marcação ${appt.id}: pagamento ${intent.id} criado mas não gravado e não deu para o cancelar`,
+          { origem: ORIGEM, appointment_id: appt.id, payment_intent: intent.id, motivo: falha, erro_cancelar: erroCancelar },
+        );
+      } catch (e) {
+        console.error(`[${ORIGEM}] avisar equipa falhou:`, mensagem(e));
+      }
+    }
+    console.error(`[${ORIGEM}] save deposit_pi failed:`, falha, intent.id,
+      cancelado ? 'PI cancelado' : `PI NAO cancelado: ${erroCancelar}`);
+    return {
+      status: 500,
+      corpo: {
+        ok: false,
+        error: 'save_deposit_pi_failed',
+        message: 'Não foi possível registar o pagamento da marcação. Nada foi cobrado; tenta de novo.',
+        appointment_id: appt.id,
+        payment_intent_cancelled: cancelado,
+      },
+    };
+  }
+
+  return sucesso(intent);
+}

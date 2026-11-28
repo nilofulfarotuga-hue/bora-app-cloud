@@ -7,6 +7,10 @@
 // vêm em `selected_options_priced[].items[].price_add`. Balcão de uma linha =
 // (basePrice + soma dos price_add) × quantidade — o mesmo que o TOTAL BALCÃO do
 // Telegram. Só ecrã: a conta do servidor não passa por aqui.
+//
+// 28/11/2026 (missão balcao-real, pedido KFC 14658088): quando o servidor
+// carimbou `balcaoReal` no item (último talão saiu mais barato que o
+// catálogo), o balcão é balcaoReal + opções. O preço do cliente fica igual.
 
 import '../config/business_rules.dart';
 import '../models/cart_item.dart';
@@ -17,6 +21,13 @@ import '../models/cart_item.dart';
 /// markup do não-parceiro (round(price ÷ 1,15) recupera a base exata); no
 /// parceiro o `price` já é o de balcão.
 double precoBalcaoUnidade(CartItem i, {bool parceiro = false}) {
+  // Produto ao quilo fica como hoje: o talão dele muda com o peso e a folha
+  // da balança valida ±30 % sobre este mesmo previsto (o servidor, em
+  // `estafeta_ajustar_peso`, valida sobre o basePrice).
+  final real = i.balcaoReal;
+  if (!parceiro && !i.variableWeight && real != null && real > 0) {
+    return real + i.optionsPriceAdd;
+  }
   final b = i.basePriceWithOptions;
   if (b != null) return b;
   if (parceiro) return i.price;

@@ -42,6 +42,10 @@ List<CartItem> copyOrderItemsForDriverSheet(List<CartItem> items) {
             // Depósito Volta (09/11): sem isto o estado das compras gravava
             // `deposit_units: 0` por cima do que o servidor pôs no item.
             depositUnits: i.depositUnits,
+            // 28/11/2026 (balcao-real): sem isto o estado das compras gravava
+            // os itens sem o balcão real e o estafeta voltava a ver o preço
+            // de catálogo.
+            balcaoReal: i.balcaoReal,
           ))
       .toList();
 }
